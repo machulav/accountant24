@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import type { Agent } from "@mariozechner/pi-agent-core";
-import { TUI, Container, Markdown, Loader, Editor } from "@mariozechner/pi-tui";
+import { TUI, Container, Markdown, CancellableLoader, Editor } from "@mariozechner/pi-tui";
 import type { Theme } from "./theme.js";
 
 export function setupChat(
@@ -12,15 +12,17 @@ export function setupChat(
 ): void {
   let streamingMarkdown: Markdown | null = null;
   let streamingText = "";
-  let loader: Loader | null = null;
+  let loader: CancellableLoader | null = null;
 
   agent.subscribe((event) => {
     switch (event.type) {
       case "agent_start":
         editor.disableSubmit = true;
-        loader = new Loader(tui, (s) => chalk.cyan(s), (s) => chalk.dim(s), "Thinking...");
+        loader = new CancellableLoader(tui, (s) => chalk.cyan(s), (s) => chalk.dim(s), "Thinking...");
+        loader.onAbort = () => agent.abort();
         chatContainer.addChild(loader);
         loader.start();
+        tui.setFocus(loader);
         tui.requestRender();
         break;
 
@@ -43,11 +45,13 @@ export function setupChat(
       case "agent_end":
         if (loader) {
           loader.stop();
+          loader.dispose();
           chatContainer.removeChild(loader);
           loader = null;
         }
         streamingMarkdown = null;
         editor.disableSubmit = false;
+        tui.setFocus(editor);
         tui.requestRender();
         break;
     }
