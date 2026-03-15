@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "test": "bun test"
   },
   "dependencies": {
-    "@mariozechner/pi-ai": "latest",
+    "@clack/prompts": "^1.1.0",
     "@mariozechner/pi-agent-core": "latest",
+    "@mariozechner/pi-ai": "latest",
     "@mariozechner/pi-tui": "latest",
     "chalk": "^5.4.0",
     "zod": "^3.24.0"

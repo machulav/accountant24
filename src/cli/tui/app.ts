@@ -12,7 +12,7 @@ import { setupChat } from "./chat.js";
 import { createTheme } from "./theme.js";
 import type { Theme } from "./theme.js";
 
-function createLogo(theme: Theme): string {
+export function createLogo(theme: Theme): string {
   const c = theme.app.logo;
   const d = theme.app.logoTagline;
   return `
@@ -26,14 +26,19 @@ function createLogo(theme: Theme): string {
 `;
 }
 
-export async function startApp(agent: Agent): Promise<void> {
+export async function startApp(
+  agent: Agent,
+  opts?: { showLogo?: boolean },
+): Promise<void> {
   const terminal = new ProcessTerminal();
   const tui = new TUI(terminal);
 
   const theme = createTheme();
 
-  const welcome = new Text(createLogo(theme), 0, 1);
-  tui.addChild(welcome);
+  if (opts?.showLogo !== false) {
+    const welcome = new Text(createLogo(theme), 0, 1);
+    tui.addChild(welcome);
+  }
 
   const chatContainer = new Container();
   tui.addChild(chatContainer);
