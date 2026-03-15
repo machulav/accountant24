@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import type { Agent } from "@mariozechner/pi-agent-core";
 import { TUI, Container, Markdown, CancellableLoader, Editor } from "@mariozechner/pi-tui";
 import type { Theme } from "./theme.js";
@@ -18,7 +17,7 @@ export function setupChat(
     switch (event.type) {
       case "agent_start":
         editor.disableSubmit = true;
-        loader = new CancellableLoader(tui, (s) => chalk.cyan(s), (s) => chalk.dim(s), "Thinking...");
+        loader = new CancellableLoader(tui, theme.app.loaderActive, theme.app.loaderInactive, "Thinking...");
         loader.onAbort = () => agent.abort();
         chatContainer.addChild(loader);
         loader.start();

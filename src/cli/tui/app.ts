@@ -1,30 +1,42 @@
-import chalk from "chalk";
 import type { Agent } from "@mariozechner/pi-agent-core";
-import { TUI, ProcessTerminal, Text, Editor, Container, matchesKey, CombinedAutocompleteProvider } from "@mariozechner/pi-tui";
+import {
+  TUI,
+  ProcessTerminal,
+  Text,
+  Editor,
+  Container,
+  matchesKey,
+  CombinedAutocompleteProvider,
+} from "@mariozechner/pi-tui";
 import { setupChat } from "./chat.js";
 import { createTheme } from "./theme.js";
+import type { Theme } from "./theme.js";
 
-const LOGO = `
-  ${chalk.hex("#5B8DEF")("██████")}  ${chalk.hex("#5B8DEF")("███████")} ${chalk.hex("#5B8DEF")(" █████")}  ${chalk.hex("#5B8DEF")("███   ██")} ${chalk.hex("#5B8DEF")(" ██████")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")(" █████")}  ${chalk.hex("#5B8DEF")("██     ██")}
-  ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("████  ██")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██     ██")}
-  ${chalk.hex("#5B8DEF")("██████")}  ${chalk.hex("#5B8DEF")("█████")}   ${chalk.hex("#5B8DEF")("███████")} ${chalk.hex("#5B8DEF")("██ ██ ██")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("███████")} ${chalk.hex("#5B8DEF")("██  █  ██")}
-  ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██  ████")} ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██")}      ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██ ███ ██")}
-  ${chalk.hex("#5B8DEF")("██████")}  ${chalk.hex("#5B8DEF")("███████")} ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")("██   ███")} ${chalk.hex("#5B8DEF")(" ██████")} ${chalk.hex("#5B8DEF")("███████")} ${chalk.hex("#5B8DEF")("██   ██")} ${chalk.hex("#5B8DEF")(" ███ ███")}
+function createLogo(theme: Theme): string {
+  const c = theme.app.logo;
+  const d = theme.app.logoTagline;
+  return `
+  ${c("██████")}  ${c("███████")} ${c(" █████")}  ${c("███   ██")} ${c(" ██████")} ${c("██")}      ${c(" █████")}  ${c("██     ██")}
+  ${c("██   ██")} ${c("██")}      ${c("██   ██")} ${c("████  ██")} ${c("██")}      ${c("██")}      ${c("██   ██")} ${c("██     ██")}
+  ${c("██████")}  ${c("█████")}   ${c("███████")} ${c("██ ██ ██")} ${c("██")}      ${c("██")}      ${c("███████")} ${c("██  █  ██")}
+  ${c("██   ██")} ${c("██")}      ${c("██   ██")} ${c("██  ████")} ${c("██")}      ${c("██")}      ${c("██   ██")} ${c("██ ███ ██")}
+  ${c("██████")}  ${c("███████")} ${c("██   ██")} ${c("██   ███")} ${c(" ██████")} ${c("███████")} ${c("██   ██")} ${c(" ███ ███")}
 
-  ${chalk.dim("Your personal AI accountant.")}
+  ${d("Your personal AI accountant.")}
 `;
+}
 
 export async function startApp(agent: Agent): Promise<void> {
   const terminal = new ProcessTerminal();
   const tui = new TUI(terminal);
 
-  const welcome = new Text(LOGO, 0, 1);
+  const theme = createTheme();
+
+  const welcome = new Text(createLogo(theme), 0, 1);
   tui.addChild(welcome);
 
   const chatContainer = new Container();
   tui.addChild(chatContainer);
-
-  const theme = createTheme();
   const editor = new Editor(tui, theme.editor);
 
   const autocomplete = new CombinedAutocompleteProvider([
@@ -55,7 +67,7 @@ export async function startApp(agent: Agent): Promise<void> {
       return;
     }
 
-    const userMsg = new Text(text, 2, 0, (s) => chalk.bgHex("#2A2D3D").hex("#5B8DEF")(s));
+    const userMsg = new Text(text, 2, 0, theme.app.userMessage);
     chatContainer.addChild(userMsg);
     editor.addToHistory(text);
     tui.requestRender();
