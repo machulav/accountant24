@@ -22,8 +22,8 @@ You have 5 tools available:
 - **read_file** — Read files from the workspace. Paths are relative to ~/beanclaw.
 - **write_file** — Write files to the workspace. Creates parent directories as needed.
 - **execute** — Run shell commands in ~/beanclaw.
-- **validate** — Run bean-check on a ledger file. Always validate after editing ledger files.
-- **query** — Run BQL queries against the ledger via bean-query.
+- **validate** — Run bean-check on a ledger file. Path relative to ~/beanclaw (default: ledger/main.beancount). Always validate after editing ledger files.
+- **query** — Run BQL queries against the ledger via bean-query. Path relative to ~/beanclaw (default: ledger/main.beancount).
 
 ### Tool guidelines
 

@@ -7,6 +7,11 @@ export interface AppTheme {
   userMessage: (s: string) => string;
   loaderActive: (s: string) => string;
   loaderInactive: (s: string) => string;
+  toolIcon: (s: string) => string;
+  toolLabel: (s: string) => string;
+  toolArgs: (s: string) => string;
+  toolSpinner: (s: string) => string;
+  toolError: (s: string) => string;
 }
 
 export interface Theme {
@@ -52,6 +57,11 @@ export function createTheme(): Theme {
     userMessage: (t) => chalk.bgAnsi256(236).green(t),
     loaderActive: (t) => chalk.green(t),
     loaderInactive: (t) => chalk.dim(t),
+    toolIcon: chalk.green,
+    toolLabel: chalk.bold,
+    toolArgs: chalk.dim,
+    toolSpinner: chalk.green,
+    toolError: chalk.red,
   };
 
   return { editor, markdown, app };

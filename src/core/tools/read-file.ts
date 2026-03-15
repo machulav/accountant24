@@ -19,7 +19,7 @@ export const readFileTool: AgentTool<typeof Params, null> = {
     const file = Bun.file(resolved);
 
     if (!(await file.exists())) {
-      return { content: [{ type: "text", text: `File not found: ${params.path}` }], details: null };
+      throw new Error(`File not found: ${params.path}`);
     }
 
     let text = await file.text();

@@ -1,11 +1,11 @@
 import { Type } from "@mariozechner/pi-ai";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { LEDGER_DIR } from "../config.js";
+import { BEANCLAW_HOME } from "../config.js";
 import { resolveSafePath, runCommand } from "./utils.js";
 
 const Params = Type.Object({
   file: Type.Optional(
-    Type.String({ description: "Beancount file relative to ~/beanclaw/ledger (default: main.beancount)" }),
+    Type.String({ description: "Beancount file relative to ~/beanclaw (default: ledger/main.beancount)" }),
   ),
 });
 
@@ -15,16 +15,13 @@ export const validateTool: AgentTool<typeof Params, null> = {
   description: "Run bean-check to validate a beancount ledger file.",
   parameters: Params,
   async execute(_id, params, signal) {
-    const file = params.file ?? "main.beancount";
-    const resolved = resolveSafePath(file, LEDGER_DIR);
+    const file = params.file ?? "ledger/main.beancount";
+    const resolved = resolveSafePath(file, BEANCLAW_HOME);
 
     const { exitCode, stdout, stderr } = await runCommand(["bean-check", resolved], { signal });
 
     if (exitCode === 127) {
-      return {
-        content: [{ type: "text", text: "bean-check not found. Install beancount: pip install beancount" }],
-        details: null,
-      };
+      throw new Error("bean-check not found. Install beancount: pip install beancount");
     }
 
     if (exitCode === 0) {
@@ -32,6 +29,6 @@ export const validateTool: AgentTool<typeof Params, null> = {
     }
 
     const output = [stdout, stderr].filter(Boolean).join("\n");
-    return { content: [{ type: "text", text: output }], details: null };
+    throw new Error(output);
   },
 };

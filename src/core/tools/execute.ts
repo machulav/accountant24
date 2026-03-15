@@ -21,7 +21,12 @@ export const executeTool: AgentTool<typeof Params, null> = {
     const parts = [`Exit code: ${exitCode}`];
     if (stdout) parts.push(`stdout:\n${stdout}`);
     if (stderr) parts.push(`stderr:\n${stderr}`);
+    const text = parts.join("\n");
 
-    return { content: [{ type: "text", text: parts.join("\n") }], details: null };
+    if (exitCode !== 0) {
+      throw new Error(text);
+    }
+
+    return { content: [{ type: "text", text }], details: null };
   },
 };

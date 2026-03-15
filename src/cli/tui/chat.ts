@@ -5,8 +5,21 @@ import {
   Markdown,
   CancellableLoader,
   Editor,
+  Text,
 } from "@mariozechner/pi-tui";
 import type { Theme } from "./theme.js";
+import {
+  SPINNER_FRAMES,
+  getToolLabel,
+  formatToolSummary,
+  renderToolLine,
+} from "./chat.utils.js";
+
+interface ToolCallEntry {
+  text: Text;
+  toolName: string;
+  summary: string;
+}
 
 export function setupChat(
   agent: Agent,
@@ -18,6 +31,30 @@ export function setupChat(
   let streamingMarkdown: Markdown | null = null;
   let streamingText = "";
   let loader: CancellableLoader | null = null;
+
+  const activeTools = new Map<string, ToolCallEntry>();
+  let spinnerFrame = 0;
+  let spinnerInterval: ReturnType<typeof setInterval> | null = null;
+
+  function startSpinner() {
+    if (spinnerInterval) return;
+    spinnerInterval = setInterval(() => {
+      spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
+      for (const entry of activeTools.values()) {
+        const icon = theme.app.toolSpinner(SPINNER_FRAMES[spinnerFrame]);
+        const label = getToolLabel(entry.toolName);
+        entry.text.setText(renderToolLine(icon, label, entry.summary, theme.app));
+      }
+      tui.requestRender();
+    }, 80);
+  }
+
+  function stopSpinner() {
+    if (spinnerInterval && activeTools.size === 0) {
+      clearInterval(spinnerInterval);
+      spinnerInterval = null;
+    }
+  }
 
   agent.subscribe((event) => {
     switch (event.type) {
@@ -55,7 +92,41 @@ export function setupChat(
         }
         break;
 
+      case "tool_execution_start": {
+        const label = getToolLabel(event.toolName);
+        const summary = formatToolSummary(event.toolName, event.args);
+        const icon = theme.app.toolSpinner(SPINNER_FRAMES[spinnerFrame]);
+        const text = new Text(renderToolLine(icon, label, summary, theme.app), 1, 0);
+        chatContainer.addChild(text);
+        activeTools.set(event.toolCallId, { text, toolName: event.toolName, summary });
+        startSpinner();
+        tui.requestRender();
+        break;
+      }
+
+      case "tool_execution_end": {
+        const entry = activeTools.get(event.toolCallId);
+        if (entry) {
+          activeTools.delete(event.toolCallId);
+          const label = getToolLabel(entry.toolName);
+          const icon = event.isError ? theme.app.toolError("✗") : theme.app.toolIcon("✓");
+          entry.text.setText(renderToolLine(icon, label, entry.summary, theme.app, event.isError));
+          stopSpinner();
+          tui.requestRender();
+        }
+        break;
+      }
+
       case "agent_end":
+        for (const entry of activeTools.values()) {
+          const label = getToolLabel(entry.toolName);
+          entry.text.setText(renderToolLine(theme.app.toolError("✗"), label, entry.summary, theme.app, true));
+        }
+        activeTools.clear();
+        if (spinnerInterval) {
+          clearInterval(spinnerInterval);
+          spinnerInterval = null;
+        }
         if (loader) {
           loader.stop();
           loader.dispose();
