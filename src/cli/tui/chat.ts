@@ -29,7 +29,7 @@ export function setupChat(
       case "message_start":
         if (event.message.role === "assistant") {
           streamingText = "";
-          streamingMarkdown = new Markdown("", 1, 0, theme.markdown);
+          streamingMarkdown = new Markdown("", 1, 1, theme.markdown);
           chatContainer.addChild(streamingMarkdown);
         }
         break;

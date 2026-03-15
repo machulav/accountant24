@@ -55,7 +55,7 @@ export async function startApp(agent: Agent): Promise<void> {
       return;
     }
 
-    const userMsg = new Text(`> ${text}\n`, 1, 0);
+    const userMsg = new Text(text, 2, 0, (s) => chalk.bgHex("#2A2D3D").hex("#5B8DEF")(s));
     chatContainer.addChild(userMsg);
     editor.addToHistory(text);
     tui.requestRender();
