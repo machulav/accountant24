@@ -1,4 +1,5 @@
 export { createAgent } from "./agent/agent.js";
+export { createTools } from "./tools/index.js";
 export {
   loadConfig,
   writeConfig,

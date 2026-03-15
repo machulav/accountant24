@@ -99,7 +99,7 @@ export async function runWizard(): Promise<BeanclawConfig> {
 
   scaffoldProject({ config, baseDir: BEANCLAW_HOME });
 
-  s2.stop(`BeanClaw is set up in ${BEANCLAW_HOME}`);
+  s2.stop(`BeanClaw workspace is set up at ${BEANCLAW_HOME}`);
 
   outro("You're all set!");
 
