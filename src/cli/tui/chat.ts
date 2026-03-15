@@ -1,5 +1,11 @@
 import type { Agent } from "@mariozechner/pi-agent-core";
-import { TUI, Container, Markdown, CancellableLoader, Editor } from "@mariozechner/pi-tui";
+import {
+  TUI,
+  Container,
+  Markdown,
+  CancellableLoader,
+  Editor,
+} from "@mariozechner/pi-tui";
 import type { Theme } from "./theme.js";
 
 export function setupChat(
@@ -17,7 +23,12 @@ export function setupChat(
     switch (event.type) {
       case "agent_start":
         editor.disableSubmit = true;
-        loader = new CancellableLoader(tui, theme.app.loaderActive, theme.app.loaderInactive, "Thinking...");
+        loader = new CancellableLoader(
+          tui,
+          theme.app.loaderActive,
+          theme.app.loaderInactive,
+          "Crunching numbers...",
+        );
         loader.onAbort = () => agent.abort();
         chatContainer.addChild(loader);
         loader.start();
@@ -34,7 +45,10 @@ export function setupChat(
         break;
 
       case "message_update":
-        if (event.assistantMessageEvent.type === "text_delta" && streamingMarkdown) {
+        if (
+          event.assistantMessageEvent.type === "text_delta" &&
+          streamingMarkdown
+        ) {
           streamingText += event.assistantMessageEvent.delta;
           streamingMarkdown.setText(streamingText);
           tui.requestRender();
