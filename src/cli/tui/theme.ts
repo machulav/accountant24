@@ -1,5 +1,9 @@
 import chalk from "chalk";
-import type { EditorTheme, MarkdownTheme, SelectListTheme } from "@mariozechner/pi-tui";
+import type {
+  EditorTheme,
+  MarkdownTheme,
+  SelectListTheme,
+} from "@mariozechner/pi-tui";
 
 export interface AppTheme {
   logo: (s: string) => string;
@@ -54,7 +58,7 @@ export function createTheme(): Theme {
   const app: AppTheme = {
     logo: (t) => chalk.green(t),
     logoTagline: (t) => chalk.white(t),
-    userMessage: (t) => chalk.bgAnsi256(236).green(t),
+    userMessage: (t) => chalk.black(chalk.bgGreen(t)),
     loaderActive: (t) => chalk.green(t),
     loaderInactive: (t) => chalk.dim(t),
     toolIcon: chalk.green,

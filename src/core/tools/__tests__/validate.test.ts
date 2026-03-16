@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-validate-"));
-mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE }));
+mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE, MEMORY_PATH: join(BASE, "memory.json"), LEDGER_DIR: join(BASE, "ledger") }));
 
 const { resolveSafePath, runCommand } = await import("../utils.js");
 

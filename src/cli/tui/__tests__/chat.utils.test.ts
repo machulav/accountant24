@@ -36,6 +36,8 @@ describe("TOOL_LABELS", () => {
     expect(TOOL_LABELS.execute).toBe("Execute");
     expect(TOOL_LABELS.validate).toBe("Validate Ledger");
     expect(TOOL_LABELS.query).toBe("Query Ledger");
+    expect(TOOL_LABELS.add_transaction).toBe("Add Transaction");
+    expect(TOOL_LABELS.update_memory).toBe("Update Memory");
   });
 });
 
@@ -100,6 +102,16 @@ describe("formatToolSummary", () => {
     const long = "SELECT " + "x".repeat(100);
     const result = formatToolSummary("query", { query: long });
     expect(result).toHaveLength(60);
+  });
+
+  test("returns date and payee for add_transaction", () => {
+    expect(formatToolSummary("add_transaction", { date: "2026-03-15", payee: "Whole Foods" })).toBe(
+      "2026-03-15 Whole Foods",
+    );
+  });
+
+  test("returns section for update_memory", () => {
+    expect(formatToolSummary("update_memory", { section: "payees" })).toBe("payees");
   });
 
   test("returns empty string for unknown tool", () => {

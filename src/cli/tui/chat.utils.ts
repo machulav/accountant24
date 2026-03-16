@@ -8,6 +8,8 @@ export const TOOL_LABELS: Record<string, string> = {
   execute: "Execute",
   validate: "Validate Ledger",
   query: "Query Ledger",
+  add_transaction: "Add Transaction",
+  update_memory: "Update Memory",
 };
 
 export function getToolLabel(toolName: string): string {
@@ -25,6 +27,8 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "execute": return truncate(args?.command ?? "", 60);
     case "validate": return args?.file ?? "ledger/main.beancount";
     case "query": return truncate(args?.query ?? "", 60);
+    case "add_transaction": return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
+    case "update_memory": return args?.section ?? "";
     default: return "";
   }
 }
