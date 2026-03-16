@@ -91,17 +91,19 @@ describe("formatToolSummary", () => {
   });
 
   test("returns default file for validate with no args", () => {
-    expect(formatToolSummary("validate", {})).toBe("ledger/main.beancount");
+    expect(formatToolSummary("validate", {})).toBe("ledger/main.journal");
   });
 
   test("returns custom file for validate", () => {
-    expect(formatToolSummary("validate", { file: "other.bean" })).toBe("other.bean");
+    expect(formatToolSummary("validate", { file: "other.journal" })).toBe("other.journal");
   });
 
-  test("truncates query for query tool", () => {
-    const long = "SELECT " + "x".repeat(100);
-    const result = formatToolSummary("query", { query: long });
-    expect(result).toHaveLength(60);
+  test("returns report and account for query tool", () => {
+    expect(formatToolSummary("query", { report: "bal", account_pattern: "Expenses:Food" })).toBe("bal Expenses:Food");
+  });
+
+  test("returns report only for query tool without account", () => {
+    expect(formatToolSummary("query", { report: "bs" })).toBe("bs");
   });
 
   test("returns date and payee for add_transaction", () => {

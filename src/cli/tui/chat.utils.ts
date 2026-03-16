@@ -25,8 +25,8 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "read_file": return args?.path ?? "";
     case "write_file": return args?.path ?? "";
     case "execute": return truncate(args?.command ?? "", 60);
-    case "validate": return args?.file ?? "ledger/main.beancount";
-    case "query": return truncate(args?.query ?? "", 60);
+    case "validate": return args?.file ?? "ledger/main.journal";
+    case "query": return [args?.report, args?.account_pattern].filter(Boolean).join(" ");
     case "add_transaction": return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
     case "update_memory": return args?.section ?? "";
     default: return "";

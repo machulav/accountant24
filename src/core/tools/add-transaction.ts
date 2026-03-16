@@ -46,24 +46,25 @@ function formatTransaction(params: {
   tags?: string[];
   metadata?: Record<string, string>;
 }): string {
-  let header = `${params.date} * "${params.payee}" "${params.narration}"`;
-  if (params.tags?.length) {
-    header += " " + params.tags.map((t) => `#${t}`).join(" ");
-  }
+  let header = `${params.date} * ${params.payee} | ${params.narration}`;
 
   const lines = [header];
 
+  if (params.tags?.length) {
+    lines.push(`    ; ${params.tags.map((t) => `${t}:`).join(", ")}`);
+  }
+
   if (params.metadata) {
     for (const [key, value] of Object.entries(params.metadata)) {
-      lines.push(`  ${key}: "${value}"`);
+      lines.push(`    ; ${key}: ${value}`);
     }
   }
 
   for (const p of params.postings) {
     if (p.amount != null) {
-      lines.push(`  ${p.account}    ${p.amount.toFixed(2)} ${p.currency}`);
+      lines.push(`    ${p.account}    ${p.amount.toFixed(2)} ${p.currency}`);
     } else {
-      lines.push(`  ${p.account}`);
+      lines.push(`    ${p.account}`);
     }
   }
 
@@ -73,7 +74,7 @@ function formatTransaction(params: {
 export const addTransactionTool: AgentTool<typeof Params, null> = {
   name: "add_transaction",
   label: "Add Transaction",
-  description: "Add a single beancount transaction. Auto-routes to the correct monthly file, validates, and commits.",
+  description: "Add a single transaction. Auto-routes to the correct monthly file, validates, and commits.",
   parameters: Params,
   async execute(_id, params, signal) {
     validateInputs(params);
@@ -82,9 +83,9 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
 
     // Route to monthly file
     const [year, month] = params.date.split("-");
-    const relPath = `ledger/${year}/${month}.beancount`;
-    const absPath = join(LEDGER_DIR, year, `${month}.beancount`);
-    const mainPath = join(LEDGER_DIR, "main.beancount");
+    const relPath = `ledger/${year}/${month}.journal`;
+    const absPath = join(LEDGER_DIR, year, `${month}.journal`);
+    const mainPath = join(LEDGER_DIR, "main.journal");
 
     // Ensure directory exists
     mkdirSync(dirname(absPath), { recursive: true });
@@ -102,7 +103,7 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     // Update includes if new file
     if (isNew && existsSync(mainPath)) {
       const mainContent = readFileSync(mainPath, "utf-8");
-      const includeDirective = `include "${year}/${month}.beancount"`;
+      const includeDirective = `include ${year}/${month}.journal`;
       if (!mainContent.includes(includeDirective)) {
         const sep = mainContent.endsWith("\n") ? "" : "\n";
         writeFileSync(mainPath, mainContent + sep + includeDirective + "\n");
@@ -111,12 +112,12 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
 
     // Validate
     const { exitCode: checkCode, stdout, stderr } = await runCommand(
-      ["bean-check", mainPath],
+      ["hledger", "check", "--strict", "-f", mainPath],
       { cwd: BEANCLAW_HOME, signal },
     );
 
     if (checkCode === 127) {
-      // bean-check not installed — skip validation but warn
+      // hledger not installed — skip validation but warn
     } else if (checkCode !== 0) {
       const output = [stdout, stderr].filter(Boolean).join("\n");
       throw new Error(`Validation failed:\n${output}\n\nTransaction was written to ${relPath} but has errors.`);
@@ -142,7 +143,7 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
       commitStatus = "Git not available.";
     }
 
-    const validationStatus = checkCode === 127 ? "bean-check not found, skipped validation." : "Valid.";
+    const validationStatus = checkCode === 127 ? "hledger not found, skipped validation." : "Valid.";
 
     return {
       content: [{

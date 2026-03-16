@@ -132,14 +132,14 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   );
 
   writeFileSync(
-    join(ledgerDir, "main.beancount"),
-    `option "title" "BeanClaw Personal Finances"\n\ninclude "accounts.beancount"\n`,
+    join(ledgerDir, "main.journal"),
+    `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`,
   );
 
   const accountLines = DEFAULT_ACCOUNTS.map(
-    (a) => `${date} open ${a}`,
+    (a) => `account ${a}`,
   ).join("\n");
-  writeFileSync(join(ledgerDir, "accounts.beancount"), accountLines + "\n");
+  writeFileSync(join(ledgerDir, "accounts.journal"), accountLines + "\n");
 
   writeFileSync(join(baseDir, ".gitignore"), ".sessions/\nconfig.json\n");
 }

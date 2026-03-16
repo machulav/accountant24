@@ -5,23 +5,26 @@ import { resolveSafePath, runCommand } from "./utils.js";
 
 const Params = Type.Object({
   file: Type.Optional(
-    Type.String({ description: "Beancount file relative to ~/beanclaw (default: ledger/main.beancount)" }),
+    Type.String({ description: "Journal file relative to ~/beanclaw (default: ledger/main.journal)" }),
   ),
 });
 
 export const validateTool: AgentTool<typeof Params, null> = {
   name: "validate",
   label: "Validate Ledger",
-  description: "Run bean-check to validate a beancount ledger file.",
+  description: "Run hledger check on a journal file.",
   parameters: Params,
   async execute(_id, params, signal) {
-    const file = params.file ?? "ledger/main.beancount";
+    const file = params.file ?? "ledger/main.journal";
     const resolved = resolveSafePath(file, BEANCLAW_HOME);
 
-    const { exitCode, stdout, stderr } = await runCommand(["bean-check", resolved], { signal });
+    const { exitCode, stdout, stderr } = await runCommand(
+      ["hledger", "check", "--strict", "-f", resolved],
+      { signal },
+    );
 
     if (exitCode === 127) {
-      throw new Error("bean-check not found. Install beancount: pip install beancount");
+      throw new Error("hledger not found. Install: https://hledger.org/install");
     }
 
     if (exitCode === 0) {

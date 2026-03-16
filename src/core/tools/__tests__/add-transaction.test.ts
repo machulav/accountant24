@@ -49,87 +49,107 @@ const basicParams = {
 };
 
 test("formats basic transaction correctly", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+  writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run(basicParams);
   const text = result.content[0].text;
-  expect(text).toContain('2026-03-15 * "Whole Foods" "Groceries"');
+  expect(text).toContain("2026-03-15 * Whole Foods | Groceries");
   expect(text).toContain("Expenses:Food:Groceries    45.00 USD");
   expect(text).toContain("Assets:Checking");
 });
 
-test("routes to ledger/YYYY/MM.beancount", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+test("routes to ledger/YYYY/MM.journal", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
   await run(basicParams);
-  const filePath = join(LEDGER, "2026", "03.beancount");
+  const filePath = join(LEDGER, "2026", "03.journal");
   expect(existsSync(filePath)).toBe(true);
   const content = readFileSync(filePath, "utf-8");
   expect(content).toContain("Whole Foods");
 });
 
 test("creates parent directories", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+  writeFileSync(join(LEDGER, "main.journal"), "");
   await run({ ...basicParams, date: "2027-12-01" });
-  expect(existsSync(join(LEDGER, "2027", "12.beancount"))).toBe(true);
+  expect(existsSync(join(LEDGER, "2027", "12.journal"))).toBe(true);
 });
 
 test("appends to existing monthly file", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+  writeFileSync(join(LEDGER, "main.journal"), "");
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
-  writeFileSync(join(LEDGER, "2026", "03.beancount"), '2026-03-01 * "Old" "Existing"\n  Expenses:X    10.00 USD\n  Assets:Y\n');
+  writeFileSync(join(LEDGER, "2026", "03.journal"), "2026-03-01 * Old | Existing\n    Expenses:X    10.00 USD\n    Assets:Y\n");
   await run(basicParams);
-  const content = readFileSync(join(LEDGER, "2026", "03.beancount"), "utf-8");
+  const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
   expect(content).toContain("Old");
   expect(content).toContain("Whole Foods");
 });
 
 test("adds include directive for new monthly files", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), 'option "operating_currency" "USD"\n');
+  writeFileSync(join(LEDGER, "main.journal"), "; BeanClaw Personal Finances\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.beancount"), "utf-8");
-  expect(main).toContain('include "2026/03.beancount"');
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  expect(main).toContain("include 2026/03.journal");
 });
 
 test("does not duplicate existing include", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), 'include "2026/03.beancount"\n');
+  writeFileSync(join(LEDGER, "main.journal"), "include 2026/03.journal\n");
   // File already exists, so include should not be re-added
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
-  writeFileSync(join(LEDGER, "2026", "03.beancount"), "");
+  writeFileSync(join(LEDGER, "2026", "03.journal"), "");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.beancount"), "utf-8");
-  const matches = main.match(/include "2026\/03.beancount"/g);
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const matches = main.match(/include 2026\/03\.journal/g);
   expect(matches).toHaveLength(1);
 });
 
-test("calls bean-check after writing", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
-  let beanCheckCalled = false;
+test("calls hledger check after writing", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  let hledgerCheckCalled = false;
   mockRun = (cmd) => {
-    if (cmd[0] === "bean-check") beanCheckCalled = true;
+    if (cmd[0] === "hledger" && cmd[1] === "check") hledgerCheckCalled = true;
     return { exitCode: 0, stdout: "", stderr: "" };
   };
   await run(basicParams);
-  expect(beanCheckCalled).toBe(true);
+  expect(hledgerCheckCalled).toBe(true);
 });
 
 test("throws on validation failure", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+  writeFileSync(join(LEDGER, "main.journal"), "");
   mockRun = (cmd) => {
-    if (cmd[0] === "bean-check") return { exitCode: 1, stdout: "", stderr: "line 5: Bad transaction" };
+    if (cmd[0] === "hledger" && cmd[1] === "check") return { exitCode: 1, stdout: "", stderr: "account not declared" };
     return { exitCode: 0, stdout: "", stderr: "" };
   };
   await expect(run(basicParams)).rejects.toThrow("Validation failed");
 });
 
-test("handles tags and metadata", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+test("handles tags", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  const result = await run({
+    ...basicParams,
+    tags: ["groceries", "weekly"],
+  });
+  const text = result.content[0].text;
+  expect(text).toContain("; groceries:, weekly:");
+});
+
+test("handles metadata", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  const result = await run({
+    ...basicParams,
+    metadata: { source: "manual" },
+  });
+  const text = result.content[0].text;
+  expect(text).toContain("; source: manual");
+});
+
+test("handles tags and metadata together", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run({
     ...basicParams,
     tags: ["groceries", "weekly"],
     metadata: { source: "manual" },
   });
   const text = result.content[0].text;
-  expect(text).toContain("#groceries #weekly");
-  expect(text).toContain('source: "manual"');
+  expect(text).toContain("; groceries:, weekly:");
+  expect(text).toContain("; source: manual");
 });
 
 test("requires currency when amount present", async () => {
@@ -165,11 +185,19 @@ test("rejects multiple postings without amount", async () => {
 });
 
 test("git commit is non-fatal on failure", async () => {
-  writeFileSync(join(LEDGER, "main.beancount"), "");
+  writeFileSync(join(LEDGER, "main.journal"), "");
   mockRun = (cmd) => {
     if (cmd[0] === "git") return { exitCode: 128, stdout: "", stderr: "not a git repo" };
     return { exitCode: 0, stdout: "", stderr: "" };
   };
   const result = await run(basicParams);
   expect(result.content[0].text).toContain("Added transaction");
+});
+
+test("uses 4-space indent for postings", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  const result = await run(basicParams);
+  const text = result.content[0].text;
+  expect(text).toContain("    Expenses:Food:Groceries");
+  expect(text).toContain("    Assets:Checking");
 });

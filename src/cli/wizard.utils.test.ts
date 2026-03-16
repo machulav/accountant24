@@ -157,24 +157,24 @@ describe("scaffoldProject", () => {
     expect(content).toEqual({ user: { facts: [] }, payees: {}, rules: [] });
   });
 
-  test("writes main.beancount with title and include", () => {
+  test("writes main.journal with comment header and include", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
     const content = readFileSync(
-      join(tmpDir, "ledger", "main.beancount"),
+      join(tmpDir, "ledger", "main.journal"),
       "utf-8",
     );
-    expect(content).toContain('option "title" "BeanClaw Personal Finances"');
-    expect(content).toContain('include "accounts.beancount"');
+    expect(content).toContain("; BeanClaw Personal Finances");
+    expect(content).toContain("include accounts.journal");
   });
 
-  test("writes accounts.beancount with dated open directives", () => {
+  test("writes accounts.journal with account declarations", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
     const content = readFileSync(
-      join(tmpDir, "ledger", "accounts.beancount"),
+      join(tmpDir, "ledger", "accounts.journal"),
       "utf-8",
     );
     for (const account of DEFAULT_ACCOUNTS) {
-      expect(content).toContain(`2025-01-15 open ${account}`);
+      expect(content).toContain(`account ${account}`);
     }
     expect(content.endsWith("\n")).toBe(true);
   });

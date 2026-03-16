@@ -23,7 +23,7 @@ const run = (params: any) => validateTool.execute("test", params) as Promise<any
 
 test("throws on command not found", async () => {
   mockRun = { exitCode: 127, stdout: "", stderr: "" };
-  await expect(run({})).rejects.toThrow("bean-check not found");
+  await expect(run({})).rejects.toThrow("hledger not found");
 });
 
 test("returns success on valid ledger", async () => {
@@ -33,8 +33,8 @@ test("returns success on valid ledger", async () => {
 });
 
 test("throws on validation error", async () => {
-  mockRun = { exitCode: 1, stdout: "", stderr: "line 5: Invalid directive" };
-  await expect(run({})).rejects.toThrow("Invalid directive");
+  mockRun = { exitCode: 1, stdout: "", stderr: "hledger: Error: account not declared" };
+  await expect(run({})).rejects.toThrow("account not declared");
 });
 
 test("throws on path escape", async () => {
