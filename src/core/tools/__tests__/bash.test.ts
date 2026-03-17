@@ -13,12 +13,12 @@ mock.module("../../config.js", () => ({
 const { resolveSafePath, runCommand } = await import("../utils.js");
 mock.module("../utils.js", () => ({ resolveSafePath, runCommand }));
 
-const { executeTool } = await import("../bash.js");
+const { bashTool } = await import("../bash.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
 const run = (params: any) =>
-  executeTool.execute("test", params) as Promise<any>;
+  bashTool.execute("test", params) as Promise<any>;
 
 test("returns output on success", async () => {
   const result = await run({ command: "echo hello" });
@@ -26,17 +26,13 @@ test("returns output on success", async () => {
   expect(result.content[0].text).toContain("hello");
 });
 
-test("throws on non-zero exit code", async () => {
-  const err = await run({ command: "false" }).catch((e: Error) => e);
-  expect(err).toBeInstanceOf(Error);
-  expect(err.message).toContain("Exit code: 1");
+test("returns output with non-zero exit code", async () => {
+  const result = await run({ command: "false" });
+  expect(result.content[0].text).toContain("Exit code: 1");
 });
 
-test("includes stderr in error", async () => {
-  const err = await run({ command: "echo fail >&2; exit 2" }).catch(
-    (e: Error) => e,
-  );
-  expect(err).toBeInstanceOf(Error);
-  expect(err.message).toContain("fail");
-  expect(err.message).toContain("Exit code: 2");
+test("includes stderr in output on failure", async () => {
+  const result = await run({ command: "echo fail >&2; exit 2" });
+  expect(result.content[0].text).toContain("fail");
+  expect(result.content[0].text).toContain("Exit code: 2");
 });

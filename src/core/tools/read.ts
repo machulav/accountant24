@@ -9,7 +9,7 @@ const Params = Type.Object({
   path: Type.String({ description: "File path relative to ~/beanclaw" }),
 });
 
-export const readFileTool: AgentTool<typeof Params, null> = {
+export const readTool: AgentTool<typeof Params, null> = {
   name: "read",
   label: "Read",
   description: "Read a file from the beanclaw workspace (~/beanclaw).",

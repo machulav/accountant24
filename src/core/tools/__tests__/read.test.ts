@@ -13,12 +13,12 @@ mock.module("../../config.js", () => ({
 const { resolveSafePath, runCommand } = await import("../utils.js");
 mock.module("../utils.js", () => ({ resolveSafePath, runCommand }));
 
-const { readFileTool } = await import("../read.js");
+const { readTool } = await import("../read.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
 const run = (params: any) =>
-  readFileTool.execute("test", params) as Promise<any>;
+  readTool.execute("test", params) as Promise<any>;
 
 test("reads file content", async () => {
   writeFileSync(join(BASE, "hello.txt"), "hello world");

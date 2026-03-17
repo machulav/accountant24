@@ -1,7 +1,8 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { readFileTool } from "./read.js";
-import { writeFileTool } from "./write.js";
-import { executeTool } from "./bash.js";
+import { readTool } from "./read.js";
+import { writeTool } from "./write.js";
+import { editTool } from "./edit.js";
+import { bashTool } from "./bash.js";
 import { validateTool } from "./validate.js";
 import { queryTool } from "./query.js";
 import { addTransactionTool } from "./add-transaction.js";
@@ -9,9 +10,10 @@ import { updateMemoryTool } from "./update-memory.js";
 
 export function createTools(): AgentTool[] {
   return [
-    readFileTool,
-    writeFileTool,
-    executeTool,
+    readTool,
+    writeTool,
+    editTool,
+    bashTool,
     validateTool,
     queryTool,
     addTransactionTool,

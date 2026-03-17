@@ -13,12 +13,12 @@ mock.module("../../config.js", () => ({
 const { resolveSafePath, runCommand } = await import("../utils.js");
 mock.module("../utils.js", () => ({ resolveSafePath, runCommand }));
 
-const { writeFileTool } = await import("../write.js");
+const { writeTool } = await import("../write.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
 const run = (params: any) =>
-  writeFileTool.execute("test", params) as Promise<any>;
+  writeTool.execute("test", params) as Promise<any>;
 
 test("writes file and reports bytes", async () => {
   const result = await run({ path: "out.txt", content: "data" });

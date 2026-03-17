@@ -10,7 +10,7 @@ const Params = Type.Object({
   content: Type.String({ description: "Content to write" }),
 });
 
-export const writeFileTool: AgentTool<typeof Params, null> = {
+export const writeTool: AgentTool<typeof Params, null> = {
   name: "write",
   label: "Write",
   description: "Write content to a file in the beanclaw workspace (~/beanclaw). Creates parent directories as needed.",

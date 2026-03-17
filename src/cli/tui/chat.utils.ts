@@ -1,22 +1,12 @@
 import type { AppTheme } from "./theme.js";
 import { buildArgs } from "../../core/tools/query.js";
 
-export const SPINNER_FRAMES = [
-  "⠋",
-  "⠙",
-  "⠹",
-  "⠸",
-  "⠼",
-  "⠴",
-  "⠦",
-  "⠧",
-  "⠇",
-  "⠏",
-];
+export const SPINNER_FRAMES = ["$", "€", "£", "¥", "₴"];
 
 export const TOOL_LABELS: Record<string, string> = {
   read: "Read",
   write: "Write",
+  edit: "Edit",
   bash: "Bash",
   validate: "Validate Workspace",
   query: "Query Ledger",
@@ -37,6 +27,8 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "read":
       return args?.path ?? "";
     case "write":
+      return args?.path ?? "";
+    case "edit":
       return args?.path ?? "";
     case "bash":
       return truncate(args?.command ?? "", 60);

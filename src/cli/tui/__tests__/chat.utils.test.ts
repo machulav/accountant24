@@ -24,8 +24,8 @@ const mockTheme: AppTheme = {
 };
 
 describe("SPINNER_FRAMES", () => {
-  test("has 10 frames", () => {
-    expect(SPINNER_FRAMES).toHaveLength(10);
+  test("has 5 frames", () => {
+    expect(SPINNER_FRAMES).toHaveLength(5);
   });
 });
 

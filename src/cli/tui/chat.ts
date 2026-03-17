@@ -46,7 +46,7 @@ export function setupChat(
         entry.text.setText(renderToolLine(icon, label, entry.summary, theme.app));
       }
       tui.requestRender();
-    }, 80);
+    }, 150);
   }
 
   function stopSpinner() {
@@ -66,9 +66,15 @@ export function setupChat(
           theme.app.loaderInactive,
           "Crunching numbers...",
         );
+        (loader as any).frames = SPINNER_FRAMES;
+        loader.stop();
+        (loader as any).currentFrame = 0;
+        (loader as any).intervalId = setInterval(() => {
+          (loader as any).currentFrame = ((loader as any).currentFrame + 1) % SPINNER_FRAMES.length;
+          (loader as any).updateDisplay();
+        }, 150);
         loader.onAbort = () => agent.abort();
         chatContainer.addChild(loader);
-        loader.start();
         tui.setFocus(loader);
         tui.requestRender();
         break;

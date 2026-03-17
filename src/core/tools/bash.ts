@@ -7,7 +7,7 @@ const Params = Type.Object({
   command: Type.String({ description: "Shell command to execute" }),
 });
 
-export const executeTool: AgentTool<typeof Params, null> = {
+export const bashTool: AgentTool<typeof Params, null> = {
   name: "bash",
   label: "Bash",
   description:
@@ -23,10 +23,6 @@ export const executeTool: AgentTool<typeof Params, null> = {
     if (stdout) parts.push(`stdout:\n${stdout}`);
     if (stderr) parts.push(`stderr:\n${stderr}`);
     const text = parts.join("\n");
-
-    if (exitCode !== 0) {
-      throw new Error(text);
-    }
 
     return { content: [{ type: "text", text }], details: null };
   },
