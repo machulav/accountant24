@@ -4,16 +4,21 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-write-file-"));
-mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE, MEMORY_PATH: join(BASE, "memory.json"), LEDGER_DIR: join(BASE, "ledger") }));
+mock.module("../../config.js", () => ({
+  BEANCLAW_HOME: BASE,
+  MEMORY_PATH: join(BASE, "memory.json"),
+  LEDGER_DIR: join(BASE, "ledger"),
+}));
 
 const { resolveSafePath, runCommand } = await import("../utils.js");
 mock.module("../utils.js", () => ({ resolveSafePath, runCommand }));
 
-const { writeFileTool } = await import("../write-file.js");
+const { writeFileTool } = await import("../write.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
-const run = (params: any) => writeFileTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  writeFileTool.execute("test", params) as Promise<any>;
 
 test("writes file and reports bytes", async () => {
   const result = await run({ path: "out.txt", content: "data" });

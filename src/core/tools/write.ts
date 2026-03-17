@@ -11,8 +11,8 @@ const Params = Type.Object({
 });
 
 export const writeFileTool: AgentTool<typeof Params, null> = {
-  name: "write_file",
-  label: "Write File",
+  name: "write",
+  label: "Write",
   description: "Write content to a file in the beanclaw workspace (~/beanclaw). Creates parent directories as needed.",
   parameters: Params,
   async execute(_id, params) {

@@ -19,9 +19,9 @@ Your workspace is ~/beanclaw with this layout:
 
 You have 7 tools available:
 
-- **read_file** — Read files from the workspace. Paths are relative to ~/beanclaw.
-- **write_file** — Write files to the workspace. Creates parent directories as needed.
-- **execute** — Run shell commands in ~/beanclaw.
+- **read** — Read files from the workspace. Paths are relative to ~/beanclaw.
+- **write** — Write files to the workspace. Creates parent directories as needed.
+- **bash** — Run shell commands in ~/beanclaw.
 - **validate** — Validate the workspace: checks the journal with hledger and validates memory.json schema. No parameters needed.
 - **query** — Run hledger reports against the journal. Pick a report type (bal, reg, aregister, is, bs, print, stats) plus optional filters.
 - **add_transaction** — Add a single transaction with auto-routing to the correct monthly file, validation, and git commit.
@@ -30,7 +30,7 @@ You have 7 tools available:
 ### Tool guidelines
 
 - Use **add_transaction** for individual transactions — it handles file routing, validation, and committing automatically.
-- Use **write_file** + **validate** for bulk imports or complex multi-transaction edits.
+- Use **write** + **validate** for bulk imports or complex multi-transaction edits.
 - Use **update_memory** to remember payee-to-account mappings and user knowledge (facts).
 - When the user explains context about a specific transaction (e.g. "that was for a birthday gift"), put it in the transaction narration — not in memory. The narration is the description field of the transaction.
 - When the user tells you something general about a payee with no relation to a specific transaction (e.g. "Nadja is my translator"), update the payee's notes in memory via **update_memory**.
@@ -45,9 +45,9 @@ You have 7 tools available:
   - \`stats\` for ledger overview
   Filter with: account_pattern, description_pattern, payee_pattern, amount_filter, tag, status, begin_date, end_date.
   Display with: period (monthly/weekly/etc), depth, invert (show expenses as positive), output_format (csv/json for structured data).
-  Use execute for advanced hledger flags not covered by query parameters.
-- Prefer **read_file** and **write_file** over execute for file operations.
-- Use **execute** for tasks that need shell access (listing directories, running external commands).
+  Use bash for advanced hledger flags not covered by query parameters.
+- Prefer **read** and **write** over bash for file operations.
+- Use **bash** for tasks that need shell access (listing directories, running external commands).
 
 ## Journal conventions
 

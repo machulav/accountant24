@@ -4,16 +4,21 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-execute-"));
-mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE, MEMORY_PATH: join(BASE, "memory.json"), LEDGER_DIR: join(BASE, "ledger") }));
+mock.module("../../config.js", () => ({
+  BEANCLAW_HOME: BASE,
+  MEMORY_PATH: join(BASE, "memory.json"),
+  LEDGER_DIR: join(BASE, "ledger"),
+}));
 
 const { resolveSafePath, runCommand } = await import("../utils.js");
 mock.module("../utils.js", () => ({ resolveSafePath, runCommand }));
 
-const { executeTool } = await import("../execute.js");
+const { executeTool } = await import("../bash.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
-const run = (params: any) => executeTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  executeTool.execute("test", params) as Promise<any>;
 
 test("returns output on success", async () => {
   const result = await run({ command: "echo hello" });
@@ -28,7 +33,9 @@ test("throws on non-zero exit code", async () => {
 });
 
 test("includes stderr in error", async () => {
-  const err = await run({ command: "echo fail >&2; exit 2" }).catch((e: Error) => e);
+  const err = await run({ command: "echo fail >&2; exit 2" }).catch(
+    (e: Error) => e,
+  );
   expect(err).toBeInstanceOf(Error);
   expect(err.message).toContain("fail");
   expect(err.message).toContain("Exit code: 2");

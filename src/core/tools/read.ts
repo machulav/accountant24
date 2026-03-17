@@ -10,8 +10,8 @@ const Params = Type.Object({
 });
 
 export const readFileTool: AgentTool<typeof Params, null> = {
-  name: "read_file",
-  label: "Read File",
+  name: "read",
+  label: "Read",
   description: "Read a file from the beanclaw workspace (~/beanclaw).",
   parameters: Params,
   async execute(_id, params) {

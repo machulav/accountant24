@@ -31,9 +31,9 @@ describe("SPINNER_FRAMES", () => {
 
 describe("TOOL_LABELS", () => {
   test("maps all tool names", () => {
-    expect(TOOL_LABELS.read_file).toBe("Read File");
-    expect(TOOL_LABELS.write_file).toBe("Write File");
-    expect(TOOL_LABELS.execute).toBe("Execute");
+    expect(TOOL_LABELS.read).toBe("Read");
+    expect(TOOL_LABELS.write).toBe("Write");
+    expect(TOOL_LABELS.bash).toBe("Bash");
     expect(TOOL_LABELS.validate).toBe("Validate Workspace");
     expect(TOOL_LABELS.query).toBe("Query Ledger");
     expect(TOOL_LABELS.add_transaction).toBe("Add Transaction");
@@ -43,7 +43,7 @@ describe("TOOL_LABELS", () => {
 
 describe("getToolLabel", () => {
   test("returns label for known tool", () => {
-    expect(getToolLabel("read_file")).toBe("Read File");
+    expect(getToolLabel("read")).toBe("Read");
     expect(getToolLabel("query")).toBe("Query Ledger");
   });
 
@@ -75,17 +75,17 @@ describe("truncate", () => {
 });
 
 describe("formatToolSummary", () => {
-  test("returns path for read_file", () => {
-    expect(formatToolSummary("read_file", { path: "foo.txt" })).toBe("foo.txt");
+  test("returns path for read", () => {
+    expect(formatToolSummary("read", { path: "foo.txt" })).toBe("foo.txt");
   });
 
-  test("returns path for write_file", () => {
-    expect(formatToolSummary("write_file", { path: "bar.txt" })).toBe("bar.txt");
+  test("returns path for write", () => {
+    expect(formatToolSummary("write", { path: "bar.txt" })).toBe("bar.txt");
   });
 
-  test("truncates command for execute", () => {
+  test("truncates command for bash", () => {
     const long = "a".repeat(100);
-    const result = formatToolSummary("execute", { command: long });
+    const result = formatToolSummary("bash", { command: long });
     expect(result).toHaveLength(60);
     expect(result.endsWith("…")).toBe(true);
   });
@@ -132,8 +132,8 @@ describe("formatToolSummary", () => {
   });
 
   test("handles null/undefined args", () => {
-    expect(formatToolSummary("read_file", null)).toBe("");
-    expect(formatToolSummary("read_file", undefined)).toBe("");
+    expect(formatToolSummary("read", null)).toBe("");
+    expect(formatToolSummary("read", undefined)).toBe("");
   });
 });
 

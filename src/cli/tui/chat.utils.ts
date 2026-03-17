@@ -15,9 +15,9 @@ export const SPINNER_FRAMES = [
 ];
 
 export const TOOL_LABELS: Record<string, string> = {
-  read_file: "Read File",
-  write_file: "Write File",
-  execute: "Execute",
+  read: "Read",
+  write: "Write",
+  bash: "Bash",
   validate: "Validate Workspace",
   query: "Query Ledger",
   add_transaction: "Add Transaction",
@@ -34,11 +34,11 @@ export function truncate(s: string, max: number): string {
 
 export function formatToolSummary(toolName: string, args: any): string {
   switch (toolName) {
-    case "read_file":
+    case "read":
       return args?.path ?? "";
-    case "write_file":
+    case "write":
       return args?.path ?? "";
-    case "execute":
+    case "bash":
       return truncate(args?.command ?? "", 60);
     case "validate":
       return "";

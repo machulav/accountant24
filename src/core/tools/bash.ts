@@ -8,9 +8,10 @@ const Params = Type.Object({
 });
 
 export const executeTool: AgentTool<typeof Params, null> = {
-  name: "execute",
-  label: "Execute Command",
-  description: "Execute a shell command in the beanclaw workspace (~/beanclaw).",
+  name: "bash",
+  label: "Bash",
+  description:
+    "Execute a shell command in the beanclaw workspace (~/beanclaw).",
   parameters: Params,
   async execute(_id, params, signal) {
     const { exitCode, stdout, stderr } = await runCommand(
