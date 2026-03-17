@@ -58,7 +58,7 @@ export function createTheme(): Theme {
   const app: AppTheme = {
     logo: (t) => chalk.green(t),
     logoTagline: (t) => chalk.white(t),
-    userMessage: (t) => chalk.black(chalk.bgGreen(t)),
+    userMessage: (t) => chalk.white(chalk.bgGray(t)),
     loaderActive: (t) => chalk.green(t),
     loaderInactive: (t) => chalk.dim(t),
     toolIcon: chalk.green,

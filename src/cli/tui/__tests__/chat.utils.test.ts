@@ -34,7 +34,7 @@ describe("TOOL_LABELS", () => {
     expect(TOOL_LABELS.read_file).toBe("Read File");
     expect(TOOL_LABELS.write_file).toBe("Write File");
     expect(TOOL_LABELS.execute).toBe("Execute");
-    expect(TOOL_LABELS.validate).toBe("Validate Ledger");
+    expect(TOOL_LABELS.validate).toBe("Validate Workspace");
     expect(TOOL_LABELS.query).toBe("Query Ledger");
     expect(TOOL_LABELS.add_transaction).toBe("Add Transaction");
     expect(TOOL_LABELS.update_memory).toBe("Update Memory");
@@ -90,20 +90,31 @@ describe("formatToolSummary", () => {
     expect(result.endsWith("…")).toBe(true);
   });
 
-  test("returns default file for validate with no args", () => {
-    expect(formatToolSummary("validate", {})).toBe("ledger/main.journal");
+  test("returns empty string for validate", () => {
+    expect(formatToolSummary("validate", {})).toBe("");
   });
 
-  test("returns custom file for validate", () => {
-    expect(formatToolSummary("validate", { file: "other.journal" })).toBe("other.journal");
+  test("returns full hledger command for query tool", () => {
+    expect(formatToolSummary("query", { report: "bal", account_pattern: "Expenses:Food" })).toBe(
+      "hledger bal -f ledger/main.journal Expenses:Food",
+    );
   });
 
-  test("returns report and account for query tool", () => {
-    expect(formatToolSummary("query", { report: "bal", account_pattern: "Expenses:Food" })).toBe("bal Expenses:Food");
+  test("returns basic command for query without filters", () => {
+    expect(formatToolSummary("query", { report: "bs" })).toBe("hledger bs -f ledger/main.journal");
   });
 
-  test("returns report only for query tool without account", () => {
-    expect(formatToolSummary("query", { report: "bs" })).toBe("bs");
+  test("includes all filters in query command", () => {
+    const result = formatToolSummary("query", {
+      report: "reg",
+      account_pattern: "Expenses",
+      begin_date: "2026-01-01",
+      end_date: "2026-04-01",
+      period: "monthly",
+      depth: 2,
+      invert: true,
+    });
+    expect(result).toBe("hledger reg -f ledger/main.journal Expenses -b 2026-01-01 -e 2026-04-01 --monthly --depth 2 --invert");
   });
 
   test("returns date and payee for add_transaction", () => {

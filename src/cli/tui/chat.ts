@@ -1,12 +1,12 @@
 import type { Agent } from "@mariozechner/pi-agent-core";
 import {
   TUI,
-  Container,
   Markdown,
   CancellableLoader,
   Editor,
   Text,
 } from "@mariozechner/pi-tui";
+import type { GapContainer } from "./gap-container.js";
 import type { Theme } from "./theme.js";
 import {
   SPINNER_FRAMES,
@@ -24,7 +24,7 @@ interface ToolCallEntry {
 export function setupChat(
   agent: Agent,
   tui: TUI,
-  chatContainer: Container,
+  chatContainer: GapContainer,
   editor: Editor,
   theme: Theme,
 ): void {
@@ -76,16 +76,16 @@ export function setupChat(
       case "message_start":
         if (event.message.role === "assistant") {
           streamingText = "";
-          streamingMarkdown = new Markdown("", 1, 1, theme.markdown);
-          chatContainer.addChild(streamingMarkdown);
+          streamingMarkdown = null;
         }
         break;
 
       case "message_update":
-        if (
-          event.assistantMessageEvent.type === "text_delta" &&
-          streamingMarkdown
-        ) {
+        if (event.assistantMessageEvent.type === "text_delta") {
+          if (!streamingMarkdown) {
+            streamingMarkdown = new Markdown("", 1, 0, theme.markdown);
+            chatContainer.addChild(streamingMarkdown);
+          }
           streamingText += event.assistantMessageEvent.delta;
           streamingMarkdown.setText(streamingText);
           tui.requestRender();
@@ -117,7 +117,7 @@ export function setupChat(
         break;
       }
 
-      case "agent_end":
+      case "agent_end": {
         for (const entry of activeTools.values()) {
           const label = getToolLabel(entry.toolName);
           entry.text.setText(renderToolLine(theme.app.toolError("✗"), label, entry.summary, theme.app, true));
@@ -133,11 +133,26 @@ export function setupChat(
           chatContainer.removeChild(loader);
           loader = null;
         }
+
+        // Check for error messages that weren't displayed during streaming
+        const errorMsg = event.messages.find(
+          (m: any) => m.role === "assistant" && m.stopReason === "error" && m.errorMessage,
+        );
+        if (errorMsg && !streamingText) {
+          const icon = theme.app.toolError("✗");
+          const label = theme.app.toolError("Error");
+          const detail = theme.app.toolArgs((errorMsg as any).errorMessage);
+          const errText = new Text(` ${icon} ${label}  ${detail}`, 1, 0);
+          chatContainer.addChild(errText);
+        }
+
         streamingMarkdown = null;
+        streamingText = "";
         editor.disableSubmit = false;
         tui.setFocus(editor);
         tui.requestRender();
         break;
+      }
     }
   });
 }

@@ -18,14 +18,38 @@ beforeEach(() => {
 const run = (params: any) => updateMemoryTool.execute("test", params) as Promise<any>;
 const readMemory = () => JSON.parse(readFileSync(MEMORY, "utf-8"));
 
-test("updates user.facts", async () => {
-  const result = await run({ section: "user", data: { facts: ["prefers USD"] } });
-  expect(result.content[0].text).toBe("Updated memory section 'user'.");
-  expect(readMemory().user.facts).toEqual(["prefers USD"]);
+// --- facts section ---
+
+test("updates facts", async () => {
+  const result = await run({ section: "facts", data: ["prefers USD"] });
+  expect(result.content[0].text).toBe("Updated memory section 'facts'.");
+  expect(readMemory().facts).toEqual(["prefers USD"]);
 });
 
+test("appends facts without replacing existing ones", async () => {
+  writeFileSync(MEMORY, JSON.stringify({ facts: ["old fact"], payees: {} }));
+  await run({ section: "facts", data: ["new fact"] });
+  expect(readMemory().facts).toEqual(["old fact", "new fact"]);
+});
+
+test("deduplicates facts", async () => {
+  writeFileSync(MEMORY, JSON.stringify({ facts: ["existing"], payees: {} }));
+  await run({ section: "facts", data: ["existing", "new"] });
+  expect(readMemory().facts).toEqual(["existing", "new"]);
+});
+
+test("rejects non-string items in facts", async () => {
+  await expect(run({ section: "facts", data: [123] })).rejects.toThrow("Invalid data");
+});
+
+test("rejects non-array facts", async () => {
+  await expect(run({ section: "facts", data: { facts: [] } })).rejects.toThrow("Invalid data");
+});
+
+// --- payees section ---
+
 test("merges new payee while preserving existing ones", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ user: {}, payees: { "Whole Foods": { account: "Expenses:Food" } }, rules: [] }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: [], payees: { "Whole Foods": { account: "Expenses:Food" } } }));
   await run({ section: "payees", data: { "Trader Joes": { account: "Expenses:Food" } } });
   const mem = readMemory();
   expect(mem.payees["Whole Foods"]).toEqual({ account: "Expenses:Food" });
@@ -33,30 +57,60 @@ test("merges new payee while preserving existing ones", async () => {
 });
 
 test("overwrites existing payee entry", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ user: {}, payees: { "Whole Foods": { account: "Expenses:Food" } }, rules: [] }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: [], payees: { "Whole Foods": { account: "Expenses:Food" } } }));
   await run({ section: "payees", data: { "Whole Foods": { account: "Expenses:Groceries" } } });
   expect(readMemory().payees["Whole Foods"]).toEqual({ account: "Expenses:Groceries" });
 });
 
-test("replaces rules array entirely", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ user: {}, payees: {}, rules: [{ old: true }] }));
-  await run({ section: "rules", data: [{ new: true }] });
-  expect(readMemory().rules).toEqual([{ new: true }]);
+test("accepts payee with all optional fields", async () => {
+  await run({ section: "payees", data: {
+    "Whole Foods": { account: "Expenses:Food", patterns: ["WFM", "WHOLE FOODS"], notes: "Grocery store" },
+  } });
+  expect(readMemory().payees["Whole Foods"]).toEqual({
+    account: "Expenses:Food", patterns: ["WFM", "WHOLE FOODS"], notes: "Grocery store",
+  });
 });
 
+test("rejects payee with unknown fields", async () => {
+  await expect(run({ section: "payees", data: {
+    "X": { account: "A", badField: "nope" },
+  } })).rejects.toThrow("Invalid data");
+});
+
+test("rejects payee without required account field", async () => {
+  await expect(run({ section: "payees", data: {
+    "X": { patterns: ["x"] },
+  } })).rejects.toThrow("Invalid data");
+});
+
+// --- general ---
+
 test("creates memory.json if missing", async () => {
-  await run({ section: "user", data: { facts: ["test"] } });
+  await run({ section: "facts", data: ["test"] });
   const mem = readMemory();
-  expect(mem.user.facts).toEqual(["test"]);
+  expect(mem.facts).toEqual(["test"]);
   expect(mem.payees).toEqual({});
-  expect(mem.rules).toEqual([]);
 });
 
 test("preserves other sections when updating one", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ user: { facts: ["keep me"] }, payees: { x: 1 }, rules: [1] }));
-  await run({ section: "payees", data: { y: 2 } });
+  writeFileSync(MEMORY, JSON.stringify({ facts: ["keep me"], payees: { x: { account: "A" } } }));
+  await run({ section: "payees", data: { y: { account: "B" } } });
   const mem = readMemory();
-  expect(mem.user.facts).toEqual(["keep me"]);
-  expect(mem.rules).toEqual([1]);
-  expect(mem.payees).toEqual({ x: 1, y: 2 });
+  expect(mem.facts).toEqual(["keep me"]);
+  expect(mem.payees.x).toEqual({ account: "A" });
+  expect(mem.payees.y).toEqual({ account: "B" });
+});
+
+test("handles data passed as JSON string", async () => {
+  await run({ section: "facts", data: '["fact from string"]' });
+  expect(readMemory().facts).toEqual(["fact from string"]);
+});
+
+test("handles payees data passed as JSON string", async () => {
+  await run({ section: "payees", data: '{"WF": {"account": "Expenses:Food"}}' });
+  expect(readMemory().payees.WF).toEqual({ account: "Expenses:Food" });
+});
+
+test("throws on non-parseable string data", async () => {
+  await expect(run({ section: "facts", data: "not valid json" })).rejects.toThrow("Invalid data");
 });

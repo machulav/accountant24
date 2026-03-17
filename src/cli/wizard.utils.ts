@@ -87,7 +87,7 @@ export async function verifyApiKey(
         systemPrompt: "Respond with exactly: OK",
         messages: [{ role: "user", content: "Say OK", timestamp: Date.now() }],
       },
-      { maxTokens: 10 },
+      { maxTokens: 16 },
     );
     if (result.stopReason === "error") {
       return {
@@ -127,7 +127,7 @@ export function scaffoldProject(options: ScaffoldOptions): void {
 
   writeFileSync(
     join(baseDir, "memory.json"),
-    JSON.stringify({ user: { facts: [] }, payees: {}, rules: [] }, null, 2) +
+    JSON.stringify({ facts: [], payees: {} }, null, 2) +
       "\n",
   );
 

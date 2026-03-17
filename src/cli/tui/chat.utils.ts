@@ -1,12 +1,24 @@
 import type { AppTheme } from "./theme.js";
+import { buildArgs } from "../../core/tools/query.js";
 
-export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+export const SPINNER_FRAMES = [
+  "⠋",
+  "⠙",
+  "⠹",
+  "⠸",
+  "⠼",
+  "⠴",
+  "⠦",
+  "⠧",
+  "⠇",
+  "⠏",
+];
 
 export const TOOL_LABELS: Record<string, string> = {
   read_file: "Read File",
   write_file: "Write File",
   execute: "Execute",
-  validate: "Validate Ledger",
+  validate: "Validate Workspace",
   query: "Query Ledger",
   add_transaction: "Add Transaction",
   update_memory: "Update Memory",
@@ -22,14 +34,24 @@ export function truncate(s: string, max: number): string {
 
 export function formatToolSummary(toolName: string, args: any): string {
   switch (toolName) {
-    case "read_file": return args?.path ?? "";
-    case "write_file": return args?.path ?? "";
-    case "execute": return truncate(args?.command ?? "", 60);
-    case "validate": return args?.file ?? "ledger/main.journal";
-    case "query": return [args?.report, args?.account_pattern].filter(Boolean).join(" ");
-    case "add_transaction": return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
-    case "update_memory": return args?.section ?? "";
-    default: return "";
+    case "read_file":
+      return args?.path ?? "";
+    case "write_file":
+      return args?.path ?? "";
+    case "execute":
+      return truncate(args?.command ?? "", 60);
+    case "validate":
+      return "";
+    case "query":
+      return args?.report
+        ? buildArgs(args, args?.file ?? "ledger/main.journal").join(" ")
+        : "";
+    case "add_transaction":
+      return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
+    case "update_memory":
+      return args?.section ?? "";
+    default:
+      return "";
   }
 }
 

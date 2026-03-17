@@ -4,11 +4,11 @@ import {
   ProcessTerminal,
   Text,
   Editor,
-  Container,
   matchesKey,
   CombinedAutocompleteProvider,
 } from "@mariozechner/pi-tui";
 import { setupChat } from "./chat.js";
+import { GapContainer } from "./gap-container.js";
 import { createTheme } from "./theme.js";
 import type { Theme } from "./theme.js";
 
@@ -40,7 +40,7 @@ export async function startApp(
     tui.addChild(welcome);
   }
 
-  const chatContainer = new Container();
+  const chatContainer = new GapContainer(1, 1);
   tui.addChild(chatContainer);
   const editor = new Editor(tui, theme.editor);
 
@@ -77,7 +77,16 @@ export async function startApp(
     editor.addToHistory(text);
     tui.requestRender();
 
-    await agent.prompt(text);
+    try {
+      await agent.prompt(text);
+    } catch (err) {
+      const icon = theme.app.toolError("✗");
+      const label = theme.app.toolError("Error");
+      const detail = theme.app.toolArgs(err instanceof Error ? err.message : String(err));
+      const errText = new Text(` ${icon} ${label}  ${detail}`, 1, 0);
+      chatContainer.addChild(errText);
+      tui.requestRender();
+    }
   };
 
   tui.addChild(editor);

@@ -106,7 +106,7 @@ describe("verifyApiKey", () => {
       },
     });
     expect(capturedContext.systemPrompt).toBe("Respond with exactly: OK");
-    expect(capturedOptions.maxTokens).toBe(10);
+    expect(capturedOptions.maxTokens).toBe(16);
   });
 });
 
@@ -154,7 +154,7 @@ describe("scaffoldProject", () => {
     const content = JSON.parse(
       readFileSync(join(tmpDir, "memory.json"), "utf-8"),
     );
-    expect(content).toEqual({ user: { facts: [] }, payees: {}, rules: [] });
+    expect(content).toEqual({ facts: [], payees: {} });
   });
 
   test("writes main.journal with comment header and include", () => {
