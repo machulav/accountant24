@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
 import type { BeanclawConfig } from "../core/config.js";
@@ -101,6 +101,12 @@ export interface ScaffoldOptions {
   date?: string;
 }
 
+function writeIfNotExists(filePath: string, content: string): void {
+  if (!existsSync(filePath)) {
+    writeFileSync(filePath, content);
+  }
+}
+
 export function scaffoldProject(options: ScaffoldOptions): void {
   const { config, baseDir } = options;
   const ledgerDir = join(baseDir, "ledger");
@@ -111,12 +117,12 @@ export function scaffoldProject(options: ScaffoldOptions): void {
 
   writeFileSync(join(baseDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
 
-  writeFileSync(join(baseDir, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
+  writeIfNotExists(join(baseDir, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
 
-  writeFileSync(join(ledgerDir, "main.journal"), `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`);
+  writeIfNotExists(join(ledgerDir, "main.journal"), `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`);
 
   const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
-  writeFileSync(join(ledgerDir, "accounts.journal"), `${accountLines}\n`);
+  writeIfNotExists(join(ledgerDir, "accounts.journal"), `${accountLines}\n`);
 
-  writeFileSync(join(baseDir, ".gitignore"), ".sessions/\nconfig.json\n");
+  writeIfNotExists(join(baseDir, ".gitignore"), ".sessions/\nconfig.json\n");
 }

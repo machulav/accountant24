@@ -82,7 +82,11 @@ export function setupChat(agent: Agent, tui: TUI, chatContainer: GapContainer, e
         const icon = theme.app.toolSpinner(SPINNER_FRAMES[spinnerFrame]);
         const text = new Text(renderToolLine(icon, label, summary, theme.app), 1, 0);
         chatContainer.addChild(text);
-        activeTools.set(event.toolCallId, { text, toolName: event.toolName, summary });
+        activeTools.set(event.toolCallId, {
+          text,
+          toolName: event.toolName,
+          summary,
+        });
         startSpinner();
         tui.requestRender();
         break;

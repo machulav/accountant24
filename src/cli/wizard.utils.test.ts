@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_ACCOUNTS, PROVIDER_MODELS, scaffoldProject, today, verifyApiKey } from "./wizard.utils.js";
@@ -174,5 +174,40 @@ describe("scaffoldProject", () => {
     expect(() => {
       scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
     }).not.toThrow();
+  });
+
+  test("preserves existing memory.json on re-scaffold", () => {
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    writeFileSync(join(tmpDir, "memory.json"), '{"facts":["custom fact"]}\n');
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    expect(readFileSync(join(tmpDir, "memory.json"), "utf-8")).toBe('{"facts":["custom fact"]}\n');
+  });
+
+  test("preserves existing main.journal on re-scaffold", () => {
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    writeFileSync(join(tmpDir, "ledger", "main.journal"), "; custom main\n");
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    expect(readFileSync(join(tmpDir, "ledger", "main.journal"), "utf-8")).toBe("; custom main\n");
+  });
+
+  test("preserves existing accounts.journal on re-scaffold", () => {
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    writeFileSync(join(tmpDir, "ledger", "accounts.journal"), "account Custom:Account\n");
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    expect(readFileSync(join(tmpDir, "ledger", "accounts.journal"), "utf-8")).toBe("account Custom:Account\n");
+  });
+
+  test("preserves existing .gitignore on re-scaffold", () => {
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    writeFileSync(join(tmpDir, ".gitignore"), ".sessions/\nconfig.json\n*.custom\n");
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    expect(readFileSync(join(tmpDir, ".gitignore"), "utf-8")).toBe(".sessions/\nconfig.json\n*.custom\n");
+  });
+
+  test("always overwrites config.json on re-scaffold", () => {
+    scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
+    const newConfig = { llm_provider: "openai", llm_model: "gpt-5.4", api_key: "sk-new-key" };
+    scaffoldProject({ config: newConfig, baseDir: tmpDir, date: "2025-01-15" });
+    expect(JSON.parse(readFileSync(join(tmpDir, "config.json"), "utf-8"))).toEqual(newConfig);
   });
 });
