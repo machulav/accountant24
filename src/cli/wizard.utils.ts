@@ -67,7 +67,7 @@ export type VerifyResult = { ok: true } | { ok: false; error: string };
 export async function verifyApiKey(
   provider: string,
   modelId: string,
-  apiKey: string,
+  _apiKey: string,
   deps: { getModel: GetModelFn; completeSimple: CompleteFn },
 ): Promise<VerifyResult> {
   try {
@@ -102,21 +102,21 @@ export interface ScaffoldOptions {
 }
 
 export function scaffoldProject(options: ScaffoldOptions): void {
-  const { config, baseDir, date = today() } = options;
+  const { config, baseDir } = options;
   const ledgerDir = join(baseDir, "ledger");
 
   mkdirSync(ledgerDir, { recursive: true });
   mkdirSync(join(baseDir, "documents"), { recursive: true });
   mkdirSync(join(baseDir, ".sessions"), { recursive: true });
 
-  writeFileSync(join(baseDir, "config.json"), JSON.stringify(config, null, 2) + "\n");
+  writeFileSync(join(baseDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
 
-  writeFileSync(join(baseDir, "memory.json"), JSON.stringify({ facts: [] }, null, 2) + "\n");
+  writeFileSync(join(baseDir, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
 
   writeFileSync(join(ledgerDir, "main.journal"), `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`);
 
   const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
-  writeFileSync(join(ledgerDir, "accounts.journal"), accountLines + "\n");
+  writeFileSync(join(ledgerDir, "accounts.journal"), `${accountLines}\n`);
 
   writeFileSync(join(baseDir, ".gitignore"), ".sessions/\nconfig.json\n");
 }

@@ -29,7 +29,7 @@ export function loadConfig(): BeanclawConfig | null {
 
 export function writeConfig(config: BeanclawConfig): void {
   mkdirSync(BEANCLAW_HOME, { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+  writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
 }
 
 const ENV_VAR_MAP: Record<string, string> = {

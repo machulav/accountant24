@@ -7,7 +7,7 @@ export function createAgent(provider: string, model: string): Agent {
   return new Agent({
     initialState: {
       systemPrompt: getSystemPrompt(),
-      model: (getModel as Function)(provider, model),
+      model: (getModel as (...args: never) => unknown)(provider, model),
       tools: createTools(),
     },
     streamFn: streamSimple,

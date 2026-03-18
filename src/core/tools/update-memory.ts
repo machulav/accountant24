@@ -57,7 +57,7 @@ export const updateMemoryTool: AgentTool<typeof Params, null> = {
     }
 
     mkdirSync(dirname(MEMORY_PATH), { recursive: true });
-    writeFileSync(MEMORY_PATH, JSON.stringify({ facts: raw.facts }, null, 2) + "\n");
+    writeFileSync(MEMORY_PATH, `${JSON.stringify({ facts: raw.facts }, null, 2)}\n`);
 
     return {
       content: [{ type: "text", text: "Updated memory." }],

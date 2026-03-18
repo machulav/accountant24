@@ -93,11 +93,11 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     // Append or create
     const isNew = !existsSync(absPath);
     if (isNew) {
-      writeFileSync(absPath, txText + "\n");
+      writeFileSync(absPath, `${txText}\n`);
     } else {
       const existing = readFileSync(absPath, "utf-8");
       const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-      writeFileSync(absPath, existing + separator + txText + "\n");
+      writeFileSync(absPath, `${existing}${separator}${txText}\n`);
     }
 
     // Update includes if new file
@@ -106,7 +106,7 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
       const includeDirective = `include ${year}/${month}.journal`;
       if (!mainContent.includes(includeDirective)) {
         const sep = mainContent.endsWith("\n") ? "" : "\n";
-        writeFileSync(mainPath, mainContent + sep + includeDirective + "\n");
+        writeFileSync(mainPath, `${mainContent}${sep}${includeDirective}\n`);
       }
     }
 
