@@ -154,7 +154,7 @@ describe("scaffoldProject", () => {
     const content = JSON.parse(
       readFileSync(join(tmpDir, "memory.json"), "utf-8"),
     );
-    expect(content).toEqual({ facts: [], payees: {} });
+    expect(content).toEqual({ facts: [] });
   });
 
   test("writes main.journal with comment header and include", () => {

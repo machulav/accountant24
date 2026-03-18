@@ -123,8 +123,8 @@ describe("formatToolSummary", () => {
     );
   });
 
-  test("returns section for update_memory", () => {
-    expect(formatToolSummary("update_memory", { section: "payees" })).toBe("payees");
+  test("returns fact count for update_memory", () => {
+    expect(formatToolSummary("update_memory", { facts: ["a", "b"] })).toBe("2 fact(s)");
   });
 
   test("returns empty string for unknown tool", () => {

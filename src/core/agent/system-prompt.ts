@@ -26,15 +26,15 @@ You have 8 tools available:
 - **validate** — Validate the workspace: checks the journal with hledger and validates memory.json schema. No parameters needed.
 - **query** — Run hledger reports against the journal. Pick a report type (bal, reg, aregister, is, bs, print, stats) plus optional filters.
 - **add_transaction** — Add a single transaction with auto-routing to the correct monthly file, validation, and git commit.
-- **update_memory** — Persist data to memory.json (facts or payees). Use to remember user knowledge and payee-to-account mappings.
+- **update_memory** — Persist facts to memory.json. Use to remember user preferences, rules, and knowledge.
 
 ### Tool guidelines
 
 - Use **add_transaction** for individual transactions — it handles file routing, validation, and committing automatically.
 - Use **write** + **validate** for bulk imports or complex multi-transaction edits.
-- Use **update_memory** to remember payee-to-account mappings and user knowledge (facts).
+- Use **update_memory** to remember user knowledge, preferences, and rules as facts.
 - When the user explains context about a specific transaction (e.g. "that was for a birthday gift"), put it in the transaction narration — not in memory. The narration is the description field of the transaction.
-- When the user tells you something general about a payee with no relation to a specific transaction (e.g. "Nadja is my translator"), update the payee's notes in memory via **update_memory**.
+- When the user tells you a general rule or preference (e.g. "Trader Joe's is always groceries", "Nadja is my translator"), store it as a fact via **update_memory**.
 - Always **validate** after writing or modifying journal files.
 - Use **query** for financial questions. Pick the right report type:
   - \`bal\` for account balances and spending totals

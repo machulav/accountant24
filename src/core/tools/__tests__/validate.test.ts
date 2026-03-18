@@ -16,7 +16,8 @@ const { runCommand } = await import("../utils.js");
 
 let mockRun: { exitCode: number; stdout: string; stderr: string } | null = null;
 mock.module("../utils.js", () => ({
-  runCommand: async (cmd: string[], opts?: any) => mockRun ?? runCommand(cmd, opts),
+  runCommand: async (cmd: string[], opts?: any) =>
+    mockRun ?? runCommand(cmd, opts),
 }));
 
 const { validateTool } = await import("../validate.js");
@@ -24,10 +25,13 @@ const { validateTool } = await import("../validate.js");
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
   mockRun = null;
-  try { rmSync(MEMORY); } catch {}
+  try {
+    rmSync(MEMORY);
+  } catch {}
 });
 
-const run = (params: any) => validateTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  validateTool.execute("test", params) as Promise<any>;
 
 // --- journal validation ---
 
@@ -44,7 +48,11 @@ test("returns success on valid ledger", async () => {
 });
 
 test("throws on ledger validation error", async () => {
-  mockRun = { exitCode: 1, stdout: "", stderr: "hledger: Error: account not declared" };
+  mockRun = {
+    exitCode: 1,
+    stdout: "",
+    stderr: "hledger: Error: account not declared",
+  };
   await expect(run({})).rejects.toThrow("account not declared");
 });
 
@@ -52,7 +60,7 @@ test("throws on ledger validation error", async () => {
 
 test("reports valid memory alongside valid ledger", async () => {
   mockRun = { exitCode: 0, stdout: "", stderr: "" };
-  writeFileSync(MEMORY, JSON.stringify({ facts: [], payees: {} }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: [] }));
   const result = await run({});
   expect(result.content[0].text).toContain("Ledger is valid.");
   expect(result.content[0].text).toContain("Memory is valid.");
@@ -68,7 +76,7 @@ test("missing memory.json is OK", async () => {
 
 test("reports memory schema errors", async () => {
   mockRun = { exitCode: 0, stdout: "", stderr: "" };
-  writeFileSync(MEMORY, JSON.stringify({ facts: "not-an-array", payees: {} }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: "not-an-array" }));
   await expect(run({})).rejects.toThrow("memory.json");
 });
 
@@ -80,13 +88,13 @@ test("reports invalid JSON in memory", async () => {
 
 test("reports unknown fields in memory", async () => {
   mockRun = { exitCode: 0, stdout: "", stderr: "" };
-  writeFileSync(MEMORY, JSON.stringify({ facts: [], payees: {}, extraField: true }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: [], extraField: true }));
   await expect(run({})).rejects.toThrow("memory.json");
 });
 
 test("reports both ledger and memory errors together", async () => {
   mockRun = { exitCode: 1, stdout: "", stderr: "bad ledger" };
-  writeFileSync(MEMORY, JSON.stringify({ facts: 123, payees: {} }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: 123 }));
   try {
     await run({});
     expect(true).toBe(false); // should not reach
@@ -98,15 +106,6 @@ test("reports both ledger and memory errors together", async () => {
 
 test("validates memory even when hledger not found", async () => {
   mockRun = { exitCode: 127, stdout: "", stderr: "" };
-  writeFileSync(MEMORY, JSON.stringify({ facts: 123, payees: {} }));
-  await expect(run({})).rejects.toThrow("memory.json");
-});
-
-test("reports payee with unknown fields in memory validation", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
-  writeFileSync(MEMORY, JSON.stringify({
-    facts: [],
-    payees: { "X": { account: "A", badField: "nope" } },
-  }));
+  writeFileSync(MEMORY, JSON.stringify({ facts: 123 }));
   await expect(run({})).rejects.toThrow("memory.json");
 });

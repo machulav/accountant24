@@ -127,8 +127,7 @@ export function scaffoldProject(options: ScaffoldOptions): void {
 
   writeFileSync(
     join(baseDir, "memory.json"),
-    JSON.stringify({ facts: [], payees: {} }, null, 2) +
-      "\n",
+    JSON.stringify({ facts: [] }, null, 2) + "\n",
   );
 
   writeFileSync(

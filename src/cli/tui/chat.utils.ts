@@ -41,7 +41,7 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "add_transaction":
       return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
     case "update_memory":
-      return args?.section ?? "";
+      return args?.facts?.length ? `${args.facts.length} fact(s)` : "";
     default:
       return "";
   }
