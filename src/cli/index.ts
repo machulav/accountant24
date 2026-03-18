@@ -11,11 +11,11 @@ export async function start(): Promise<void> {
     console.log(createLogo(theme));
     const config = await runWizard();
     setApiKeyEnv(config.llm_provider, config.api_key);
-    const agent = createAgent(config.llm_provider, config.llm_model);
+    const agent = await createAgent(config.llm_provider, config.llm_model);
     await startApp(agent, { showLogo: false });
   } else {
     setApiKeyEnv(existing.llm_provider, existing.api_key);
-    const agent = createAgent(existing.llm_provider, existing.llm_model);
+    const agent = await createAgent(existing.llm_provider, existing.llm_model);
     await startApp(agent);
   }
 }
