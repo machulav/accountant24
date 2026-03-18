@@ -1,3 +1,11 @@
 {
-  "additionalDirectories": ["../docs"]
+  "additionalDirectories": ["../docs"],
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bun verify"
+      }
+    ]
+  }
 }

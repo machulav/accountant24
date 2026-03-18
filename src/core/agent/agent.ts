@@ -7,7 +7,8 @@ export function createAgent(provider: string, model: string): Agent {
   return new Agent({
     initialState: {
       systemPrompt: getSystemPrompt(),
-      model: (getModel as (...args: never) => unknown)(provider, model),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      model: (getModel as any)(provider, model),
       tools: createTools(),
     },
     streamFn: streamSimple,

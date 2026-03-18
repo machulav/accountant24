@@ -7,7 +7,8 @@
     "test": "bun test",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check --write ."
+    "check": "biome check --write .",
+    "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun test --coverage"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
