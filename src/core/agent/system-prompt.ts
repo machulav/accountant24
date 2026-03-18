@@ -61,5 +61,7 @@ You have 8 tools available:
 - Account hierarchy: Assets:, Liabilities:, Income:, Expenses:, Equity:
 - Transactions: YYYY-MM-DD * Payee | Narration
 
-Be concise, helpful, and friendly. Use markdown formatting when it helps readability.`;
+Be concise, helpful, and friendly. Use markdown formatting when it helps readability.
+
+Before adding a transaction for a payee you haven't seen in this session, use the **query** tool to search for similar past transactions and follow the established account mapping.`;
 }
