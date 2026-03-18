@@ -1,7 +1,7 @@
-import { test, expect, afterAll, beforeEach, mock } from "bun:test";
+import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-validate-"));
 const MEMORY = join(BASE, "memory.json");
@@ -16,8 +16,7 @@ const { runCommand } = await import("../utils.js");
 
 let mockRun: { exitCode: number; stdout: string; stderr: string } | null = null;
 mock.module("../utils.js", () => ({
-  runCommand: async (cmd: string[], opts?: any) =>
-    mockRun ?? runCommand(cmd, opts),
+  runCommand: async (cmd: string[], opts?: any) => mockRun ?? runCommand(cmd, opts),
 }));
 
 const { validateTool } = await import("../validate.js");
@@ -30,8 +29,7 @@ beforeEach(() => {
   } catch {}
 });
 
-const run = (params: any) =>
-  validateTool.execute("test", params) as Promise<any>;
+const run = (params: any) => validateTool.execute("test", params) as Promise<any>;
 
 // --- journal validation ---
 

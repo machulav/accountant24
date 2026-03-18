@@ -1,18 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type {
-  Api,
-  AssistantMessage,
-  Context,
-  Model,
-  SimpleStreamOptions,
-} from "@mariozechner/pi-ai";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
 import type { BeanclawConfig } from "../core/config.js";
 
-export const PROVIDER_MODELS: Record<
-  string,
-  { value: string; label: string; hint?: string }[]
-> = {
+export const PROVIDER_MODELS: Record<string, { value: string; label: string; hint?: string }[]> = {
   anthropic: [
     {
       value: "claude-sonnet-4-6",
@@ -92,9 +83,7 @@ export async function verifyApiKey(
     if (result.stopReason === "error") {
       return {
         ok: false,
-        error:
-          result.errorMessage ??
-          "Invalid API key or could not connect to the LLM provider.",
+        error: result.errorMessage ?? "Invalid API key or could not connect to the LLM provider.",
       };
     }
     return { ok: true };
@@ -120,24 +109,13 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   mkdirSync(join(baseDir, "documents"), { recursive: true });
   mkdirSync(join(baseDir, ".sessions"), { recursive: true });
 
-  writeFileSync(
-    join(baseDir, "config.json"),
-    JSON.stringify(config, null, 2) + "\n",
-  );
+  writeFileSync(join(baseDir, "config.json"), JSON.stringify(config, null, 2) + "\n");
 
-  writeFileSync(
-    join(baseDir, "memory.json"),
-    JSON.stringify({ facts: [] }, null, 2) + "\n",
-  );
+  writeFileSync(join(baseDir, "memory.json"), JSON.stringify({ facts: [] }, null, 2) + "\n");
 
-  writeFileSync(
-    join(ledgerDir, "main.journal"),
-    `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`,
-  );
+  writeFileSync(join(ledgerDir, "main.journal"), `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`);
 
-  const accountLines = DEFAULT_ACCOUNTS.map(
-    (a) => `account ${a}`,
-  ).join("\n");
+  const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
   writeFileSync(join(ledgerDir, "accounts.journal"), accountLines + "\n");
 
   writeFileSync(join(baseDir, ".gitignore"), ".sessions/\nconfig.json\n");

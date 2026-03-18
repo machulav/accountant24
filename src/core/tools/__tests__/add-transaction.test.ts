@@ -1,7 +1,7 @@
-import { test, expect, afterAll, beforeEach, mock } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-add-tx-"));
 const LEDGER = join(BASE, "ledger");
@@ -42,10 +42,7 @@ const basicParams = {
   date: "2026-03-15",
   payee: "Whole Foods",
   narration: "Groceries",
-  postings: [
-    { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
-    { account: "Assets:Checking" },
-  ],
+  postings: [{ account: "Expenses:Food:Groceries", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
 };
 
 test("formats basic transaction correctly", async () => {
@@ -75,7 +72,10 @@ test("creates parent directories", async () => {
 test("appends to existing monthly file", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
-  writeFileSync(join(LEDGER, "2026", "03.journal"), "2026-03-01 * Old | Existing\n    Expenses:X    10.00 USD\n    Assets:Y\n");
+  writeFileSync(
+    join(LEDGER, "2026", "03.journal"),
+    "2026-03-01 * Old | Existing\n    Expenses:X    10.00 USD\n    Assets:Y\n",
+  );
   await run(basicParams);
   const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
   expect(content).toContain("Old");
@@ -153,13 +153,12 @@ test("handles tags and metadata together", async () => {
 });
 
 test("requires currency when amount present", async () => {
-  await expect(run({
-    ...basicParams,
-    postings: [
-      { account: "Expenses:Food", amount: 45 },
-      { account: "Assets:Checking" },
-    ],
-  })).rejects.toThrow("has amount but no currency");
+  await expect(
+    run({
+      ...basicParams,
+      postings: [{ account: "Expenses:Food", amount: 45 }, { account: "Assets:Checking" }],
+    }),
+  ).rejects.toThrow("has amount but no currency");
 });
 
 test("rejects invalid date", async () => {
@@ -167,21 +166,21 @@ test("rejects invalid date", async () => {
 });
 
 test("rejects insufficient postings", async () => {
-  await expect(run({
-    ...basicParams,
-    postings: [{ account: "Expenses:Food", amount: 45, currency: "USD" }],
-  })).rejects.toThrow("At least 2 postings");
+  await expect(
+    run({
+      ...basicParams,
+      postings: [{ account: "Expenses:Food", amount: 45, currency: "USD" }],
+    }),
+  ).rejects.toThrow("At least 2 postings");
 });
 
 test("rejects multiple postings without amount", async () => {
-  await expect(run({
-    ...basicParams,
-    postings: [
-      { account: "Expenses:Food" },
-      { account: "Assets:Checking" },
-      { account: "Assets:Savings" },
-    ],
-  })).rejects.toThrow("At most one posting may omit the amount");
+  await expect(
+    run({
+      ...basicParams,
+      postings: [{ account: "Expenses:Food" }, { account: "Assets:Checking" }, { account: "Assets:Savings" }],
+    }),
+  ).rejects.toThrow("At most one posting may omit the amount");
 });
 
 test("git commit is non-fatal on failure", async () => {

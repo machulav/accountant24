@@ -1,7 +1,7 @@
-import { test, expect, afterAll, mock } from "bun:test";
+import { afterAll, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-read-file-"));
 mock.module("../../config.js", () => ({
@@ -17,8 +17,7 @@ const { readTool } = await import("../read.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
-const run = (params: any) =>
-  readTool.execute("test", params) as Promise<any>;
+const run = (params: any) => readTool.execute("test", params) as Promise<any>;
 
 test("reads file content", async () => {
   writeFileSync(join(BASE, "hello.txt"), "hello world");
@@ -27,15 +26,11 @@ test("reads file content", async () => {
 });
 
 test("throws on missing file", async () => {
-  await expect(run({ path: "nope.txt" })).rejects.toThrow(
-    "File not found: nope.txt",
-  );
+  await expect(run({ path: "nope.txt" })).rejects.toThrow("File not found: nope.txt");
 });
 
 test("throws on path escape", async () => {
-  await expect(run({ path: "../../etc/passwd" })).rejects.toThrow(
-    "Path escapes base directory",
-  );
+  await expect(run({ path: "../../etc/passwd" })).rejects.toThrow("Path escapes base directory");
 });
 
 test("truncates files over 100KB", async () => {

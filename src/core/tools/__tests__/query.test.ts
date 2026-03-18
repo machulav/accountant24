@@ -1,10 +1,14 @@
-import { test, expect, afterAll, beforeEach, mock } from "bun:test";
+import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-query-"));
-mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE, MEMORY_PATH: join(BASE, "memory.json"), LEDGER_DIR: join(BASE, "ledger") }));
+mock.module("../../config.js", () => ({
+  BEANCLAW_HOME: BASE,
+  MEMORY_PATH: join(BASE, "memory.json"),
+  LEDGER_DIR: join(BASE, "ledger"),
+}));
 
 const { resolveSafePath, runCommand } = await import("../utils.js");
 
@@ -17,7 +21,9 @@ mock.module("../utils.js", () => ({
 const { queryTool, buildArgs } = await import("../query.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
-beforeEach(() => { mockRun = null; });
+beforeEach(() => {
+  mockRun = null;
+});
 
 const run = (params: any) => queryTool.execute("test", params) as Promise<any>;
 
@@ -44,9 +50,7 @@ test("throws on error", async () => {
 });
 
 test("throws on path escape", async () => {
-  await expect(
-    run({ report: "bal", file: "../../etc/passwd" }),
-  ).rejects.toThrow("Path escapes base directory");
+  await expect(run({ report: "bal", file: "../../etc/passwd" })).rejects.toThrow("Path escapes base directory");
 });
 
 // buildArgs tests
@@ -143,18 +147,21 @@ test("builds args for aregister", () => {
 });
 
 test("builds args with all filters combined", () => {
-  const args = buildArgs({
-    report: "reg",
-    account_pattern: "Expenses",
-    payee_pattern: "Whole Foods",
-    amount_filter: ">50",
-    begin_date: "2026-01-01",
-    end_date: "2026-04-01",
-    period: "monthly",
-    depth: 2,
-    invert: true,
-    output_format: "csv",
-  }, "/tmp/main.journal");
+  const args = buildArgs(
+    {
+      report: "reg",
+      account_pattern: "Expenses",
+      payee_pattern: "Whole Foods",
+      amount_filter: ">50",
+      begin_date: "2026-01-01",
+      end_date: "2026-04-01",
+      period: "monthly",
+      depth: 2,
+      invert: true,
+      output_format: "csv",
+    },
+    "/tmp/main.journal",
+  );
   expect(args).toContain("Expenses");
   expect(args).toContain("payee:Whole Foods");
   expect(args).toContain("amt:>50");

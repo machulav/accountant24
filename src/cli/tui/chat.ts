@@ -1,19 +1,8 @@
 import type { Agent } from "@mariozechner/pi-agent-core";
-import {
-  TUI,
-  Markdown,
-  CancellableLoader,
-  Editor,
-  Text,
-} from "@mariozechner/pi-tui";
+import { CancellableLoader, type Editor, Markdown, Text, type TUI } from "@mariozechner/pi-tui";
+import { formatToolSummary, getToolLabel, renderToolLine, SPINNER_FRAMES } from "./chat.utils.js";
 import type { GapContainer } from "./gap-container.js";
 import type { Theme } from "./theme.js";
-import {
-  SPINNER_FRAMES,
-  getToolLabel,
-  formatToolSummary,
-  renderToolLine,
-} from "./chat.utils.js";
 
 interface ToolCallEntry {
   text: Text;
@@ -21,13 +10,7 @@ interface ToolCallEntry {
   summary: string;
 }
 
-export function setupChat(
-  agent: Agent,
-  tui: TUI,
-  chatContainer: GapContainer,
-  editor: Editor,
-  theme: Theme,
-): void {
+export function setupChat(agent: Agent, tui: TUI, chatContainer: GapContainer, editor: Editor, theme: Theme): void {
   let streamingMarkdown: Markdown | null = null;
   let streamingText = "";
   let loader: CancellableLoader | null = null;
@@ -60,12 +43,7 @@ export function setupChat(
     switch (event.type) {
       case "agent_start":
         editor.disableSubmit = true;
-        loader = new CancellableLoader(
-          tui,
-          theme.app.loaderActive,
-          theme.app.loaderInactive,
-          "Crunching numbers...",
-        );
+        loader = new CancellableLoader(tui, theme.app.loaderActive, theme.app.loaderInactive, "Crunching numbers...");
         (loader as any).frames = SPINNER_FRAMES;
         loader.stop();
         (loader as any).currentFrame = 0;

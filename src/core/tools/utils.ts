@@ -1,4 +1,4 @@
-import { resolve, normalize } from "node:path";
+import { normalize, resolve } from "node:path";
 
 export function resolveSafePath(userPath: string, baseDir: string): string {
   const resolved = normalize(resolve(baseDir, userPath));
@@ -23,10 +23,7 @@ export async function runCommand(
       opts.signal.addEventListener("abort", () => proc.kill(), { once: true });
     }
 
-    const [stdout, stderr] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-    ]);
+    const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
 
     const exitCode = await proc.exited;
     return { exitCode, stdout, stderr };

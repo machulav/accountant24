@@ -1,14 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import {
-  today,
-  PROVIDER_MODELS,
-  DEFAULT_ACCOUNTS,
-  verifyApiKey,
-  scaffoldProject,
-} from "./wizard.utils.js";
+import { join } from "node:path";
+import { DEFAULT_ACCOUNTS, PROVIDER_MODELS, scaffoldProject, today, verifyApiKey } from "./wizard.utils.js";
 
 describe("today", () => {
   test("returns YYYY-MM-DD format", () => {
@@ -67,8 +61,7 @@ describe("verifyApiKey", () => {
   test("returns ok:false when stopReason is error", async () => {
     const result = await verifyApiKey("anthropic", "claude-sonnet-4-6", "sk-bad", {
       getModel: mockGetModel,
-      completeSimple: async () =>
-        ({ stopReason: "error", errorMessage: "Invalid key" }) as any,
+      completeSimple: async () => ({ stopReason: "error", errorMessage: "Invalid key" }) as any,
     });
     expect(result).toEqual({ ok: false, error: "Invalid key" });
   });
@@ -143,36 +136,26 @@ describe("scaffoldProject", () => {
 
   test("writes config.json with correct content", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
-    const content = JSON.parse(
-      readFileSync(join(tmpDir, "config.json"), "utf-8"),
-    );
+    const content = JSON.parse(readFileSync(join(tmpDir, "config.json"), "utf-8"));
     expect(content).toEqual(testConfig);
   });
 
   test("writes memory.json with empty initial structure", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
-    const content = JSON.parse(
-      readFileSync(join(tmpDir, "memory.json"), "utf-8"),
-    );
+    const content = JSON.parse(readFileSync(join(tmpDir, "memory.json"), "utf-8"));
     expect(content).toEqual({ facts: [] });
   });
 
   test("writes main.journal with comment header and include", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
-    const content = readFileSync(
-      join(tmpDir, "ledger", "main.journal"),
-      "utf-8",
-    );
+    const content = readFileSync(join(tmpDir, "ledger", "main.journal"), "utf-8");
     expect(content).toContain("; BeanClaw Personal Finances");
     expect(content).toContain("include accounts.journal");
   });
 
   test("writes accounts.journal with account declarations", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
-    const content = readFileSync(
-      join(tmpDir, "ledger", "accounts.journal"),
-      "utf-8",
-    );
+    const content = readFileSync(join(tmpDir, "ledger", "accounts.journal"), "utf-8");
     for (const account of DEFAULT_ACCOUNTS) {
       expect(content).toContain(`account ${account}`);
     }

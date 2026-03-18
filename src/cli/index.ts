@@ -1,5 +1,5 @@
 import { createAgent, loadConfig, setApiKeyEnv } from "../core/index.js";
-import { startApp, createLogo } from "./tui/app.js";
+import { createLogo, startApp } from "./tui/app.js";
 import { createTheme } from "./tui/theme.js";
 import { runWizard } from "./wizard.js";
 

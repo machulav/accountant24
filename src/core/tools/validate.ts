@@ -1,19 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
-import { z } from "zod";
-import { Type } from "@mariozechner/pi-ai";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { LEDGER_DIR, MEMORY_PATH } from "../config.js";
-import { runCommand } from "./utils.js";
-import { MemorySchema } from "./update-memory.js";
 import { join } from "node:path";
+import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { Type } from "@mariozechner/pi-ai";
+import { z } from "zod";
+import { LEDGER_DIR, MEMORY_PATH } from "../config.js";
+import { MemorySchema } from "./update-memory.js";
+import { runCommand } from "./utils.js";
 
 const Params = Type.Object({});
 
 export const validateTool: AgentTool<typeof Params, null> = {
   name: "validate",
   label: "Validate Workspace",
-  description:
-    "Validate the workspace: hledger check on the journal and memory.json schema. No parameters needed.",
+  description: "Validate the workspace: hledger check on the journal and memory.json schema. No parameters needed.",
   parameters: Params,
   async execute(_id, _params, signal) {
     const resolved = join(LEDGER_DIR, "main.journal");
@@ -22,10 +21,7 @@ export const validateTool: AgentTool<typeof Params, null> = {
     const errors: string[] = [];
 
     // Journal validation
-    const { exitCode, stdout, stderr } = await runCommand(
-      ["hledger", "check", "--strict", "-f", resolved],
-      { signal },
-    );
+    const { exitCode, stdout, stderr } = await runCommand(["hledger", "check", "--strict", "-f", resolved], { signal });
 
     if (exitCode === 127) {
       results.push("hledger not found, skipped journal check.");
@@ -44,9 +40,7 @@ export const validateTool: AgentTool<typeof Params, null> = {
         results.push("Memory is valid.");
       } catch (e) {
         if (e instanceof z.ZodError) {
-          const issues = e.issues
-            .map((i) => `memory.json: ${i.path.join(".")}: ${i.message}`)
-            .join("\n");
+          const issues = e.issues.map((i) => `memory.json: ${i.path.join(".")}: ${i.message}`).join("\n");
           errors.push(issues);
         } else if (e instanceof SyntaxError) {
           errors.push("memory.json: invalid JSON");

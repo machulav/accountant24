@@ -1,7 +1,7 @@
-import { test, expect, afterAll, beforeEach, mock } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-update-memory-"));
 const MEMORY = join(BASE, "memory.json");
@@ -12,7 +12,9 @@ const { updateMemoryTool } = await import("../update-memory.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
-  try { rmSync(MEMORY); } catch {}
+  try {
+    rmSync(MEMORY);
+  } catch {}
 });
 
 const run = (params: any) => updateMemoryTool.execute("test", params) as Promise<any>;

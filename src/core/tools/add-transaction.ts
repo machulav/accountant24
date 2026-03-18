@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { Type } from "@mariozechner/pi-ai";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { Type } from "@mariozechner/pi-ai";
 import { BEANCLAW_HOME, LEDGER_DIR } from "../config.js";
 import { runCommand } from "./utils.js";
 
@@ -46,7 +46,7 @@ function formatTransaction(params: {
   tags?: string[];
   metadata?: Record<string, string>;
 }): string {
-  let header = `${params.date} * ${params.payee} | ${params.narration}`;
+  const header = `${params.date} * ${params.payee} | ${params.narration}`;
 
   const lines = [header];
 
@@ -111,10 +111,11 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     }
 
     // Validate
-    const { exitCode: checkCode, stdout, stderr } = await runCommand(
-      ["hledger", "check", "--strict", "-f", mainPath],
-      { cwd: BEANCLAW_HOME, signal },
-    );
+    const {
+      exitCode: checkCode,
+      stdout,
+      stderr,
+    } = await runCommand(["hledger", "check", "--strict", "-f", mainPath], { cwd: BEANCLAW_HOME, signal });
 
     if (checkCode === 127) {
       // hledger not installed — skip validation but warn
@@ -126,10 +127,7 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     // Git commit (non-fatal)
     let commitStatus = "";
     try {
-      const { exitCode: gitCode } = await runCommand(
-        ["git", "add", "-A"],
-        { cwd: BEANCLAW_HOME, signal },
-      );
+      const { exitCode: gitCode } = await runCommand(["git", "add", "-A"], { cwd: BEANCLAW_HOME, signal });
       if (gitCode === 0) {
         const { exitCode: commitCode } = await runCommand(
           ["git", "commit", "-m", `Add: ${params.payee} — ${params.narration}`],
@@ -146,10 +144,12 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     const validationStatus = checkCode === 127 ? "hledger not found, skipped validation." : "Valid.";
 
     return {
-      content: [{
-        type: "text",
-        text: `Added transaction to ${relPath}:\n\n${txText}\n\nValidation: ${validationStatus}\nGit: ${commitStatus}`,
-      }],
+      content: [
+        {
+          type: "text",
+          text: `Added transaction to ${relPath}:\n\n${txText}\n\nValidation: ${validationStatus}\nGit: ${commitStatus}`,
+        },
+      ],
       details: null,
     };
   },

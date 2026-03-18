@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { z } from "zod";
-import { Type } from "@mariozechner/pi-ai";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { Type } from "@mariozechner/pi-ai";
+import { z } from "zod";
 import { MEMORY_PATH } from "../config.js";
 
 const FactsDataSchema = z.array(z.string());
@@ -24,8 +24,7 @@ const Params = Type.Object({
 export const updateMemoryTool: AgentTool<typeof Params, null> = {
   name: "update_memory",
   label: "Update Memory",
-  description:
-    "Persist facts to memory.json. Use to remember user preferences, rules, and knowledge.",
+  description: "Persist facts to memory.json. Use to remember user preferences, rules, and knowledge.",
   parameters: Params,
   async execute(_id, params) {
     const raw = existsSync(MEMORY_PATH)
@@ -40,9 +39,7 @@ export const updateMemoryTool: AgentTool<typeof Params, null> = {
       try {
         facts = JSON.parse(facts);
       } catch {
-        throw new Error(
-          "Invalid facts: expected a JSON array of strings, got a non-parseable string.",
-        );
+        throw new Error("Invalid facts: expected a JSON array of strings, got a non-parseable string.");
       }
     }
 
@@ -53,19 +50,14 @@ export const updateMemoryTool: AgentTool<typeof Params, null> = {
       raw.facts = [...existing];
     } catch (e) {
       if (e instanceof z.ZodError) {
-        const issues = e.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
+        const issues = e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
         throw new Error(`Invalid facts: ${issues}`);
       }
       throw e;
     }
 
     mkdirSync(dirname(MEMORY_PATH), { recursive: true });
-    writeFileSync(
-      MEMORY_PATH,
-      JSON.stringify({ facts: raw.facts }, null, 2) + "\n",
-    );
+    writeFileSync(MEMORY_PATH, JSON.stringify({ facts: raw.facts }, null, 2) + "\n");
 
     return {
       content: [{ type: "text", text: "Updated memory." }],

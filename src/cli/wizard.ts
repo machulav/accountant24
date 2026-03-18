@@ -1,25 +1,8 @@
-import {
-  intro,
-  outro,
-  select,
-  password,
-  spinner,
-  cancel,
-  isCancel,
-  log,
-} from "@clack/prompts";
-import { getEnvApiKey, getModel, completeSimple } from "@mariozechner/pi-ai";
-import {
-  setApiKeyEnv,
-  BEANCLAW_HOME,
-  getProviderEnvVar,
-} from "../core/config.js";
+import { cancel, intro, isCancel, log, outro, password, select, spinner } from "@clack/prompts";
+import { completeSimple, getEnvApiKey, getModel } from "@mariozechner/pi-ai";
 import type { BeanclawConfig } from "../core/config.js";
-import {
-  PROVIDER_MODELS,
-  verifyApiKey,
-  scaffoldProject,
-} from "./wizard.utils.js";
+import { BEANCLAW_HOME, getProviderEnvVar, setApiKeyEnv } from "../core/config.js";
+import { PROVIDER_MODELS, scaffoldProject, verifyApiKey } from "./wizard.utils.js";
 
 function handleCancel(value: unknown): asserts value is string {
   if (isCancel(value)) {

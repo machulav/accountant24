@@ -1,6 +1,6 @@
-import { test, expect, describe } from "bun:test";
-import { GapContainer } from "../gap-container.js";
+import { describe, expect, test } from "bun:test";
 import type { Component } from "@mariozechner/pi-tui";
+import { GapContainer } from "../gap-container.js";
 
 function mockComponent(lines: string[]): Component {
   return {
@@ -107,11 +107,17 @@ describe("GapContainer", () => {
     const widths: number[] = [];
     const gc = new GapContainer(1);
     gc.addChild({
-      render: (w: number) => { widths.push(w); return ["x"]; },
+      render: (w: number) => {
+        widths.push(w);
+        return ["x"];
+      },
       invalidate: () => {},
     });
     gc.addChild({
-      render: (w: number) => { widths.push(w); return ["y"]; },
+      render: (w: number) => {
+        widths.push(w);
+        return ["y"];
+      },
       invalidate: () => {},
     });
     gc.render(42);

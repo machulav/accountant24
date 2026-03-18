@@ -1,13 +1,13 @@
-import { test, expect, describe } from "bun:test";
-import type { AppTheme } from "../theme.js";
+import { describe, expect, test } from "bun:test";
 import {
+  formatToolSummary,
+  getToolLabel,
+  renderToolLine,
   SPINNER_FRAMES,
   TOOL_LABELS,
-  getToolLabel,
   truncate,
-  formatToolSummary,
-  renderToolLine,
 } from "../chat.utils.js";
+import type { AppTheme } from "../theme.js";
 
 const identity = (s: string) => s;
 const mockTheme: AppTheme = {
@@ -114,7 +114,9 @@ describe("formatToolSummary", () => {
       depth: 2,
       invert: true,
     });
-    expect(result).toBe("hledger reg -f ledger/main.journal Expenses -b 2026-01-01 -e 2026-04-01 --monthly --depth 2 --invert");
+    expect(result).toBe(
+      "hledger reg -f ledger/main.journal Expenses -b 2026-01-01 -e 2026-04-01 --monthly --depth 2 --invert",
+    );
   });
 
   test("returns date and payee for add_transaction", () => {
@@ -143,20 +145,14 @@ describe("renderToolLine", () => {
   });
 
   test("appends summary when present", () => {
-    expect(renderToolLine("✓", "Execute", "ls -la", mockTheme)).toBe(
-      " ✓ [Execute]  (ls -la)",
-    );
+    expect(renderToolLine("✓", "Execute", "ls -la", mockTheme)).toBe(" ✓ [Execute]  (ls -la)");
   });
 
   test("appends error marker when isError is true", () => {
-    expect(renderToolLine("✗", "Query", "SELECT 1", mockTheme, true)).toBe(
-      " ✗ [Query]  (SELECT 1)  !(error)!",
-    );
+    expect(renderToolLine("✗", "Query", "SELECT 1", mockTheme, true)).toBe(" ✗ [Query]  (SELECT 1)  !(error)!");
   });
 
   test("does not append error marker when isError is false", () => {
-    expect(renderToolLine("✓", "Read File", "f.txt", mockTheme, false)).toBe(
-      " ✓ [Read File]  (f.txt)",
-    );
+    expect(renderToolLine("✓", "Read File", "f.txt", mockTheme, false)).toBe(" ✓ [Read File]  (f.txt)");
   });
 });

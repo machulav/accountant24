@@ -1,7 +1,7 @@
-import { test, expect, afterAll, mock } from "bun:test";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { afterAll, expect, mock, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-write-file-"));
 mock.module("../../config.js", () => ({
@@ -17,8 +17,7 @@ const { writeTool } = await import("../write.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
-const run = (params: any) =>
-  writeTool.execute("test", params) as Promise<any>;
+const run = (params: any) => writeTool.execute("test", params) as Promise<any>;
 
 test("writes file and reports bytes", async () => {
   const result = await run({ path: "out.txt", content: "data" });
@@ -32,7 +31,5 @@ test("creates parent directories", async () => {
 });
 
 test("throws on path escape", async () => {
-  await expect(run({ path: "../escape.txt", content: "bad" })).rejects.toThrow(
-    "Path escapes base directory",
-  );
+  await expect(run({ path: "../escape.txt", content: "bad" })).rejects.toThrow("Path escapes base directory");
 });

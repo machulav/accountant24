@@ -1,7 +1,7 @@
-import { test, expect, afterAll, mock } from "bun:test";
+import { afterAll, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "beanclaw-execute-"));
 mock.module("../../config.js", () => ({
@@ -17,8 +17,7 @@ const { bashTool } = await import("../bash.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
-const run = (params: any) =>
-  bashTool.execute("test", params) as Promise<any>;
+const run = (params: any) => bashTool.execute("test", params) as Promise<any>;
 
 test("returns output on success", async () => {
   const result = await run({ command: "echo hello" });

@@ -1,5 +1,5 @@
-import type { AppTheme } from "./theme.js";
 import { buildArgs } from "../../core/tools/query.js";
+import type { AppTheme } from "./theme.js";
 
 export const SPINNER_FRAMES = ["$", "€", "£", "¥", "₴"];
 
@@ -35,9 +35,7 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "validate":
       return "";
     case "query":
-      return args?.report
-        ? buildArgs(args, args?.file ?? "ledger/main.journal").join(" ")
-        : "";
+      return args?.report ? buildArgs(args, args?.file ?? "ledger/main.journal").join(" ") : "";
     case "add_transaction":
       return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
     case "update_memory":

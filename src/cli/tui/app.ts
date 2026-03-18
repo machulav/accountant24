@@ -1,16 +1,9 @@
 import type { Agent } from "@mariozechner/pi-agent-core";
-import {
-  TUI,
-  ProcessTerminal,
-  Text,
-  Editor,
-  matchesKey,
-  CombinedAutocompleteProvider,
-} from "@mariozechner/pi-tui";
+import { CombinedAutocompleteProvider, Editor, matchesKey, ProcessTerminal, Text, TUI } from "@mariozechner/pi-tui";
 import { setupChat } from "./chat.js";
 import { GapContainer } from "./gap-container.js";
-import { createTheme } from "./theme.js";
 import type { Theme } from "./theme.js";
+import { createTheme } from "./theme.js";
 
 export function createLogo(theme: Theme): string {
   const c = theme.app.logo;
@@ -26,10 +19,7 @@ export function createLogo(theme: Theme): string {
 `;
 }
 
-export async function startApp(
-  agent: Agent,
-  opts?: { showLogo?: boolean },
-): Promise<void> {
+export async function startApp(agent: Agent, opts?: { showLogo?: boolean }): Promise<void> {
   const terminal = new ProcessTerminal();
   const tui = new TUI(terminal);
 
@@ -44,9 +34,7 @@ export async function startApp(
   tui.addChild(chatContainer);
   const editor = new Editor(tui, theme.editor);
 
-  const autocomplete = new CombinedAutocompleteProvider([
-    { name: "exit", description: "Exit BeanClaw" },
-  ]);
+  const autocomplete = new CombinedAutocompleteProvider([{ name: "exit", description: "Exit BeanClaw" }]);
   editor.setAutocompleteProvider(autocomplete);
 
   function shutdown() {

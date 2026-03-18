@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check --write ."
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
@@ -16,6 +19,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.8",
     "@types/bun": "latest",
     "@types/diff": "^8.0.0",
     "typescript": "^5.8.0"

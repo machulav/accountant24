@@ -1,9 +1,5 @@
+import type { EditorTheme, MarkdownTheme, SelectListTheme } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import type {
-  EditorTheme,
-  MarkdownTheme,
-  SelectListTheme,
-} from "@mariozechner/pi-tui";
 
 export interface AppTheme {
   logo: (s: string) => string;

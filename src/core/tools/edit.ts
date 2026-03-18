@@ -4,10 +4,9 @@
  * simplified for beanclaw's local-only use case.
  */
 
-import { Type } from "@mariozechner/pi-ai";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { Type } from "@mariozechner/pi-ai";
 import { BEANCLAW_HOME } from "../config.js";
-import { resolveSafePath } from "./utils.js";
 import {
   detectLineEnding,
   fuzzyFindText,
@@ -17,6 +16,7 @@ import {
   restoreLineEndings,
   stripBom,
 } from "./edit.utils.js";
+import { resolveSafePath } from "./utils.js";
 
 const Params = Type.Object({
   path: Type.String({ description: "File path relative to ~/beanclaw" }),
@@ -78,9 +78,7 @@ export const editTool: AgentTool<typeof Params, null> = {
       baseContent.substring(matchResult.index + matchResult.matchLength);
 
     if (baseContent === newContent) {
-      throw new Error(
-        `No changes made to ${params.path}. The replacement produced identical content.`,
-      );
+      throw new Error(`No changes made to ${params.path}. The replacement produced identical content.`);
     }
 
     const finalContent = bom + restoreLineEndings(newContent, originalEnding);
