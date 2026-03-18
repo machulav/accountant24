@@ -3,8 +3,13 @@
   "hooks": {
     "Stop": [
       {
-        "type": "command",
-        "command": "bun verify"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun verify"
+          }
+        ]
       }
     ]
   }
