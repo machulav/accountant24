@@ -1,7 +1,7 @@
 import { expect, mock, test } from "bun:test";
 
 mock.module("../../config.js", () => ({
-  BEANCLAW_HOME: "/tmp",
+  ACCOUNTANT24_HOME: "/tmp",
 }));
 
 let mockResult = { exitCode: 0, stdout: "", stderr: "" };

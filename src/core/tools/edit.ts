@@ -1,12 +1,12 @@
 /**
  * Surgical file editing via exact text replacement.
  * Ported from pi-mono (packages/coding-agent/src/core/tools/edit.ts),
- * simplified for beanclaw's local-only use case.
+ * simplified for accountant24's local-only use case.
  */
 
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@mariozechner/pi-ai";
-import { BEANCLAW_HOME } from "../config.js";
+import { ACCOUNTANT24_HOME } from "../config.js";
 import {
   detectLineEnding,
   fuzzyFindText,
@@ -19,7 +19,7 @@ import {
 import { resolveSafePath } from "./utils.js";
 
 const Params = Type.Object({
-  path: Type.String({ description: "File path relative to ~/beanclaw" }),
+  path: Type.String({ description: "File path relative to ~/accountant24" }),
   oldText: Type.String({ description: "Exact text to find and replace (must match exactly including whitespace)" }),
   newText: Type.String({ description: "New text to replace the old text with" }),
 });
@@ -31,7 +31,7 @@ export const editTool: AgentTool<typeof Params, null> = {
     "Edit a file by replacing exact text. The oldText must match exactly (including whitespace). Use this for precise, surgical edits.",
   parameters: Params,
   async execute(_id, params, signal) {
-    const resolved = resolveSafePath(params.path, BEANCLAW_HOME);
+    const resolved = resolveSafePath(params.path, ACCOUNTANT24_HOME);
     const file = Bun.file(resolved);
 
     if (!(await file.exists())) {

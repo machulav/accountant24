@@ -3,10 +3,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const BASE = mkdtempSync(join(tmpdir(), "beanclaw-update-memory-"));
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-update-memory-"));
 const MEMORY = join(BASE, "memory.json");
 
-mock.module("../../config.js", () => ({ BEANCLAW_HOME: BASE, MEMORY_PATH: MEMORY, LEDGER_DIR: join(BASE, "ledger") }));
+mock.module("../../config.js", () => ({
+  ACCOUNTANT24_HOME: BASE,
+  MEMORY_PATH: MEMORY,
+  LEDGER_DIR: join(BASE, "ledger"),
+}));
 
 const { updateMemoryTool } = await import("../update-memory.js");
 

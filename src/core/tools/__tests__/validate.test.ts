@@ -3,11 +3,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const BASE = mkdtempSync(join(tmpdir(), "beanclaw-validate-"));
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-validate-"));
 const MEMORY = join(BASE, "memory.json");
 
 mock.module("../../config.js", () => ({
-  BEANCLAW_HOME: BASE,
+  ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: MEMORY,
   LEDGER_DIR: join(BASE, "ledger"),
 }));

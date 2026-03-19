@@ -1,7 +1,7 @@
 import { cancel, intro, isCancel, log, outro, password, select, spinner } from "@clack/prompts";
 import { completeSimple, getEnvApiKey, getModel } from "@mariozechner/pi-ai";
-import type { BeanclawConfig } from "../core/config.js";
-import { BEANCLAW_HOME, getProviderEnvVar, setApiKeyEnv } from "../core/config.js";
+import type { Accountant24Config } from "../core/config.js";
+import { ACCOUNTANT24_HOME, getProviderEnvVar, setApiKeyEnv } from "../core/config.js";
 import { PROVIDER_MODELS, scaffoldProject, verifyApiKey } from "./wizard.utils.js";
 
 function handleCancel(value: unknown): asserts value is string {
@@ -11,8 +11,8 @@ function handleCancel(value: unknown): asserts value is string {
   }
 }
 
-export async function runWizard(): Promise<BeanclawConfig> {
-  intro("Welcome! Let's set up your BeanClaw.");
+export async function runWizard(): Promise<Accountant24Config> {
+  intro("Welcome! Let's set up your Accountant24.");
 
   // 1. Provider
   const provider = await select({
@@ -72,17 +72,17 @@ export async function runWizard(): Promise<BeanclawConfig> {
 
   // 5. Scaffold
   const s2 = spinner();
-  s2.start("Setting up BeanClaw...");
+  s2.start("Setting up Accountant24...");
 
-  const config: BeanclawConfig = {
+  const config: Accountant24Config = {
     llm_provider: provider,
     llm_model: model,
     api_key: apiKey,
   };
 
-  scaffoldProject({ config, baseDir: BEANCLAW_HOME });
+  scaffoldProject({ config, baseDir: ACCOUNTANT24_HOME });
 
-  s2.stop(`BeanClaw workspace is set up at ${BEANCLAW_HOME}`);
+  s2.stop(`Accountant24 workspace is set up at ${ACCOUNTANT24_HOME}`);
 
   outro("You're all set!");
 

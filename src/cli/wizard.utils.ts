@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
-import type { BeanclawConfig } from "../core/config.js";
+import type { Accountant24Config } from "../core/config.js";
 
 export const PROVIDER_MODELS: Record<string, { value: string; label: string; hint?: string }[]> = {
   anthropic: [
@@ -96,7 +96,7 @@ export async function verifyApiKey(
 }
 
 export interface ScaffoldOptions {
-  config: BeanclawConfig;
+  config: Accountant24Config;
   baseDir: string;
   date?: string;
 }
@@ -119,7 +119,7 @@ export function scaffoldProject(options: ScaffoldOptions): void {
 
   writeIfNotExists(join(baseDir, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
 
-  writeIfNotExists(join(ledgerDir, "main.journal"), `; BeanClaw Personal Finances\n\ninclude accounts.journal\n`);
+  writeIfNotExists(join(ledgerDir, "main.journal"), `; Accountant24 Personal Finances\n\ninclude accounts.journal\n`);
 
   const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
   writeIfNotExists(join(ledgerDir, "accounts.journal"), `${accountLines}\n`);

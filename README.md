@@ -1,4 +1,4 @@
-# BeanClaw
+# Accountant24
 
 Your personal AI accountant. A command-line personal finance assistant powered by any LLM.
 
@@ -13,7 +13,7 @@ bun start
 ## Project Structure
 
 ```
-beanclaw/
+accountant24/
 ├── src/
 │   ├── index.ts                     # Entry point → runs CLI
 │   ├── core/                        # Agent brain — zero UI dependencies
@@ -21,7 +21,7 @@ beanclaw/
 │   │   ├── config.ts                # Default LLM provider & model
 │   │   └── agent/
 │   │       ├── agent.ts             # Agent factory (pi-agent-core)
-│   │       └── system-prompt.ts     # BeanStalk system prompt
+│   │       └── system-prompt.ts     # Accountant24 system prompt
 │   └── cli/                         # Terminal frontend
 │       ├── index.ts                 # Creates agent, launches TUI
 │       └── tui/

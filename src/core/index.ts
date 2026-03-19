@@ -1,7 +1,7 @@
 export { createAgent } from "./agent/agent.js";
-export type { BeanclawConfig } from "./config.js";
+export type { Accountant24Config } from "./config.js";
 export {
-  BEANCLAW_HOME,
+  ACCOUNTANT24_HOME,
   CONFIG_PATH,
   getProviderEnvVar,
   LEDGER_DIR,

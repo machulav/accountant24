@@ -112,7 +112,7 @@ describe("scaffoldProject", () => {
   };
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "beanclaw-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "accountant24-test-"));
   });
 
   afterEach(() => {
@@ -149,7 +149,7 @@ describe("scaffoldProject", () => {
   test("writes main.journal with comment header and include", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
     const content = readFileSync(join(tmpDir, "ledger", "main.journal"), "utf-8");
-    expect(content).toContain("; BeanClaw Personal Finances");
+    expect(content).toContain("; Accountant24 Personal Finances");
     expect(content).toContain("include accounts.journal");
   });
 

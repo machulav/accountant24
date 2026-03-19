@@ -1,6 +1,6 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@mariozechner/pi-ai";
-import { BEANCLAW_HOME } from "../config.js";
+import { ACCOUNTANT24_HOME } from "../config.js";
 import { resolveSafePath, runCommand } from "./utils.js";
 
 const Params = Type.Object({
@@ -53,7 +53,7 @@ const Params = Type.Object({
     }),
   ),
   file: Type.Optional(
-    Type.String({ description: "Journal file relative to ~/beanclaw (default: ledger/main.journal)" }),
+    Type.String({ description: "Journal file relative to ~/accountant24 (default: ledger/main.journal)" }),
   ),
 });
 
@@ -100,7 +100,7 @@ export const queryTool: AgentTool<typeof Params, null> = {
   parameters: Params,
   async execute(_id, params, signal) {
     const file = params.file ?? "ledger/main.journal";
-    const resolved = resolveSafePath(file, BEANCLAW_HOME);
+    const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
 
     const args = buildArgs(params, resolved);
     const { exitCode, stdout, stderr } = await runCommand(args, { signal });

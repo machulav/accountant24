@@ -35,17 +35,9 @@ async function loadFacts(): Promise<string[]> {
   }
 }
 
-async function loadHledgerList(
-  subcommand: string,
-  journal: string,
-): Promise<string[]> {
+async function loadHledgerList(subcommand: string, journal: string): Promise<string[]> {
   try {
-    const { exitCode, stdout } = await runCommand([
-      "hledger",
-      subcommand,
-      "-f",
-      journal,
-    ]);
+    const { exitCode, stdout } = await runCommand(["hledger", subcommand, "-f", journal]);
     if (exitCode !== 0) return [];
     return stdout
       .split("\n")
@@ -59,11 +51,11 @@ async function loadHledgerList(
 // ── Static prefix (cached by Claude API) ─────────────────────────────
 
 const STATIC_PREFIX = `<identity>
-You are BeanClaw, an AI personal finance assistant for the command line. You help users manage their personal finances through natural conversation — logging spending, importing bank statements, answering questions about their money, and providing financial guidance.
+You are Accountant24, an AI personal finance assistant for the command line. You help users manage their personal finances through natural conversation — logging spending, importing bank statements, answering questions about their money, and providing financial guidance.
 </identity>
 
 <workspace>
-Your workspace is ~/beanclaw:
+Your workspace is ~/accountant24:
 - ledger/ — Journal files (main.journal includes other files via include directives)
 - ledger/YYYY/MM.journal — Monthly transaction files
 - ledger/accounts.journal — Chart of accounts
@@ -104,7 +96,7 @@ EDITING FILES:
 - Always validate after writing or modifying journal files.
 
 FILE OPERATIONS:
-- read to examine files before editing. Paths are relative to ~/beanclaw.
+- read to examine files before editing. Paths are relative to ~/accountant24.
 - write for new files or complete rewrites. Creates parent directories as needed.
 - bash for shell access (listing directories, running external commands).
 </tool-strategy>
@@ -153,21 +145,15 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
   parts.push(`\n<session>\nToday's date: ${ctx.today}\n</session>`);
 
   if (ctx.facts.length > 0) {
-    parts.push(
-      `\n<memory>\nUser facts:\n${ctx.facts.map((f) => `- ${f}`).join("\n")}\n</memory>`,
-    );
+    parts.push(`\n<memory>\nUser facts:\n${ctx.facts.map((f) => `- ${f}`).join("\n")}\n</memory>`);
   }
 
   if (ctx.accounts.length > 0) {
-    parts.push(
-      `\n<accounts>\nKnown accounts:\n${ctx.accounts.join("\n")}\n</accounts>`,
-    );
+    parts.push(`\n<accounts>\nKnown accounts:\n${ctx.accounts.join("\n")}\n</accounts>`);
   }
 
   if (ctx.payees.length > 0) {
-    parts.push(
-      `\n<known-payees>\nAll payees in the journal:\n${ctx.payees.join("\n")}\n</known-payees>`,
-    );
+    parts.push(`\n<known-payees>\nAll payees in the journal:\n${ctx.payees.join("\n")}\n</known-payees>`);
   }
 
   return parts.join("");

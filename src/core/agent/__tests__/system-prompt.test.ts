@@ -70,7 +70,7 @@ test("populated context includes known payees", () => {
 test("includes identity section", () => {
   const prompt = getSystemPrompt(empty);
   expect(prompt).toContain("<identity>");
-  expect(prompt).toContain("BeanClaw");
+  expect(prompt).toContain("Accountant24");
   expect(prompt).toContain("</identity>");
 });
 

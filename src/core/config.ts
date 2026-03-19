@@ -3,10 +3,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
-export const BEANCLAW_HOME = join(homedir(), "beanclaw");
-export const CONFIG_PATH = join(BEANCLAW_HOME, "config.json");
-export const MEMORY_PATH = join(BEANCLAW_HOME, "memory.json");
-export const LEDGER_DIR = join(BEANCLAW_HOME, "ledger");
+export const ACCOUNTANT24_HOME = join(homedir(), "accountant24");
+export const CONFIG_PATH = join(ACCOUNTANT24_HOME, "config.json");
+export const MEMORY_PATH = join(ACCOUNTANT24_HOME, "memory.json");
+export const LEDGER_DIR = join(ACCOUNTANT24_HOME, "ledger");
 
 const ConfigSchema = z.object({
   llm_provider: z.string(),
@@ -14,9 +14,9 @@ const ConfigSchema = z.object({
   api_key: z.string().min(1),
 });
 
-export type BeanclawConfig = z.infer<typeof ConfigSchema>;
+export type Accountant24Config = z.infer<typeof ConfigSchema>;
 
-export function loadConfig(): BeanclawConfig | null {
+export function loadConfig(): Accountant24Config | null {
   try {
     if (!existsSync(CONFIG_PATH)) return null;
     const raw = readFileSync(CONFIG_PATH, "utf-8");
@@ -27,8 +27,8 @@ export function loadConfig(): BeanclawConfig | null {
   }
 }
 
-export function writeConfig(config: BeanclawConfig): void {
-  mkdirSync(BEANCLAW_HOME, { recursive: true });
+export function writeConfig(config: Accountant24Config): void {
+  mkdirSync(ACCOUNTANT24_HOME, { recursive: true });
   writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
 }
 

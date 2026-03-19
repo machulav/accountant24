@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const BASE = mkdtempSync(join(tmpdir(), "beanclaw-add-tx-"));
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-add-tx-"));
 const LEDGER = join(BASE, "ledger");
 
 mock.module("../../config.js", () => ({
-  BEANCLAW_HOME: BASE,
+  ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.json"),
 }));
@@ -83,7 +83,7 @@ test("appends to existing monthly file", async () => {
 });
 
 test("adds include directive for new monthly files", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "; BeanClaw Personal Finances\n");
+  writeFileSync(join(LEDGER, "main.journal"), "; Accountant24 Personal Finances\n");
   await run(basicParams);
   const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
   expect(main).toContain("include 2026/03.journal");

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "@mariozechner/pi-ai";
-import { BEANCLAW_HOME, LEDGER_DIR } from "../config.js";
+import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config.js";
 import { runCommand } from "./utils.js";
 
 const Posting = Type.Object({
@@ -115,7 +115,7 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
       exitCode: checkCode,
       stdout,
       stderr,
-    } = await runCommand(["hledger", "check", "--strict", "-f", mainPath], { cwd: BEANCLAW_HOME, signal });
+    } = await runCommand(["hledger", "check", "--strict", "-f", mainPath], { cwd: ACCOUNTANT24_HOME, signal });
 
     if (checkCode === 127) {
       // hledger not installed — skip validation but warn
@@ -127,11 +127,11 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
     // Git commit (non-fatal)
     let commitStatus = "";
     try {
-      const { exitCode: gitCode } = await runCommand(["git", "add", "-A"], { cwd: BEANCLAW_HOME, signal });
+      const { exitCode: gitCode } = await runCommand(["git", "add", "-A"], { cwd: ACCOUNTANT24_HOME, signal });
       if (gitCode === 0) {
         const { exitCode: commitCode } = await runCommand(
           ["git", "commit", "-m", `Add: ${params.payee} — ${params.narration}`],
-          { cwd: BEANCLAW_HOME, signal },
+          { cwd: ACCOUNTANT24_HOME, signal },
         );
         commitStatus = commitCode === 0 ? "Committed." : "Git commit failed.";
       } else {

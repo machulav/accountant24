@@ -34,7 +34,7 @@ export async function startApp(agent: Agent, opts?: { showLogo?: boolean }): Pro
   tui.addChild(chatContainer);
   const editor = new Editor(tui, theme.editor);
 
-  const autocomplete = new CombinedAutocompleteProvider([{ name: "exit", description: "Exit BeanClaw" }]);
+  const autocomplete = new CombinedAutocompleteProvider([{ name: "exit", description: "Exit Accountant24" }]);
   editor.setAutocompleteProvider(autocomplete);
 
   function shutdown() {
