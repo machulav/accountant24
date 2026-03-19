@@ -15,7 +15,7 @@ export function createLogo(theme: Theme): string {
   ${c("██   ██")}  ${c("██")}          ${c("██")}
   ${c("██   ██")}  ${c("██████")}      ${c("██")}
 
-  ${d("Your personal AI accountant.")}
+  ${d("Accountant24 - Your personal AI accountant.")}
 `;
 }
 
