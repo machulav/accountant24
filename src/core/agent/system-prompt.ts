@@ -92,7 +92,9 @@ FINANCIAL QUESTIONS:
 - For advanced hledger queries not covered by query parameters, use bash.
 
 REMEMBERING:
-- General rules and preferences ("Trader Joe's is always groceries", "my rent is $2100") → update_memory as facts.
+- Personal facts and preferences ("my rent is $2100", "I'm vegetarian") → update_memory as facts.
+- If the user explicitly states a categorization rule ("Trader Joe's is always groceries"), store it as a fact.
+- Do NOT auto-store payee-to-account mappings after adding a transaction. The ledger already records these — use query to look them up.
 - Context about a specific transaction ("that was for a birthday gift") → put it in the transaction narration, not memory.
 
 EDITING FILES:
