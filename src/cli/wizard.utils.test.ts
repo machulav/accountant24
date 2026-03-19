@@ -108,6 +108,7 @@ describe("scaffoldProject", () => {
   const testConfig = {
     llm_provider: "anthropic",
     llm_model: "claude-sonnet-4-6",
+    auth_method: "api_key" as const,
     api_key: "sk-test-key",
   };
 
@@ -206,7 +207,12 @@ describe("scaffoldProject", () => {
 
   test("always overwrites config.json on re-scaffold", () => {
     scaffoldProject({ config: testConfig, baseDir: tmpDir, date: "2025-01-15" });
-    const newConfig = { llm_provider: "openai", llm_model: "gpt-5.4", api_key: "sk-new-key" };
+    const newConfig = {
+      llm_provider: "openai",
+      llm_model: "gpt-5.4",
+      auth_method: "api_key" as const,
+      api_key: "sk-new-key",
+    };
     scaffoldProject({ config: newConfig, baseDir: tmpDir, date: "2025-01-15" });
     expect(JSON.parse(readFileSync(join(tmpDir, "config.json"), "utf-8"))).toEqual(newConfig);
   });

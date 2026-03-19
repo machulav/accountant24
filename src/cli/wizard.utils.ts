@@ -1,6 +1,11 @@
+import { exec } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { log, text } from "@clack/prompts";
 import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
+import type { OAuthCredentials } from "@mariozechner/pi-ai/oauth";
+import { getOAuthProvider } from "@mariozechner/pi-ai/oauth";
+import chalk from "chalk";
 import type { Accountant24Config } from "../core/config.js";
 
 export const PROVIDER_MODELS: Record<string, { value: string; label: string; hint?: string }[]> = {
@@ -15,17 +20,62 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; hin
       label: "Claude Haiku 4.5",
       hint: "fast & cheap",
     },
-    {
-      value: "claude-opus-4-6",
-      label: "Claude Opus 4.6",
-      hint: "most capable",
-    },
   ],
   openai: [
     { value: "gpt-5.4", label: "GPT-5.4", hint: "recommended" },
-    { value: "gpt-5-mini", label: "GPT-5 Mini", hint: "fast & cheap" },
+    { value: "gpt-5.4-mini", label: "GPT-5.4 mini", hint: "fast & cheap" },
+  ],
+  "openai-codex": [
+    { value: "gpt-5.4", label: "GPT-5.4", hint: "recommended" },
+    { value: "gpt-5.4-mini", label: "GPT-5.4 mini", hint: "fast & cheap" },
   ],
 };
+
+export const AUTH_METHODS: Record<string, { value: string; label: string; hint?: string }[]> = {
+  anthropic: [
+    { value: "api_key", label: "API Key", hint: "enter your ANTHROPIC_API_KEY" },
+    { value: "oauth", label: "Claude Account", hint: "log in with Claude Pro/Max subscription" },
+  ],
+  openai: [
+    { value: "api_key", label: "API Key", hint: "enter your OPENAI_API_KEY" },
+    { value: "oauth", label: "ChatGPT Account", hint: "log in with ChatGPT Plus/Pro (Codex)" },
+  ],
+};
+
+export async function performOAuthLogin(oauthProviderId: string): Promise<OAuthCredentials> {
+  const provider = getOAuthProvider(oauthProviderId);
+  if (!provider) {
+    throw new Error(`OAuth provider "${oauthProviderId}" not found`);
+  }
+
+  return provider.login({
+    onAuth: (info) => {
+      log.step(`Opening browser for authentication...\n${chalk.dim(info.url)}`);
+      if (info.instructions) {
+        log.step(info.instructions);
+      }
+      try {
+        const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+        exec(`${cmd} ${JSON.stringify(info.url)}`, () => {});
+      } catch {
+        log.warn("Could not open browser automatically. Please open the URL above manually.");
+      }
+    },
+    onPrompt: async (prompt) => {
+      const value = await text({
+        message: prompt.message ?? "Paste the code here:",
+        placeholder: prompt.placeholder,
+      });
+      if (typeof value !== "string") {
+        throw new Error("Authentication cancelled");
+      }
+      return value;
+    },
+    onProgress: (message) => {
+      log.step(message);
+    },
+  });
+}
 
 export const DEFAULT_ACCOUNTS: readonly string[] = [
   "Assets:Checking",
@@ -67,7 +117,7 @@ export type VerifyResult = { ok: true } | { ok: false; error: string };
 export async function verifyApiKey(
   provider: string,
   modelId: string,
-  _apiKey: string,
+  apiKey: string,
   deps: { getModel: GetModelFn; completeSimple: CompleteFn },
 ): Promise<VerifyResult> {
   try {
@@ -78,7 +128,7 @@ export async function verifyApiKey(
         systemPrompt: "Respond with exactly: OK",
         messages: [{ role: "user", content: "Say OK", timestamp: Date.now() }],
       },
-      { maxTokens: 16 },
+      { maxTokens: 16, apiKey },
     );
     if (result.stopReason === "error") {
       return {
