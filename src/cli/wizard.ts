@@ -1,8 +1,9 @@
-import { cancel, intro, isCancel, log, outro, password, select, spinner } from "@clack/prompts";
+import { cancel, intro, isCancel, log, outro, password, select, spinner, text } from "@clack/prompts";
 import { completeSimple, getEnvApiKey, getModel } from "@mariozechner/pi-ai";
 import type { OAuthCredentials } from "@mariozechner/pi-ai/oauth";
 import type { Accountant24Config } from "../core/config.js";
 import { ACCOUNTANT24_HOME, getProviderEnvVar, setApiKeyEnv } from "../core/config.js";
+import { createOllamaModel, fetchOllamaModels, OLLAMA_DEFAULT_URL } from "../core/ollama.js";
 import { AUTH_METHODS, PROVIDER_MODELS, performOAuthLogin, scaffoldProject, verifyApiKey } from "./wizard.utils.js";
 
 /** Map wizard provider to OAuth provider ID */
@@ -33,9 +34,79 @@ export async function runWizard(): Promise<Accountant24Config> {
     options: [
       { value: "anthropic", label: "Anthropic", hint: "Claude models" },
       { value: "openai", label: "OpenAI", hint: "GPT models" },
+      { value: "ollama", label: "Ollama", hint: "local models" },
     ],
   });
   handleCancel(provider);
+
+  // Ollama flow — separate from API key / OAuth
+  if (provider === "ollama") {
+    const baseUrl = await text({
+      message: "Ollama endpoint URL",
+      defaultValue: OLLAMA_DEFAULT_URL,
+      placeholder: OLLAMA_DEFAULT_URL,
+    });
+    handleCancel(baseUrl);
+
+    const sv = spinner();
+    sv.start("Fetching available models...");
+    const ollamaModels = await fetchOllamaModels(baseUrl);
+    sv.stop(ollamaModels ? `Found ${ollamaModels.length} model(s)` : "Could not fetch models");
+
+    let ollamaModelId: string;
+    if (ollamaModels && ollamaModels.length > 0) {
+      const chosen = await select({
+        message: "Choose model",
+        options: ollamaModels,
+      });
+      handleCancel(chosen);
+      ollamaModelId = chosen;
+    } else {
+      log.warn("Could not connect to Ollama or no models found. Enter a model name manually.");
+      const manual = await text({
+        message: "Model name",
+        placeholder: "llama3.1",
+        validate: (v) => {
+          if (!v || v.trim().length === 0) return "Model name is required.";
+        },
+      });
+      handleCancel(manual);
+      ollamaModelId = manual;
+    }
+
+    // Verify connection
+    const s = spinner();
+    s.start("Verifying connection...");
+    const ollamaModel = createOllamaModel(ollamaModelId, baseUrl);
+    const result = await verifyApiKey(provider, ollamaModelId, "ollama", {
+      getModel: () => ollamaModel as any,
+      completeSimple,
+    });
+    if (!result.ok) {
+      s.stop("Verification failed");
+      log.error(result.error);
+      process.exit(1);
+    }
+    s.stop("Connection verified");
+
+    // Scaffold
+    const s2 = spinner();
+    s2.start("Setting up Accountant24...");
+
+    const config: Accountant24Config = {
+      llm_provider: "ollama",
+      llm_model: ollamaModelId,
+      auth_method: "api_key",
+      base_url: baseUrl,
+    };
+
+    scaffoldProject({ config, baseDir: ACCOUNTANT24_HOME });
+
+    s2.stop(`Accountant24 workspace is set up at ${ACCOUNTANT24_HOME}`);
+    outro("You're all set!");
+
+    return config;
+  }
 
   // 2. Auth method
   const authMethod = await select({

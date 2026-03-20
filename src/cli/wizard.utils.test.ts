@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createOllamaModel, fetchOllamaModels } from "../core/ollama.js";
 import { DEFAULT_ACCOUNTS, PROVIDER_MODELS, scaffoldProject, today, verifyApiKey } from "./wizard.utils.js";
 
 describe("today", () => {
@@ -215,5 +216,77 @@ describe("scaffoldProject", () => {
     };
     scaffoldProject({ config: newConfig, baseDir: tmpDir, date: "2025-01-15" });
     expect(JSON.parse(readFileSync(join(tmpDir, "config.json"), "utf-8"))).toEqual(newConfig);
+  });
+});
+
+describe("createOllamaModel", () => {
+  test("returns correct api and provider", () => {
+    const model = createOllamaModel("llama3.1", "http://localhost:11434");
+    expect(model.api).toBe("openai-completions");
+    expect(model.provider).toBe("ollama");
+  });
+
+  test("appends /v1 to baseUrl", () => {
+    const model = createOllamaModel("llama3.1", "http://localhost:11434");
+    expect(model.baseUrl).toBe("http://localhost:11434/v1");
+  });
+
+  test("sets id to modelId", () => {
+    const model = createOllamaModel("mistral", "http://myhost:1234");
+    expect(model.id).toBe("mistral");
+  });
+
+  test("sets zero cost", () => {
+    const model = createOllamaModel("llama3.1", "http://localhost:11434");
+    expect(model.cost).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+  });
+
+  test("sets compat flags", () => {
+    const model = createOllamaModel("llama3.1", "http://localhost:11434");
+    expect(model.compat).toEqual({
+      supportsStore: false,
+      supportsDeveloperRole: false,
+      supportsReasoningEffort: false,
+      supportsStrictMode: false,
+      supportsUsageInStreaming: false,
+      maxTokensField: "max_tokens",
+    });
+  });
+});
+
+describe("fetchOllamaModels", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("returns model list on success", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ models: [{ name: "llama3.1" }, { name: "mistral" }] }), {
+          status: 200,
+        }),
+      ),
+    ) as any;
+    const result = await fetchOllamaModels("http://localhost:11434");
+    expect(result).toEqual([
+      { value: "llama3.1", label: "llama3.1" },
+      { value: "mistral", label: "mistral" },
+    ]);
+  });
+
+  test("returns null on network error", async () => {
+    globalThis.fetch = mock(() => Promise.reject(new Error("Connection refused"))) as any;
+    const result = await fetchOllamaModels("http://localhost:11434");
+    expect(result).toBeNull();
+  });
+
+  test("returns null when models array is empty", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response(JSON.stringify({ models: [] }), { status: 200 })),
+    ) as any;
+    const result = await fetchOllamaModels("http://localhost:11434");
+    expect(result).toBeNull();
   });
 });

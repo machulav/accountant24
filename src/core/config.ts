@@ -25,10 +25,17 @@ const ConfigSchema = z
     auth_method: z.enum(["api_key", "oauth"]).default("api_key"),
     api_key: z.string().optional(),
     oauth_credentials: OAuthCredentialsSchema.optional(),
+    base_url: z.string().optional(),
   })
-  .refine((c) => (c.auth_method === "oauth" ? !!c.oauth_credentials : !!c.api_key), {
-    message: "api_key or oauth_credentials required based on auth_method",
-  });
+  .refine(
+    (c) => {
+      if (c.llm_provider === "ollama") return true;
+      return c.auth_method === "oauth" ? !!c.oauth_credentials : !!c.api_key;
+    },
+    {
+      message: "api_key or oauth_credentials required based on auth_method",
+    },
+  );
 
 export type Accountant24Config = z.infer<typeof ConfigSchema>;
 
