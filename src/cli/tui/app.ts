@@ -1,22 +1,17 @@
+import { join } from "node:path";
 import type { Agent } from "@mariozechner/pi-agent-core";
 import { CombinedAutocompleteProvider, Editor, matchesKey, ProcessTerminal, Text, TUI } from "@mariozechner/pi-tui";
+import { LEDGER_DIR } from "../../core/config.js";
+import { Briefing, buildHeaderLine } from "./briefing.js";
+import { fetchBriefingData } from "./briefing-data.js";
 import { setupChat } from "./chat.js";
 import { GapContainer } from "./gap-container.js";
 import type { Theme } from "./theme.js";
 import { createTheme } from "./theme.js";
 
 export function createLogo(theme: Theme): string {
-  const c = theme.app.logo;
-  const d = theme.app.logoTagline;
-  return `
-  ${c(" █████")}   ${c("██████")}  ${c("██  ██")}
-  ${c("██   ██")}      ${c("██")}  ${c("██  ██")}
-  ${c("███████")}  ${c("██████")}  ${c("██████")}
-  ${c("██   ██")}  ${c("██")}          ${c("██")}
-  ${c("██   ██")}  ${c("██████")}      ${c("██")}
-
-  ${d("Accountant24 - Your personal AI accountant.")}
-`;
+  const width = process.stdout.columns || 80;
+  return `\n${theme.briefing.header(buildHeaderLine("Accountant24", width))}\n`;
 }
 
 export async function startApp(agent: Agent, opts?: { showLogo?: boolean }): Promise<void> {
@@ -26,8 +21,26 @@ export async function startApp(agent: Agent, opts?: { showLogo?: boolean }): Pro
   const theme = createTheme();
 
   if (opts?.showLogo !== false) {
-    const welcome = new Text(createLogo(theme), 0, 1);
-    tui.addChild(welcome);
+    const briefing = new Briefing(theme);
+    tui.addChild(briefing);
+
+    const journalPath = join(LEDGER_DIR, "main.journal");
+    fetchBriefingData(journalPath)
+      .then((data) => {
+        briefing.setData(data);
+        tui.requestRender();
+      })
+      .catch(() => {
+        briefing.setData({
+          netWorth: null,
+          spendThisMonth: null,
+          incomeThisMonth: null,
+          recentTransactions: [],
+          topCategories: [],
+          error: "Failed to load financial data.",
+        });
+        tui.requestRender();
+      });
   }
 
   const chatContainer = new GapContainer(1, 1);

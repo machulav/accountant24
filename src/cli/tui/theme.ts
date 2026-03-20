@@ -14,10 +14,23 @@ export interface AppTheme {
   toolError: (s: string) => string;
 }
 
+export interface BriefingTheme {
+  header: (s: string) => string;
+  label: (s: string) => string;
+  amount: (s: string) => string;
+  changePositive: (s: string) => string;
+  changeNegative: (s: string) => string;
+  divider: (s: string) => string;
+  dim: (s: string) => string;
+  txnIncome: (s: string) => string;
+  emptyState: (s: string) => string;
+}
+
 export interface Theme {
   editor: EditorTheme;
   markdown: MarkdownTheme;
   app: AppTheme;
+  briefing: BriefingTheme;
 }
 
 export function createTheme(): Theme {
@@ -64,5 +77,17 @@ export function createTheme(): Theme {
     toolError: chalk.red,
   };
 
-  return { editor, markdown, app };
+  const briefing: BriefingTheme = {
+    header: (t) => chalk.bold.green(t),
+    label: (t) => chalk.dim(t),
+    amount: (t) => chalk.bold(t),
+    changePositive: (t) => chalk.green(t),
+    changeNegative: (t) => chalk.red(t),
+    divider: (t) => chalk.dim(t),
+    dim: (t) => chalk.dim(t),
+    txnIncome: (t) => chalk.green(t),
+    emptyState: (t) => chalk.dim.italic(t),
+  };
+
+  return { editor, markdown, app, briefing };
 }
