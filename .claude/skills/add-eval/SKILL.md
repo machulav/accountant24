@@ -68,6 +68,7 @@ Then ask in one combined question:
 - Which tools should be called? (suggest based on the prompt)
 - Which tools must NOT be called? (if relevant)
 - What makes a correct response? (this becomes the rubric)
+- Other relevant information, if any.
 
 ### Step 3: Fill in metadata
 
@@ -95,3 +96,7 @@ Ask (or infer):
 - **Be specific in rubrics**: Vague rubrics like "agent responds correctly" are useless. Say what "correct" means.
 - **Include negative constraints**: Test what should NOT happen, not just what should
 - **One case, one thing**: Each case should test one specific behavior. Don't overload a single case.
+
+## Notes
+
+- When showing the final case for confirmation, show it in a readable, formatted JSON format to the user.
