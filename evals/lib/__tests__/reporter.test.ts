@@ -74,11 +74,17 @@ describe("formatResults()", () => {
     expect(failedSection).not.toContain("[tools_called: query] called");
   });
 
-  it("should list passed results with id and duration", () => {
+  it("should list passed results with id and duration in ms", () => {
     const results = [makeResult({ id: "test-pass-001", passed: true, durationMs: 200 })];
     const output = formatResults(results);
     expect(output).toContain("test-pass-001");
     expect(output).toContain("200ms");
+  });
+
+  it("should format duration in seconds when >= 1000ms", () => {
+    const results = [makeResult({ id: "test-slow-001", passed: true, durationMs: 2500 })];
+    const output = formatResults(results);
+    expect(output).toContain("2.5s");
   });
 
   it("should include error message for failed results", () => {
@@ -188,6 +194,65 @@ describe("formatResults()", () => {
       const results = [makeResult({ id: "test-a-001", passed: true, sourceFile: undefined })];
       const output = formatResults(results);
       expect(output).toContain("unknown");
+    });
+  });
+
+  describe("model options", () => {
+    it("should display eval model when evalModel is provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { evalModel: "gpt-4", evalProvider: "openai" });
+      expect(output).toContain("eval model   openai/gpt-4");
+    });
+
+    it("should display judge model when judgeModel is provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { judgeModel: "claude-3", judgeProvider: "anthropic" });
+      expect(output).toContain("judge model  anthropic/claude-3");
+    });
+
+    it("should display both model lines when both provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, {
+        evalModel: "gpt-4",
+        evalProvider: "openai",
+        judgeModel: "claude-3",
+        judgeProvider: "anthropic",
+      });
+      expect(output).toContain("eval model   openai/gpt-4");
+      expect(output).toContain("judge model  anthropic/claude-3");
+    });
+
+    it("should not display model section when options is empty object", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, {});
+      expect(output).not.toContain("eval model");
+      expect(output).not.toContain("judge model");
+    });
+
+    it("should use empty string for evalProvider when not provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { evalModel: "gpt-4" });
+      expect(output).toContain("eval model   /gpt-4");
+    });
+
+    it("should use empty string for judgeProvider when not provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { judgeModel: "claude-3" });
+      expect(output).toContain("judge model  /claude-3");
+    });
+
+    it("should show only evalModel line when judgeModel is not provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { evalModel: "gpt-4", evalProvider: "openai" });
+      expect(output).toContain("eval model");
+      expect(output).not.toContain("judge model");
+    });
+
+    it("should show only judgeModel line when evalModel is not provided", () => {
+      const results = [makeResult({ id: "test-a-001" })];
+      const output = formatResults(results, { judgeModel: "claude-3", judgeProvider: "anthropic" });
+      expect(output).not.toContain("eval model");
+      expect(output).toContain("judge model");
     });
   });
 });
