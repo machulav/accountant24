@@ -27,47 +27,49 @@ export function formatTableRow(row: TableRow, maxIdLen: number): string {
   return `  ${num} ${id}  ${icon} ${dur}`;
 }
 
-export function renderTable(rows: TableRow[], total: number): string {
-  const header = `\n  Running ${total} eval(s)\n`;
+export function renderTable(rows: TableRow[], total: number, modelLabel?: string): string {
+  const label = modelLabel ? ` with ${chalk.cyan(modelLabel)}` : "";
+  const header = `\n  Running ${total} eval(s)${label}\n`;
   const maxIdLen = Math.max(0, ...rows.map((r) => r.id.length));
   const lines = rows.map((r) => formatTableRow(r, maxIdLen));
   return header + lines.join("\n");
 }
 
-const rows: TableRow[] = [];
-let prevLineCount = 0;
+export function createProgressHandler(modelLabel?: string): (event: ProgressEvent) => void {
+  const rows: TableRow[] = [];
+  let prevLineCount = 0;
 
-export function onProgress(event: ProgressEvent): void {
-  switch (event.type) {
-    case "start":
-      rows.length = 0;
-      prevLineCount = 0;
-      break;
-    case "case_start":
-      rows.push({ index: event.index, total: event.total, id: event.id, status: "running" });
-      break;
-    case "case_end": {
-      const row = rows.find((r) => r.id === event.id && r.index === event.index);
-      if (row) {
-        row.status = event.passed ? "pass" : "fail";
-        row.durationMs = event.durationMs;
+  return (event: ProgressEvent) => {
+    switch (event.type) {
+      case "start":
+        rows.length = 0;
+        prevLineCount = 0;
+        break;
+      case "case_start":
+        rows.push({ index: event.index, total: event.total, id: event.id, status: "running" });
+        break;
+      case "case_end": {
+        const row = rows.find((r) => r.id === event.id && r.index === event.index);
+        if (row) {
+          row.status = event.passed ? "pass" : "fail";
+          row.durationMs = event.durationMs;
+        }
+        break;
       }
-      break;
     }
-  }
 
-  if (event.type === "start") return;
+    if (event.type === "start") return;
 
-  const output = renderTable(rows, event.total);
-  const lines = output.split("\n");
+    const output = renderTable(rows, event.total, modelLabel);
+    const lines = output.split("\n");
 
-  // Move cursor up to overwrite previous table
-  if (prevLineCount > 0) {
-    process.stdout.write(`\x1b[${prevLineCount}A\x1b[0J`);
-  }
+    if (prevLineCount > 0) {
+      process.stdout.write(`\x1b[${prevLineCount}A\x1b[0J`);
+    }
 
-  process.stdout.write(`${output}\n`);
-  prevLineCount = lines.length;
+    process.stdout.write(`${output}\n`);
+    prevLineCount = lines.length;
+  };
 }
 
 export interface CliConfig {
@@ -79,6 +81,8 @@ export interface CliConfig {
 }
 
 export async function main(config: CliConfig): Promise<{ exitCode: number }> {
+  const modelLabel = `${config.provider}/${config.model}`;
+  const onProgress = createProgressHandler(modelLabel);
   const runConfig: EvalRunConfig = { ...config, onProgress };
   const results = await runEval(runConfig);
 

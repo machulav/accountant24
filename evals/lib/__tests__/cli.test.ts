@@ -20,7 +20,7 @@ mock.module("../reporter.js", () => ({
   formatResults: () => "MOCK_REPORT",
 }));
 
-const { formatDuration, formatTableRow, renderTable, main, onProgress } = await import("../cli.js");
+const { formatDuration, formatTableRow, renderTable, createProgressHandler, main } = await import("../cli.js");
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -121,13 +121,24 @@ describe("renderTable()", () => {
     expect(output).toContain(chalk.green("PASS"));
     expect(output).toContain(chalk.yellow("..."));
   });
+
+  it("should include model label when provided", () => {
+    const output = renderTable([], 3, "anthropic/claude-sonnet-4-6");
+    expect(output).toContain("anthropic/claude-sonnet-4-6");
+  });
+
+  it("should not include 'with' when no model label", () => {
+    const output = renderTable([], 3);
+    expect(output).not.toContain("with");
+  });
 });
 
-describe("onProgress()", () => {
+describe("createProgressHandler()", () => {
   it("should not write to stdout on start event", () => {
+    const handler = createProgressHandler();
     const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
-      onProgress({ type: "start", total: 5 });
+      handler({ type: "start", total: 5 });
       expect(writeSpy).not.toHaveBeenCalled();
     } finally {
       writeSpy.mockRestore();
@@ -135,10 +146,11 @@ describe("onProgress()", () => {
   });
 
   it("should write table on case_start event", () => {
+    const handler = createProgressHandler();
     const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
-      onProgress({ type: "start", total: 3 });
-      onProgress({ type: "case_start", index: 0, total: 3, id: "test-001" });
+      handler({ type: "start", total: 3 });
+      handler({ type: "case_start", index: 0, total: 3, id: "test-001" });
       expect(writeSpy).toHaveBeenCalled();
       const output = writeSpy.mock.calls.map((c) => c[0]).join("");
       expect(output).toContain("test-001");
@@ -149,12 +161,13 @@ describe("onProgress()", () => {
   });
 
   it("should update row and rewrite table on case_end event", () => {
+    const handler = createProgressHandler();
     const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
-      onProgress({ type: "start", total: 1 });
-      onProgress({ type: "case_start", index: 0, total: 1, id: "test-001" });
+      handler({ type: "start", total: 1 });
+      handler({ type: "case_start", index: 0, total: 1, id: "test-001" });
       writeSpy.mockClear();
-      onProgress({ type: "case_end", index: 0, total: 1, id: "test-001", passed: true, durationMs: 500 });
+      handler({ type: "case_end", index: 0, total: 1, id: "test-001", passed: true, durationMs: 500 });
       const output = writeSpy.mock.calls.map((c) => c[0]).join("");
       expect(output).toContain(chalk.green("PASS"));
       expect(output).toContain(chalk.dim("500ms"));
@@ -164,14 +177,28 @@ describe("onProgress()", () => {
   });
 
   it("should show FAIL for failed case_end", () => {
+    const handler = createProgressHandler();
     const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
-      onProgress({ type: "start", total: 1 });
-      onProgress({ type: "case_start", index: 0, total: 1, id: "fail-001" });
+      handler({ type: "start", total: 1 });
+      handler({ type: "case_start", index: 0, total: 1, id: "fail-001" });
       writeSpy.mockClear();
-      onProgress({ type: "case_end", index: 0, total: 1, id: "fail-001", passed: false, durationMs: 2000 });
+      handler({ type: "case_end", index: 0, total: 1, id: "fail-001", passed: false, durationMs: 2000 });
       const output = writeSpy.mock.calls.map((c) => c[0]).join("");
       expect(output).toContain(chalk.red("FAIL"));
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
+  it("should include model label in table output", () => {
+    const handler = createProgressHandler("openai/gpt-5");
+    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      handler({ type: "start", total: 1 });
+      handler({ type: "case_start", index: 0, total: 1, id: "test-001" });
+      const output = writeSpy.mock.calls.map((c) => c[0]).join("");
+      expect(output).toContain("openai/gpt-5");
     } finally {
       writeSpy.mockRestore();
     }

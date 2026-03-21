@@ -48,6 +48,34 @@ accountant24/
 | LLM API  | `@mariozechner/pi-ai`         |
 | Chat TUI | `@mariozechner/pi-tui`        |
 
+## Evals
+
+Run the eval suite against one or more models:
+
+```bash
+# Default model (anthropic/claude-sonnet-4-6)
+bun eval
+
+# Specific model
+bun eval anthropic/claude-sonnet-4-6
+
+# Multiple models (runs full suite for each)
+bun eval anthropic/claude-sonnet-4-6 openai/gpt-5
+
+# Filter to specific cases
+EVAL_FILTER=tool-selection bun eval
+```
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `EVAL_PROVIDER` | `anthropic` | Default provider (used when no CLI args) |
+| `EVAL_MODEL` | `claude-sonnet-4-6` | Default model (used when no CLI args) |
+| `EVAL_JUDGE_PROVIDER` | same as provider | Provider for rubric grading |
+| `EVAL_JUDGE_MODEL` | same as model | Model for rubric grading |
+| `EVAL_FILTER` | _(none)_ | Filter cases by ID substring |
+
 ## Controls
 
 - **Ctrl+C** — exit
