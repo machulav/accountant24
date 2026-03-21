@@ -119,14 +119,12 @@ describe("formatToolSummary", () => {
     );
   });
 
-  test("returns date and payee for add_transaction", () => {
-    expect(formatToolSummary("add_transaction", { date: "2026-03-15", payee: "Whole Foods" })).toBe(
-      "2026-03-15 Whole Foods",
-    );
+  test("returns empty string for add_transaction", () => {
+    expect(formatToolSummary("add_transaction", { date: "2026-03-15", payee: "Whole Foods" })).toBe("");
   });
 
-  test("returns fact count for update_memory", () => {
-    expect(formatToolSummary("update_memory", { facts: ["a", "b"] })).toBe("2 fact(s)");
+  test("returns empty string for update_memory", () => {
+    expect(formatToolSummary("update_memory", { facts: ["a", "b"] })).toBe("");
   });
 
   test("returns empty string for unknown tool", () => {

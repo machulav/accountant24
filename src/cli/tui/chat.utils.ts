@@ -37,9 +37,9 @@ export function formatToolSummary(toolName: string, args: any): string {
     case "query":
       return args?.report ? buildArgs(args, args?.file ?? "ledger/main.journal").join(" ") : "";
     case "add_transaction":
-      return `${args?.date ?? ""} ${args?.payee ?? ""}`.trim();
+      return "";
     case "update_memory":
-      return args?.facts?.length ? `${args.facts.length} fact(s)` : "";
+      return "";
     default:
       return "";
   }
