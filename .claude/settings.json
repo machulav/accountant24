@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun verify"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-stop.sh",
+            "timeout": 120
           }
         ]
       }

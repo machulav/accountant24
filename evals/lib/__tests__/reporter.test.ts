@@ -9,6 +9,7 @@ function makeResult(overrides: Partial<EvalResult> & { id: string }): EvalResult
     toolsCalled: [],
     agentOutput: "",
     durationMs: 100,
+    sourceFile: "cases.jsonl",
     ...overrides,
   };
 }
@@ -112,9 +113,8 @@ describe("formatResults()", () => {
     ];
     const output = formatResults(results);
     // Category line should contain the pass icon
-    const categoryLine = output.split("\n").find((l) => l.includes("tool-selection"));
-    expect(categoryLine).toBeDefined();
-    expect(categoryLine!).toContain("✓");
+    const categoryLine = output.split("\n").find((l) => l.includes("tool-selection")) ?? "";
+    expect(categoryLine).toContain("✓");
   });
 
   it("should show cross for partially-failed categories", () => {
@@ -123,9 +123,8 @@ describe("formatResults()", () => {
       makeResult({ id: "tool-selection-002", passed: false }),
     ];
     const output = formatResults(results);
-    const categoryLine = output.split("\n").find((l) => l.includes("tool-selection"));
-    expect(categoryLine).toBeDefined();
-    expect(categoryLine!).toContain("✗");
+    const categoryLine = output.split("\n").find((l) => l.includes("tool-selection")) ?? "";
+    expect(categoryLine).toContain("✗");
   });
 
   it("should handle empty results array", () => {
@@ -137,5 +136,58 @@ describe("formatResults()", () => {
     const results = [makeResult({ id: "test-empty-001", passed: true, checks: [] })];
     const output = formatResults(results);
     expect(output).toContain("1/1 passed");
+  });
+
+  describe("BY SOURCE FILE section", () => {
+    it("should group results by sourceFile", () => {
+      const results = [
+        makeResult({ id: "test-a-001", passed: true, sourceFile: "transactions.jsonl" }),
+        makeResult({ id: "test-a-002", passed: true, sourceFile: "transactions.jsonl" }),
+        makeResult({ id: "test-b-001", passed: false, sourceFile: "queries.jsonl" }),
+      ];
+      const output = formatResults(results);
+      expect(output).toContain("BY SOURCE FILE");
+      expect(output).toContain("transactions.jsonl");
+      expect(output).toContain("queries.jsonl");
+    });
+
+    it("should show checkmark for files where all cases pass", () => {
+      const results = [
+        makeResult({ id: "test-a-001", passed: true, sourceFile: "good.jsonl" }),
+        makeResult({ id: "test-a-002", passed: true, sourceFile: "good.jsonl" }),
+      ];
+      const output = formatResults(results);
+      const fileLine = output.split("\n").find((l) => l.includes("good.jsonl")) ?? "";
+      expect(fileLine).toContain("✓");
+    });
+
+    it("should show cross for files with any failure", () => {
+      const results = [
+        makeResult({ id: "test-a-001", passed: true, sourceFile: "mixed.jsonl" }),
+        makeResult({ id: "test-a-002", passed: false, sourceFile: "mixed.jsonl" }),
+      ];
+      const output = formatResults(results);
+      const fileLine = output.split("\n").find((l) => l.includes("mixed.jsonl")) ?? "";
+      expect(fileLine).toContain("✗");
+    });
+
+    it("should show correct counts per file", () => {
+      const results = [
+        makeResult({ id: "test-a-001", passed: true, sourceFile: "a.jsonl" }),
+        makeResult({ id: "test-a-002", passed: false, sourceFile: "a.jsonl" }),
+        makeResult({ id: "test-b-001", passed: true, sourceFile: "b.jsonl" }),
+      ];
+      const output = formatResults(results);
+      const aLine = output.split("\n").find((l) => l.includes("a.jsonl"));
+      const bLine = output.split("\n").find((l) => l.includes("b.jsonl"));
+      expect(aLine).toContain("1/2");
+      expect(bLine).toContain("1/1");
+    });
+
+    it("should fall back to 'unknown' when sourceFile is missing", () => {
+      const results = [makeResult({ id: "test-a-001", passed: true, sourceFile: undefined })];
+      const output = formatResults(results);
+      expect(output).toContain("unknown");
+    });
   });
 });

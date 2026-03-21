@@ -115,7 +115,7 @@ describe("formatToolSummary", () => {
       invert: true,
     });
     expect(result).toBe(
-      "hledger reg -f ledger/main.journal Expenses -b 2026-01-01 -e 2026-04-01 --monthly --depth 2 --invert",
+      "hledger reg -f ledger/main.journal Expenses -b 2026-01-01 -e 2026-04-01 --monthly --depth 2 --invert --width=200",
     );
   });
 

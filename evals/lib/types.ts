@@ -53,6 +53,8 @@ export const EvalCaseSchema = z.object({
 
 export type EvalCase = z.infer<typeof EvalCaseSchema>;
 
+export type LoadedEvalCase = EvalCase & { sourceFile: string };
+
 // ── Tool call record ─────────────────────────────────────────────────
 
 export interface ToolCallRecord {
@@ -81,4 +83,5 @@ export interface EvalResult {
   agentOutput: string;
   durationMs: number;
   error?: string;
+  sourceFile?: string;
 }

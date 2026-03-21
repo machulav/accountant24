@@ -1,5 +1,5 @@
 ---
-name: add-eval
+name: a24:add-eval
 description: Interactively add a new eval case to evals/cases.jsonl. Interviews the user to collect all fields, then appends a valid JSONL line.
 allowed-tools:
   - Read

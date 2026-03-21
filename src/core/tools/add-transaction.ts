@@ -13,7 +13,10 @@ const Posting = Type.Object({
 
 const Params = Type.Object({
   date: Type.String({ description: "Transaction date in YYYY-MM-DD format" }),
-  payee: Type.String({ description: "Payee name, e.g. Whole Foods" }),
+  payee: Type.String({
+    description:
+      'Payee name, e.g. Whole Foods. Use exactly "Unknown" when the user does not know or remember the payee.',
+  }),
   narration: Type.String({ description: "Transaction description" }),
   postings: Type.Array(Posting, { minItems: 2, description: "At least 2 postings; at most one may omit amount" }),
   tags: Type.Optional(Type.Array(Type.String(), { description: "Optional tags (without #)" })),
@@ -107,6 +110,23 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
       if (!mainContent.includes(includeDirective)) {
         const sep = mainContent.endsWith("\n") ? "" : "\n";
         writeFileSync(mainPath, `${mainContent}${sep}${includeDirective}\n`);
+      }
+    }
+
+    // Ensure commodity declarations exist for strict validation
+    if (existsSync(mainPath)) {
+      const mainContent = readFileSync(mainPath, "utf-8");
+      const currencies = new Set(params.postings.filter((p: any) => p.currency).map((p: any) => p.currency));
+      const missingCommodities: string[] = [];
+      for (const cur of currencies) {
+        const pattern = new RegExp(`^commodity\\s+.*${cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m");
+        if (!pattern.test(mainContent)) {
+          missingCommodities.push(cur);
+        }
+      }
+      if (missingCommodities.length > 0) {
+        const declarations = missingCommodities.map((c) => `commodity ${c}`).join("\n");
+        writeFileSync(mainPath, `${declarations}\n\n${mainContent}`);
       }
     }
 

@@ -200,3 +200,61 @@ test("uses 4-space indent for postings", async () => {
   expect(text).toContain("    Expenses:Food:Groceries");
   expect(text).toContain("    Assets:Checking");
 });
+
+test("should auto-declare missing commodity in main.journal", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "account Assets:Checking\n");
+  await run(basicParams);
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  expect(main).toContain("commodity USD");
+});
+
+test("should not duplicate existing commodity declaration", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "commodity USD\naccount Assets:Checking\n");
+  await run(basicParams);
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const matches = main.match(/commodity USD/g);
+  expect(matches).toHaveLength(1);
+});
+
+test("should auto-declare multiple missing commodities", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  await run({
+    ...basicParams,
+    postings: [
+      { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
+      { account: "Expenses:Travel", amount: 100, currency: "EUR" },
+      { account: "Assets:Checking" },
+    ],
+  });
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  expect(main).toContain("commodity USD");
+  expect(main).toContain("commodity EUR");
+});
+
+test("should declare commodity without format number", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  await run(basicParams);
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  expect(main).toContain("commodity USD");
+  expect(main).not.toContain("commodity 1000");
+});
+
+test("should not redeclare commodity that exists with a format", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "commodity 1,000.00 USD\n");
+  await run(basicParams);
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const matches = main.match(/commodity.*USD/g);
+  expect(matches).toHaveLength(1);
+});
+
+test("should skip commodity declaration for postings without currency", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  await run({
+    ...basicParams,
+    postings: [{ account: "Expenses:Food:Groceries", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
+  });
+  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  expect(main).toContain("commodity USD");
+  const commodityLines = main.split("\n").filter((l: string) => l.startsWith("commodity"));
+  expect(commodityLines).toHaveLength(1);
+});

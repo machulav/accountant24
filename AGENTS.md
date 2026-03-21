@@ -13,6 +13,38 @@ Tests are **specifications**, not verifications of current code. Write tests tha
 - **Mutation mindset:** before finalizing, ask "would this test fail if I changed `>` to `>=` or `+` to `-` in the code?" If not, strengthen the assertions.
 - Prefer small, testable functions. Split large tests into smaller ones. Target 100% coverage.
 
+# System Prompt
+
+The agent's behavior is controlled by two layers. Each has distinct responsibilities:
+
+## Layer 1: Tool Parameter Descriptions (`src/core/tools/*.ts`)
+
+**Job:** Constrain *parameter values* at call time.
+
+- Define valid formats, examples, and edge-case defaults (e.g., payee = "Unknown")
+- Descriptions are injected into the LLM context alongside the tool schema
+- Cannot express conditional logic or workflow — only what a parameter IS, not when to ask for it
+- Keep descriptions concise but specific about edge cases
+
+## Layer 2: System Prompt (`src/core/agent/system-prompt.ts`)
+
+**Job:** Define the *decision-making workflow* — when to call tools, when to ask the user, when to skip steps.
+
+- ADDING TRANSACTIONS section: the decision tree for gathering info → querying → adding
+- Examples: show the agent concrete traces for key behavioral paths
+- Memory/session context: injected dynamically (today's date, facts, accounts, payees)
+- Cannot constrain parameter values at call time — that's the tool description's job
+
+## When to update which layer
+
+| Scenario | Update |
+|----------|--------|
+| Agent passes wrong value to a tool parameter | Tool parameter description |
+| Agent calls a tool when it shouldn't (or vice versa) | System prompt workflow |
+| Agent doesn't ask user when it should | System prompt workflow |
+| Agent picks wrong default for a field | Tool parameter description |
+| Agent follows wrong sequence of steps | System prompt workflow + examples |
+
 ## Structure
 
 - Place tests in `__tests__/` folders next to the code. File name: `<source>.test.ts`.

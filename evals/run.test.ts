@@ -10,9 +10,6 @@ const EVAL_JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? EVAL_MODEL;
 const EVAL_TIMEOUT = Number(process.env.EVAL_TIMEOUT ?? "60000");
 const EVAL_FILTER = process.env.EVAL_FILTER;
 
-console.log(`\n  Eval: provider: ${EVAL_PROVIDER},  model: ${EVAL_MODEL}`);
-console.log(`  Judge: provider: ${EVAL_JUDGE_PROVIDER}  model: ${EVAL_JUDGE_MODEL}\n`);
-
 // ── Imports ──────────────────────────────────────────────────────────
 
 import { Agent } from "@mariozechner/pi-agent-core";
@@ -32,10 +29,16 @@ const results: EvalResult[] = [];
 
 // ── Run each case ────────────────────────────────────────────────────
 
+const printedFiles = new Set<string>();
+
 for (const evalCase of cases) {
   test(
     evalCase.id,
     async () => {
+      if (!printedFiles.has(evalCase.sourceFile)) {
+        printedFiles.add(evalCase.sourceFile);
+        console.log(`\n  ── ${evalCase.sourceFile} ${"─".repeat(Math.max(0, 56 - evalCase.sourceFile.length))}\n`);
+      }
       const start = Date.now();
       const workspace = createEvalWorkspace(evalCase);
 
@@ -110,9 +113,12 @@ for (const evalCase of cases) {
         await agent.prompt(lastMessage.content);
         await agent.waitForIdle();
 
-        // Extract agent text output
-        const agentMessages = agent.state.messages.filter((m: any) => m.role === "assistant");
-        const agentOutput = agentMessages
+        // Extract agent text output (only from NEW responses, not injected history)
+        const allMessages = agent.state.messages;
+        const newAgentMessages = allMessages
+          .slice(historyMessages.length > 0 ? historyMessages.length + 1 : 0)
+          .filter((m: any) => m.role === "assistant");
+        const agentOutput = newAgentMessages
           .flatMap((m: any) => m.content?.filter((c: any) => c.type === "text")?.map((c: any) => c.text) ?? [])
           .join("\n");
 
@@ -138,6 +144,7 @@ for (const evalCase of cases) {
           toolsCalled,
           agentOutput,
           durationMs: Date.now() - start,
+          sourceFile: evalCase.sourceFile,
         });
 
         // Fail the test with the first failing check
@@ -156,6 +163,7 @@ for (const evalCase of cases) {
             agentOutput: "",
             durationMs: Date.now() - start,
             error: err.message ?? String(err),
+            sourceFile: evalCase.sourceFile,
           });
         }
         throw err;

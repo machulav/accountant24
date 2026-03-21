@@ -87,6 +87,11 @@ function buildArgs(params: any, resolved: string): string[] {
   if (params.invert) args.push("--invert");
   if (params.output_format) args.push("-O", params.output_format);
 
+  // Prevent account name truncation in register reports
+  if (params.report === "reg" || params.report === "aregister") {
+    args.push("--width=200");
+  }
+
   return args;
 }
 

@@ -92,12 +92,37 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   lines.push(hr);
   lines.push("");
 
-  const maxCatLen = Math.max(...[...byCategory.keys()].map((k) => k.length));
+  const maxCatLen = Math.max(0, ...[...byCategory.keys()].map((k) => k.length));
 
   for (const [cat, { passed: p, total }] of byCategory) {
     const icon = p === total ? "✓" : "✗";
     const bar = renderBar(p, total, 16);
     lines.push(`  ${icon} ${cat.padEnd(maxCatLen)}  ${bar}  ${p}/${total}`);
+  }
+
+  // ── By source file ──────────────────────────────────────────────────
+
+  const byFile = new Map<string, { passed: number; total: number }>();
+  for (const r of results) {
+    const file = r.sourceFile ?? "unknown";
+    const entry = byFile.get(file) ?? { passed: 0, total: 0 };
+    entry.total++;
+    if (r.passed) entry.passed++;
+    byFile.set(file, entry);
+  }
+
+  lines.push("");
+  lines.push(hr);
+  lines.push(`  BY SOURCE FILE`);
+  lines.push(hr);
+  lines.push("");
+
+  const maxFileLen = Math.max(0, ...[...byFile.keys()].map((k) => k.length));
+
+  for (const [file, { passed: p, total }] of byFile) {
+    const icon = p === total ? "✓" : "✗";
+    const bar = renderBar(p, total, 16);
+    lines.push(`  ${icon} ${file.padEnd(maxFileLen)}  ${bar}  ${p}/${total}`);
   }
 
   lines.push("");

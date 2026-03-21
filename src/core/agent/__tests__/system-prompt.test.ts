@@ -31,7 +31,7 @@ test("empty context omits memory section", () => {
 
 test("empty context omits accounts section", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).not.toContain("<accounts>");
+  expect(prompt).not.toContain("Known accounts:");
 });
 
 test("empty context omits known-payees section", () => {

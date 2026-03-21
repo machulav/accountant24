@@ -10,7 +10,8 @@ const Params = Type.Object({
 export const bashTool: AgentTool<typeof Params, null> = {
   name: "bash",
   label: "Bash",
-  description: "Execute a shell command in the accountant24 workspace (~/accountant24).",
+  description:
+    "Execute a shell command in the accountant24 workspace (~/accountant24). Do NOT use this to modify journal files — use the edit tool instead.",
   parameters: Params,
   async execute(_id, params, signal) {
     const { exitCode, stdout, stderr } = await runCommand(["sh", "-c", params.command], {
