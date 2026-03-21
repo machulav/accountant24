@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import type { EvalResult } from "./types.js";
 
 export interface ReportOptions {
@@ -14,14 +15,14 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   const totalDuration = results.reduce((sum, r) => sum + r.durationMs, 0);
   const lines: string[] = [];
 
-  const hr = "─".repeat(W);
-  const hrBold = "━".repeat(W);
+  const hr = chalk.dim("─".repeat(W));
+  const hrBold = chalk.bold("━".repeat(W));
 
   // ── Header ──────────────────────────────────────────────────────────
 
   lines.push("");
   lines.push(hrBold);
-  lines.push(center("EVAL REPORT", W));
+  lines.push(chalk.bold(center("EVAL REPORT", W)));
   lines.push(hrBold);
 
   // ── Models ──────────────────────────────────────────────────────────
@@ -29,10 +30,12 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   if (options?.evalModel || options?.judgeModel) {
     lines.push("");
     if (options.evalModel) {
-      lines.push(`  eval model   ${options.evalProvider ?? ""}/${options.evalModel}`);
+      lines.push(`  ${chalk.dim("Eval Model:")}   ${chalk.cyan(`${options.evalProvider ?? ""}/${options.evalModel}`)}`);
     }
     if (options.judgeModel) {
-      lines.push(`  judge model  ${options.judgeProvider ?? ""}/${options.judgeModel}`);
+      lines.push(
+        `  ${chalk.dim("Judge Model:")}  ${chalk.cyan(`${options.judgeProvider ?? ""}/${options.judgeModel}`)}`,
+      );
     }
   }
 
@@ -41,24 +44,26 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   lines.push("");
   lines.push(hr);
   const scorePercent = results.length > 0 ? Math.round((passed.length / results.length) * 100) : 0;
-  lines.push(`  ${passed.length}/${results.length} passed (${scorePercent}%)    ${formatDuration(totalDuration)}`);
+  const scoreColor = scorePercent === 100 ? chalk.green : scorePercent > 0 ? chalk.yellow : chalk.red;
+  const scoreText = scoreColor(`${passed.length}/${results.length} passed (${scorePercent}%)`);
+  lines.push(`  ${scoreText}    ${chalk.dim(formatDuration(totalDuration))}`);
   lines.push(hr);
 
   // ── Failed ──────────────────────────────────────────────────────────
 
   if (failed.length > 0) {
     lines.push("");
-    lines.push(`  FAILED (${failed.length})`);
+    lines.push(`  ${chalk.red.bold(`FAILED (${failed.length})`)}`);
     lines.push("");
 
     for (const r of failed) {
-      lines.push(`  ✗ ${r.id}`);
-      lines.push(`    ${formatDuration(r.durationMs)}`);
+      lines.push(`  ${chalk.red("✗")} ${r.id}`);
+      lines.push(`    ${chalk.dim(formatDuration(r.durationMs))}`);
       if (r.error) {
-        lines.push(`    error: ${r.error}`);
+        lines.push(`    ${chalk.red(`error: ${r.error}`)}`);
       }
       for (const c of r.checks.filter((c) => !c.passed)) {
-        lines.push(`    [${c.check}] ${c.detail}`);
+        lines.push(`    ${chalk.dim(`[${c.check}]`)} ${c.detail}`);
       }
       lines.push("");
     }
@@ -67,11 +72,11 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   // ── Passed ──────────────────────────────────────────────────────────
 
   if (passed.length > 0) {
-    lines.push(`  PASSED (${passed.length})`);
+    lines.push(`  ${chalk.green.bold(`PASSED (${passed.length})`)}`);
     lines.push("");
 
     for (const r of passed) {
-      lines.push(`  ✓ ${r.id}  ${formatDuration(r.durationMs)}`);
+      lines.push(`  ${chalk.green("✓")} ${r.id}  ${chalk.dim(formatDuration(r.durationMs))}`);
     }
     lines.push("");
   }
@@ -88,16 +93,16 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
   }
 
   lines.push(hr);
-  lines.push(`  BY CATEGORY`);
+  lines.push(`  ${chalk.bold("BY CATEGORY")}`);
   lines.push(hr);
   lines.push("");
 
   const maxCatLen = Math.max(0, ...[...byCategory.keys()].map((k) => k.length));
 
   for (const [cat, { passed: p, total }] of byCategory) {
-    const icon = p === total ? "✓" : "✗";
+    const icon = p === total ? chalk.green("✓") : chalk.red("✗");
     const bar = renderBar(p, total, 16);
-    lines.push(`  ${icon} ${cat.padEnd(maxCatLen)}  ${bar}  ${p}/${total}`);
+    lines.push(`  ${icon} ${cat.padEnd(maxCatLen)}  ${bar}  ${chalk.dim(`${p}/${total}`)}`);
   }
 
   // ── By source file ──────────────────────────────────────────────────
@@ -113,16 +118,16 @@ export function formatResults(results: EvalResult[], options?: ReportOptions): s
 
   lines.push("");
   lines.push(hr);
-  lines.push(`  BY SOURCE FILE`);
+  lines.push(`  ${chalk.bold("BY SOURCE FILE")}`);
   lines.push(hr);
   lines.push("");
 
   const maxFileLen = Math.max(0, ...[...byFile.keys()].map((k) => k.length));
 
   for (const [file, { passed: p, total }] of byFile) {
-    const icon = p === total ? "✓" : "✗";
+    const icon = p === total ? chalk.green("✓") : chalk.red("✗");
     const bar = renderBar(p, total, 16);
-    lines.push(`  ${icon} ${file.padEnd(maxFileLen)}  ${bar}  ${p}/${total}`);
+    lines.push(`  ${icon} ${file.padEnd(maxFileLen)}  ${bar}  ${chalk.dim(`${p}/${total}`)}`);
   }
 
   lines.push("");
@@ -144,5 +149,5 @@ function formatDuration(ms: number): string {
 
 function renderBar(passed: number, total: number, width: number): string {
   const filled = total > 0 ? Math.round((passed / total) * width) : 0;
-  return "█".repeat(filled) + "░".repeat(width - filled);
+  return chalk.green("█".repeat(filled)) + chalk.dim("░".repeat(width - filled));
 }

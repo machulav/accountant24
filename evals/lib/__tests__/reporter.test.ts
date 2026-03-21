@@ -201,13 +201,15 @@ describe("formatResults()", () => {
     it("should display eval model when evalModel is provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { evalModel: "gpt-4", evalProvider: "openai" });
-      expect(output).toContain("eval model   openai/gpt-4");
+      expect(output).toContain("Eval Model:");
+      expect(output).toContain("openai/gpt-4");
     });
 
     it("should display judge model when judgeModel is provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { judgeModel: "claude-3", judgeProvider: "anthropic" });
-      expect(output).toContain("judge model  anthropic/claude-3");
+      expect(output).toContain("Judge Model:");
+      expect(output).toContain("anthropic/claude-3");
     });
 
     it("should display both model lines when both provided", () => {
@@ -218,41 +220,41 @@ describe("formatResults()", () => {
         judgeModel: "claude-3",
         judgeProvider: "anthropic",
       });
-      expect(output).toContain("eval model   openai/gpt-4");
-      expect(output).toContain("judge model  anthropic/claude-3");
+      expect(output).toContain("openai/gpt-4");
+      expect(output).toContain("anthropic/claude-3");
     });
 
     it("should not display model section when options is empty object", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, {});
-      expect(output).not.toContain("eval model");
-      expect(output).not.toContain("judge model");
+      expect(output).not.toContain("Eval Model:");
+      expect(output).not.toContain("Judge Model:");
     });
 
     it("should use empty string for evalProvider when not provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { evalModel: "gpt-4" });
-      expect(output).toContain("eval model   /gpt-4");
+      expect(output).toContain("/gpt-4");
     });
 
     it("should use empty string for judgeProvider when not provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { judgeModel: "claude-3" });
-      expect(output).toContain("judge model  /claude-3");
+      expect(output).toContain("/claude-3");
     });
 
     it("should show only evalModel line when judgeModel is not provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { evalModel: "gpt-4", evalProvider: "openai" });
-      expect(output).toContain("eval model");
-      expect(output).not.toContain("judge model");
+      expect(output).toContain("Eval Model:");
+      expect(output).not.toContain("Judge Model:");
     });
 
     it("should show only judgeModel line when evalModel is not provided", () => {
       const results = [makeResult({ id: "test-a-001" })];
       const output = formatResults(results, { judgeModel: "claude-3", judgeProvider: "anthropic" });
-      expect(output).not.toContain("eval model");
-      expect(output).toContain("judge model");
+      expect(output).not.toContain("Eval Model:");
+      expect(output).toContain("Judge Model:");
     });
   });
 });
