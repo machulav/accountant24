@@ -74,7 +74,7 @@ function formatTransaction(params: {
 export const addTransactionTool: AgentTool<typeof Params, null> = {
   name: "add_transaction",
   label: "Add Transaction",
-  description: "Add a single transaction. Auto-routes to the correct monthly file, validates, and commits.",
+  description: "Add a single transaction. Auto-routes to the correct monthly file and validates.",
   parameters: Params,
   async execute(_id, params, signal) {
     validateInputs(params);
@@ -124,30 +124,13 @@ export const addTransactionTool: AgentTool<typeof Params, null> = {
       throw new Error(`Validation failed:\n${output}\n\nTransaction was written to ${relPath} but has errors.`);
     }
 
-    // Git commit (non-fatal)
-    let commitStatus = "";
-    try {
-      const { exitCode: gitCode } = await runCommand(["git", "add", "-A"], { cwd: ACCOUNTANT24_HOME, signal });
-      if (gitCode === 0) {
-        const { exitCode: commitCode } = await runCommand(
-          ["git", "commit", "-m", `Add: ${params.payee} — ${params.narration}`],
-          { cwd: ACCOUNTANT24_HOME, signal },
-        );
-        commitStatus = commitCode === 0 ? "Committed." : "Git commit failed.";
-      } else {
-        commitStatus = "Git add failed.";
-      }
-    } catch {
-      commitStatus = "Git not available.";
-    }
-
     const validationStatus = checkCode === 127 ? "hledger not found, skipped validation." : "Valid.";
 
     return {
       content: [
         {
           type: "text",
-          text: `Added transaction to ${relPath}:\n\n${txText}\n\nValidation: ${validationStatus}\nGit: ${commitStatus}`,
+          text: `Added transaction to ${relPath}:\n\n${txText}\n\nValidation: ${validationStatus}`,
         },
       ],
       details: null,

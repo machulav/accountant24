@@ -8,11 +8,12 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
-    "test": "bun test",
+    "test": "bun test src/ evals/lib/__tests__/",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write .",
-    "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun test --coverage"
+    "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun run test --coverage",
+    "eval": "bun test evals/run.test.ts --timeout 120000"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",

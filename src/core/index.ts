@@ -8,6 +8,7 @@ export {
   loadConfig,
   MEMORY_PATH,
   setApiKeyEnv,
+  setBaseDir,
   writeConfig,
 } from "./config.js";
 export { createTools } from "./tools/index.js";

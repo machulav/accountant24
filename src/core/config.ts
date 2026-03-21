@@ -3,10 +3,17 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
-export const ACCOUNTANT24_HOME = join(homedir(), "accountant24");
-export const CONFIG_PATH = join(ACCOUNTANT24_HOME, "config.json");
-export const MEMORY_PATH = join(ACCOUNTANT24_HOME, "memory.json");
-export const LEDGER_DIR = join(ACCOUNTANT24_HOME, "ledger");
+export let ACCOUNTANT24_HOME = join(homedir(), "accountant24");
+export let CONFIG_PATH = join(ACCOUNTANT24_HOME, "config.json");
+export let MEMORY_PATH = join(ACCOUNTANT24_HOME, "memory.json");
+export let LEDGER_DIR = join(ACCOUNTANT24_HOME, "ledger");
+
+export function setBaseDir(dir: string): void {
+  ACCOUNTANT24_HOME = dir;
+  CONFIG_PATH = join(dir, "config.json");
+  MEMORY_PATH = join(dir, "memory.json");
+  LEDGER_DIR = join(dir, "ledger");
+}
 
 const OAuthCredentialsSchema = z
   .object({
