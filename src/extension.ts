@@ -56,6 +56,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
 
     if (ctx.hasUI) {
       ctx.ui.setHeader(createBriefingFactory());
+      ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
     }
   });
 
