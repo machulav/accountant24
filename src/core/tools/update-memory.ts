@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Type } from "@mariozechner/pi-ai";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 import { z } from "zod";
 import { MEMORY_PATH } from "../config.js";
 
@@ -21,7 +21,7 @@ const Params = Type.Object({
   }),
 });
 
-export const updateMemoryTool: AgentTool<typeof Params, null> = {
+export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
   name: "update_memory",
   label: "Update Memory",
   description: "Persist facts to memory.json. Use to remember user preferences, rules, and knowledge.",

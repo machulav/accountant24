@@ -25,7 +25,7 @@ beforeEach(() => {
   mockRun = null;
 });
 
-const run = (params: any) => queryTool.execute("test", params) as Promise<any>;
+const run = (params: any) => queryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 test("throws on command not found", async () => {
   mockRun = { exitCode: 127, stdout: "", stderr: "" };

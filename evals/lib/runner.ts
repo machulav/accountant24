@@ -1,8 +1,9 @@
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
+import { codingTools } from "@mariozechner/pi-coding-agent";
 import { getSystemPrompt, loadSystemPromptContext } from "../../src/core/agent/system-prompt.js";
 import { setBaseDir } from "../../src/core/config.js";
-import { createTools } from "../../src/core/tools/index.js";
+import { createCustomTools } from "../../src/core/tools/index.js";
 import { gradeDeterministic, gradeWithRubric } from "./grader.js";
 import { loadCases } from "./loader.js";
 import type { EvalResult, ToolCallRecord } from "./types.js";
@@ -30,7 +31,7 @@ export interface EvalDeps {
   getSystemPrompt: typeof getSystemPrompt;
   getModel: typeof getModel;
   streamSimple: typeof streamSimple;
-  createTools: typeof createTools;
+  createCustomTools: typeof createCustomTools;
   gradeDeterministic: typeof gradeDeterministic;
   gradeWithRubric: typeof gradeWithRubric;
   Agent: typeof Agent;
@@ -44,7 +45,7 @@ const defaultDeps: EvalDeps = {
   getSystemPrompt,
   getModel,
   streamSimple,
-  createTools,
+  createCustomTools,
   gradeDeterministic,
   gradeWithRubric,
   Agent,
@@ -75,7 +76,7 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
         initialState: {
           systemPrompt,
           model,
-          tools: deps.createTools(),
+          tools: [...codingTools, ...deps.createCustomTools()] as any,
         },
         streamFn: deps.streamSimple,
       });

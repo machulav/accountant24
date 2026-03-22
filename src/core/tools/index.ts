@@ -1,22 +1,9 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { addTransactionTool } from "./add-transaction.js";
-import { bashTool } from "./bash.js";
-import { editTool } from "./edit.js";
 import { queryTool } from "./query.js";
-import { readTool } from "./read.js";
 import { updateMemoryTool } from "./update-memory.js";
 import { validateTool } from "./validate.js";
-import { writeTool } from "./write.js";
 
-export function createTools(): AgentTool[] {
-  return [
-    readTool,
-    writeTool,
-    editTool,
-    bashTool,
-    validateTool,
-    queryTool,
-    addTransactionTool,
-    updateMemoryTool,
-  ] as unknown as AgentTool[];
+export function createCustomTools(): ToolDefinition[] {
+  return [validateTool, queryTool, addTransactionTool, updateMemoryTool] as unknown as ToolDefinition[];
 }

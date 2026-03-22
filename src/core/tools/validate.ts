@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Type } from "@mariozechner/pi-ai";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 import { z } from "zod";
 import { LEDGER_DIR, MEMORY_PATH } from "../config.js";
 import { MemorySchema } from "./update-memory.js";
@@ -9,7 +9,7 @@ import { runCommand } from "./utils.js";
 
 const Params = Type.Object({});
 
-export const validateTool: AgentTool<typeof Params, null> = {
+export const validateTool: ToolDefinition<typeof Params, null> = {
   name: "validate",
   label: "Validate Workspace",
   description: "Validate the workspace: hledger check on the journal and memory.json schema. No parameters needed.",

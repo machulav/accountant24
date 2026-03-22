@@ -1,7 +1,25 @@
+import { join } from "node:path";
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
+import chalk from "chalk";
+import { LEDGER_DIR } from "../../core/config.js";
 import type { BriefingData } from "./briefing-data.js";
-import { truncate } from "./chat.utils.js";
-import type { Theme } from "./theme.js";
+import { fetchBriefingData } from "./briefing-data.js";
+
+function truncate(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
+const b = {
+  header: (t: string) => chalk.bold.green(t),
+  label: (t: string) => chalk.dim(t),
+  amount: (t: string) => chalk.bold(t),
+  changePositive: (t: string) => chalk.green(t),
+  changeNegative: (t: string) => chalk.red(t),
+  divider: (t: string) => chalk.dim(t),
+  dim: (t: string) => chalk.dim(t),
+  txnIncome: (t: string) => chalk.green(t),
+  emptyState: (t: string) => chalk.dim.italic(t),
+};
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -54,12 +72,6 @@ export function buildHeaderLine(label: string, width: number): string {
 
 export class Briefing extends Container {
   private data: BriefingData | null = null;
-  private theme: Theme;
-
-  constructor(theme: Theme) {
-    super();
-    this.theme = theme;
-  }
 
   setData(data: BriefingData): void {
     this.data = data;
@@ -68,12 +80,11 @@ export class Briefing extends Container {
   render(width: number): string[] {
     if (!this.data) return [];
 
-    const b = this.theme.briefing;
-    const contentWidth = width - PAD.length * 2;
-
     if (this.data.error) {
       return ["", b.header(buildHeaderLine("Accountant24", width)), "", `${PAD}${b.emptyState(this.data.error)}`];
     }
+
+    const contentWidth = width - PAD.length * 2;
 
     const hasData =
       this.data.netWorth ||
@@ -114,7 +125,6 @@ export class Briefing extends Container {
   private renderNetWorth(): string[] {
     const nw = this.data?.netWorth;
     if (!nw) return [];
-    const b = this.theme.briefing;
     let line = `${PAD}${b.label("Net Worth")}  ${b.amount(formatMoney(nw.amount, nw.currency, false))}`;
     if (nw.change !== 0) {
       const arrow = nw.change > 0 ? "▲" : "▼";
@@ -125,14 +135,12 @@ export class Briefing extends Container {
   }
 
   private renderSectionDivider(label: string, width: number): string[] {
-    const b = this.theme.briefing;
     const prefix = `── ${label} `;
     const fillLen = Math.max(0, width - prefix.length);
     return [b.divider(`${prefix}${"─".repeat(fillLen)}`), ""];
   }
 
   private renderThisMonth(width: number, contentWidth: number): string[] {
-    const b = this.theme.briefing;
     const lines: string[] = [];
     const sp = this.data?.spendThisMonth;
     const inc = this.data?.incomeThisMonth;
@@ -191,7 +199,6 @@ export class Briefing extends Container {
   }
 
   private renderTransactions(width: number, contentWidth: number): string[] {
-    const b = this.theme.briefing;
     const lines: string[] = [];
     lines.push(...this.renderSectionDivider("Last Transactions", width));
 
@@ -225,4 +232,17 @@ export class Briefing extends Container {
 
     return lines;
   }
+}
+
+export function createBriefingFactory() {
+  return (_tui: any, _theme: any) => {
+    const briefing = new Briefing();
+    fetchBriefingData(join(LEDGER_DIR, "main.journal"))
+      .then((data) => {
+        briefing.setData(data);
+        briefing.invalidate();
+      })
+      .catch(() => {});
+    return briefing;
+  };
 }

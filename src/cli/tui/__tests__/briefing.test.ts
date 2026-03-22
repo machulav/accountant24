@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Briefing } from "../briefing.js";
 import type { BriefingData } from "../briefing-data.js";
-import { createTheme } from "../theme.js";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes are control chars by definition
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
@@ -12,8 +11,6 @@ function strip(str: string): string {
 function stripLines(lines: string[]): string[] {
   return lines.map(strip);
 }
-
-const theme = createTheme();
 
 function fullData(): BriefingData {
   return {
@@ -40,12 +37,12 @@ function fullData(): BriefingData {
 
 describe("Briefing component", () => {
   test("returns empty when no data set", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     expect(b.render(80)).toEqual([]);
   });
 
   test("renders empty state when no transactions", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData({
       netWorth: null,
       spendThisMonth: null,
@@ -60,7 +57,7 @@ describe("Briefing component", () => {
   });
 
   test("renders error state", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData({
       netWorth: null,
       spendThisMonth: null,
@@ -74,7 +71,7 @@ describe("Briefing component", () => {
   });
 
   test("renders header with Accountant24 and date", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     expect(lines[1]).toContain("Accountant24");
@@ -82,7 +79,7 @@ describe("Briefing component", () => {
   });
 
   test("renders KPI amounts at wide width", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     const text = lines.join("\n");
@@ -92,7 +89,7 @@ describe("Briefing component", () => {
   });
 
   test("renders KPI labels", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     const text = lines.join("\n");
@@ -102,7 +99,7 @@ describe("Briefing component", () => {
   });
 
   test("renders positive change indicator", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     const text = lines.join("\n");
@@ -111,7 +108,7 @@ describe("Briefing component", () => {
   });
 
   test("renders negative change indicator", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     const data = fullData();
     data.netWorth = { amount: 12450, currency: "USD", change: -500 };
     b.setData(data);
@@ -122,7 +119,7 @@ describe("Briefing component", () => {
   });
 
   test("renders category section with amounts and percentages", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     const text = lines.join("\n");
@@ -133,7 +130,7 @@ describe("Briefing component", () => {
   });
 
   test("renders recent transactions", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(80));
     const text = lines.join("\n");
@@ -143,7 +140,7 @@ describe("Briefing component", () => {
   });
 
   test("renders at narrow width with stacked KPIs", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(50));
     const text = lines.join("\n");
@@ -154,7 +151,7 @@ describe("Briefing component", () => {
   });
 
   test("renders at very narrow width with limited transactions", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData(fullData());
     const lines = stripLines(b.render(45));
     // Should show max 3 transactions at narrow width
@@ -170,7 +167,7 @@ describe("Briefing component", () => {
   });
 
   test("omits change indicator when change is zero", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     const data = fullData();
     data.netWorth = { amount: 12450, currency: "USD", change: 0 };
     b.setData(data);
@@ -181,7 +178,7 @@ describe("Briefing component", () => {
   });
 
   test("handles missing sections gracefully", () => {
-    const b = new Briefing(theme);
+    const b = new Briefing();
     b.setData({
       netWorth: { amount: 5000, currency: "USD", change: 100 },
       spendThisMonth: null,

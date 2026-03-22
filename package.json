@@ -16,18 +16,12 @@
     "eval": "bun run evals/run.ts"
   },
   "dependencies": {
-    "@clack/prompts": "^1.1.0",
-    "@mariozechner/pi-agent-core": "latest",
-    "@mariozechner/pi-ai": "latest",
-    "@mariozechner/pi-tui": "latest",
-    "chalk": "^5.4.0",
-    "diff": "^8.0.0",
+    "@mariozechner/pi-coding-agent": "latest",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "@types/bun": "latest",
-    "@types/diff": "^8.0.0",
     "typescript": "^5.8.0"
   }
 }

@@ -1,5 +1,5 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Type } from "@mariozechner/pi-ai";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME } from "../config.js";
 import { resolveSafePath, runCommand } from "./utils.js";
 
@@ -97,7 +97,7 @@ function buildArgs(params: any, resolved: string): string[] {
 
 export { buildArgs };
 
-export const queryTool: AgentTool<typeof Params, null> = {
+export const queryTool: ToolDefinition<typeof Params, null> = {
   name: "query",
   label: "Query Ledger",
   description:

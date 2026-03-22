@@ -36,7 +36,8 @@ beforeEach(() => {
   mkdirSync(LEDGER, { recursive: true });
 });
 
-const run = (params: any) => addTransactionTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  addTransactionTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 const basicParams = {
   date: "2026-03-15",

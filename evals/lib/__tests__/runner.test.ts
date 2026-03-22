@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { EvalDeps, EvalRunConfig } from "../runner.js";
 import { runEval } from "../runner.js";
-import type { CheckResult, LoadedEvalCase, ToolCallRecord } from "../types.js";
+import type { CheckResult, LoadedEvalCase } from "../types.js";
 
 // ── Mutable control variables ───────────────────────────────────────
 
@@ -76,7 +76,7 @@ function makeDeps(): EvalDeps {
       return { id: "mock-model" };
     }) as any,
     streamSimple: (() => {}) as any,
-    createTools: (() => [{ name: "mock-tool" }]) as any,
+    createCustomTools: (() => [{ name: "mock-tool" }]) as any,
     gradeDeterministic: (() => [...mockGradeDeterministicResult]) as any,
     gradeWithRubric: (async (...args: unknown[]) => {
       mockGradeWithRubricCalled = true;

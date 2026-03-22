@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Type } from "@mariozechner/pi-ai";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config.js";
 import { runCommand } from "./utils.js";
 
@@ -74,7 +74,7 @@ function formatTransaction(params: {
   return lines.join("\n");
 }
 
-export const addTransactionTool: AgentTool<typeof Params, null> = {
+export const addTransactionTool: ToolDefinition<typeof Params, null> = {
   name: "add_transaction",
   label: "Add Transaction",
   description: "Add a single transaction. Auto-routes to the correct monthly file and validates.",

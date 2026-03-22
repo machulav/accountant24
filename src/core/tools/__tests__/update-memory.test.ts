@@ -21,7 +21,8 @@ beforeEach(() => {
   } catch {}
 });
 
-const run = (params: any) => updateMemoryTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  updateMemoryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 const readMemory = () => JSON.parse(readFileSync(MEMORY, "utf-8"));
 
 // --- facts ---

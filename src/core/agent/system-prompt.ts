@@ -228,6 +228,10 @@ Be concise, helpful, and friendly. Use markdown when it helps readability. When 
 
 // ── Public API ────────────────────────────────────────────────────────
 
+export function getBaseSystemPrompt(): string {
+  return STATIC_PREFIX;
+}
+
 export function getSystemPrompt(ctx: SystemPromptContext): string {
   const parts: string[] = [STATIC_PREFIX];
 

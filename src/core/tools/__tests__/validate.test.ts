@@ -29,7 +29,8 @@ beforeEach(() => {
   } catch {}
 });
 
-const run = (params: any) => validateTool.execute("test", params) as Promise<any>;
+const run = (params: any) =>
+  validateTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 // --- journal validation ---
 
