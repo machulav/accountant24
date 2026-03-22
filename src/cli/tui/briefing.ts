@@ -235,12 +235,12 @@ export class Briefing extends Container {
 }
 
 export function createBriefingFactory() {
-  return (_tui: any, _theme: any) => {
+  return (tui: any, _theme: any) => {
     const briefing = new Briefing();
     fetchBriefingData(join(LEDGER_DIR, "main.journal"))
       .then((data) => {
         briefing.setData(data);
-        briefing.invalidate();
+        tui.requestRender(true);
       })
       .catch(() => {});
     return briefing;
