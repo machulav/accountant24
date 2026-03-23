@@ -61,11 +61,6 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
     }
   });
 
-  // Store sessions in accountant24 workspace
-  pi.on("session_directory", () => ({
-    sessionDir: join(ACCOUNTANT24_HOME, ".sessions"),
-  }));
-
   // Inject dynamic context into system prompt before each agent turn
   pi.on("before_agent_start", async () => {
     const context = await loadSystemPromptContext();
