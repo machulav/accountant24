@@ -5,8 +5,7 @@ import {
   InteractiveMode,
   SessionManager,
 } from "@mariozechner/pi-coding-agent";
-import { ACCOUNTANT24_HOME } from "./config.js";
-import { accountant24Extension } from "./extension.js";
+import { ACCOUNTANT24_HOME, accountant24Extension } from "./extension/index.js";
 
 async function main() {
   const resourceLoader = new DefaultResourceLoader({

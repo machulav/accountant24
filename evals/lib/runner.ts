@@ -1,9 +1,15 @@
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
 import { codingTools } from "@mariozechner/pi-coding-agent";
-import { setBaseDir } from "../../src/config.js";
-import { getSystemPrompt, loadSystemPromptContext } from "../../src/system-prompt.js";
-import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "../../src/tools/index.js";
+import {
+  addTransactionTool,
+  getSystemPrompt,
+  loadSystemPromptContext,
+  queryTool,
+  setBaseDir,
+  updateMemoryTool,
+  validateTool,
+} from "../../src/extension/index.js";
 
 const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
 
