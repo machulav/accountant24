@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
+import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
 import { accountsCommand, payeesCommand } from "./commands";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./config.js";
@@ -9,6 +10,15 @@ import { loadAccounts, loadPayees } from "./context";
 import { createBriefingFactory } from "./headers/briefing/briefing.js";
 import { buildSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
+
+// Custom currency-symbol loader animation in green
+const CURRENCY_FRAMES = ["$", "€", "£", "¥", "₴"];
+const LoaderProto = Loader.prototype as unknown as Record<string, any>;
+LoaderProto.updateDisplay = function (this: Record<string, any>) {
+  const frame = CURRENCY_FRAMES[Math.floor(this.currentFrame / 2) % CURRENCY_FRAMES.length];
+  this.setText(`\x1b[32m${frame}\x1b[0m ${this.messageColorFn(this.message)}`);
+  this.ui?.requestRender();
+};
 
 const DEFAULT_ACCOUNTS = [
   "Assets:Checking",
@@ -104,9 +114,12 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
 
   // Inject dynamic context into system prompt before each agent turn
   // Also refresh autocomplete data with latest payees/accounts
-  pi.on("before_agent_start", async () => {
+  pi.on("before_agent_start", async (_event, ctx) => {
     const [systemPrompt, accounts, payees] = await Promise.all([buildSystemPrompt(), loadAccounts(), loadPayees()]);
     autocomplete.setData(accounts, payees);
+    if (ctx.hasUI) {
+      ctx.ui.setWorkingMessage("Crunching the numbers...");
+    }
     return { systemPrompt };
   });
 };
