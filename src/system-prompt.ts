@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { LEDGER_DIR, MEMORY_PATH } from "../config.js";
-import { MemorySchema } from "../tools/update-memory.js";
-import { runCommand } from "../tools/utils.js";
+import { LEDGER_DIR, MEMORY_PATH } from "./config.js";
+import { MemorySchema } from "./tools/update-memory.js";
+import { runCommand } from "./tools/utils.js";
 
 export interface SystemPromptContext {
   today: string;

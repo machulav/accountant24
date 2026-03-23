@@ -76,7 +76,7 @@ function makeDeps(): EvalDeps {
       return { id: "mock-model" };
     }) as any,
     streamSimple: (() => {}) as any,
-    createCustomTools: (() => [{ name: "mock-tool" }]) as any,
+    customTools: [{ name: "mock-tool" }] as any,
     gradeDeterministic: (() => [...mockGradeDeterministicResult]) as any,
     gradeWithRubric: (async (...args: unknown[]) => {
       mockGradeWithRubricCalled = true;

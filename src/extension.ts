@@ -3,13 +3,11 @@ import { join } from "node:path";
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
-import { createBriefingFactory } from "./cli/tui/briefing.js";
-import { getBaseSystemPrompt, loadSystemPromptContext } from "./core/agent/system-prompt.js";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./core/config.js";
-import { addTransactionTool } from "./core/tools/add-transaction.js";
-import { queryTool } from "./core/tools/query.js";
-import { updateMemoryTool } from "./core/tools/update-memory.js";
-import { validateTool } from "./core/tools/validate.js";
+import { accountsCommand, payeesCommand } from "./commands/index.js";
+import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./config.js";
+import { createBriefingFactory } from "./headers/briefing/briefing.js";
+import { getSystemPrompt, loadSystemPromptContext } from "./system-prompt.js";
+import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools/index.js";
 
 const DEFAULT_ACCOUNTS = [
   "Assets:Checking",
@@ -51,6 +49,10 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   pi.registerTool(addTransactionTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
+
+  // Register slash commands
+  accountsCommand(pi);
+  payeesCommand(pi);
 
   // Shared autocomplete provider — updated with fresh data before each agent turn
   const autocomplete = new AccountantAutocompleteProvider([]);
@@ -94,9 +96,8 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       });
 
       // Load initial data
-      loadSystemPromptContext().then((context) => {
-        autocomplete.setData(context.accounts, context.payees);
-      });
+      const context = await loadSystemPromptContext();
+      autocomplete.setData(context.accounts, context.payees);
     }
   });
 
@@ -105,19 +106,6 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   pi.on("before_agent_start", async () => {
     const context = await loadSystemPromptContext();
     autocomplete.setData(context.accounts, context.payees);
-    const parts: string[] = [getBaseSystemPrompt()];
-
-    parts.push(`\n<session>\nToday's date: ${context.today}\n</session>`);
-    if (context.facts.length > 0) {
-      parts.push(`\n<memory>\nUser facts:\n${context.facts.map((f) => `- ${f}`).join("\n")}\n</memory>`);
-    }
-    if (context.accounts.length > 0) {
-      parts.push(`\n<accounts>\nKnown accounts:\n${context.accounts.join("\n")}\n</accounts>`);
-    }
-    if (context.payees.length > 0) {
-      parts.push(`\n<known-payees>\nAll payees in the journal:\n${context.payees.join("\n")}\n</known-payees>`);
-    }
-
-    return { systemPrompt: parts.join("") };
+    return { systemPrompt: getSystemPrompt(context) };
   });
 };

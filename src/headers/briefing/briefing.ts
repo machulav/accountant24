@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import { LEDGER_DIR } from "../../core/config.js";
+import { LEDGER_DIR } from "../../config.js";
 import type { BriefingData } from "./briefing-data.js";
 import { fetchBriefingData } from "./briefing-data.js";
 

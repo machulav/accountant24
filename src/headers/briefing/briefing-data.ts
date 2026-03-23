@@ -1,4 +1,4 @@
-import { runCommand } from "../../core/tools/utils.js";
+import { runCommand } from "../../tools/utils.js";
 
 export interface BriefingData {
   netWorth: { amount: number; currency: string; change: number } | null;
