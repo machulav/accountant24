@@ -3,11 +3,12 @@ import { join } from "node:path";
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
-import { accountsCommand, payeesCommand } from "./commands/index.js";
+import { accountsCommand, payeesCommand } from "./commands";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./config.js";
+import { loadAccounts, loadPayees } from "./context";
 import { createBriefingFactory } from "./headers/briefing/briefing.js";
-import { getSystemPrompt, loadSystemPromptContext } from "./system-prompt.js";
-import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools/index.js";
+import { buildSystemPrompt } from "./system-prompt";
+import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 
 const DEFAULT_ACCOUNTS = [
   "Assets:Checking",
@@ -96,16 +97,16 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       });
 
       // Load initial data
-      const context = await loadSystemPromptContext();
-      autocomplete.setData(context.accounts, context.payees);
+      const [accounts, payees] = await Promise.all([loadAccounts(), loadPayees()]);
+      autocomplete.setData(accounts, payees);
     }
   });
 
   // Inject dynamic context into system prompt before each agent turn
   // Also refresh autocomplete data with latest payees/accounts
   pi.on("before_agent_start", async () => {
-    const context = await loadSystemPromptContext();
-    autocomplete.setData(context.accounts, context.payees);
-    return { systemPrompt: getSystemPrompt(context) };
+    const [systemPrompt, accounts, payees] = await Promise.all([buildSystemPrompt(), loadAccounts(), loadPayees()]);
+    autocomplete.setData(accounts, payees);
+    return { systemPrompt };
   });
 };

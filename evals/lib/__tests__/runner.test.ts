@@ -72,8 +72,7 @@ function makeDeps(): EvalDeps {
     setBaseDir: ((dir: string) => {
       capturedSetBaseDir = dir;
     }) as any,
-    loadSystemPromptContext: (async () => ({ context: "mock" })) as any,
-    getSystemPrompt: (() => "mock system prompt") as any,
+    buildSystemPrompt: (async () => "mock system prompt") as any,
     getModel: ((...args: unknown[]) => {
       capturedGetModelArgs = args;
       return { id: "mock-model" };

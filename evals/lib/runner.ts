@@ -3,13 +3,12 @@ import { getModel, streamSimple } from "@mariozechner/pi-ai";
 import { codingTools } from "@mariozechner/pi-coding-agent";
 import {
   addTransactionTool,
-  getSystemPrompt,
-  loadSystemPromptContext,
+  buildSystemPrompt,
   queryTool,
   setBaseDir,
   updateMemoryTool,
   validateTool,
-} from "../../src/extension/index.js";
+} from "../../src/extension";
 
 const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
 
@@ -37,8 +36,7 @@ export interface EvalDeps {
   createEvalWorkspace: typeof createEvalWorkspace;
   inspectWorkspace: typeof inspectWorkspace;
   setBaseDir: typeof setBaseDir;
-  loadSystemPromptContext: typeof loadSystemPromptContext;
-  getSystemPrompt: typeof getSystemPrompt;
+  buildSystemPrompt: typeof buildSystemPrompt;
   getModel: typeof getModel;
   streamSimple: typeof streamSimple;
   customTools: typeof customTools;
@@ -53,8 +51,7 @@ const defaultDeps: EvalDeps = {
   createEvalWorkspace,
   inspectWorkspace,
   setBaseDir,
-  loadSystemPromptContext,
-  getSystemPrompt,
+  buildSystemPrompt,
   getModel,
   streamSimple,
   customTools,
@@ -81,8 +78,7 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
     try {
       deps.setBaseDir(workspace.home);
 
-      const context = await deps.loadSystemPromptContext();
-      const systemPrompt = deps.getSystemPrompt(context);
+      const systemPrompt = await deps.buildSystemPrompt();
 
       const model = (deps.getModel as any)(config.provider, config.model);
       const agent = new deps.Agent({

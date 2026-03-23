@@ -1,56 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { LEDGER_DIR, MEMORY_PATH } from "./config.js";
-import { MemorySchema } from "./tools/update-memory.js";
-import { runCommand } from "./tools/utils.js";
-
-export interface SystemPromptContext {
-  today: string;
-  facts: string[];
-  accounts: string[];
-  payees: string[];
-}
-
-export async function loadSystemPromptContext(): Promise<SystemPromptContext> {
-  const today = new Date().toISOString().split("T")[0];
-  const journal = join(LEDGER_DIR, "main.journal");
-
-  const [facts, accounts, payees] = await Promise.all([
-    loadFacts(),
-    loadHledgerList("accounts", journal),
-    loadHledgerList("payees", journal),
-  ]);
-
-  return { today, facts, accounts, payees };
-}
-
-async function loadFacts(): Promise<string[]> {
-  try {
-    if (!existsSync(MEMORY_PATH)) return [];
-    const raw = JSON.parse(readFileSync(MEMORY_PATH, "utf-8"));
-    const parsed = MemorySchema.safeParse(raw);
-    return parsed.success ? parsed.data.facts : [];
-  } catch {
-    return [];
-  }
-}
-
-async function loadHledgerList(subcommand: string, journal: string): Promise<string[]> {
-  try {
-    const { exitCode, stdout } = await runCommand(["hledger", subcommand, "-f", journal]);
-    if (exitCode !== 0) return [];
-    return stdout
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-// ── Static prefix (cached by Claude API) ─────────────────────────────
-
-const STATIC_PREFIX = `<identity>
+<identity>
 You are Accountant24, an AI personal finance assistant for the command line. You help users manage their personal finances through natural conversation — logging spending, importing bank statements, answering questions about their money, and providing financial guidance.
 </identity>
 
@@ -143,30 +91,4 @@ ASSISTANT: Added 3 transactions of $80 each on consecutive Fridays. Saved tutor 
 
 <response-style>
 Be concise, helpful, and friendly. Use markdown when it helps readability. When summarizing actions, output plain text directly — do not use bash to display what you did. Do not narrate tool calls before making them.
-</response-style>`;
-
-// ── Public API ────────────────────────────────────────────────────────
-
-export function getBaseSystemPrompt(): string {
-  return STATIC_PREFIX;
-}
-
-export function getSystemPrompt(ctx: SystemPromptContext): string {
-  const parts: string[] = [STATIC_PREFIX];
-
-  parts.push(`\n<session>\nToday's date: ${ctx.today}\n</session>`);
-
-  if (ctx.facts.length > 0) {
-    parts.push(`\n<memory>\nUser facts:\n${ctx.facts.map((f) => `- ${f}`).join("\n")}\n</memory>`);
-  }
-
-  if (ctx.accounts.length > 0) {
-    parts.push(`\n<accounts>\nKnown accounts:\n${ctx.accounts.join("\n")}\n</accounts>`);
-  }
-
-  if (ctx.payees.length > 0) {
-    parts.push(`\n<known-payees>\nAll payees in the journal:\n${ctx.payees.join("\n")}\n</known-payees>`);
-  }
-
-  return parts.join("");
-}
+</response-style>
