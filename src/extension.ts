@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
+import { CustomEditor } from "@mariozechner/pi-coding-agent";
+import { AccountantAutocompleteProvider } from "./autocomplete.js";
 import { createBriefingFactory } from "./cli/tui/briefing.js";
 import { getBaseSystemPrompt, loadSystemPromptContext } from "./core/agent/system-prompt.js";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./core/config.js";
@@ -50,6 +52,9 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
 
+  // Shared autocomplete provider — updated with fresh data before each agent turn
+  const autocomplete = new AccountantAutocompleteProvider([]);
+
   // Scaffold workspace + set up UI on session start
   pi.on("session_start", async (_event, ctx) => {
     ensureScaffolded();
@@ -58,12 +63,48 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       ctx.ui.setTitle("Accountant24");
       ctx.ui.setHeader(createBriefingFactory());
       ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
+
+      // Built-in commands (not exported by pi-coding-agent)
+      const BUILTIN_COMMANDS = [
+        { name: "settings", description: "Open settings menu" },
+        { name: "model", description: "Select model" },
+        { name: "session", description: "Show session info and stats" },
+        { name: "hotkeys", description: "Show all keyboard shortcuts" },
+        { name: "login", description: "Login with OAuth provider" },
+        { name: "logout", description: "Logout from OAuth provider" },
+        { name: "new", description: "Start a new session" },
+        { name: "resume", description: "Resume a different session" },
+        { name: "quit", description: "Quit Accountant24" },
+      ];
+      const extensionCommands = pi.getCommands().map((cmd) => ({
+        name: cmd.name,
+        description: cmd.description,
+      }));
+      const slashCommands = [...BUILTIN_COMMANDS, ...extensionCommands];
+      autocomplete.setCommands(slashCommands);
+
+      // Replace file-search editor with payee/account autocomplete
+      // InteractiveMode's setCustomEditorComponent overwrites the autocomplete provider
+      // after the factory runs (line 1357 in interactive-mode.js), so we lock ours in.
+      ctx.ui.setEditorComponent((tui, theme, keybindings) => {
+        const editor = new CustomEditor(tui, theme, keybindings);
+        editor.setAutocompleteProvider(autocomplete);
+        editor.setAutocompleteProvider = () => {}; // prevent overwrite
+        return editor;
+      });
+
+      // Load initial data
+      loadSystemPromptContext().then((context) => {
+        autocomplete.setData(context.accounts, context.payees);
+      });
     }
   });
 
   // Inject dynamic context into system prompt before each agent turn
+  // Also refresh autocomplete data with latest payees/accounts
   pi.on("before_agent_start", async () => {
     const context = await loadSystemPromptContext();
+    autocomplete.setData(context.accounts, context.payees);
     const parts: string[] = [getBaseSystemPrompt()];
 
     parts.push(`\n<session>\nToday's date: ${context.today}\n</session>`);
