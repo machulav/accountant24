@@ -50,11 +50,12 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
 
-  // Scaffold workspace + set up briefing header on session start
+  // Scaffold workspace + set up UI on session start
   pi.on("session_start", async (_event, ctx) => {
     ensureScaffolded();
 
     if (ctx.hasUI) {
+      ctx.ui.setTitle("Accountant24");
       ctx.ui.setHeader(createBriefingFactory());
       ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
     }
