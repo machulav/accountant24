@@ -43,8 +43,9 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
       }
     }
 
+    let newFacts: string[];
     try {
-      const newFacts = FactsDataSchema.parse(facts);
+      newFacts = FactsDataSchema.parse(facts);
       const existing = new Set(raw.facts ?? []);
       for (const f of newFacts) existing.add(f);
       raw.facts = [...existing];
@@ -60,7 +61,7 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
     writeFileSync(MEMORY_PATH, `${JSON.stringify({ facts: raw.facts }, null, 2)}\n`);
 
     return {
-      content: [{ type: "text", text: "Updated memory." }],
+      content: [{ type: "text", text: `Saved: ${newFacts.map((f) => `"${f}"`).join(", ")}` }],
       details: null,
     };
   },

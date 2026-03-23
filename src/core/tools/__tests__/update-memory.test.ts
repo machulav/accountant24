@@ -29,7 +29,7 @@ const readMemory = () => JSON.parse(readFileSync(MEMORY, "utf-8"));
 
 test("updates facts", async () => {
   const result = await run({ facts: ["prefers USD"] });
-  expect(result.content[0].text).toBe("Updated memory.");
+  expect(result.content[0].text).toBe('Saved: "prefers USD"');
   expect(readMemory().facts).toEqual(["prefers USD"]);
 });
 
