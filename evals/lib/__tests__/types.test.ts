@@ -164,4 +164,69 @@ describe("EvalCaseSchema", () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe("outcome assertions", () => {
+    it("should parse ledger_contains with only payee", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: { ledger_contains: [{ payee: "Starbucks" }] },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should parse ledger_contains with all fields", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: {
+          ledger_contains: [
+            {
+              payee: "Starbucks",
+              amount: 12,
+              currency: "USD",
+              account: "Expenses:Food",
+              date: "2026-03-22",
+              narration: "coffee",
+            },
+          ],
+        },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject ledger_contains without payee", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: { ledger_contains: [{ amount: 12 }] },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should parse ledger_not_contains", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: { ledger_not_contains: [{ payee: "BadPayee" }] },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should parse memory_contains", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: { memory_contains: ["Peterson", "tutor"] },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should parse outcome assertions alongside deterministic fields", () => {
+      const result = EvalCaseSchema.safeParse({
+        ...minimal,
+        expected: {
+          tools_not_called: ["bash"],
+          ledger_contains: [{ payee: "Starbucks", amount: 12, currency: "USD" }],
+          memory_contains: ["default currency"],
+        },
+      });
+      expect(result.success).toBe(true);
+    });
+  });
 });

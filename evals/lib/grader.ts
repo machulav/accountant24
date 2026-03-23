@@ -1,5 +1,6 @@
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
-import type { CheckResult, EvalCase, ToolCallRecord } from "./types.js";
+import type { CheckResult, EvalCase, LedgerAssertion, ToolCallRecord } from "./types.js";
+import type { WorkspaceState } from "./workspace.js";
 
 // ── Deterministic grading ────────────────────────────────────────────
 
@@ -125,4 +126,83 @@ Do not include anything else in your response.`;
     passed,
     detail: text,
   };
+}
+
+// ── Outcome grading (ledger & memory state) ─────────────────────────
+
+function parseTransactionBlocks(content: string): string[] {
+  // Split on blank lines, keep blocks that start with a date pattern
+  return content
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter((b) => /^\d{4}-\d{2}-\d{2}\s/.test(b));
+}
+
+function blockMatchesAssertion(block: string, assertion: LedgerAssertion): boolean {
+  const lower = block.toLowerCase();
+
+  // Payee is always required — check the header line (first line)
+  const headerLine = block.split("\n")[0].toLowerCase();
+  if (!headerLine.includes(assertion.payee.toLowerCase())) return false;
+
+  if (assertion.amount !== undefined) {
+    // Match the amount as a number in the block (e.g., "12.00" or "12")
+    const amountStr = Number.isInteger(assertion.amount) ? `${assertion.amount}` : assertion.amount.toFixed(2);
+    // Also accept the decimal form (e.g., "12" should match "12.00")
+    const amountDec = assertion.amount.toFixed(2);
+    if (!lower.includes(amountStr) && !lower.includes(amountDec)) return false;
+  }
+
+  if (assertion.currency && !lower.includes(assertion.currency.toLowerCase())) return false;
+  if (assertion.account && !lower.includes(assertion.account.toLowerCase())) return false;
+  if (assertion.date && !block.startsWith(assertion.date)) return false;
+  if (assertion.narration && !lower.includes(assertion.narration.toLowerCase())) return false;
+
+  return true;
+}
+
+export function gradeOutcome(evalCase: EvalCase, state: WorkspaceState): CheckResult[] {
+  const checks: CheckResult[] = [];
+  const blocks = parseTransactionBlocks(state.ledgerContent);
+
+  if (evalCase.expected.ledger_contains) {
+    for (const assertion of evalCase.expected.ledger_contains) {
+      const found = blocks.some((b) => blockMatchesAssertion(b, assertion));
+      const desc = `payee="${assertion.payee}"${assertion.amount !== undefined ? ` amount=${assertion.amount}` : ""}${assertion.currency ? ` currency=${assertion.currency}` : ""}${assertion.account ? ` account=${assertion.account}` : ""}`;
+      checks.push({
+        check: `ledger_contains: ${desc}`,
+        passed: found,
+        detail: found ? `Found matching transaction: ${desc}` : `No matching transaction found for: ${desc}`,
+      });
+    }
+  }
+
+  if (evalCase.expected.ledger_not_contains) {
+    for (const assertion of evalCase.expected.ledger_not_contains) {
+      const found = blocks.some((b) => blockMatchesAssertion(b, assertion));
+      const desc = `payee="${assertion.payee}"`;
+      checks.push({
+        check: `ledger_not_contains: ${desc}`,
+        passed: !found,
+        detail: found
+          ? `Found transaction that should NOT exist: ${desc}`
+          : `Correctly no transaction found for: ${desc}`,
+      });
+    }
+  }
+
+  if (evalCase.expected.memory_contains) {
+    for (const expected of evalCase.expected.memory_contains) {
+      const found = state.memoryFacts.some((f) => f.toLowerCase().includes(expected.toLowerCase()));
+      checks.push({
+        check: `memory_contains: "${expected}"`,
+        passed: found,
+        detail: found
+          ? `Memory contains fact matching "${expected}"`
+          : `Memory does NOT contain fact matching "${expected}". Facts: [${state.memoryFacts.join(", ")}]`,
+      });
+    }
+  }
+
+  return checks;
 }

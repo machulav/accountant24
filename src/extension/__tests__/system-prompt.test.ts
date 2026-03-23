@@ -80,10 +80,27 @@ test("includes workspace section", () => {
   expect(prompt).toContain("</workspace>");
 });
 
-test("includes tool-strategy section", () => {
+test("includes tool-strategy section with invariants structure", () => {
   const prompt = getSystemPrompt(empty);
   expect(prompt).toContain("<tool-strategy>");
+  expect(prompt).toContain("DATA QUALITY INVARIANTS:");
+  expect(prompt).toContain("DECISION HEURISTICS:");
+  expect(prompt).toContain("ANTI-PATTERNS");
   expect(prompt).toContain("</tool-strategy>");
+});
+
+test("does not contain prescriptive process language", () => {
+  const prompt = getSystemPrompt(empty);
+  expect(prompt).not.toContain("This step is mandatory");
+  expect(prompt).not.toContain("Step 1 —");
+  expect(prompt).not.toContain("Step 2 —");
+  expect(prompt).not.toContain("Step 5 —");
+  expect(prompt).not.toContain("you MUST follow this exact sequence");
+  expect(prompt).not.toContain("you MUST ask");
+  expect(prompt).not.toContain("you MUST have");
+  expect(prompt).not.toContain("gather it first");
+  expect(prompt).not.toContain("ASSISTANT thinks:");
+  expect(prompt).not.toContain("ASSISTANT uses:");
 });
 
 test("includes examples section", () => {

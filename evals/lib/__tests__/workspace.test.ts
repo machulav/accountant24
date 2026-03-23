@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { EvalCase } from "../types.js";
-import { createEvalWorkspace } from "../workspace.js";
+import { createEvalWorkspace, inspectWorkspace } from "../workspace.js";
 
 const workspacesToCleanup: Array<() => void> = [];
 afterAll(() => {
@@ -205,6 +205,90 @@ describe("createEvalWorkspace()", () => {
       ws.cleanup();
       expect(existsSync(journalPath)).toBe(false);
       expect(existsSync(ws.memoryPath)).toBe(false);
+    });
+  });
+});
+
+describe("inspectWorkspace()", () => {
+  describe("ledger content", () => {
+    it("should return empty string when ledger has no content", () => {
+      const ws = createAndTrack(makeCase());
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toBe("");
+    });
+
+    it("should read main.journal content", () => {
+      const ws = createAndTrack(
+        makeCase({
+          setup: {
+            ledger: {
+              accounts: ["account Assets:Checking"],
+              transactions: [["2026-03-01 * Starbucks | Coffee", "Expenses:Food  5.00 EUR", "Assets:Checking"]],
+            },
+          },
+        }),
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("Starbucks");
+      expect(state.ledgerContent).toContain("5.00 EUR");
+    });
+
+    it("should read monthly journal files in subdirectories", () => {
+      const ws = createAndTrack(makeCase());
+      const monthDir = join(ws.ledgerDir, "2026", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(
+        join(monthDir, "03.journal"),
+        "2026-03-22 * Rewe | Groceries\n    Expenses:Food  10 EUR\n    Assets:Checking\n",
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("Rewe");
+      expect(state.ledgerContent).toContain("10 EUR");
+    });
+
+    it("should concatenate content from multiple journal files", () => {
+      const ws = createAndTrack(
+        makeCase({
+          setup: {
+            ledger: {
+              accounts: ["account Assets:Checking"],
+              transactions: [["2026-01-01 * ExistingTx", "Assets:Checking  100 EUR", "Equity:Opening"]],
+            },
+          },
+        }),
+      );
+      const monthDir = join(ws.ledgerDir, "2026", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(
+        join(monthDir, "03.journal"),
+        "2026-03-22 * NewTx\n    Expenses:Food  20 EUR\n    Assets:Checking\n",
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("ExistingTx");
+      expect(state.ledgerContent).toContain("NewTx");
+    });
+  });
+
+  describe("memory facts", () => {
+    it("should return empty array when no memory.json exists", () => {
+      const ws = createAndTrack(makeCase());
+      const state = inspectWorkspace(ws);
+      expect(state.memoryFacts).toEqual([]);
+    });
+
+    it("should return facts from memory.json", () => {
+      const ws = createAndTrack(
+        makeCase({ setup: { memory: { facts: ["Default currency is EUR", "Landlord is John"] } } }),
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.memoryFacts).toEqual(["Default currency is EUR", "Landlord is John"]);
+    });
+
+    it("should return empty array when memory.json has invalid JSON", () => {
+      const ws = createAndTrack(makeCase());
+      writeFileSync(ws.memoryPath, "not json");
+      const state = inspectWorkspace(ws);
+      expect(state.memoryFacts).toEqual([]);
     });
   });
 });

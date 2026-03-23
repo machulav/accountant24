@@ -18,6 +18,19 @@ const SetupSchema = z
   })
   .optional();
 
+// ── Outcome assertion schemas ────────────────────────────────────────
+
+const LedgerAssertionSchema = z.object({
+  payee: z.string(),
+  amount: z.number().optional(),
+  currency: z.string().optional(),
+  account: z.string().optional(),
+  date: z.string().optional(),
+  narration: z.string().optional(),
+});
+
+export type LedgerAssertion = z.infer<typeof LedgerAssertionSchema>;
+
 // ── Eval case schema ─────────────────────────────────────────────────
 
 const MessageSchema = z.object({
@@ -31,6 +44,9 @@ const ExpectedSchema = z.object({
   output_contains: z.array(z.string()).optional(),
   output_not_contains: z.array(z.string()).optional(),
   rubric: z.string().optional(),
+  ledger_contains: z.array(LedgerAssertionSchema).optional(),
+  ledger_not_contains: z.array(LedgerAssertionSchema).optional(),
+  memory_contains: z.array(z.string()).optional(),
 });
 
 const MetadataSchema = z.object({

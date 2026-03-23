@@ -13,10 +13,10 @@ import {
 
 const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
 
-import { gradeDeterministic, gradeWithRubric } from "./grader.js";
+import { gradeDeterministic, gradeOutcome, gradeWithRubric } from "./grader.js";
 import { loadCases } from "./loader.js";
 import type { EvalResult, ToolCallRecord } from "./types.js";
-import { createEvalWorkspace } from "./workspace.js";
+import { createEvalWorkspace, inspectWorkspace } from "./workspace.js";
 
 export interface EvalRunConfig {
   provider: string;
@@ -35,6 +35,7 @@ export type ProgressEvent =
 export interface EvalDeps {
   loadCases: typeof loadCases;
   createEvalWorkspace: typeof createEvalWorkspace;
+  inspectWorkspace: typeof inspectWorkspace;
   setBaseDir: typeof setBaseDir;
   loadSystemPromptContext: typeof loadSystemPromptContext;
   getSystemPrompt: typeof getSystemPrompt;
@@ -42,6 +43,7 @@ export interface EvalDeps {
   streamSimple: typeof streamSimple;
   customTools: typeof customTools;
   gradeDeterministic: typeof gradeDeterministic;
+  gradeOutcome: typeof gradeOutcome;
   gradeWithRubric: typeof gradeWithRubric;
   Agent: typeof Agent;
 }
@@ -49,6 +51,7 @@ export interface EvalDeps {
 const defaultDeps: EvalDeps = {
   loadCases,
   createEvalWorkspace,
+  inspectWorkspace,
   setBaseDir,
   loadSystemPromptContext,
   getSystemPrompt,
@@ -56,6 +59,7 @@ const defaultDeps: EvalDeps = {
   streamSimple,
   customTools,
   gradeDeterministic,
+  gradeOutcome,
   gradeWithRubric,
   Agent,
 };
@@ -153,6 +157,10 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
 
       // Grade
       const checks = deps.gradeDeterministic(evalCase, toolsCalled, agentOutput);
+
+      // Outcome grading (must run before cleanup since it reads workspace files)
+      const workspaceState = deps.inspectWorkspace(workspace);
+      checks.push(...deps.gradeOutcome(evalCase, workspaceState));
 
       if (evalCase.grading === "rubric" && evalCase.expected.rubric) {
         const rubricCheck = await deps.gradeWithRubric(

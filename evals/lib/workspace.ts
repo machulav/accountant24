@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { EvalCase } from "./types.js";
 
@@ -55,4 +55,42 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
     memoryPath,
     cleanup: () => rmSync(home, { recursive: true, force: true }),
   };
+}
+
+// ── Workspace state inspection ───────────────────────────────────────
+
+export interface WorkspaceState {
+  ledgerContent: string;
+  memoryFacts: string[];
+}
+
+function collectJournalFiles(dir: string): string[] {
+  const files: string[] = [];
+  if (!existsSync(dir)) return files;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectJournalFiles(fullPath));
+    } else if (entry.name.endsWith(".journal")) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+export function inspectWorkspace(workspace: EvalWorkspace): WorkspaceState {
+  const journalFiles = collectJournalFiles(workspace.ledgerDir);
+  const ledgerContent = journalFiles.map((f) => readFileSync(f, "utf-8")).join("\n");
+
+  let memoryFacts: string[] = [];
+  if (existsSync(workspace.memoryPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(workspace.memoryPath, "utf-8"));
+      memoryFacts = Array.isArray(raw.facts) ? raw.facts : [];
+    } catch {
+      memoryFacts = [];
+    }
+  }
+
+  return { ledgerContent, memoryFacts };
 }
