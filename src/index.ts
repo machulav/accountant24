@@ -1,9 +1,12 @@
+process.env.PI_SKIP_VERSION_CHECK = "1";
+
 import { join } from "node:path";
 import {
   createAgentSession,
   DefaultResourceLoader,
   InteractiveMode,
   SessionManager,
+  SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import { ACCOUNTANT24_HOME, accountant24Extension } from "./extension/index.js";
 
@@ -16,9 +19,16 @@ async function main() {
   });
   await resourceLoader.reload();
 
+  const settingsManager = SettingsManager.create(ACCOUNTANT24_HOME);
+  settingsManager.applyOverrides({
+    quietStartup: true,
+    collapseChangelog: true,
+  });
+
   const { session, modelFallbackMessage } = await createAgentSession({
     cwd: ACCOUNTANT24_HOME,
     resourceLoader,
+    settingsManager,
     sessionManager: SessionManager.create(ACCOUNTANT24_HOME, join(ACCOUNTANT24_HOME, ".sessions")),
   });
 
