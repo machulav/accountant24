@@ -51,7 +51,7 @@ function ensureScaffolded(): void {
   writeFileSync(join(LEDGER_DIR, "accounts.journal"), `${accountLines}\n`);
   writeFileSync(mainJournal, "; Accountant24 Personal Finances\n\ninclude accounts.journal\n");
   writeFileSync(join(ACCOUNTANT24_HOME, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
-  writeFileSync(join(ACCOUNTANT24_HOME, ".gitignore"), ".sessions/\n");
+  writeFileSync(join(ACCOUNTANT24_HOME, ".gitignore"), ".sessions/\nauth.json\n");
 }
 
 export const accountant24Extension: ExtensionFactory = (pi) => {
