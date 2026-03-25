@@ -1,67 +1,34 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { z } from "zod";
 import { MEMORY_PATH } from "../config.js";
 
-const FactsDataSchema = z.array(z.string());
-
-export const MemorySchema = z
-  .object({
-    facts: z.array(z.string()),
-  })
-  .strict();
-
-const DEFAULT_MEMORY = { facts: [] as string[] };
-
 const Params = Type.Object({
-  facts: Type.Array(Type.String(), {
-    description: "Array of facts to add to memory (appended, deduplicated)",
+  content: Type.String({
+    description:
+      "The complete updated contents of memory.md. " +
+      "Merge new facts into existing content, organized by topic with ## headers and - bullet points. " +
+      "Remove duplicates and outdated entries. Keep under 200 lines.",
   }),
 });
 
 export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
   name: "update_memory",
   label: "Update Memory",
-  description: "Persist facts to memory.json. Use to remember user preferences, rules, and knowledge.",
+  description:
+    "Rewrite memory.md with updated user preferences, rules, and knowledge. " +
+    "Always include ALL existing facts (merged with new ones). " +
+    "Organize by topic using ## headers and - bullet points.",
   parameters: Params,
   async execute(_id, params) {
-    const raw = existsSync(MEMORY_PATH)
-      ? JSON.parse(readFileSync(MEMORY_PATH, "utf-8"))
-      : structuredClone(DEFAULT_MEMORY);
-    delete raw.payees; // drop legacy key
-
-    let { facts } = params;
-
-    // LLMs sometimes pass data as a JSON string instead of an array
-    if (typeof facts === "string") {
-      try {
-        facts = JSON.parse(facts);
-      } catch {
-        throw new Error("Invalid facts: expected a JSON array of strings, got a non-parseable string.");
-      }
-    }
-
-    let newFacts: string[];
-    try {
-      newFacts = FactsDataSchema.parse(facts);
-      const existing = new Set(raw.facts ?? []);
-      for (const f of newFacts) existing.add(f);
-      raw.facts = [...existing];
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        const issues = e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-        throw new Error(`Invalid facts: ${issues}`);
-      }
-      throw e;
-    }
+    const { content } = params;
 
     mkdirSync(dirname(MEMORY_PATH), { recursive: true });
-    writeFileSync(MEMORY_PATH, `${JSON.stringify({ facts: raw.facts }, null, 2)}\n`);
+    writeFileSync(MEMORY_PATH, `${content.trim()}\n`);
 
     return {
-      content: [{ type: "text", text: `Saved: ${newFacts.map((f) => `"${f}"`).join(", ")}` }],
+      content: [{ type: "text", text: "Memory updated." }],
       details: null,
     };
   },

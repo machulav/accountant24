@@ -199,7 +199,7 @@ account Expenses:Food:Coffee
     Assets:Checking`;
 
   function makeState(overrides?: Partial<WorkspaceState>): WorkspaceState {
-    return { ledgerContent: ledger, memoryFacts: [], ...overrides };
+    return { ledgerContent: ledger, memoryContent: "", ...overrides };
   }
 
   describe("ledger_contains", () => {
@@ -320,23 +320,23 @@ account Expenses:Food:Coffee
   });
 
   describe("memory_contains", () => {
-    it("should pass when fact is present", () => {
+    it("should pass when text is present in memory", () => {
       const evalCase = makeCase({ memory_contains: ["Peterson"] });
-      const state = makeState({ memoryFacts: ["Mr. Peterson is the math tutor"] });
+      const state = makeState({ memoryContent: "- Mr. Peterson is the math tutor" });
       const checks = gradeOutcome(evalCase, state);
       expect(checks[0].passed).toBe(true);
     });
 
-    it("should fail when fact is absent", () => {
+    it("should fail when text is absent from memory", () => {
       const evalCase = makeCase({ memory_contains: ["Peterson"] });
-      const state = makeState({ memoryFacts: ["Default currency is EUR"] });
+      const state = makeState({ memoryContent: "- Default currency is EUR" });
       const checks = gradeOutcome(evalCase, state);
       expect(checks[0].passed).toBe(false);
     });
 
     it("should match case-insensitively", () => {
       const evalCase = makeCase({ memory_contains: ["peterson"] });
-      const state = makeState({ memoryFacts: ["Mr. Peterson is the tutor"] });
+      const state = makeState({ memoryContent: "- Mr. Peterson is the tutor" });
       const checks = gradeOutcome(evalCase, state);
       expect(checks[0].passed).toBe(true);
     });

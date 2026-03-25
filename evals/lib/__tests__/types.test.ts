@@ -41,7 +41,7 @@ describe("EvalCaseSchema", () => {
           source: "manual",
         },
         setup: {
-          memory: { facts: ["Default currency is USD"] },
+          memory: "- Default currency is USD",
           ledger: {
             accounts: ["account Assets:Checking"],
             transactions: [["2026-01-01 * Opening", "Assets:Checking  100 USD", "Equity:Opening"]],
@@ -63,7 +63,7 @@ describe("EvalCaseSchema", () => {
     it("should parse case with setup but no ledger", () => {
       const result = EvalCaseSchema.safeParse({
         ...minimal,
-        setup: { memory: { facts: ["fact1"] } },
+        setup: { memory: "- fact1" },
       });
       expect(result.success).toBe(true);
     });

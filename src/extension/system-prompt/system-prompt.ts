@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadAccounts, loadFacts, loadPayees } from "../context.js";
+import { loadAccounts, loadMemory, loadPayees } from "../context.js";
 
 export interface SystemPromptContext {
   today: string;
-  facts: string[];
+  memory: string;
   accounts: string[];
   payees: string[];
 }
@@ -17,8 +17,8 @@ const STATIC_PREFIX = readFileSync(join(import.meta.dirname, "system.md"), "utf-
 
 export async function buildSystemPrompt(): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
-  const [facts, accounts, payees] = await Promise.all([loadFacts(), loadAccounts(), loadPayees()]);
-  return getSystemPrompt({ today, facts, accounts, payees });
+  const [memory, accounts, payees] = await Promise.all([loadMemory(), loadAccounts(), loadPayees()]);
+  return getSystemPrompt({ today, memory, accounts, payees });
 }
 
 export function getSystemPrompt(ctx: SystemPromptContext): string {
@@ -26,8 +26,8 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
 
   parts.push(`\n<session>\nToday's date: ${ctx.today}\n</session>`);
 
-  if (ctx.facts.length > 0) {
-    parts.push(`\n<memory>\nUser facts:\n${ctx.facts.map((f) => `- ${f}`).join("\n")}\n</memory>`);
+  if (ctx.memory) {
+    parts.push(`\n<memory>\n${ctx.memory}\n</memory>`);
   }
 
   if (ctx.accounts.length > 0) {

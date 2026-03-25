@@ -3,14 +3,14 @@ import { getSystemPrompt, type SystemPromptContext } from "../system-prompt.js";
 
 const empty: SystemPromptContext = {
   today: "2026-03-19",
-  facts: [],
+  memory: "",
   accounts: [],
   payees: [],
 };
 
 const populated: SystemPromptContext = {
   today: "2026-03-19",
-  facts: ["Rent is $2100", "Landlord is John"],
+  memory: "- Rent is $2100\n- Landlord is John",
   accounts: ["Assets:Checking", "Expenses:Food:Groceries", "Expenses:Rent"],
   payees: ["Whole Foods", "Starbucks", "John (Landlord)"],
 };
@@ -41,7 +41,7 @@ test("empty context omits known-payees section", () => {
 
 // --- populated context ---
 
-test("populated context includes memory with facts", () => {
+test("populated context includes memory with markdown content", () => {
   const prompt = getSystemPrompt(populated);
   expect(prompt).toContain("<memory>");
   expect(prompt).toContain("- Rent is $2100");

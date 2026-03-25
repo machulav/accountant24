@@ -192,14 +192,15 @@ export function gradeOutcome(evalCase: EvalCase, state: WorkspaceState): CheckRe
   }
 
   if (evalCase.expected.memory_contains) {
+    const memLower = state.memoryContent.toLowerCase();
     for (const expected of evalCase.expected.memory_contains) {
-      const found = state.memoryFacts.some((f) => f.toLowerCase().includes(expected.toLowerCase()));
+      const found = memLower.includes(expected.toLowerCase());
       checks.push({
         check: `memory_contains: "${expected}"`,
         passed: found,
         detail: found
-          ? `Memory contains fact matching "${expected}"`
-          : `Memory does NOT contain fact matching "${expected}". Facts: [${state.memoryFacts.join(", ")}]`,
+          ? `Memory contains "${expected}"`
+          : `Memory does NOT contain "${expected}". Content: ${state.memoryContent || "(empty)"}`,
       });
     }
   }

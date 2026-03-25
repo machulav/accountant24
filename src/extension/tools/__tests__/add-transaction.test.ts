@@ -9,7 +9,7 @@ const LEDGER = join(BASE, "ledger");
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
-  MEMORY_PATH: join(BASE, "memory.json"),
+  MEMORY_PATH: join(BASE, "memory.md"),
 }));
 
 const utils = await import("../hledger.js");

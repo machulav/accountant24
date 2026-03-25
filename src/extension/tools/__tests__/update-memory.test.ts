@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-update-memory-"));
-const MEMORY = join(BASE, "memory.json");
+const MEMORY = join(BASE, "memory.md");
 
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
@@ -23,58 +23,32 @@ beforeEach(() => {
 
 const run = (params: any) =>
   updateMemoryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
-const readMemory = () => JSON.parse(readFileSync(MEMORY, "utf-8"));
+const readMemory = () => readFileSync(MEMORY, "utf-8");
 
-// --- facts ---
-
-test("updates facts", async () => {
-  const result = await run({ facts: ["prefers USD"] });
-  expect(result.content[0].text).toBe('Saved: "prefers USD"');
-  expect(readMemory().facts).toEqual(["prefers USD"]);
+test("writes content to memory.md", async () => {
+  const result = await run({ content: "- prefers USD" });
+  expect(result.content[0].text).toBe("Memory updated.");
+  expect(readMemory()).toBe("- prefers USD\n");
 });
 
-test("appends facts without replacing existing ones", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ facts: ["old fact"] }));
-  await run({ facts: ["new fact"] });
-  expect(readMemory().facts).toEqual(["old fact", "new fact"]);
+test("overwrites existing content", async () => {
+  writeFileSync(MEMORY, "- old fact\n");
+  await run({ content: "- old fact\n- new fact" });
+  expect(readMemory()).toBe("- old fact\n- new fact\n");
 });
 
-test("deduplicates facts", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ facts: ["existing"] }));
-  await run({ facts: ["existing", "new"] });
-  expect(readMemory().facts).toEqual(["existing", "new"]);
+test("trims trailing whitespace and adds single newline", async () => {
+  await run({ content: "- fact one  \n\n" });
+  expect(readMemory()).toBe("- fact one\n");
 });
 
-test("rejects non-string items in facts", async () => {
-  await expect(run({ facts: [123] })).rejects.toThrow("Invalid facts");
+test("creates memory.md if missing", async () => {
+  await run({ content: "## Defaults\n- currency: EUR" });
+  expect(readMemory()).toBe("## Defaults\n- currency: EUR\n");
 });
 
-test("rejects non-array facts", async () => {
-  await expect(run({ facts: { facts: [] } })).rejects.toThrow("Invalid facts");
-});
-
-// --- general ---
-
-test("creates memory.json if missing", async () => {
-  await run({ facts: ["test"] });
-  const mem = readMemory();
-  expect(mem.facts).toEqual(["test"]);
-  expect(mem).not.toHaveProperty("payees");
-});
-
-test("handles facts passed as JSON string", async () => {
-  await run({ facts: '["fact from string"]' });
-  expect(readMemory().facts).toEqual(["fact from string"]);
-});
-
-test("throws on non-parseable string data", async () => {
-  await expect(run({ facts: "not valid json" })).rejects.toThrow("Invalid facts");
-});
-
-test("strips legacy payees key on read", async () => {
-  writeFileSync(MEMORY, JSON.stringify({ facts: ["keep"], payees: { x: { account: "A" } } }));
-  await run({ facts: ["new"] });
-  const mem = readMemory();
-  expect(mem.facts).toEqual(["keep", "new"]);
-  expect(mem).not.toHaveProperty("payees");
+test("handles multi-section markdown", async () => {
+  const content = "## Accounts\n- Default: Assets:Checking\n\n## People\n- Landlord: John";
+  await run({ content });
+  expect(readMemory()).toBe(`${content}\n`);
 });

@@ -8,7 +8,7 @@ Your workspace is ~/accountant24:
 - ledger/YYYY/MM.journal — Monthly transaction files
 - ledger/accounts.journal — Chart of accounts
 - documents/ — Imported documents (bank statements, receipts)
-- memory.json — Persistent memory (user facts and preferences)
+- memory.md — Persistent memory (user facts and preferences, free-text markdown)
 - config.json — Configuration
 - .sessions/ — Session data
 </workspace>

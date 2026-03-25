@@ -6,7 +6,7 @@ import { join } from "node:path";
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-query-"));
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
-  MEMORY_PATH: join(BASE, "memory.json"),
+  MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
 }));
 

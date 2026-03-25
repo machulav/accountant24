@@ -67,7 +67,7 @@ function makeDeps(): EvalDeps {
     createEvalWorkspace: (() => ({
       home: mockWorkspaceHome,
       ledgerDir: `${mockWorkspaceHome}/ledger`,
-      memoryPath: `${mockWorkspaceHome}/memory.json`,
+      memoryPath: `${mockWorkspaceHome}/memory.md`,
       cleanup: mockWorkspaceCleanup,
     })) as any,
     setBaseDir: ((dir: string) => {
@@ -82,7 +82,7 @@ function makeDeps(): EvalDeps {
     customTools: [{ name: "mock-tool" }] as any,
     inspectWorkspace: (() => {
       mockInspectWorkspaceCalled = true;
-      return { ledgerContent: "", memoryFacts: [] };
+      return { ledgerContent: "", memoryContent: "" };
     }) as any,
     gradeDeterministic: (() => [...mockGradeDeterministicResult]) as any,
     gradeOutcome: (() => {

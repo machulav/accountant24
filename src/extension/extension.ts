@@ -50,7 +50,6 @@ function ensureScaffolded(): void {
   const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
   writeFileSync(join(LEDGER_DIR, "accounts.journal"), `${accountLines}\n`);
   writeFileSync(mainJournal, "; Accountant24 Personal Finances\n\ninclude accounts.journal\n");
-  writeFileSync(join(ACCOUNTANT24_HOME, "memory.json"), `${JSON.stringify({ facts: [] }, null, 2)}\n`);
   writeFileSync(join(ACCOUNTANT24_HOME, ".gitignore"), ".sessions/\nauth.json\n");
 }
 

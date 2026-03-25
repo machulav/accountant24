@@ -15,7 +15,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
   mkdirSync(WORKSPACES_DIR, { recursive: true });
   const home = mkdtempSync(join(WORKSPACES_DIR, `${evalCase.id}-`));
   const ledgerDir = join(home, "ledger");
-  const memoryPath = join(home, "memory.json");
+  const memoryPath = join(home, "memory.md");
 
   mkdirSync(ledgerDir, { recursive: true });
 
@@ -46,7 +46,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
 
   // ── Write memory ───────────────────────────────────────────────────
   if (setup?.memory) {
-    writeFileSync(memoryPath, `${JSON.stringify(setup.memory, null, 2)}\n`);
+    writeFileSync(memoryPath, `${setup.memory.trim()}\n`);
   }
 
   return {
@@ -61,7 +61,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
 
 export interface WorkspaceState {
   ledgerContent: string;
-  memoryFacts: string[];
+  memoryContent: string;
 }
 
 function collectJournalFiles(dir: string): string[] {
@@ -82,15 +82,12 @@ export function inspectWorkspace(workspace: EvalWorkspace): WorkspaceState {
   const journalFiles = collectJournalFiles(workspace.ledgerDir);
   const ledgerContent = journalFiles.map((f) => readFileSync(f, "utf-8")).join("\n");
 
-  let memoryFacts: string[] = [];
-  if (existsSync(workspace.memoryPath)) {
-    try {
-      const raw = JSON.parse(readFileSync(workspace.memoryPath, "utf-8"));
-      memoryFacts = Array.isArray(raw.facts) ? raw.facts : [];
-    } catch {
-      memoryFacts = [];
-    }
+  let memoryContent = "";
+  try {
+    memoryContent = readFileSync(workspace.memoryPath, "utf-8").trim();
+  } catch {
+    memoryContent = "";
   }
 
-  return { ledgerContent, memoryFacts };
+  return { ledgerContent, memoryContent };
 }

@@ -2,9 +2,7 @@ import { z } from "zod";
 
 // ── Setup schemas ────────────────────────────────────────────────────
 
-const MemorySetupSchema = z.object({
-  facts: z.array(z.string()),
-});
+const MemorySetupSchema = z.string();
 
 const LedgerSetupSchema = z.object({
   accounts: z.array(z.string()).default([]),

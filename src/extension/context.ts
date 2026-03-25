@@ -1,17 +1,13 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LEDGER_DIR, MEMORY_PATH } from "./config.js";
 import { runHledger } from "./tools/hledger.js";
-import { MemorySchema } from "./tools/update-memory.js";
 
-export async function loadFacts(): Promise<string[]> {
+export async function loadMemory(): Promise<string> {
   try {
-    if (!existsSync(MEMORY_PATH)) return [];
-    const raw = JSON.parse(readFileSync(MEMORY_PATH, "utf-8"));
-    const parsed = MemorySchema.safeParse(raw);
-    return parsed.success ? parsed.data.facts : [];
+    return readFileSync(MEMORY_PATH, "utf-8").trim();
   } catch {
-    return [];
+    return "";
   }
 }
 
