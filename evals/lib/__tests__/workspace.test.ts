@@ -1,24 +1,15 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EvalCase } from "../types.js";
 import { createEvalWorkspace, inspectWorkspace } from "../workspace.js";
+import { makeCase as _makeCase } from "./helpers.js";
 
 const workspacesToCleanup: Array<() => void> = [];
 afterAll(() => {
   for (const fn of workspacesToCleanup) fn();
 });
 
-function makeCase(overrides?: Partial<EvalCase>): EvalCase {
-  return {
-    id: "ws-test",
-    input: { messages: [{ role: "user", content: "test" }] },
-    expected: {},
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-    ...overrides,
-  };
-}
+const makeCase = (overrides?: Parameters<typeof _makeCase>[0]) => _makeCase({ id: "ws-test", ...overrides });
 
 function createAndTrack(evalCase: EvalCase) {
   const ws = createEvalWorkspace(evalCase);

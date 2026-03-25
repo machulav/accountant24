@@ -1,4 +1,4 @@
-import { runCommand } from "../../tools/utils.js";
+import { HledgerNotFoundError, tryRunHledger } from "../../tools/hledger.js";
 
 export interface BriefingData {
   netWorth: { amount: number; currency: string; change: number } | null;
@@ -154,29 +154,41 @@ function emptyData(): BriefingData {
   };
 }
 
+const TOP_CATEGORIES_LIMIT = 5;
+const RECENT_TRANSACTIONS_LIMIT = 5;
+
 export async function fetchBriefingData(journalPath: string): Promise<BriefingData> {
   const { beginDate, endDate } = getMonthBounds();
   const f = ["-f", journalPath];
 
-  const [netWorthNow, netWorthPrev, expenses, income, categories, register] = await Promise.all([
-    runCommand(["hledger", "bal", ...f, "Assets", "Liabilities", "-O", "csv"]),
-    runCommand(["hledger", "bal", ...f, "Assets", "Liabilities", "-e", beginDate, "-O", "csv"]),
-    runCommand(["hledger", "bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
-    runCommand(["hledger", "bal", ...f, "Income", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
-    runCommand(["hledger", "bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
-    runCommand(["hledger", "reg", ...f, "-b", beginDate, "-O", "csv"]),
-  ]);
+  let netWorthNow: string | null;
+  let netWorthPrev: string | null;
+  let expenses: string | null;
+  let income: string | null;
+  let categories: string | null;
+  let register: string | null;
 
-  const results = [netWorthNow, netWorthPrev, expenses, income, categories, register];
-  if (results.some((r) => r.exitCode === 127)) {
-    return { ...emptyData(), error: "hledger is not installed. Install it from https://hledger.org/install" };
+  try {
+    [netWorthNow, netWorthPrev, expenses, income, categories, register] = await Promise.all([
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-e", beginDate, "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
+      tryRunHledger(["reg", ...f, "-b", beginDate, "-O", "csv"]),
+    ]);
+  } catch (e) {
+    if (e instanceof HledgerNotFoundError) {
+      return { ...emptyData(), error: "hledger is not installed. Install it from https://hledger.org/install" };
+    }
+    throw e;
   }
 
   const data = emptyData();
 
   // Net worth
-  const nwCurrent = netWorthNow.exitCode === 0 ? parseBalTotal(netWorthNow.stdout) : null;
-  const nwPrev = netWorthPrev.exitCode === 0 ? parseBalTotal(netWorthPrev.stdout) : null;
+  const nwCurrent = netWorthNow ? parseBalTotal(netWorthNow) : null;
+  const nwPrev = netWorthPrev ? parseBalTotal(netWorthPrev) : null;
   if (nwCurrent) {
     data.netWorth = {
       amount: nwCurrent.amount,
@@ -186,20 +198,20 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
   }
 
   // Spend this month
-  if (expenses.exitCode === 0) {
-    const total = parseBalTotal(expenses.stdout);
+  if (expenses) {
+    const total = parseBalTotal(expenses);
     if (total) data.spendThisMonth = { amount: total.amount, currency: total.currency };
   }
 
   // Income this month (naturally negative in hledger, negate for display)
-  if (income.exitCode === 0) {
-    const total = parseBalTotal(income.stdout);
+  if (income) {
+    const total = parseBalTotal(income);
     if (total) data.incomeThisMonth = { amount: Math.abs(total.amount), currency: total.currency };
   }
 
   // Top categories
-  if (categories.exitCode === 0) {
-    const rows = parseBalRows(categories.stdout);
+  if (categories) {
+    const rows = parseBalRows(categories);
     data.topCategories = rows
       .map((r) => ({
         name: r.name.replace(/^Expenses:/, ""),
@@ -207,12 +219,12 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
         currency: r.currency,
       }))
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
+      .slice(0, TOP_CATEGORIES_LIMIT);
   }
 
-  // Recent transactions — group postings by txnidx, pick last 5 unique
-  if (register.exitCode === 0) {
-    const allRows = parseRegisterCsv(register.stdout);
+  // Recent transactions — group postings by txnidx, pick most recent
+  if (register) {
+    const allRows = parseRegisterCsv(register);
     const byTxn = new Map<string, (typeof allRows)[number][]>();
     for (const row of allRows) {
       let group = byTxn.get(row.txnidx);
@@ -223,13 +235,13 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       group.push(row);
     }
 
-    // Sort by date descending, take 5 most recent
+    // Sort by date descending, take most recent
     const txnIds = [...byTxn.keys()].sort((a, b) => {
       const dateA = byTxn.get(a)?.[0]?.date ?? "";
       const dateB = byTxn.get(b)?.[0]?.date ?? "";
       return dateB.localeCompare(dateA);
     });
-    data.recentTransactions = txnIds.slice(0, 5).map((id) => {
+    data.recentTransactions = txnIds.slice(0, RECENT_TRANSACTIONS_LIMIT).map((id) => {
       const postings = byTxn.get(id) ?? [];
       const interesting =
         postings.find((r) => r.account.startsWith("Expenses:") || r.account.startsWith("Income:")) ?? postings[0];

@@ -10,42 +10,50 @@ mock.module("../../config.js", () => ({
   LEDGER_DIR: join(BASE, "ledger"),
 }));
 
-const { resolveSafePath, runCommand } = await import("../utils.js");
+const utils = await import("../hledger.js");
+const { HledgerNotFoundError, HledgerCommandError } = utils;
 
-let mockRun: { exitCode: number; stdout: string; stderr: string } | null = null;
-mock.module("../utils.js", () => ({
-  resolveSafePath,
-  runCommand: async (cmd: string[], opts?: any) => mockRun ?? runCommand(cmd, opts),
+let mockRunHledger: ((args: string[]) => string) | null = null;
+mock.module("../hledger.js", () => ({
+  ...utils,
+  runHledger: async (args: string[]) => {
+    if (mockRunHledger) return mockRunHledger(args);
+    return "";
+  },
 }));
 
 const { queryTool, buildArgs } = await import("../query.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
-  mockRun = null;
+  mockRunHledger = null;
 });
 
 const run = (params: any) => queryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 test("throws on command not found", async () => {
-  mockRun = { exitCode: 127, stdout: "", stderr: "" };
+  mockRunHledger = () => {
+    throw new HledgerNotFoundError();
+  };
   await expect(run({ report: "bal" })).rejects.toThrow("hledger not found");
 });
 
 test("returns report output on success", async () => {
-  mockRun = { exitCode: 0, stdout: "            100 USD  Expenses:Food", stderr: "" };
+  mockRunHledger = () => "            100 USD  Expenses:Food";
   const result = await run({ report: "bal", account_pattern: "Expenses:Food" });
   expect(result.content[0].text).toContain("Expenses:Food");
 });
 
 test("returns no results on empty output", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockRunHledger = () => "";
   const result = await run({ report: "bal" });
   expect(result.content[0].text).toBe("(no results)");
 });
 
 test("throws on error", async () => {
-  mockRun = { exitCode: 1, stdout: "", stderr: "hledger: could not parse" };
+  mockRunHledger = () => {
+    throw new HledgerCommandError("", "hledger: could not parse");
+  };
   await expect(run({ report: "bal" })).rejects.toThrow("could not parse");
 });
 

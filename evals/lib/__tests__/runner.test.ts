@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { EvalDeps, EvalRunConfig } from "../runner.js";
 import { runEval } from "../runner.js";
 import type { CheckResult, LoadedEvalCase } from "../types.js";
+import { makeCase as _makeCase } from "./helpers.js";
 
 // ── Mutable control variables ───────────────────────────────────────
 
@@ -99,17 +100,12 @@ function makeDeps(): EvalDeps {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function makeCase(overrides?: Partial<LoadedEvalCase>): LoadedEvalCase {
-  return {
-    id: "test-001",
-    input: { messages: [{ role: "user", content: "hello" }] },
-    expected: {},
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-    sourceFile: "test.jsonl",
-    ...overrides,
-  };
-}
+const makeCase = (overrides?: Partial<LoadedEvalCase>): LoadedEvalCase => ({
+  ..._makeCase(),
+  sourceFile: "test.jsonl",
+  input: { messages: [{ role: "user", content: "hello" }] },
+  ...overrides,
+});
 
 const defaultConfig: EvalRunConfig = {
   provider: "test-provider",

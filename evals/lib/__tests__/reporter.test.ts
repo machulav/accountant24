@@ -1,18 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { formatResults } from "../reporter.js";
-import type { EvalResult } from "../types.js";
+import { makeResult as _makeResult } from "./helpers.js";
 
-function makeResult(overrides: Partial<EvalResult> & { id: string }): EvalResult {
-  return {
-    passed: true,
-    checks: [],
-    toolsCalled: [],
-    agentOutput: "",
-    durationMs: 100,
-    sourceFile: "cases.jsonl",
-    ...overrides,
-  };
-}
+const makeResult = (overrides: Parameters<typeof _makeResult>[0]) =>
+  _makeResult({ sourceFile: "cases.jsonl", ...overrides });
 
 describe("formatResults()", () => {
   it("should show correct pass/total count", () => {

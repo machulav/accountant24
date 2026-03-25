@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LEDGER_DIR, MEMORY_PATH } from "./config.js";
+import { runHledger } from "./tools/hledger.js";
 import { MemorySchema } from "./tools/update-memory.js";
-import { runCommand } from "./tools/utils.js";
 
 export async function loadFacts(): Promise<string[]> {
   try {
@@ -26,8 +26,7 @@ export async function loadPayees(): Promise<string[]> {
 async function loadHledgerList(subcommand: string): Promise<string[]> {
   try {
     const journal = join(LEDGER_DIR, "main.journal");
-    const { exitCode, stdout } = await runCommand(["hledger", subcommand, "-f", journal]);
-    if (exitCode !== 0) return [];
+    const stdout = await runHledger([subcommand, "-f", journal]);
     return stdout
       .split("\n")
       .map((l) => l.trim())

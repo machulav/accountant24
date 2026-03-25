@@ -1,7 +1,8 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME } from "../config.js";
-import { resolveSafePath, runCommand } from "./utils.js";
+import { runHledger } from "./hledger.js";
+import { resolveSafePath } from "./utils.js";
 
 const Params = Type.Object({
   report: Type.Union(
@@ -88,8 +89,9 @@ function buildArgs(params: any, resolved: string): string[] {
   if (params.output_format) args.push("-O", params.output_format);
 
   // Prevent account name truncation in register reports
+  const REGISTER_WIDTH = 200;
   if (params.report === "reg" || params.report === "aregister") {
-    args.push("--width=200");
+    args.push(`--width=${REGISTER_WIDTH}`);
   }
 
   return args;
@@ -108,17 +110,7 @@ export const queryTool: ToolDefinition<typeof Params, null> = {
     const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
 
     const args = buildArgs(params, resolved);
-    const { exitCode, stdout, stderr } = await runCommand(args, { signal });
-
-    if (exitCode === 127) {
-      throw new Error("hledger not found. Install: https://hledger.org/install");
-    }
-
-    if (exitCode === 0) {
-      return { content: [{ type: "text", text: stdout || "(no results)" }], details: null };
-    }
-
-    const output = [stdout, stderr].filter(Boolean).join("\n");
-    throw new Error(output);
+    const stdout = await runHledger(args.slice(1), { signal });
+    return { content: [{ type: "text", text: stdout || "(no results)" }], details: null };
   },
 };

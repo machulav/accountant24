@@ -1,21 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { gradeDeterministic, gradeOutcome } from "../grader.js";
-import type { EvalCase, ToolCallRecord } from "../types.js";
 import type { WorkspaceState } from "../workspace.js";
+import { makeCase as _makeCase, makeTool } from "./helpers.js";
 
-function makeCase(expected: EvalCase["expected"]): EvalCase {
-  return {
-    id: "test-001",
-    input: { messages: [{ role: "user", content: "test" }] },
-    expected,
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-  };
-}
-
-function makeTool(name: string): ToolCallRecord {
-  return { toolCallId: `id-${name}`, toolName: name, args: {}, result: {}, isError: false };
-}
+const makeCase = (expected: Parameters<typeof _makeCase>[0]["expected"]) => _makeCase({ expected });
 
 describe("gradeDeterministic()", () => {
   describe("tools_called", () => {

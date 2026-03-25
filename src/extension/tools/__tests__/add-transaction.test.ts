@@ -12,16 +12,15 @@ mock.module("../../config.js", () => ({
   MEMORY_PATH: join(BASE, "memory.json"),
 }));
 
-const { resolveSafePath } = await import("../utils.js");
+const utils = await import("../hledger.js");
+const { HledgerNotFoundError, HledgerCommandError } = utils;
 
-type RunResult = { exitCode: number; stdout: string; stderr: string };
-let mockRun: ((cmd: string[]) => RunResult) | null = null;
+let mockHledgerCheck: (() => void) | null = null;
 
-mock.module("../utils.js", () => ({
-  resolveSafePath,
-  runCommand: async (cmd: string[]) => {
-    if (mockRun) return mockRun(cmd);
-    return { exitCode: 0, stdout: "", stderr: "" };
+mock.module("../hledger.js", () => ({
+  ...utils,
+  hledgerCheck: async () => {
+    if (mockHledgerCheck) return mockHledgerCheck();
   },
 }));
 
@@ -30,7 +29,7 @@ const { addTransactionTool } = await import("../add-transaction.js");
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
 beforeEach(() => {
-  mockRun = null;
+  mockHledgerCheck = null;
   // Clean and recreate ledger dir
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
@@ -104,9 +103,8 @@ test("does not duplicate existing include", async () => {
 test("calls hledger check after writing", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   let hledgerCheckCalled = false;
-  mockRun = (cmd) => {
-    if (cmd[0] === "hledger" && cmd[1] === "check") hledgerCheckCalled = true;
-    return { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {
+    hledgerCheckCalled = true;
   };
   await run(basicParams);
   expect(hledgerCheckCalled).toBe(true);
@@ -114,9 +112,8 @@ test("calls hledger check after writing", async () => {
 
 test("throws on validation failure", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockRun = (cmd) => {
-    if (cmd[0] === "hledger" && cmd[1] === "check") return { exitCode: 1, stdout: "", stderr: "account not declared" };
-    return { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {
+    throw new HledgerCommandError("", "account not declared");
   };
   await expect(run(basicParams)).rejects.toThrow("Validation failed");
 });
@@ -184,14 +181,14 @@ test("rejects multiple postings without amount", async () => {
   ).rejects.toThrow("At most one posting may omit the amount");
 });
 
-test("git commit is non-fatal on failure", async () => {
+test("hledger not found is non-fatal", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockRun = (cmd) => {
-    if (cmd[0] === "git") return { exitCode: 128, stdout: "", stderr: "not a git repo" };
-    return { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {
+    throw new HledgerNotFoundError();
   };
   const result = await run(basicParams);
   expect(result.content[0].text).toContain("Added transaction");
+  expect(result.content[0].text).toContain("hledger not found");
 });
 
 test("uses 4-space indent for postings", async () => {

@@ -12,18 +12,22 @@ mock.module("../../config.js", () => ({
   LEDGER_DIR: join(BASE, "ledger"),
 }));
 
-const { runCommand } = await import("../utils.js");
+const utils = await import("../hledger.js");
+const { HledgerNotFoundError, HledgerCommandError } = utils;
 
-let mockRun: { exitCode: number; stdout: string; stderr: string } | null = null;
-mock.module("../utils.js", () => ({
-  runCommand: async (cmd: string[], opts?: any) => mockRun ?? runCommand(cmd, opts),
+let mockHledgerCheck: (() => void) | null = null;
+mock.module("../hledger.js", () => ({
+  ...utils,
+  hledgerCheck: async () => {
+    if (mockHledgerCheck) return mockHledgerCheck();
+  },
 }));
 
 const { validateTool } = await import("../validate.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
-  mockRun = null;
+  mockHledgerCheck = null;
   try {
     rmSync(MEMORY);
   } catch {}
@@ -34,23 +38,23 @@ const run = (params: any) =>
 
 // --- journal validation ---
 
-test("throws on command not found", async () => {
-  mockRun = { exitCode: 127, stdout: "", stderr: "" };
+test("reports hledger not found", async () => {
+  mockHledgerCheck = () => {
+    throw new HledgerNotFoundError();
+  };
   const result = await run({});
   expect(result.content[0].text).toContain("hledger not found");
 });
 
 test("returns success on valid ledger", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   const result = await run({});
   expect(result.content[0].text).toContain("Ledger is valid.");
 });
 
 test("throws on ledger validation error", async () => {
-  mockRun = {
-    exitCode: 1,
-    stdout: "",
-    stderr: "hledger: Error: account not declared",
+  mockHledgerCheck = () => {
+    throw new HledgerCommandError("", "hledger: Error: account not declared");
   };
   await expect(run({})).rejects.toThrow("account not declared");
 });
@@ -58,7 +62,7 @@ test("throws on ledger validation error", async () => {
 // --- memory validation ---
 
 test("reports valid memory alongside valid ledger", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   writeFileSync(MEMORY, JSON.stringify({ facts: [] }));
   const result = await run({});
   expect(result.content[0].text).toContain("Ledger is valid.");
@@ -66,7 +70,7 @@ test("reports valid memory alongside valid ledger", async () => {
 });
 
 test("missing memory.json is OK", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   // no memory file written
   const result = await run({});
   expect(result.content[0].text).toContain("Ledger is valid.");
@@ -74,25 +78,27 @@ test("missing memory.json is OK", async () => {
 });
 
 test("reports memory schema errors", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   writeFileSync(MEMORY, JSON.stringify({ facts: "not-an-array" }));
   await expect(run({})).rejects.toThrow("memory.json");
 });
 
 test("reports invalid JSON in memory", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   writeFileSync(MEMORY, "not json{{{");
   await expect(run({})).rejects.toThrow("memory.json: invalid JSON");
 });
 
 test("reports unknown fields in memory", async () => {
-  mockRun = { exitCode: 0, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {};
   writeFileSync(MEMORY, JSON.stringify({ facts: [], extraField: true }));
   await expect(run({})).rejects.toThrow("memory.json");
 });
 
 test("reports both ledger and memory errors together", async () => {
-  mockRun = { exitCode: 1, stdout: "", stderr: "bad ledger" };
+  mockHledgerCheck = () => {
+    throw new HledgerCommandError("", "bad ledger");
+  };
   writeFileSync(MEMORY, JSON.stringify({ facts: 123 }));
   try {
     await run({});
@@ -104,7 +110,9 @@ test("reports both ledger and memory errors together", async () => {
 });
 
 test("validates memory even when hledger not found", async () => {
-  mockRun = { exitCode: 127, stdout: "", stderr: "" };
+  mockHledgerCheck = () => {
+    throw new HledgerNotFoundError();
+  };
   writeFileSync(MEMORY, JSON.stringify({ facts: 123 }));
   await expect(run({})).rejects.toThrow("memory.json");
 });

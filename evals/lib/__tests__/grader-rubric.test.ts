@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { EvalCase, ToolCallRecord } from "../types.js";
+import { makeCase as _makeCase, makeTool } from "./helpers.js";
 
 let mockJudgeResponse = "PASS: looks good";
 let lastPrompt = "";
@@ -18,19 +18,7 @@ mock.module("@mariozechner/pi-ai", () => ({
 
 const { gradeWithRubric } = await import("../grader.js");
 
-function makeCase(expected: EvalCase["expected"]): EvalCase {
-  return {
-    id: "test-001",
-    input: { messages: [{ role: "user", content: "test" }] },
-    expected,
-    grading: "rubric",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-  };
-}
-
-function makeTool(name: string): ToolCallRecord {
-  return { toolCallId: `id-${name}`, toolName: name, args: {}, result: {}, isError: false };
-}
+const makeCase = (expected: Parameters<typeof _makeCase>[0]["expected"]) => _makeCase({ expected, grading: "rubric" });
 
 describe("gradeWithRubric()", () => {
   it("should return pass with detail when no rubric specified", async () => {

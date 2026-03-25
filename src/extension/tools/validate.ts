@@ -4,8 +4,8 @@ import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { z } from "zod";
 import { LEDGER_DIR, MEMORY_PATH } from "../config.js";
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "./hledger.js";
 import { MemorySchema } from "./update-memory.js";
-import { runCommand } from "./utils.js";
 
 const Params = Type.Object({});
 
@@ -21,15 +21,17 @@ export const validateTool: ToolDefinition<typeof Params, null> = {
     const errors: string[] = [];
 
     // Journal validation
-    const { exitCode, stdout, stderr } = await runCommand(["hledger", "check", "--strict", "-f", resolved], { signal });
-
-    if (exitCode === 127) {
-      results.push("hledger not found, skipped journal check.");
-    } else if (exitCode === 0) {
+    try {
+      await hledgerCheck(resolved, { signal });
       results.push("Ledger is valid.");
-    } else {
-      const output = [stdout, stderr].filter(Boolean).join("\n");
-      errors.push(`Ledger errors:\n${output}`);
+    } catch (e) {
+      if (e instanceof HledgerNotFoundError) {
+        results.push("hledger not found, skipped journal check.");
+      } else if (e instanceof HledgerCommandError) {
+        errors.push(`Ledger errors:\n${e.message}`);
+      } else {
+        throw e;
+      }
     }
 
     // Memory validation

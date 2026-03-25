@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config.js";
-import { runCommand } from "./utils.js";
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "./hledger.js";
+import { resolveSafePath } from "./utils.js";
 
 const Posting = Type.Object({
   account: Type.String({ description: "Account name, e.g. Expenses:Food:Groceries" }),
@@ -87,7 +88,7 @@ export const addTransactionTool: ToolDefinition<typeof Params, null> = {
     // Route to monthly file
     const [year, month] = params.date.split("-");
     const relPath = `ledger/${year}/${month}.journal`;
-    const absPath = join(LEDGER_DIR, year, `${month}.journal`);
+    const absPath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
     const mainPath = join(LEDGER_DIR, "main.journal");
 
     // Ensure directory exists
@@ -131,20 +132,18 @@ export const addTransactionTool: ToolDefinition<typeof Params, null> = {
     }
 
     // Validate
-    const {
-      exitCode: checkCode,
-      stdout,
-      stderr,
-    } = await runCommand(["hledger", "check", "--strict", "-f", mainPath], { cwd: ACCOUNTANT24_HOME, signal });
-
-    if (checkCode === 127) {
-      // hledger not installed — skip validation but warn
-    } else if (checkCode !== 0) {
-      const output = [stdout, stderr].filter(Boolean).join("\n");
-      throw new Error(`Validation failed:\n${output}\n\nTransaction was written to ${relPath} but has errors.`);
+    let validationStatus = "Valid.";
+    try {
+      await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
+    } catch (e) {
+      if (e instanceof HledgerNotFoundError) {
+        validationStatus = "hledger not found, skipped validation.";
+      } else if (e instanceof HledgerCommandError) {
+        throw new Error(`Validation failed:\n${e.message}\n\nTransaction was written to ${relPath} but has errors.`);
+      } else {
+        throw e;
+      }
     }
-
-    const validationStatus = checkCode === 127 ? "hledger not found, skipped validation." : "Valid.";
 
     return {
       content: [
