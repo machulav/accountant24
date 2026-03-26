@@ -1,6 +1,12 @@
-import { describe, expect, test } from "bun:test";
-import { Briefing } from "../briefing.js";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { Briefing, createBriefingFactory } from "../briefing.js";
 import type { BriefingData } from "../briefing-data.js";
+
+// For createBriefingFactory tests: mock Bun.spawn so fetchBriefingData resolves fast
+const origSpawn = Bun.spawn;
+afterEach(() => {
+  Bun.spawn = origSpawn;
+});
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes are control chars by definition
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
@@ -139,6 +145,80 @@ describe("Briefing component", () => {
     expect(text).toContain("Employer Inc");
   });
 
+  test("renders invalid date as-is", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.recentTransactions = [
+      { date: "not-a-date", description: "Test", amount: -10, currency: "USD", account: "Food" },
+    ];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("not-a-date");
+  });
+
+  test("renders only categories without spend/income", () => {
+    const b = new Briefing();
+    b.setData({
+      netWorth: null,
+      spendThisMonth: null,
+      incomeThisMonth: null,
+      recentTransactions: [],
+      topCategories: [{ name: "Food", amount: 100, currency: "USD" }],
+      error: null,
+    });
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("Top Categories");
+    expect(text).not.toContain("This Month");
+  });
+
+  test("formats amount with no currency", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.netWorth = { amount: 5000, currency: "", change: 100 };
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("5,000.00");
+  });
+
+  test("formats currency without symbol as suffix", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.netWorth = { amount: 5000, currency: "BRL", change: 0 };
+    data.spendThisMonth = { amount: 100, currency: "BRL" };
+    data.incomeThisMonth = null;
+    data.topCategories = [{ name: "Food", amount: 100, currency: "BRL" }];
+    data.recentTransactions = [
+      { date: "2026-03-19", description: "Test", amount: -50, currency: "BRL", account: "Food" },
+    ];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("BRL");
+    expect(text).toContain("5,000.00 BRL");
+  });
+
+  test("truncates long descriptions and accounts", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.recentTransactions = [
+      {
+        date: "2026-03-19",
+        description: "A".repeat(80),
+        amount: -10,
+        currency: "USD",
+        account: "Very:Long:Account:Name:That:Should:Be:Truncated",
+      },
+    ];
+    data.topCategories = [{ name: "A".repeat(80), amount: 500, currency: "USD" }];
+    b.setData(data);
+    const lines = stripLines(b.render(60));
+    const text = lines.join("\n");
+    expect(text).toContain("…");
+  });
+
   test("renders at narrow width with stacked KPIs", () => {
     const b = new Briefing();
     b.setData(fullData());
@@ -192,5 +272,43 @@ describe("Briefing component", () => {
     expect(text).toContain("$5,000.00");
     expect(text).not.toContain("Top Categories");
     expect(text).not.toContain("Last Transactions");
+  });
+});
+
+describe("createBriefingFactory()", () => {
+  test("should return a factory function", () => {
+    const factory = createBriefingFactory();
+    expect(typeof factory).toBe("function");
+  });
+
+  test("should return a Briefing when called", () => {
+    // Mock Bun.spawn so fetchBriefingData resolves quickly
+    // @ts-expect-error - mocking Bun.spawn
+    Bun.spawn = mock(() => ({
+      stdout: new Blob([""]).stream(),
+      stderr: new Blob([""]).stream(),
+      exited: Promise.resolve(1),
+      kill: () => {},
+    }));
+    const factory = createBriefingFactory();
+    const tui = { requestRender: mock(() => {}) };
+    const briefing = factory(tui, {});
+    expect(typeof briefing.render).toBe("function");
+    expect(typeof briefing.setData).toBe("function");
+  });
+
+  test("should call requestRender after data loads", async () => {
+    // @ts-expect-error - mocking Bun.spawn
+    Bun.spawn = mock(() => ({
+      stdout: new Blob([""]).stream(),
+      stderr: new Blob([""]).stream(),
+      exited: Promise.resolve(0),
+      kill: () => {},
+    }));
+    const factory = createBriefingFactory();
+    const tui = { requestRender: mock(() => {}) };
+    factory(tui, {});
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(tui.requestRender).toHaveBeenCalledWith(true);
   });
 });

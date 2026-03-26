@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,53 +8,67 @@ mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
+  setBaseDir: () => {},
 }));
 
-const utils = await import("../hledger.js");
-const { HledgerNotFoundError, HledgerCommandError } = utils;
+// Mock Bun.spawn instead of hledger.js — this is the real I/O boundary.
+// This lets the real hledger.ts functions execute (contributing to coverage).
+const origSpawn = Bun.spawn;
 
-let mockRunHledger: ((args: string[]) => string) | null = null;
-mock.module("../hledger.js", () => ({
-  ...utils,
-  runHledger: async (args: string[]) => {
-    if (mockRunHledger) return mockRunHledger(args);
-    return "";
-  },
-}));
+function makeMockProc(exitCode: number, stdout = "", stderr = "") {
+  return {
+    stdout: new Blob([stdout]).stream(),
+    stderr: new Blob([stderr]).stream(),
+    exited: Promise.resolve(exitCode),
+    kill: mock(() => {}),
+  };
+}
+
+let mockProc: ReturnType<typeof makeMockProc>;
 
 const { queryTool, buildArgs } = await import("../query.js");
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
-  mockRunHledger = null;
+  mockProc = makeMockProc(0, "");
+  // @ts-expect-error - mocking Bun.spawn
+  Bun.spawn = mock(() => mockProc);
+});
+afterEach(() => {
+  Bun.spawn = origSpawn;
 });
 
 const run = (params: any) => queryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 test("throws on command not found", async () => {
-  mockRunHledger = () => {
-    throw new HledgerNotFoundError();
-  };
+  mockProc = makeMockProc(127);
   await expect(run({ report: "bal" })).rejects.toThrow("hledger not found");
 });
 
 test("returns report output on success", async () => {
-  mockRunHledger = () => "            100 USD  Expenses:Food";
+  mockProc = makeMockProc(0, "            100 USD  Expenses:Food");
   const result = await run({ report: "bal", account_pattern: "Expenses:Food" });
   expect(result.content[0].text).toContain("Expenses:Food");
 });
 
 test("returns no results on empty output", async () => {
-  mockRunHledger = () => "";
+  mockProc = makeMockProc(0, "");
   const result = await run({ report: "bal" });
   expect(result.content[0].text).toBe("(no results)");
 });
 
 test("throws on error", async () => {
-  mockRunHledger = () => {
-    throw new HledgerCommandError("", "hledger: could not parse");
-  };
+  mockProc = makeMockProc(1, "", "hledger: could not parse");
   await expect(run({ report: "bal" })).rejects.toThrow("could not parse");
+});
+
+test("handles abort signal", async () => {
+  mockProc = makeMockProc(0, "output");
+  const controller = new AbortController();
+  const promise = queryTool.execute("test", { report: "bal" }, controller.signal, undefined, undefined as any);
+  controller.abort();
+  const result = (await promise) as any;
+  expect(result.content[0].text).toContain("output");
 });
 
 test("throws on path escape", async () => {

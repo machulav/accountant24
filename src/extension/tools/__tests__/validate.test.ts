@@ -1,4 +1,4 @@
-import { afterAll, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,43 +9,63 @@ mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
+  setBaseDir: () => {},
 }));
 
-const utils = await import("../hledger.js");
-const { HledgerNotFoundError, HledgerCommandError } = utils;
+// Mock at Bun.spawn level so real hledger.ts functions execute for coverage
+const origSpawn = Bun.spawn;
 
-let mockHledgerCheck: (() => void) | null = null;
-mock.module("../hledger.js", () => ({
-  ...utils,
-  hledgerCheck: async () => {
-    if (mockHledgerCheck) return mockHledgerCheck();
-  },
-}));
+function makeMockProc(exitCode: number, stdout = "", stderr = "") {
+  return {
+    stdout: new Blob([stdout]).stream(),
+    stderr: new Blob([stderr]).stream(),
+    exited: Promise.resolve(exitCode),
+    kill: mock(() => {}),
+  };
+}
+
+let mockProc: ReturnType<typeof makeMockProc>;
 
 const { validateTool } = await import("../validate.js");
 
-afterAll(() => rmSync(BASE, { recursive: true, force: true }));
+afterAll(() => {
+  Bun.spawn = origSpawn;
+  rmSync(BASE, { recursive: true, force: true });
+});
+
+beforeEach(() => {
+  mockProc = makeMockProc(0);
+  // @ts-expect-error - mocking Bun.spawn
+  Bun.spawn = mock(() => mockProc);
+});
+
+afterEach(() => {
+  Bun.spawn = origSpawn;
+});
 
 const run = (params: any) =>
   validateTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 test("reports hledger not found", async () => {
-  mockHledgerCheck = () => {
-    throw new HledgerNotFoundError();
-  };
+  mockProc = makeMockProc(127);
   const result = await run({});
   expect(result.content[0].text).toContain("hledger not found");
 });
 
 test("returns success on valid ledger", async () => {
-  mockHledgerCheck = () => {};
+  mockProc = makeMockProc(0);
   const result = await run({});
   expect(result.content[0].text).toBe("Ledger is valid.");
 });
 
 test("throws on ledger validation error", async () => {
-  mockHledgerCheck = () => {
-    throw new HledgerCommandError("", "hledger: Error: account not declared");
-  };
+  mockProc = makeMockProc(1, "", "hledger: Error: account not declared");
   await expect(run({})).rejects.toThrow("account not declared");
+});
+
+test("re-throws unexpected errors", async () => {
+  Bun.spawn = mock(() => {
+    throw new TypeError("unexpected");
+  });
+  await expect(run({})).rejects.toThrow("unexpected");
 });

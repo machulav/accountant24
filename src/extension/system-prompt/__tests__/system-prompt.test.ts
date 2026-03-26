@@ -1,5 +1,19 @@
-import { expect, test } from "bun:test";
-import { getSystemPrompt, type SystemPromptContext } from "../system-prompt.js";
+import { describe, expect, mock, test } from "bun:test";
+
+let mockMemory = "";
+let mockAccounts: string[] = [];
+let mockPayees: string[] = [];
+
+mock.module("../../context.js", () => ({
+  loadMemory: async () => mockMemory,
+  loadAccounts: async () => mockAccounts,
+  loadPayees: async () => mockPayees,
+}));
+
+const mod = await import("../system-prompt.js");
+const getSystemPrompt = mod.getSystemPrompt;
+const buildSystemPrompt = mod.buildSystemPrompt;
+type SystemPromptContext = typeof mod extends { getSystemPrompt: (ctx: infer C) => any } ? C : never;
 
 const empty: SystemPromptContext = {
   today: "2026-03-19",
@@ -139,4 +153,54 @@ test("static content comes before dynamic content", () => {
   const memoryPos = prompt.indexOf("<memory>");
   expect(identityPos).toBeLessThan(sessionPos);
   expect(sessionPos).toBeLessThan(memoryPos);
+});
+
+// --- buildSystemPrompt() ---
+
+describe("buildSystemPrompt()", () => {
+  test("should return prompt containing today's date", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = [];
+    const prompt = await buildSystemPrompt();
+    const today = new Date().toISOString().split("T")[0];
+    expect(prompt).toContain(today);
+  });
+
+  test("should include memory content", async () => {
+    mockMemory = "Rent is $2100 monthly";
+    mockAccounts = [];
+    mockPayees = [];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).toContain("<memory>");
+    expect(prompt).toContain("Rent is $2100 monthly");
+  });
+
+  test("should include accounts", async () => {
+    mockMemory = "";
+    mockAccounts = ["Assets:Checking", "Expenses:Food"];
+    mockPayees = [];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).toContain("<accounts>");
+    expect(prompt).toContain("Assets:Checking");
+  });
+
+  test("should include payees", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = ["Whole Foods", "Amazon"];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).toContain("<known-payees>");
+    expect(prompt).toContain("Whole Foods");
+  });
+
+  test("should omit empty sections", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = [];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).not.toContain("<memory>");
+    expect(prompt).not.toContain("<accounts>");
+    expect(prompt).not.toContain("<known-payees>");
+  });
 });

@@ -1,4 +1,4 @@
-import { HledgerNotFoundError, tryRunHledger } from "../../tools/hledger.js";
+import { tryRunHledger } from "../../tools/hledger.js";
 
 export interface BriefingData {
   netWorth: { amount: number; currency: string; change: number } | null;
@@ -177,11 +177,9 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
       tryRunHledger(["reg", ...f, "-b", beginDate, "-O", "csv"]),
     ]);
-  } catch (e) {
-    if (e instanceof HledgerNotFoundError) {
-      return { ...emptyData(), error: "hledger is not installed. Install it from https://hledger.org/install" };
-    }
-    throw e;
+  } catch {
+    // tryRunHledger only re-throws HledgerNotFoundError; all other errors return null
+    return { ...emptyData(), error: "hledger is not installed. Install it from https://hledger.org/install" };
   }
 
   const data = emptyData();

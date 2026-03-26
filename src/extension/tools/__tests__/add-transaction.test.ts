@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,29 +10,41 @@ mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.md"),
+  setBaseDir: () => {},
 }));
 
-const utils = await import("../hledger.js");
-const { HledgerNotFoundError, HledgerCommandError } = utils;
+// Mock at Bun.spawn level so real hledger.ts functions execute for coverage
+const origSpawn = Bun.spawn;
 
-let mockHledgerCheck: (() => void) | null = null;
+function makeMockProc(exitCode: number, stdout = "", stderr = "") {
+  return {
+    stdout: new Blob([stdout]).stream(),
+    stderr: new Blob([stderr]).stream(),
+    exited: Promise.resolve(exitCode),
+    kill: mock(() => {}),
+  };
+}
 
-mock.module("../hledger.js", () => ({
-  ...utils,
-  hledgerCheck: async () => {
-    if (mockHledgerCheck) return mockHledgerCheck();
-  },
-}));
+let mockProc: ReturnType<typeof makeMockProc>;
 
 const { addTransactionTool } = await import("../add-transaction.js");
 
-afterAll(() => rmSync(BASE, { recursive: true, force: true }));
+afterAll(() => {
+  Bun.spawn = origSpawn;
+  rmSync(BASE, { recursive: true, force: true });
+});
 
 beforeEach(() => {
-  mockHledgerCheck = null;
+  mockProc = makeMockProc(0);
+  // @ts-expect-error - mocking Bun.spawn
+  Bun.spawn = mock(() => mockProc);
   // Clean and recreate ledger dir
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
+});
+
+afterEach(() => {
+  Bun.spawn = origSpawn;
 });
 
 const run = (params: any) =>
@@ -91,7 +103,6 @@ test("adds include directive for new monthly files", async () => {
 
 test("does not duplicate existing include", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "include 2026/03.journal\n");
-  // File already exists, so include should not be re-added
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
   writeFileSync(join(LEDGER, "2026", "03.journal"), "");
   await run(basicParams);
@@ -102,19 +113,14 @@ test("does not duplicate existing include", async () => {
 
 test("calls hledger check after writing", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  let hledgerCheckCalled = false;
-  mockHledgerCheck = () => {
-    hledgerCheckCalled = true;
-  };
   await run(basicParams);
-  expect(hledgerCheckCalled).toBe(true);
+  // Bun.spawn is mocked — hledgerCheck calls runHledger which calls spawn → Bun.spawn
+  expect(Bun.spawn).toHaveBeenCalled();
 });
 
 test("throws on validation failure", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockHledgerCheck = () => {
-    throw new HledgerCommandError("", "account not declared");
-  };
+  mockProc = makeMockProc(1, "", "account not declared");
   await expect(run(basicParams)).rejects.toThrow("Validation failed");
 });
 
@@ -183,9 +189,7 @@ test("rejects multiple postings without amount", async () => {
 
 test("hledger not found is non-fatal", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockHledgerCheck = () => {
-    throw new HledgerNotFoundError();
-  };
+  mockProc = makeMockProc(127);
   const result = await run(basicParams);
   expect(result.content[0].text).toContain("Added transaction");
   expect(result.content[0].text).toContain("hledger not found");
@@ -255,4 +259,12 @@ test("should skip commodity declaration for postings without currency", async ()
   expect(main).toContain("commodity USD");
   const commodityLines = main.split("\n").filter((l: string) => l.startsWith("commodity"));
   expect(commodityLines).toHaveLength(1);
+});
+
+test("should re-throw unexpected validation errors", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  Bun.spawn = mock(() => {
+    throw new TypeError("unexpected");
+  });
+  await expect(run(basicParams)).rejects.toThrow("unexpected");
 });

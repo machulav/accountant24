@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
 import { LEDGER_DIR } from "../../config.js";
@@ -71,7 +70,12 @@ export function buildHeaderLine(label: string, width: number): string {
 }
 
 export class Briefing extends Container {
-  private data: BriefingData | null = null;
+  private data: BriefingData | null;
+
+  constructor() {
+    super();
+    this.data = null;
+  }
 
   setData(data: BriefingData): void {
     this.data = data;
@@ -237,12 +241,10 @@ export class Briefing extends Container {
 export function createBriefingFactory() {
   return (tui: any, _theme: any) => {
     const briefing = new Briefing();
-    fetchBriefingData(join(LEDGER_DIR, "main.journal"))
-      .then((data) => {
-        briefing.setData(data);
-        tui.requestRender(true);
-      })
-      .catch(() => {});
+    fetchBriefingData(`${LEDGER_DIR}/main.journal`).then((data) => {
+      briefing.setData(data);
+      tui.requestRender(true);
+    });
     return briefing;
   };
 }
