@@ -15,19 +15,20 @@
     "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun run test --coverage",
     "eval": "bun run evals/run.ts"
   },
+  "piConfig": {
+    "name": "accountant24",
+    "configDir": ".accountant24"
+  },
   "dependencies": {
-    "@clack/prompts": "^1.1.0",
-    "@mariozechner/pi-agent-core": "latest",
-    "@mariozechner/pi-ai": "latest",
-    "@mariozechner/pi-tui": "latest",
-    "chalk": "^5.4.0",
-    "diff": "^8.0.0",
+    "@mariozechner/pi-coding-agent": "^0.63.1",
     "zod": "^3.24.0"
+  },
+  "overrides": {
+    "signal-exit": "3.0.7"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "@types/bun": "latest",
-    "@types/diff": "^8.0.0",
     "typescript": "^5.8.0"
   }
 }

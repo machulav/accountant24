@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import chalk from "chalk";
 import type { EvalResult } from "../types.js";
+import { makeResult } from "./helpers.js";
 
 // ── Mutable control variables ───────────────────────────────────────
 
@@ -21,20 +22,6 @@ mock.module("../reporter.js", () => ({
 }));
 
 const { formatDuration, formatTableRow, renderTable, createProgressHandler, main } = await import("../cli.js");
-
-// ── Helpers ─────────────────────────────────────────────────────────
-
-function makeResult(overrides: Partial<EvalResult> & { id: string }): EvalResult {
-  return {
-    passed: true,
-    checks: [],
-    toolsCalled: [],
-    agentOutput: "",
-    durationMs: 100,
-    sourceFile: "test.jsonl",
-    ...overrides,
-  };
-}
 
 const defaultConfig = {
   provider: "anthropic",

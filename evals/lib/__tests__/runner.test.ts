@@ -2,14 +2,18 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { EvalDeps, EvalRunConfig } from "../runner.js";
 import { runEval } from "../runner.js";
 import type { CheckResult, LoadedEvalCase } from "../types.js";
+import { makeCase as _makeCase } from "./helpers.js";
 
 // ── Mutable control variables ───────────────────────────────────────
 
 let mockCases: LoadedEvalCase[] = [];
 let mockGradeDeterministicResult: CheckResult[] = [];
+let mockGradeOutcomeResult: CheckResult[] = [];
+let mockGradeOutcomeCalled = false;
 let mockGradeWithRubricResult: CheckResult = { check: "rubric", passed: true, detail: "ok" };
 let mockGradeWithRubricCalled = false;
 let mockGradeWithRubricArgs: unknown[] = [];
+let mockInspectWorkspaceCalled = false;
 let mockWorkspaceHome = "/tmp/fake-workspace";
 const mockWorkspaceCleanup = mock(() => {});
 let capturedSetBaseDir: string | undefined;
@@ -63,21 +67,28 @@ function makeDeps(): EvalDeps {
     createEvalWorkspace: (() => ({
       home: mockWorkspaceHome,
       ledgerDir: `${mockWorkspaceHome}/ledger`,
-      memoryPath: `${mockWorkspaceHome}/memory.json`,
+      memoryPath: `${mockWorkspaceHome}/memory.md`,
       cleanup: mockWorkspaceCleanup,
     })) as any,
     setBaseDir: ((dir: string) => {
       capturedSetBaseDir = dir;
     }) as any,
-    loadSystemPromptContext: (async () => ({ context: "mock" })) as any,
-    getSystemPrompt: (() => "mock system prompt") as any,
+    buildSystemPrompt: (async () => "mock system prompt") as any,
     getModel: ((...args: unknown[]) => {
       capturedGetModelArgs = args;
       return { id: "mock-model" };
     }) as any,
     streamSimple: (() => {}) as any,
-    createTools: (() => [{ name: "mock-tool" }]) as any,
+    customTools: [{ name: "mock-tool" }] as any,
+    inspectWorkspace: (() => {
+      mockInspectWorkspaceCalled = true;
+      return { ledgerContent: "", memoryContent: "" };
+    }) as any,
     gradeDeterministic: (() => [...mockGradeDeterministicResult]) as any,
+    gradeOutcome: (() => {
+      mockGradeOutcomeCalled = true;
+      return [...mockGradeOutcomeResult];
+    }) as any,
     gradeWithRubric: (async (...args: unknown[]) => {
       mockGradeWithRubricCalled = true;
       mockGradeWithRubricArgs = args;
@@ -89,17 +100,12 @@ function makeDeps(): EvalDeps {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function makeCase(overrides?: Partial<LoadedEvalCase>): LoadedEvalCase {
-  return {
-    id: "test-001",
-    input: { messages: [{ role: "user", content: "hello" }] },
-    expected: {},
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-    sourceFile: "test.jsonl",
-    ...overrides,
-  };
-}
+const makeCase = (overrides?: Partial<LoadedEvalCase>): LoadedEvalCase => ({
+  ..._makeCase(),
+  sourceFile: "test.jsonl",
+  input: { messages: [{ role: "user", content: "hello" }] },
+  ...overrides,
+});
 
 const defaultConfig: EvalRunConfig = {
   provider: "test-provider",
@@ -113,9 +119,12 @@ const defaultConfig: EvalRunConfig = {
 beforeEach(() => {
   mockCases = [];
   mockGradeDeterministicResult = [];
+  mockGradeOutcomeResult = [];
+  mockGradeOutcomeCalled = false;
   mockGradeWithRubricResult = { check: "rubric", passed: true, detail: "ok" };
   mockGradeWithRubricCalled = false;
   mockGradeWithRubricArgs = [];
+  mockInspectWorkspaceCalled = false;
   mockWorkspaceHome = "/tmp/fake-workspace";
   mockWorkspaceCleanup.mockClear();
   capturedSetBaseDir = undefined;
@@ -522,6 +531,39 @@ describe("runEval()", () => {
 
       await runEval(defaultConfig, makeDeps());
       expect(capturedSetBaseDir).toBe("/custom/workspace");
+    });
+  });
+
+  describe("outcome grading", () => {
+    it("should call inspectWorkspace and gradeOutcome for every case", async () => {
+      mockCases = [makeCase()];
+      mockGradeDeterministicResult = [];
+      mockAgentMessages = [];
+
+      await runEval(defaultConfig, makeDeps());
+      expect(mockInspectWorkspaceCalled).toBe(true);
+      expect(mockGradeOutcomeCalled).toBe(true);
+    });
+
+    it("should include outcome checks in results", async () => {
+      mockCases = [makeCase()];
+      mockGradeDeterministicResult = [{ check: "det", passed: true, detail: "ok" }];
+      mockGradeOutcomeResult = [{ check: "ledger_contains: payee=Starbucks", passed: true, detail: "found" }];
+      mockAgentMessages = [];
+
+      const results = await runEval(defaultConfig, makeDeps());
+      expect(results[0].checks).toHaveLength(2);
+      expect(results[0].checks[1].check).toContain("ledger_contains");
+    });
+
+    it("should fail overall when outcome check fails", async () => {
+      mockCases = [makeCase()];
+      mockGradeDeterministicResult = [];
+      mockGradeOutcomeResult = [{ check: "ledger_contains: payee=Starbucks", passed: false, detail: "not found" }];
+      mockAgentMessages = [];
+
+      const results = await runEval(defaultConfig, makeDeps());
+      expect(results[0].passed).toBe(false);
     });
   });
 

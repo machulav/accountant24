@@ -1,24 +1,15 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EvalCase } from "../types.js";
-import { createEvalWorkspace } from "../workspace.js";
+import { createEvalWorkspace, inspectWorkspace } from "../workspace.js";
+import { makeCase as _makeCase } from "./helpers.js";
 
 const workspacesToCleanup: Array<() => void> = [];
 afterAll(() => {
   for (const fn of workspacesToCleanup) fn();
 });
 
-function makeCase(overrides?: Partial<EvalCase>): EvalCase {
-  return {
-    id: "ws-test",
-    input: { messages: [{ role: "user", content: "test" }] },
-    expected: {},
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-    ...overrides,
-  };
-}
+const makeCase = (overrides?: Parameters<typeof _makeCase>[0]) => _makeCase({ id: "ws-test", ...overrides });
 
 function createAndTrack(evalCase: EvalCase) {
   const ws = createEvalWorkspace(evalCase);
@@ -47,7 +38,7 @@ describe("createEvalWorkspace()", () => {
 
     it("should set memoryPath inside home", () => {
       const ws = createAndTrack(makeCase());
-      expect(ws.memoryPath).toBe(join(ws.home, "memory.json"));
+      expect(ws.memoryPath).toBe(join(ws.home, "memory.md"));
     });
 
     it("should create home inside .workspaces directory", () => {
@@ -148,31 +139,25 @@ describe("createEvalWorkspace()", () => {
     });
   });
 
-  describe("memory.json", () => {
-    it("should write memory.json when memory is provided", () => {
+  describe("memory.md", () => {
+    it("should write memory.md when memory is provided", () => {
       const ws = createAndTrack(
         makeCase({
-          setup: { memory: { facts: ["Default currency is EUR", "Landlord is John"] } },
+          setup: { memory: "- Default currency is EUR\n- Landlord is John" },
         }),
       );
       expect(existsSync(ws.memoryPath)).toBe(true);
-      const content = JSON.parse(readFileSync(ws.memoryPath, "utf-8"));
-      expect(content.facts).toEqual(["Default currency is EUR", "Landlord is John"]);
+      const content = readFileSync(ws.memoryPath, "utf-8");
+      expect(content).toContain("- Default currency is EUR");
+      expect(content).toContain("- Landlord is John");
     });
 
-    it("should write memory with empty facts array", () => {
-      const ws = createAndTrack(makeCase({ setup: { memory: { facts: [] } } }));
-      expect(existsSync(ws.memoryPath)).toBe(true);
-      const content = JSON.parse(readFileSync(ws.memoryPath, "utf-8"));
-      expect(content.facts).toEqual([]);
-    });
-
-    it("should NOT write memory.json when no memory in setup", () => {
+    it("should NOT write memory.md when no memory in setup", () => {
       const ws = createAndTrack(makeCase({ setup: { ledger: { accounts: [], transactions: [] } } }));
       expect(existsSync(ws.memoryPath)).toBe(false);
     });
 
-    it("should NOT write memory.json when no setup at all", () => {
+    it("should NOT write memory.md when no setup at all", () => {
       const ws = createAndTrack(makeCase());
       expect(existsSync(ws.memoryPath)).toBe(false);
     });
@@ -191,7 +176,7 @@ describe("createEvalWorkspace()", () => {
         makeCase({
           id: "cleanup-deep",
           setup: {
-            memory: { facts: ["test"] },
+            memory: "- test",
             ledger: {
               accounts: ["account A"],
               transactions: [["2026-01-01 * X", "A  1 USD", "B"]],
@@ -205,6 +190,89 @@ describe("createEvalWorkspace()", () => {
       ws.cleanup();
       expect(existsSync(journalPath)).toBe(false);
       expect(existsSync(ws.memoryPath)).toBe(false);
+    });
+  });
+});
+
+describe("inspectWorkspace()", () => {
+  describe("ledger content", () => {
+    it("should return empty string when ledger has no content", () => {
+      const ws = createAndTrack(makeCase());
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toBe("");
+    });
+
+    it("should read main.journal content", () => {
+      const ws = createAndTrack(
+        makeCase({
+          setup: {
+            ledger: {
+              accounts: ["account Assets:Checking"],
+              transactions: [["2026-03-01 * Starbucks | Coffee", "Expenses:Food  5.00 EUR", "Assets:Checking"]],
+            },
+          },
+        }),
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("Starbucks");
+      expect(state.ledgerContent).toContain("5.00 EUR");
+    });
+
+    it("should read monthly journal files in subdirectories", () => {
+      const ws = createAndTrack(makeCase());
+      const monthDir = join(ws.ledgerDir, "2026", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(
+        join(monthDir, "03.journal"),
+        "2026-03-22 * Rewe | Groceries\n    Expenses:Food  10 EUR\n    Assets:Checking\n",
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("Rewe");
+      expect(state.ledgerContent).toContain("10 EUR");
+    });
+
+    it("should concatenate content from multiple journal files", () => {
+      const ws = createAndTrack(
+        makeCase({
+          setup: {
+            ledger: {
+              accounts: ["account Assets:Checking"],
+              transactions: [["2026-01-01 * ExistingTx", "Assets:Checking  100 EUR", "Equity:Opening"]],
+            },
+          },
+        }),
+      );
+      const monthDir = join(ws.ledgerDir, "2026", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(
+        join(monthDir, "03.journal"),
+        "2026-03-22 * NewTx\n    Expenses:Food  20 EUR\n    Assets:Checking\n",
+      );
+      const state = inspectWorkspace(ws);
+      expect(state.ledgerContent).toContain("ExistingTx");
+      expect(state.ledgerContent).toContain("NewTx");
+    });
+  });
+
+  describe("memory content", () => {
+    it("should return empty string when no memory.md exists", () => {
+      const ws = createAndTrack(makeCase());
+      const state = inspectWorkspace(ws);
+      expect(state.memoryContent).toBe("");
+    });
+
+    it("should return content from memory.md", () => {
+      const ws = createAndTrack(makeCase({ setup: { memory: "- Default currency is EUR\n- Landlord is John" } }));
+      const state = inspectWorkspace(ws);
+      expect(state.memoryContent).toContain("Default currency is EUR");
+      expect(state.memoryContent).toContain("Landlord is John");
+    });
+
+    it("should return empty string when memory.md is empty", () => {
+      const ws = createAndTrack(makeCase());
+      writeFileSync(ws.memoryPath, "");
+      const state = inspectWorkspace(ws);
+      expect(state.memoryContent).toBe("");
     });
   });
 });

@@ -1,12 +1,21 @@
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
-import { getSystemPrompt, loadSystemPromptContext } from "../../src/core/agent/system-prompt.js";
-import { setBaseDir } from "../../src/core/config.js";
-import { createTools } from "../../src/core/tools/index.js";
-import { gradeDeterministic, gradeWithRubric } from "./grader.js";
+import { codingTools } from "@mariozechner/pi-coding-agent";
+import {
+  addTransactionTool,
+  buildSystemPrompt,
+  queryTool,
+  setBaseDir,
+  updateMemoryTool,
+  validateTool,
+} from "../../src/extension";
+
+const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
+
+import { gradeDeterministic, gradeOutcome, gradeWithRubric } from "./grader.js";
 import { loadCases } from "./loader.js";
 import type { EvalResult, ToolCallRecord } from "./types.js";
-import { createEvalWorkspace } from "./workspace.js";
+import { createEvalWorkspace, inspectWorkspace } from "./workspace.js";
 
 export interface EvalRunConfig {
   provider: string;
@@ -25,13 +34,14 @@ export type ProgressEvent =
 export interface EvalDeps {
   loadCases: typeof loadCases;
   createEvalWorkspace: typeof createEvalWorkspace;
+  inspectWorkspace: typeof inspectWorkspace;
   setBaseDir: typeof setBaseDir;
-  loadSystemPromptContext: typeof loadSystemPromptContext;
-  getSystemPrompt: typeof getSystemPrompt;
+  buildSystemPrompt: typeof buildSystemPrompt;
   getModel: typeof getModel;
   streamSimple: typeof streamSimple;
-  createTools: typeof createTools;
+  customTools: typeof customTools;
   gradeDeterministic: typeof gradeDeterministic;
+  gradeOutcome: typeof gradeOutcome;
   gradeWithRubric: typeof gradeWithRubric;
   Agent: typeof Agent;
 }
@@ -39,13 +49,14 @@ export interface EvalDeps {
 const defaultDeps: EvalDeps = {
   loadCases,
   createEvalWorkspace,
+  inspectWorkspace,
   setBaseDir,
-  loadSystemPromptContext,
-  getSystemPrompt,
+  buildSystemPrompt,
   getModel,
   streamSimple,
-  createTools,
+  customTools,
   gradeDeterministic,
+  gradeOutcome,
   gradeWithRubric,
   Agent,
 };
@@ -67,15 +78,14 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
     try {
       deps.setBaseDir(workspace.home);
 
-      const context = await deps.loadSystemPromptContext();
-      const systemPrompt = deps.getSystemPrompt(context);
+      const systemPrompt = await deps.buildSystemPrompt();
 
       const model = (deps.getModel as any)(config.provider, config.model);
       const agent = new deps.Agent({
         initialState: {
           systemPrompt,
           model,
-          tools: deps.createTools(),
+          tools: [...codingTools, ...deps.customTools] as any,
         },
         streamFn: deps.streamSimple,
       });
@@ -143,6 +153,10 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
 
       // Grade
       const checks = deps.gradeDeterministic(evalCase, toolsCalled, agentOutput);
+
+      // Outcome grading (must run before cleanup since it reads workspace files)
+      const workspaceState = deps.inspectWorkspace(workspace);
+      checks.push(...deps.gradeOutcome(evalCase, workspaceState));
 
       if (evalCase.grading === "rubric" && evalCase.expected.rubric) {
         const rubricCheck = await deps.gradeWithRubric(

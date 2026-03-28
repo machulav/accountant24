@@ -1,0 +1,197 @@
+import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-query-"));
+mock.module("../../config.js", () => ({
+  ACCOUNTANT24_HOME: BASE,
+  MEMORY_PATH: join(BASE, "memory.md"),
+  LEDGER_DIR: join(BASE, "ledger"),
+  setBaseDir: () => {},
+}));
+
+// Mock Bun.spawn instead of hledger.js — this is the real I/O boundary.
+// This lets the real hledger.ts functions execute (contributing to coverage).
+const origSpawn = Bun.spawn;
+
+function makeMockProc(exitCode: number, stdout = "", stderr = "") {
+  return {
+    stdout: new Blob([stdout]).stream(),
+    stderr: new Blob([stderr]).stream(),
+    exited: Promise.resolve(exitCode),
+    kill: mock(() => {}),
+  };
+}
+
+let mockProc: ReturnType<typeof makeMockProc>;
+
+const { queryTool, buildArgs } = await import("../query.js");
+
+afterAll(() => rmSync(BASE, { recursive: true, force: true }));
+beforeEach(() => {
+  mockProc = makeMockProc(0, "");
+  // @ts-expect-error - mocking Bun.spawn
+  Bun.spawn = mock(() => mockProc);
+});
+afterEach(() => {
+  Bun.spawn = origSpawn;
+});
+
+const run = (params: any) => queryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
+
+test("throws on command not found", async () => {
+  mockProc = makeMockProc(127);
+  await expect(run({ report: "bal" })).rejects.toThrow("hledger not found");
+});
+
+test("returns report output on success", async () => {
+  mockProc = makeMockProc(0, "            100 USD  Expenses:Food");
+  const result = await run({ report: "bal", account_pattern: "Expenses:Food" });
+  expect(result.content[0].text).toContain("Expenses:Food");
+});
+
+test("returns no results on empty output", async () => {
+  mockProc = makeMockProc(0, "");
+  const result = await run({ report: "bal" });
+  expect(result.content[0].text).toBe("(no results)");
+});
+
+test("throws on error", async () => {
+  mockProc = makeMockProc(1, "", "hledger: could not parse");
+  await expect(run({ report: "bal" })).rejects.toThrow("could not parse");
+});
+
+test("handles abort signal", async () => {
+  mockProc = makeMockProc(0, "output");
+  const controller = new AbortController();
+  const promise = queryTool.execute("test", { report: "bal" }, controller.signal, undefined, undefined as any);
+  controller.abort();
+  const result = (await promise) as any;
+  expect(result.content[0].text).toContain("output");
+});
+
+test("throws on path escape", async () => {
+  await expect(run({ report: "bal", file: "../../etc/passwd" })).rejects.toThrow("Path escapes base directory");
+});
+
+// buildArgs tests
+
+test("builds basic bal command", () => {
+  const args = buildArgs({ report: "bal" }, "/tmp/main.journal");
+  expect(args).toEqual(["hledger", "bal", "-f", "/tmp/main.journal"]);
+});
+
+test("builds args with account pattern", () => {
+  const args = buildArgs({ report: "bal", account_pattern: "Expenses:Food" }, "/tmp/main.journal");
+  expect(args).toContain("Expenses:Food");
+});
+
+test("builds args with description filter", () => {
+  const args = buildArgs({ report: "reg", description_pattern: "Amazon" }, "/tmp/main.journal");
+  expect(args).toContain("desc:Amazon");
+});
+
+test("builds args with payee filter", () => {
+  const args = buildArgs({ report: "reg", payee_pattern: "Whole Foods" }, "/tmp/main.journal");
+  expect(args).toContain("payee:Whole Foods");
+});
+
+test("builds args with amount filter", () => {
+  const args = buildArgs({ report: "reg", amount_filter: ">200" }, "/tmp/main.journal");
+  expect(args).toContain("amt:>200");
+});
+
+test("builds args with tag filter", () => {
+  const args = buildArgs({ report: "reg", tag: "groceries" }, "/tmp/main.journal");
+  expect(args).toContain("tag:groceries");
+});
+
+test("builds args with cleared status", () => {
+  const args = buildArgs({ report: "reg", status: "cleared" }, "/tmp/main.journal");
+  expect(args).toContain("status:*");
+});
+
+test("builds args with pending status", () => {
+  const args = buildArgs({ report: "reg", status: "pending" }, "/tmp/main.journal");
+  expect(args).toContain("status:!");
+});
+
+test("builds args with unmarked status", () => {
+  const args = buildArgs({ report: "reg", status: "unmarked" }, "/tmp/main.journal");
+  expect(args).toContain("status:");
+});
+
+test("builds args with date range", () => {
+  const args = buildArgs({ report: "bal", begin_date: "2026-01-01", end_date: "2026-04-01" }, "/tmp/main.journal");
+  expect(args).toContain("-b");
+  expect(args).toContain("2026-01-01");
+  expect(args).toContain("-e");
+  expect(args).toContain("2026-04-01");
+});
+
+test("builds args with monthly period", () => {
+  const args = buildArgs({ report: "bal", period: "monthly" }, "/tmp/main.journal");
+  expect(args).toContain("--monthly");
+});
+
+test("builds args with weekly period", () => {
+  const args = buildArgs({ report: "bal", period: "weekly" }, "/tmp/main.journal");
+  expect(args).toContain("--weekly");
+});
+
+test("builds args with depth", () => {
+  const args = buildArgs({ report: "bal", depth: 2 }, "/tmp/main.journal");
+  expect(args).toContain("--depth");
+  expect(args).toContain("2");
+});
+
+test("builds args with invert", () => {
+  const args = buildArgs({ report: "bal", invert: true }, "/tmp/main.journal");
+  expect(args).toContain("--invert");
+});
+
+test("does not add invert when false", () => {
+  const args = buildArgs({ report: "bal", invert: false }, "/tmp/main.journal");
+  expect(args).not.toContain("--invert");
+});
+
+test("builds args with output format", () => {
+  const args = buildArgs({ report: "reg", output_format: "csv" }, "/tmp/main.journal");
+  expect(args).toContain("-O");
+  expect(args).toContain("csv");
+});
+
+test("builds args for aregister", () => {
+  const args = buildArgs({ report: "aregister", account_pattern: "Assets:Checking" }, "/tmp/main.journal");
+  expect(args[1]).toBe("aregister");
+  expect(args).toContain("Assets:Checking");
+});
+
+test("builds args with all filters combined", () => {
+  const args = buildArgs(
+    {
+      report: "reg",
+      account_pattern: "Expenses",
+      payee_pattern: "Whole Foods",
+      amount_filter: ">50",
+      begin_date: "2026-01-01",
+      end_date: "2026-04-01",
+      period: "monthly",
+      depth: 2,
+      invert: true,
+      output_format: "csv",
+    },
+    "/tmp/main.journal",
+  );
+  expect(args).toContain("Expenses");
+  expect(args).toContain("payee:Whole Foods");
+  expect(args).toContain("amt:>50");
+  expect(args).toContain("-b");
+  expect(args).toContain("-e");
+  expect(args).toContain("--monthly");
+  expect(args).toContain("--depth");
+  expect(args).toContain("--invert");
+  expect(args).toContain("-O");
+  expect(args).toContain("csv");
+});

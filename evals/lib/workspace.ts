@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { EvalCase } from "./types.js";
 
@@ -15,7 +15,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
   mkdirSync(WORKSPACES_DIR, { recursive: true });
   const home = mkdtempSync(join(WORKSPACES_DIR, `${evalCase.id}-`));
   const ledgerDir = join(home, "ledger");
-  const memoryPath = join(home, "memory.json");
+  const memoryPath = join(home, "memory.md");
 
   mkdirSync(ledgerDir, { recursive: true });
 
@@ -46,7 +46,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
 
   // ── Write memory ───────────────────────────────────────────────────
   if (setup?.memory) {
-    writeFileSync(memoryPath, `${JSON.stringify(setup.memory, null, 2)}\n`);
+    writeFileSync(memoryPath, `${setup.memory.trim()}\n`);
   }
 
   return {
@@ -55,4 +55,39 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
     memoryPath,
     cleanup: () => rmSync(home, { recursive: true, force: true }),
   };
+}
+
+// ── Workspace state inspection ───────────────────────────────────────
+
+export interface WorkspaceState {
+  ledgerContent: string;
+  memoryContent: string;
+}
+
+function collectJournalFiles(dir: string): string[] {
+  const files: string[] = [];
+  if (!existsSync(dir)) return files;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectJournalFiles(fullPath));
+    } else if (entry.name.endsWith(".journal")) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+export function inspectWorkspace(workspace: EvalWorkspace): WorkspaceState {
+  const journalFiles = collectJournalFiles(workspace.ledgerDir);
+  const ledgerContent = journalFiles.map((f) => readFileSync(f, "utf-8")).join("\n");
+
+  let memoryContent = "";
+  try {
+    memoryContent = readFileSync(workspace.memoryPath, "utf-8").trim();
+  } catch {
+    memoryContent = "";
+  }
+
+  return { ledgerContent, memoryContent };
 }

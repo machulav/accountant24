@@ -1,20 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { gradeDeterministic } from "../grader.js";
-import type { EvalCase, ToolCallRecord } from "../types.js";
+import { gradeDeterministic, gradeOutcome } from "../grader.js";
+import type { WorkspaceState } from "../workspace.js";
+import { makeCase as _makeCase, makeTool } from "./helpers.js";
 
-function makeCase(expected: EvalCase["expected"]): EvalCase {
-  return {
-    id: "test-001",
-    input: { messages: [{ role: "user", content: "test" }] },
-    expected,
-    grading: "deterministic",
-    metadata: { category: "test", tags: [], difficulty: "easy" },
-  };
-}
-
-function makeTool(name: string): ToolCallRecord {
-  return { toolCallId: `id-${name}`, toolName: name, args: {}, result: {}, isError: false };
-}
+const makeCase = (expected: Parameters<typeof _makeCase>[0]["expected"]) => _makeCase({ expected });
 
 describe("gradeDeterministic()", () => {
   describe("tools_called", () => {
@@ -193,6 +182,177 @@ describe("gradeDeterministic()", () => {
       expect(checks[2].passed).toBe(false);
       // "error" in output → fail
       expect(checks[3].passed).toBe(false);
+    });
+  });
+});
+
+describe("gradeOutcome()", () => {
+  const ledger = `account Assets:Checking
+account Expenses:Food:Coffee
+
+2026-03-20 * Starbucks | Latte
+    Expenses:Food:Coffee  5.00 EUR
+    Assets:Checking
+
+2026-03-21 * Rewe | Weekly groceries
+    Expenses:Food:Groceries  42.50 EUR
+    Assets:Checking`;
+
+  function makeState(overrides?: Partial<WorkspaceState>): WorkspaceState {
+    return { ledgerContent: ledger, memoryContent: "", ...overrides };
+  }
+
+  describe("ledger_contains", () => {
+    it("should pass when ledger contains expected transaction", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks).toHaveLength(1);
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when ledger does not contain expected transaction", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Amazon" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks).toHaveLength(1);
+      expect(checks[0].passed).toBe(false);
+    });
+
+    it("should match payee case-insensitively", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "starbucks" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should check amount when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", amount: 5 }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when amount does not match", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", amount: 99 }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(false);
+    });
+
+    it("should check currency when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", currency: "EUR" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when currency does not match", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", currency: "USD" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(false);
+    });
+
+    it("should check account when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", account: "Expenses:Food:Coffee" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should match account as substring", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Rewe", account: "Groceries" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should check date when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", date: "2026-03-20" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when date does not match", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", date: "2026-03-21" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(false);
+    });
+
+    it("should check narration when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", narration: "Latte" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should check all fields together", () => {
+      const evalCase = makeCase({
+        ledger_contains: [
+          {
+            payee: "Rewe",
+            amount: 42.5,
+            currency: "EUR",
+            account: "Groceries",
+            date: "2026-03-21",
+            narration: "Weekly",
+          },
+        ],
+      });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should check multiple assertions independently", () => {
+      const evalCase = makeCase({
+        ledger_contains: [{ payee: "Starbucks" }, { payee: "Amazon" }],
+      });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks).toHaveLength(2);
+      expect(checks[0].passed).toBe(true);
+      expect(checks[1].passed).toBe(false);
+    });
+  });
+
+  describe("ledger_not_contains", () => {
+    it("should pass when transaction is absent", () => {
+      const evalCase = makeCase({ ledger_not_contains: [{ payee: "Amazon" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when transaction is present", () => {
+      const evalCase = makeCase({ ledger_not_contains: [{ payee: "Starbucks" }] });
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks[0].passed).toBe(false);
+    });
+  });
+
+  describe("memory_contains", () => {
+    it("should pass when text is present in memory", () => {
+      const evalCase = makeCase({ memory_contains: ["Peterson"] });
+      const state = makeState({ memoryContent: "- Mr. Peterson is the math tutor" });
+      const checks = gradeOutcome(evalCase, state);
+      expect(checks[0].passed).toBe(true);
+    });
+
+    it("should fail when text is absent from memory", () => {
+      const evalCase = makeCase({ memory_contains: ["Peterson"] });
+      const state = makeState({ memoryContent: "- Default currency is EUR" });
+      const checks = gradeOutcome(evalCase, state);
+      expect(checks[0].passed).toBe(false);
+    });
+
+    it("should match case-insensitively", () => {
+      const evalCase = makeCase({ memory_contains: ["peterson"] });
+      const state = makeState({ memoryContent: "- Mr. Peterson is the tutor" });
+      const checks = gradeOutcome(evalCase, state);
+      expect(checks[0].passed).toBe(true);
+    });
+  });
+
+  describe("empty assertions", () => {
+    it("should return empty checks when no outcome assertions defined", () => {
+      const evalCase = makeCase({});
+      const checks = gradeOutcome(evalCase, makeState());
+      expect(checks).toEqual([]);
+    });
+
+    it("should return empty checks for empty ledger content", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks" }] });
+      const checks = gradeOutcome(evalCase, makeState({ ledgerContent: "" }));
+      expect(checks[0].passed).toBe(false);
     });
   });
 });
