@@ -8,6 +8,9 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
+  "files": {
+    "includes": ["src/**", "evals/**", "*.json", "*.ts"]
+  },
   "formatter": {
     "indentStyle": "space",
     "lineWidth": 120
