@@ -111,6 +111,20 @@ describe("ensureScaffolded()", () => {
     expect(readFileSync(join(tmpDir, ".gitignore"), "utf-8")).toBe("custom gitignore");
   });
 
+  test("should create empty memory.md", () => {
+    ensureScaffolded(tmpDir);
+    expect(existsSync(join(tmpDir, "memory.md"))).toBe(true);
+    expect(readFileSync(join(tmpDir, "memory.md"), "utf-8")).toBe("");
+  });
+
+  test("should not overwrite existing memory.md", () => {
+    writeFileSync(join(tmpDir, "memory.md"), "user memories");
+
+    ensureScaffolded(tmpDir);
+
+    expect(readFileSync(join(tmpDir, "memory.md"), "utf-8")).toBe("user memories");
+  });
+
   test("should still create missing files when some already exist", () => {
     mkdirSync(join(tmpDir, "ledger"), { recursive: true });
     writeFileSync(join(tmpDir, "ledger", "main.journal"), "custom main");
