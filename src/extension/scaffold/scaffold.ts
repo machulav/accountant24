@@ -26,7 +26,7 @@ function collectTemplateFiles(dir: string): string[] {
 export function ensureScaffolded(baseDir?: string): void {
   const home = baseDir ?? ACCOUNTANT24_HOME;
 
-  for (const dir of ["ledger", ".sessions"]) {
+  for (const dir of ["ledger", "sessions"]) {
     mkdirSync(join(home, dir), { recursive: true });
   }
 

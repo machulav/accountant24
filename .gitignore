@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.sessions/
 *.log
 .DS_Store
 .env

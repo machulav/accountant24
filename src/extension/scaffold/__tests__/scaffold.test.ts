@@ -44,9 +44,9 @@ describe("ensureScaffolded()", () => {
     expect(existsSync(join(tmpDir, "ledger"))).toBe(true);
   });
 
-  test("should create .sessions directory", () => {
+  test("should create sessions directory", () => {
     ensureScaffolded(tmpDir);
-    expect(existsSync(join(tmpDir, ".sessions"))).toBe(true);
+    expect(existsSync(join(tmpDir, "sessions"))).toBe(true);
   });
 
   test("should write main.journal with header and include directive", () => {

@@ -9,7 +9,7 @@ Your workspace is ~/accountant24:
 - ledger/accounts.journal — Chart of accounts
 - memory.md — Persistent memory (user facts and preferences, free-text markdown)
 - config.json — Configuration
-- .sessions/ — Session data
+- sessions/ — Session data
 </workspace>
 
 <tool-strategy>

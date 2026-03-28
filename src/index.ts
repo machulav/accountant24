@@ -33,7 +33,7 @@ async function main() {
     agentDir: ACCOUNTANT24_HOME,
     resourceLoader,
     settingsManager,
-    sessionManager: SessionManager.create(ACCOUNTANT24_HOME, join(ACCOUNTANT24_HOME, ".sessions")),
+    sessionManager: SessionManager.create(ACCOUNTANT24_HOME, join(ACCOUNTANT24_HOME, "sessions")),
   });
 
   await new InteractiveMode(session, { modelFallbackMessage }).run();
