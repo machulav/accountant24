@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { LEDGER_DIR } from "../config.js";
-import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "./hledger.js";
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "../hledger.js";
 import { resolveSafePath } from "./utils.js";
 
 const Params = Type.Object({});

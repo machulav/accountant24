@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config.js";
-import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "./hledger.js";
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "../hledger.js";
 import { resolveSafePath } from "./utils.js";
 
 const Posting = Type.Object({

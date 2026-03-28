@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LEDGER_DIR, MEMORY_PATH } from "./config.js";
-import { runHledger } from "./tools/hledger.js";
+import { runHledger } from "./hledger.js";
 
 export async function loadMemory(): Promise<string> {
   try {

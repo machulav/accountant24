@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { ACCOUNTANT24_HOME } from "../config.js";
-import { runHledger } from "./hledger.js";
+import { runHledger } from "../hledger.js";
 import { resolveSafePath } from "./utils.js";
 
 const Params = Type.Object({
