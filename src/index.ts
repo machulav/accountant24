@@ -7,6 +7,7 @@ import {
   InteractiveMode,
   SessionManager,
   SettingsManager,
+  VERSION,
 } from "@mariozechner/pi-coding-agent";
 import { ACCOUNTANT24_HOME, accountant24Extension } from "./extension";
 
@@ -24,6 +25,7 @@ async function main() {
   settingsManager.applyOverrides({
     quietStartup: true,
     collapseChangelog: true,
+    lastChangelogVersion: VERSION,
   });
 
   const { session, modelFallbackMessage } = await createAgentSession({
