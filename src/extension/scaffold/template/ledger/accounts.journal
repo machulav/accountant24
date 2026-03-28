@@ -1,0 +1,142 @@
+; Default chart of accounts for accountant24
+;
+; Account types:
+;   ASSETS       — things you own (bank accounts, cash, investments)
+;   LIABILITIES  — things you owe (credit cards, loans, mortgages)
+;   EQUITY       — owner's investment, balances assets and liabilities
+;   INCOME       — inflows of money (salary, business, interest)
+;   EXPENSES     — outflows of money (rent, groceries, subscriptions)
+
+; ====================================================================
+; ASSETS — things you own (bank accounts, cash, investments)
+; ====================================================================
+
+account assets:cash
+
+; ====================================================================
+; LIABILITIES — things you owe (credit cards, loans, mortgages)
+; ====================================================================
+
+account liabilities:credit-card
+account liabilities:mortgage
+account liabilities:car-loan
+account liabilities:student-loan
+account liabilities:loan
+
+; ====================================================================
+; EQUITY — owner's investment, balances assets and liabilities
+; ====================================================================
+
+account equity:opening-balances
+account equity:adjustments
+
+; ====================================================================
+; INCOME — inflows of money (salary, business, interest)
+; ====================================================================
+
+account income:salary
+account income:business
+account income:investment
+account income:interest
+account income:rental
+account income:gifts-received
+account income:government-benefits
+account income:tax-refund
+account income:other
+
+; ====================================================================
+; EXPENSES — outflows of money (rent, groceries, subscriptions)
+; ====================================================================
+
+account expenses:housing:rent
+account expenses:housing:insurance
+account expenses:housing:maintenance-and-repairs
+account expenses:housing:other
+
+account expenses:utilities:electricity
+account expenses:utilities:gas
+account expenses:utilities:water
+account expenses:utilities:internet
+account expenses:utilities:phone
+account expenses:utilities:sewage-and-waste
+account expenses:utilities:other
+
+account expenses:food:groceries
+account expenses:food:dining-out
+account expenses:food:delivery
+account expenses:food:coffee-shops
+account expenses:food:other
+
+account expenses:transport:fuel
+account expenses:transport:public-transit
+account expenses:transport:taxi-and-rideshare
+account expenses:transport:carsharing
+account expenses:transport:parking
+account expenses:transport:car-insurance
+account expenses:transport:car-maintenance
+account expenses:transport:bike-and-scooter
+account expenses:transport:other
+
+account expenses:shopping:clothing-and-accessories
+account expenses:shopping:electronics
+account expenses:shopping:home-goods-and-furniture
+account expenses:shopping:other
+
+account expenses:entertainment:events-and-activities
+account expenses:entertainment:video-games
+account expenses:entertainment:hobbies
+account expenses:entertainment:other
+
+account expenses:travel:transportation
+account expenses:travel:accommodation
+account expenses:travel:food
+account expenses:travel:other
+
+account expenses:health:insurance
+account expenses:health:doctor-and-hospital
+account expenses:health:pharmacy-and-medications
+account expenses:health:other
+
+account expenses:personal-care:hair-and-beauty
+account expenses:personal-care:gym-and-fitness
+account expenses:personal-care:other
+
+account expenses:education:tuition-and-courses
+account expenses:education:books
+account expenses:education:other
+
+account expenses:children:childcare
+account expenses:children:activities
+account expenses:children:other
+
+account expenses:pets:food-and-supplies
+account expenses:pets:vet-and-health
+account expenses:pets:other
+
+account expenses:financial:bank-fees
+account expenses:financial:credit-card-interest
+account expenses:financial:mortgage-interest
+account expenses:financial:car-loan-interest
+account expenses:financial:student-loan-interest
+account expenses:financial:loan-interest
+account expenses:financial:other
+
+account expenses:taxes:income-tax
+account expenses:taxes:property-tax
+account expenses:taxes:other
+
+account expenses:professional-services:legal
+account expenses:professional-services:tax-and-accounting
+account expenses:professional-services:consulting
+account expenses:professional-services:other
+
+account expenses:gifts-and-donations:gifts
+account expenses:gifts-and-donations:charity
+account expenses:gifts-and-donations:other
+
+account expenses:subscriptions:streaming
+account expenses:subscriptions:software-and-apps
+account expenses:subscriptions:memberships
+account expenses:subscriptions:other
+
+account expenses:uncategorized

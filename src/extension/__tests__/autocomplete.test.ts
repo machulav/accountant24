@@ -12,28 +12,28 @@ function makeCommand(
 
 describe("AccountantAutocompleteProvider", () => {
   describe("constructor and setters", () => {
-    test("should accept commands in constructor", () => {
+    test("should accept commands in constructor", async () => {
       const cmds = [makeCommand("help", "Show help")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/"], 0, 1);
+      const result = await provider.getSuggestions(["/"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(1);
       expect(result?.items[0].value).toBe("help");
     });
 
-    test("should update commands via setCommands", () => {
+    test("should update commands via setCommands", async () => {
       const provider = new AccountantAutocompleteProvider([makeCommand("old")]);
       provider.setCommands([makeCommand("new", "New command")]);
-      const result = provider.getSuggestions(["/"], 0, 1);
+      const result = await provider.getSuggestions(["/"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(1);
       expect(result?.items[0].value).toBe("new");
     });
 
-    test("should update data via setData", () => {
+    test("should update data via setData", async () => {
       const provider = new AccountantAutocompleteProvider([]);
       provider.setData(["expenses:food"], ["Grocery Store"]);
-      const result = provider.getSuggestions(["@"], 0, 1);
+      const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(2);
       const values = result?.items.map((i) => i.value);
@@ -49,9 +49,9 @@ describe("AccountantAutocompleteProvider", () => {
       return provider;
     }
 
-    test("should return all accounts and payees when @ typed alone", () => {
+    test("should return all accounts and payees when @ typed alone", async () => {
       const provider = makeProvider(["expenses:food", "assets:bank"], ["Amazon", "Walmart"]);
-      const result = provider.getSuggestions(["@"], 0, 1);
+      const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(4);
       expect(result?.items[0]).toEqual({ value: "expenses:food", label: "expenses:food", description: "account" });
@@ -61,9 +61,9 @@ describe("AccountantAutocompleteProvider", () => {
       expect(result?.prefix).toBe("@");
     });
 
-    test("should filter by query after @", () => {
+    test("should filter by query after @", async () => {
       const provider = makeProvider(["expenses:food", "assets:bank"], ["Amazon"]);
-      const result = provider.getSuggestions(["@exp"], 0, 4);
+      const result = await provider.getSuggestions(["@exp"], 0, 4);
       expect(result).not.toBeNull();
       const values = result?.items.map((i) => i.value);
       expect(values).toContain("expenses:food");
@@ -71,77 +71,77 @@ describe("AccountantAutocompleteProvider", () => {
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should return null when no matches", () => {
+    test("should return null when no matches", async () => {
       const provider = makeProvider(["expenses:food"], ["Amazon"]);
-      const result = provider.getSuggestions(["@zzzznothing"], 0, 12);
+      const result = await provider.getSuggestions(["@zzzznothing"], 0, 12);
       expect(result).toBeNull();
     });
 
-    test("should limit to 20 results", () => {
+    test("should limit to 20 results", async () => {
       const accounts = Array.from({ length: 25 }, (_, i) => `account${i}`);
       const provider = makeProvider(accounts, []);
-      const result = provider.getSuggestions(["@"], 0, 1);
+      const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(20);
     });
 
-    test("should detect @ after space delimiter", () => {
+    test("should detect @ after space delimiter", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["hello @exp"], 0, 10);
+      const result = await provider.getSuggestions(["hello @exp"], 0, 10);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should detect @ after tab delimiter", () => {
+    test("should detect @ after tab delimiter", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["hello\t@exp"], 0, 10);
+      const result = await provider.getSuggestions(["hello\t@exp"], 0, 10);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should detect @ after equals delimiter", () => {
+    test("should detect @ after equals delimiter", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["key=@exp"], 0, 8);
+      const result = await provider.getSuggestions(["key=@exp"], 0, 8);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should detect @ after double-quote delimiter", () => {
+    test("should detect @ after double-quote delimiter", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(['value="@exp'], 0, 11);
+      const result = await provider.getSuggestions(['value="@exp'], 0, 11);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should detect @ after single-quote delimiter", () => {
+    test("should detect @ after single-quote delimiter", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["value='@exp"], 0, 11);
+      const result = await provider.getSuggestions(["value='@exp"], 0, 11);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should return null for empty line", () => {
+    test("should return null for empty line", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions([""], 0, 0);
+      const result = await provider.getSuggestions([""], 0, 0);
       expect(result).toBeNull();
     });
 
-    test("should return null when no @ in token", () => {
+    test("should return null when no @ in token", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["hello"], 0, 5);
+      const result = await provider.getSuggestions(["hello"], 0, 5);
       expect(result).toBeNull();
     });
 
-    test("should return prefix including @", () => {
+    test("should return prefix including @", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["text @expenses"], 0, 14);
+      const result = await provider.getSuggestions(["text @expenses"], 0, 14);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@expenses");
     });
 
-    test("should label accounts with 'account' description and payees with 'payee'", () => {
+    test("should label accounts with 'account' description and payees with 'payee'", async () => {
       const provider = makeProvider(["assets:checking"], ["Bob"]);
-      const result = provider.getSuggestions(["@"], 0, 1);
+      const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
       const accountItem = result?.items.find((i) => i.value === "assets:checking");
       const payeeItem = result?.items.find((i) => i.value === "Bob");
@@ -149,34 +149,34 @@ describe("AccountantAutocompleteProvider", () => {
       expect(payeeItem?.description).toBe("payee");
     });
 
-    test("should handle cursor on a line other than the first", () => {
+    test("should handle cursor on a line other than the first", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions(["first line", "@exp"], 1, 4);
+      const result = await provider.getSuggestions(["first line", "@exp"], 1, 4);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe("@exp");
     });
 
-    test("should handle cursorLine pointing to undefined line", () => {
+    test("should handle cursorLine pointing to undefined line", async () => {
       const provider = makeProvider(["expenses:food"], []);
-      const result = provider.getSuggestions([], 5, 0);
+      const result = await provider.getSuggestions([], 5, 0);
       expect(result).toBeNull();
     });
   });
 
   describe("getSuggestions() - / trigger", () => {
-    test("should return all commands when / typed alone", () => {
+    test("should return all commands when / typed alone", async () => {
       const cmds = [makeCommand("help", "Show help"), makeCommand("add", "Add transaction")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/"], 0, 1);
+      const result = await provider.getSuggestions(["/"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items).toHaveLength(2);
       expect(result?.prefix).toBe("/");
     });
 
-    test("should filter commands by prefix text", () => {
+    test("should filter commands by prefix text", async () => {
       const cmds = [makeCommand("help", "Show help"), makeCommand("add", "Add transaction")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/he"], 0, 3);
+      const result = await provider.getSuggestions(["/he"], 0, 3);
       expect(result).not.toBeNull();
       const values = result?.items.map((i) => i.value);
       expect(values).toContain("help");
@@ -184,40 +184,40 @@ describe("AccountantAutocompleteProvider", () => {
       expect(result?.prefix).toBe("/he");
     });
 
-    test("should return null when no commands match", () => {
+    test("should return null when no commands match", async () => {
       const cmds = [makeCommand("help")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/zzzzz"], 0, 6);
+      const result = await provider.getSuggestions(["/zzzzz"], 0, 6);
       expect(result).toBeNull();
     });
 
-    test("should include description when command has one", () => {
+    test("should include description when command has one", async () => {
       const cmds = [makeCommand("help", "Show help text")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/"], 0, 1);
+      const result = await provider.getSuggestions(["/"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items[0].description).toBe("Show help text");
     });
 
-    test("should omit description when command has none", () => {
+    test("should omit description when command has none", async () => {
       const cmds = [makeCommand("help")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/"], 0, 1);
+      const result = await provider.getSuggestions(["/"], 0, 1);
       expect(result).not.toBeNull();
       expect(result?.items[0]).not.toHaveProperty("description");
     });
 
-    test("should return argument completions after command name and space", () => {
+    test("should return argument completions after command name and space", async () => {
       const argItems: AutocompleteItem[] = [{ value: "verbose", label: "verbose", description: "Verbose mode" }];
       const cmds = [makeCommand("config", "Config", () => argItems)];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/config ver"], 0, 11);
+      const result = await provider.getSuggestions(["/config ver"], 0, 11);
       expect(result).not.toBeNull();
       expect(result?.items).toEqual(argItems);
       expect(result?.prefix).toBe("ver");
     });
 
-    test("should pass argument text to getArgumentCompletions", () => {
+    test("should pass argument text to getArgumentCompletions", async () => {
       let receivedText = "";
       const cmds = [
         makeCommand("config", "Config", (text) => {
@@ -226,39 +226,39 @@ describe("AccountantAutocompleteProvider", () => {
         }),
       ];
       const provider = new AccountantAutocompleteProvider(cmds);
-      provider.getSuggestions(["/config some-arg"], 0, 16);
+      await provider.getSuggestions(["/config some-arg"], 0, 16);
       expect(receivedText).toBe("some-arg");
     });
 
-    test("should return null when command not found", () => {
+    test("should return null when command not found", async () => {
       const cmds = [makeCommand("help")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/unknown arg"], 0, 12);
+      const result = await provider.getSuggestions(["/unknown arg"], 0, 12);
       expect(result).toBeNull();
     });
 
-    test("should return null when command has no getArgumentCompletions", () => {
+    test("should return null when command has no getArgumentCompletions", async () => {
       const cmds = [makeCommand("help", "Show help")];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/help arg"], 0, 9);
+      const result = await provider.getSuggestions(["/help arg"], 0, 9);
       expect(result).toBeNull();
     });
 
-    test("should return null when getArgumentCompletions returns empty array", () => {
+    test("should return null when getArgumentCompletions returns empty array", async () => {
       const cmds = [makeCommand("config", "Config", () => [])];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/config arg"], 0, 11);
+      const result = await provider.getSuggestions(["/config arg"], 0, 11);
       expect(result).toBeNull();
     });
 
-    test("should return null when getArgumentCompletions returns null/undefined", () => {
+    test("should return null when getArgumentCompletions returns null/undefined", async () => {
       const cmds = [makeCommand("config", "Config", () => null as any)];
       const provider = new AccountantAutocompleteProvider(cmds);
-      const result = provider.getSuggestions(["/config arg"], 0, 11);
+      const result = await provider.getSuggestions(["/config arg"], 0, 11);
       expect(result).toBeNull();
     });
 
-    test("should use empty string as argument text when space is right at cursor", () => {
+    test("should use empty string as argument text when space is right at cursor", async () => {
       let receivedText = "";
       const cmds = [
         makeCommand("config", "Config", (text) => {
@@ -267,22 +267,22 @@ describe("AccountantAutocompleteProvider", () => {
         }),
       ];
       const provider = new AccountantAutocompleteProvider(cmds);
-      provider.getSuggestions(["/config "], 0, 8);
+      await provider.getSuggestions(["/config "], 0, 8);
       expect(receivedText).toBe("");
     });
   });
 
   describe("getSuggestions() - no trigger", () => {
-    test("should return null for plain text", () => {
+    test("should return null for plain text", async () => {
       const provider = new AccountantAutocompleteProvider([makeCommand("help")]);
       provider.setData(["expenses:food"], ["Amazon"]);
-      const result = provider.getSuggestions(["just some text"], 0, 14);
+      const result = await provider.getSuggestions(["just some text"], 0, 14);
       expect(result).toBeNull();
     });
 
-    test("should return null for text not starting with /", () => {
+    test("should return null for text not starting with /", async () => {
       const provider = new AccountantAutocompleteProvider([makeCommand("help")]);
-      const result = provider.getSuggestions(["hello /help"], 0, 11);
+      const result = await provider.getSuggestions(["hello /help"], 0, 11);
       expect(result).toBeNull();
     });
   });

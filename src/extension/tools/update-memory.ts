@@ -19,7 +19,7 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
   description:
     "Rewrite memory.md with updated user preferences, rules, and knowledge. " +
     "Always include ALL existing facts (merged with new ones). " +
-    "Organize by topic using ## headers and - bullet points.",
+    "Organize by topic using headers (##) and bullet points (-).",
   parameters: Params,
   async execute(_id, params) {
     const { content } = params;

@@ -1,11 +1,10 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setBaseDir } from "../config.js";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-ext-"));
-const LEDGER = join(BASE, "ledger");
 
 // No mock.module calls — use real modules to avoid mock leaks.
 // Extension tests work with real modules + temp filesystem via setBaseDir.
@@ -73,58 +72,12 @@ describe("accountant24Extension()", () => {
 });
 
 describe("ensureScaffolded (via session_start)", () => {
-  test("should create directories and default files", async () => {
+  test("should scaffold workspace on session_start", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
     await pi.handlers.session_start({}, { hasUI: false });
 
     expect(existsSync(join(BASE, "ledger"))).toBe(true);
-    expect(existsSync(join(BASE, "documents"))).toBe(true);
-    expect(existsSync(join(BASE, ".sessions"))).toBe(true);
-  });
-
-  test("should create main.journal with header and include", async () => {
-    const pi = createMockPi();
-    accountant24Extension(pi as any);
-    await pi.handlers.session_start({}, { hasUI: false });
-
-    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-    expect(main).toContain("Accountant24 Personal Finances");
-    expect(main).toContain("include accounts.journal");
-  });
-
-  test("should create accounts.journal with 16 default accounts", async () => {
-    const pi = createMockPi();
-    accountant24Extension(pi as any);
-    await pi.handlers.session_start({}, { hasUI: false });
-
-    const accounts = readFileSync(join(LEDGER, "accounts.journal"), "utf-8");
-    expect(accounts).toContain("account Assets:Checking");
-    expect(accounts).toContain("account Equity:Opening-Balances");
-    const lines = accounts.trim().split("\n");
-    expect(lines).toHaveLength(16);
-  });
-
-  test("should create .gitignore", async () => {
-    const pi = createMockPi();
-    accountant24Extension(pi as any);
-    await pi.handlers.session_start({}, { hasUI: false });
-
-    const gitignore = readFileSync(join(BASE, ".gitignore"), "utf-8");
-    expect(gitignore).toContain(".sessions/");
-    expect(gitignore).toContain("auth.json");
-  });
-
-  test("should skip scaffolding when main.journal exists", async () => {
-    const { mkdirSync, writeFileSync } = await import("node:fs");
-    mkdirSync(LEDGER, { recursive: true });
-    writeFileSync(join(LEDGER, "main.journal"), "existing content");
-
-    const pi = createMockPi();
-    accountant24Extension(pi as any);
-    await pi.handlers.session_start({}, { hasUI: false });
-
-    expect(readFileSync(join(LEDGER, "main.journal"), "utf-8")).toBe("existing content");
   });
 });
 

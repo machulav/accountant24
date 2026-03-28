@@ -1,13 +1,11 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
 import { accountsCommand, payeesCommand } from "./commands";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "./config.js";
 import { loadAccounts, loadPayees } from "./context";
 import { createBriefingFactory } from "./headers/briefing/briefing.js";
+import { ensureScaffolded } from "./scaffold";
 import { buildSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 
@@ -19,39 +17,6 @@ LoaderProto.updateDisplay = function (this: Record<string, any>) {
   this.setText(`\x1b[32m${frame}\x1b[0m ${this.messageColorFn(this.message)}`);
   this.ui?.requestRender();
 };
-
-const DEFAULT_ACCOUNTS = [
-  "Assets:Checking",
-  "Assets:Savings",
-  "Assets:Cash",
-  "Liabilities:CreditCard",
-  "Income:Salary",
-  "Income:Other",
-  "Expenses:Groceries",
-  "Expenses:Rent",
-  "Expenses:Utilities",
-  "Expenses:Transport",
-  "Expenses:Dining",
-  "Expenses:Entertainment",
-  "Expenses:Health",
-  "Expenses:Shopping",
-  "Expenses:Other",
-  "Equity:Opening-Balances",
-];
-
-function ensureScaffolded(): void {
-  const mainJournal = join(LEDGER_DIR, "main.journal");
-  if (existsSync(mainJournal)) return;
-
-  for (const dir of ["ledger", "documents", ".sessions"]) {
-    mkdirSync(join(ACCOUNTANT24_HOME, dir), { recursive: true });
-  }
-
-  const accountLines = DEFAULT_ACCOUNTS.map((a) => `account ${a}`).join("\n");
-  writeFileSync(join(LEDGER_DIR, "accounts.journal"), `${accountLines}\n`);
-  writeFileSync(mainJournal, "; Accountant24 Personal Finances\n\ninclude accounts.journal\n");
-  writeFileSync(join(ACCOUNTANT24_HOME, ".gitignore"), ".sessions/\nauth.json\n");
-}
 
 export const accountant24Extension: ExtensionFactory = (pi) => {
   // Register domain tools

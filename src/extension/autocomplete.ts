@@ -22,7 +22,7 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
     this.payees = payees;
   }
 
-  getSuggestions(lines: string[], cursorLine: number, cursorCol: number) {
+  async getSuggestions(lines: string[], cursorLine: number, cursorCol: number) {
     const line = lines[cursorLine] || "";
     const before = line.slice(0, cursorCol);
 
