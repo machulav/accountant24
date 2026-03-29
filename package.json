@@ -13,7 +13,20 @@
     "format": "biome format --write .",
     "check": "biome check --write .",
     "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun run test --coverage",
-    "eval": "bun run evals/run.ts"
+    "eval": "bun run evals/run.ts",
+    "pre-commit": "biome check --write . && biome check .",
+    "release": "bunx changelogen --release --push",
+    "release:dry": "bunx changelogen --release --no-commit --no-tag",
+    "prepare": "bunx simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "commit-msg": "bunx commitlint --edit $1",
+    "pre-commit": "bun run pre-commit"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
   },
   "piConfig": {
     "name": "accountant24",
@@ -28,7 +41,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@types/bun": "latest",
+    "changelogen": "^0.6.2",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "^5.8.0"
   }
 }
