@@ -24,7 +24,8 @@ async function loadHledgerList(subcommand: string): Promise<string[]> {
     return stdout
       .split("\n")
       .map((l) => l.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   } catch {
     return [];
   }

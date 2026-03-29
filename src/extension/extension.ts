@@ -5,6 +5,7 @@ import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
 import { createBriefingFactory } from "./headers/briefing/briefing";
+import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 
@@ -18,16 +19,19 @@ LoaderProto.updateDisplay = function (this: Record<string, any>) {
 };
 
 export const accountant24Extension: ExtensionFactory = (pi) => {
-  // Register domain tools
+  // Register custom tools
   pi.registerTool(queryTool);
   pi.registerTool(addTransactionTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
 
-  // Register slash commands
+  // Register custom slash commands
   accountsCommand(pi);
   payeesCommand(pi);
   tagsCommand(pi);
+
+  // Register custom message renderers
+  registerInfoMessageRenderer(pi);
 
   // Shared autocomplete provider — updated with fresh data before each agent turn
   const autocomplete = new AccountantAutocompleteProvider([]);

@@ -25,6 +25,7 @@ function createMockPi() {
   return {
     registerTool: mock(() => {}),
     registerCommand: mock(() => {}),
+    registerMessageRenderer: mock(() => {}),
     on: mock((event: string, handler: AnyFn) => {
       handlers[event] = handler;
     }),
