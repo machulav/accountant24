@@ -1,6 +1,6 @@
 import chalk from "chalk";
-import { formatDuration } from "./cli.js";
-import type { EvalResult } from "./types.js";
+import { formatDuration } from "./cli";
+import type { EvalResult } from "./types";
 
 export interface ReportOptions {
   evalModel?: string;

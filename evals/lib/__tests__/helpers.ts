@@ -1,4 +1,4 @@
-import type { EvalCase, EvalResult, ToolCallRecord } from "../types.js";
+import type { EvalCase, EvalResult, ToolCallRecord } from "../types";
 
 export function makeCase(overrides?: Partial<EvalCase> & { expected?: EvalCase["expected"] }): EvalCase {
   return {

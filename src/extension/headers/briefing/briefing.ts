@@ -1,6 +1,6 @@
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import { LEDGER_DIR } from "../../config.js";
+import { LEDGER_DIR } from "../../config";
 import { type BriefingData, fetchBriefingData } from "../../data";
 
 function truncate(s: string, max: number): string {

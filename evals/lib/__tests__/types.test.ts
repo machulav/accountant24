@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { EvalCaseSchema } from "../types.js";
+import { EvalCaseSchema } from "../types";
 
 const minimal = {
   id: "test-001",

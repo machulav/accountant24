@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ACCOUNTANT24_HOME } from "../../config.js";
+import { ACCOUNTANT24_HOME } from "../../config";
 
 const TEMPLATE_DIR = join(import.meta.dirname, "template");
 

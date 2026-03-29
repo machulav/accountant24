@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { EvalCaseSchema, type LoadedEvalCase } from "./types.js";
+import { EvalCaseSchema, type LoadedEvalCase } from "./types";
 
 export function loadCases(filter?: string): LoadedEvalCase[] {
   const casesDir = join(import.meta.dirname, "../cases");

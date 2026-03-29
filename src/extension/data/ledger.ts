@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, normalize, resolve } from "node:path";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config.js";
-import { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger } from "../hledger.js";
+import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger } from "../hledger";
 
 // ── Read operations ─────────────────────────────────────────────────
 

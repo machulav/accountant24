@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { MEMORY_PATH } from "../config.js";
+import { MEMORY_PATH } from "../config";
 
 export async function getMemory(): Promise<string> {
   try {

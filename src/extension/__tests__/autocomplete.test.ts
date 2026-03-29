@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AutocompleteItem, SlashCommand } from "@mariozechner/pi-tui";
-import { AccountantAutocompleteProvider } from "../autocomplete.js";
+import { AccountantAutocompleteProvider } from "../autocomplete";
 
 function makeCommand(
   name: string,

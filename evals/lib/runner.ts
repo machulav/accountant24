@@ -12,10 +12,10 @@ import {
 
 const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
 
-import { gradeDeterministic, gradeOutcome, gradeWithRubric } from "./grader.js";
-import { loadCases } from "./loader.js";
-import type { EvalResult, ToolCallRecord } from "./types.js";
-import { createEvalWorkspace, inspectWorkspace } from "./workspace.js";
+import { gradeDeterministic, gradeOutcome, gradeWithRubric } from "./grader";
+import { loadCases } from "./loader";
+import type { EvalResult, ToolCallRecord } from "./types";
+import { createEvalWorkspace, inspectWorkspace } from "./workspace";
 
 export interface EvalRunConfig {
   provider: string;

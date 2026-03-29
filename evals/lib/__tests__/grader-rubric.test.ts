@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { makeCase as _makeCase, makeTool } from "./helpers.js";
+import { makeCase as _makeCase, makeTool } from "./helpers";
 
 let mockJudgeResponse = "PASS: looks good";
 let lastPrompt = "";

@@ -1,4 +1,4 @@
-export { type BriefingData, fetchBriefingData } from "./briefing.js";
+export { type BriefingData, fetchBriefingData } from "./briefing";
 export {
   addTransaction,
   listAccounts,
@@ -6,6 +6,6 @@ export {
   listTags,
   queryLedger,
   validateLedger,
-} from "./ledger.js";
-export { getMemory, saveMemory } from "./memory.js";
-export { ensureScaffolded } from "./scaffold/scaffold.js";
+} from "./ledger";
+export { getMemory, saveMemory } from "./memory";
+export { ensureScaffolded } from "./scaffold/scaffold";

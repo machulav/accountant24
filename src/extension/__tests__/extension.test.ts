@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setBaseDir } from "../config.js";
+import { setBaseDir } from "../config";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-ext-"));
 

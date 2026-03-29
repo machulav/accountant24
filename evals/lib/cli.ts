@@ -1,7 +1,7 @@
 import chalk from "chalk";
-import { formatResults } from "./reporter.js";
-import type { EvalRunConfig, ProgressEvent } from "./runner.js";
-import { runEval } from "./runner.js";
+import { formatResults } from "./reporter";
+import type { EvalRunConfig, ProgressEvent } from "./runner";
+import { runEval } from "./runner";
 
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EvalCase } from "./types.js";
+import type { EvalCase } from "./types";
 
 const WORKSPACES_DIR = join(import.meta.dirname, "../.workspaces");
 

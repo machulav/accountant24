@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { gradeDeterministic, gradeOutcome } from "../grader.js";
-import type { WorkspaceState } from "../workspace.js";
-import { makeCase as _makeCase, makeTool } from "./helpers.js";
+import { gradeDeterministic, gradeOutcome } from "../grader";
+import type { WorkspaceState } from "../workspace";
+import { makeCase as _makeCase, makeTool } from "./helpers";
 
 const makeCase = (expected: Parameters<typeof _makeCase>[0]["expected"]) => _makeCase({ expected });
 

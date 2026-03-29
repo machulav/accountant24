@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import chalk from "chalk";
-import type { EvalResult } from "../types.js";
-import { makeResult } from "./helpers.js";
+import type { EvalResult } from "../types";
+import { makeResult } from "./helpers";
 
 // ── Mutable control variables ───────────────────────────────────────
 

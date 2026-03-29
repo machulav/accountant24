@@ -1,6 +1,6 @@
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
-import type { CheckResult, EvalCase, LedgerAssertion, ToolCallRecord } from "./types.js";
-import type { WorkspaceState } from "./workspace.js";
+import type { CheckResult, EvalCase, LedgerAssertion, ToolCallRecord } from "./types";
+import type { WorkspaceState } from "./workspace";
 
 // ── Deterministic grading ────────────────────────────────────────────
 

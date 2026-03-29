@@ -1,4 +1,4 @@
-export { addTransactionTool } from "./add-transaction.js";
-export { queryTool } from "./query.js";
-export { updateMemoryTool } from "./update-memory.js";
-export { validateTool } from "./validate.js";
+export { addTransactionTool } from "./add-transaction";
+export { queryTool } from "./query";
+export { updateMemoryTool } from "./update-memory";
+export { validateTool } from "./validate";

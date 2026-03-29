@@ -1,10 +1,10 @@
 import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
-import { AccountantAutocompleteProvider } from "./autocomplete.js";
+import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
-import { createBriefingFactory } from "./headers/briefing/briefing.js";
+import { createBriefingFactory } from "./headers/briefing/briefing";
 import { getSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 

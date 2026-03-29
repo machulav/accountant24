@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createEvalWorkspace, inspectWorkspace } from "../workspace.js";
-import { makeCase as _makeCase } from "./helpers.js";
+import { createEvalWorkspace, inspectWorkspace } from "../workspace";
+import { makeCase as _makeCase } from "./helpers";
 
 const workspacesToCleanup: Array<() => void> = [];
 afterAll(() => {

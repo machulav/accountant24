@@ -1,4 +1,4 @@
-import { main } from "./lib/cli.js";
+import { main } from "./lib/cli";
 
 export function parseModelArg(arg: string): { provider: string; model: string } {
   const slashIndex = arg.indexOf("/");

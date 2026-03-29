@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { EvalDeps, EvalRunConfig } from "../runner.js";
-import { runEval } from "../runner.js";
-import type { CheckResult, LoadedEvalCase } from "../types.js";
-import { makeCase as _makeCase } from "./helpers.js";
+import type { EvalDeps, EvalRunConfig } from "../runner";
+import { runEval } from "../runner";
+import type { CheckResult, LoadedEvalCase } from "../types";
+import { makeCase as _makeCase } from "./helpers";
 
 // ── Mutable control variables ───────────────────────────────────────
 

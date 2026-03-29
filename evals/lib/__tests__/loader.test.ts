@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadCases } from "../loader.js";
+import { loadCases } from "../loader";
 
 describe("loadCases()", () => {
   it("should load cases from all .jsonl files in the cases directory", () => {

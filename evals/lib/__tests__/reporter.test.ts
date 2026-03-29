@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { formatResults } from "../reporter.js";
-import { makeResult as _makeResult } from "./helpers.js";
+import { formatResults } from "../reporter";
+import { makeResult as _makeResult } from "./helpers";
 
 const makeResult = (overrides: Parameters<typeof _makeResult>[0]) =>
   _makeResult({ sourceFile: "cases.jsonl", ...overrides });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { BriefingData } from "../../../data";
-import { Briefing, createBriefingFactory } from "../briefing.js";
+import { Briefing, createBriefingFactory } from "../briefing";
 
 // For createBriefingFactory tests: mock Bun.spawn so fetchBriefingData resolves fast
 const origSpawn = Bun.spawn;
