@@ -2,8 +2,8 @@ import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
-import { accountsCommand, payeesCommand } from "./commands";
-import { loadAccounts, loadPayees } from "./context";
+import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
+import { loadAccounts, loadPayees, loadTags } from "./context";
 import { createBriefingFactory } from "./headers/briefing/briefing.js";
 import { ensureScaffolded } from "./scaffold";
 import { buildSystemPrompt } from "./system-prompt";
@@ -28,6 +28,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   // Register slash commands
   accountsCommand(pi);
   payeesCommand(pi);
+  tagsCommand(pi);
 
   // Shared autocomplete provider — updated with fresh data before each agent turn
   const autocomplete = new AccountantAutocompleteProvider([]);
@@ -71,19 +72,27 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       });
 
       // Load initial data
-      const [accounts, payees] = await Promise.all([loadAccounts(), loadPayees()]);
-      autocomplete.setData(accounts, payees);
+      const [accounts, payees, tags] = await Promise.all([loadAccounts(), loadPayees(), loadTags()]);
+      autocomplete.setData(accounts, payees, tags);
     }
   });
 
   // Inject dynamic context into system prompt before each agent turn
   // Also refresh autocomplete data with latest payees/accounts
   pi.on("before_agent_start", async (_event, ctx) => {
-    const [systemPrompt, accounts, payees] = await Promise.all([buildSystemPrompt(), loadAccounts(), loadPayees()]);
-    autocomplete.setData(accounts, payees);
+    const [systemPrompt, accounts, payees, tags] = await Promise.all([
+      buildSystemPrompt(),
+      loadAccounts(),
+      loadPayees(),
+      loadTags(),
+    ]);
+
+    autocomplete.setData(accounts, payees, tags);
+
     if (ctx.hasUI) {
       ctx.ui.setWorkingMessage("Crunching the numbers...");
     }
+
     return { systemPrompt };
   });
 };

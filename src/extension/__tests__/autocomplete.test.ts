@@ -32,32 +32,34 @@ describe("AccountantAutocompleteProvider", () => {
 
     test("should update data via setData", async () => {
       const provider = new AccountantAutocompleteProvider([]);
-      provider.setData(["expenses:food"], ["Grocery Store"]);
+      provider.setData(["expenses:food"], ["Grocery Store"], ["groceries"]);
       const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
-      expect(result?.items).toHaveLength(2);
+      expect(result?.items).toHaveLength(3);
       const values = result?.items.map((i) => i.value);
       expect(values).toContain("expenses:food");
       expect(values).toContain("Grocery Store");
+      expect(values).toContain("groceries");
     });
   });
 
   describe("getSuggestions() - @ trigger", () => {
-    function makeProvider(accounts: string[] = [], payees: string[] = []) {
+    function makeProvider(accounts: string[] = [], payees: string[] = [], tags: string[] = []) {
       const provider = new AccountantAutocompleteProvider([]);
-      provider.setData(accounts, payees);
+      provider.setData(accounts, payees, tags);
       return provider;
     }
 
-    test("should return all accounts and payees when @ typed alone", async () => {
-      const provider = makeProvider(["expenses:food", "assets:bank"], ["Amazon", "Walmart"]);
+    test("should return all accounts, payees, and tags when @ typed alone", async () => {
+      const provider = makeProvider(["expenses:food", "assets:bank"], ["Amazon", "Walmart"], ["groceries"]);
       const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
-      expect(result?.items).toHaveLength(4);
+      expect(result?.items).toHaveLength(5);
       expect(result?.items[0]).toEqual({ value: "expenses:food", label: "expenses:food", description: "account" });
       expect(result?.items[1]).toEqual({ value: "assets:bank", label: "assets:bank", description: "account" });
       expect(result?.items[2]).toEqual({ value: "Amazon", label: "Amazon", description: "payee" });
       expect(result?.items[3]).toEqual({ value: "Walmart", label: "Walmart", description: "payee" });
+      expect(result?.items[4]).toEqual({ value: "groceries", label: "groceries", description: "tag" });
       expect(result?.prefix).toBe("@");
     });
 
@@ -139,14 +141,16 @@ describe("AccountantAutocompleteProvider", () => {
       expect(result?.prefix).toBe("@expenses");
     });
 
-    test("should label accounts with 'account' description and payees with 'payee'", async () => {
-      const provider = makeProvider(["assets:checking"], ["Bob"]);
+    test("should label accounts with 'account', payees with 'payee', and tags with 'tag'", async () => {
+      const provider = makeProvider(["assets:checking"], ["Bob"], ["groceries"]);
       const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
       const accountItem = result?.items.find((i) => i.value === "assets:checking");
       const payeeItem = result?.items.find((i) => i.value === "Bob");
+      const tagItem = result?.items.find((i) => i.value === "groceries");
       expect(accountItem?.description).toBe("account");
       expect(payeeItem?.description).toBe("payee");
+      expect(tagItem?.description).toBe("tag");
     });
 
     test("should handle cursor on a line other than the first", async () => {
@@ -275,7 +279,7 @@ describe("AccountantAutocompleteProvider", () => {
   describe("getSuggestions() - no trigger", () => {
     test("should return null for plain text", async () => {
       const provider = new AccountantAutocompleteProvider([makeCommand("help")]);
-      provider.setData(["expenses:food"], ["Amazon"]);
+      provider.setData(["expenses:food"], ["Amazon"], []);
       const result = await provider.getSuggestions(["just some text"], 0, 14);
       expect(result).toBeNull();
     });

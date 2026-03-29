@@ -24,7 +24,7 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
 
 let mockProc: ReturnType<typeof makeMockProc>;
 
-const { loadMemory, loadAccounts, loadPayees } = await import("../context.js");
+const { loadMemory, loadAccounts, loadPayees, loadTags } = await import("../context.js");
 
 afterAll(() => {
   Bun.spawn = origSpawn;
@@ -101,5 +101,25 @@ describe("loadPayees()", () => {
     mockProc = makeMockProc(0, "  Whole Foods  \n\n  Starbucks  \n");
     const result = await loadPayees();
     expect(result).toEqual(["Whole Foods", "Starbucks"]);
+  });
+});
+
+describe("loadTags()", () => {
+  test("should return tag names from hledger output", async () => {
+    mockProc = makeMockProc(0, "groceries\nweekly\nsource\n");
+    const result = await loadTags();
+    expect(result).toEqual(["groceries", "weekly", "source"]);
+  });
+
+  test("should return empty array when hledger fails", async () => {
+    mockProc = makeMockProc(1, "", "error");
+    const result = await loadTags();
+    expect(result).toEqual([]);
+  });
+
+  test("should trim and filter empty lines", async () => {
+    mockProc = makeMockProc(0, "  groceries  \n\n  weekly  \n");
+    const result = await loadTags();
+    expect(result).toEqual(["groceries", "weekly"]);
   });
 });

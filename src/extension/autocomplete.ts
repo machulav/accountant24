@@ -8,6 +8,7 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
   private commands: SlashCommand[];
   private accounts: string[] = [];
   private payees: string[] = [];
+  private tags: string[] = [];
 
   constructor(commands: SlashCommand[]) {
     this.commands = commands;
@@ -17,9 +18,10 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
     this.commands = commands;
   }
 
-  setData(accounts: string[], payees: string[]): void {
+  setData(accounts: string[], payees: string[], tags: string[]): void {
     this.accounts = accounts;
     this.payees = payees;
+    this.tags = tags;
   }
 
   async getSuggestions(lines: string[], cursorLine: number, cursorCol: number) {
@@ -33,6 +35,7 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
       const items: AutocompleteItem[] = [
         ...this.accounts.map((a) => ({ value: a, label: a, description: "account" })),
         ...this.payees.map((p) => ({ value: p, label: p, description: "payee" })),
+        ...this.tags.map((t) => ({ value: t, label: t, description: "tag" })),
       ];
       const filtered = query ? fuzzyFilter(items, query, (item) => item.label) : items;
       if (filtered.length === 0) return null;

@@ -3,11 +3,13 @@ import { describe, expect, mock, test } from "bun:test";
 let mockMemory = "";
 let mockAccounts: string[] = [];
 let mockPayees: string[] = [];
+let mockTags: string[] = [];
 
 mock.module("../../context.js", () => ({
   loadMemory: async () => mockMemory,
   loadAccounts: async () => mockAccounts,
   loadPayees: async () => mockPayees,
+  loadTags: async () => mockTags,
 }));
 
 const mod = await import("../system-prompt.js");
@@ -20,6 +22,7 @@ const empty: SystemPromptContext = {
   memory: "",
   accounts: [],
   payees: [],
+  tags: [],
 };
 
 const populated: SystemPromptContext = {
@@ -27,6 +30,7 @@ const populated: SystemPromptContext = {
   memory: "- Rent is $2100\n- Landlord is John",
   accounts: ["Assets:Checking", "Expenses:Food:Groceries", "Expenses:Rent"],
   payees: ["Whole Foods", "Starbucks", "John (Landlord)"],
+  tags: ["groceries", "weekly", "source"],
 };
 
 // --- empty context ---
@@ -43,14 +47,25 @@ test("empty context omits memory section", () => {
   expect(prompt).not.toContain("<memory>");
 });
 
-test("empty context omits accounts section", () => {
+test("empty context includes accounts section with fallback message", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).not.toContain("Known accounts:");
+  expect(prompt).toContain("<accounts>");
+  expect(prompt).toContain("No accounts found.");
+  expect(prompt).toContain("</accounts>");
 });
 
-test("empty context omits known-payees section", () => {
+test("empty context includes known-payees section with fallback message", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).not.toContain("<known-payees>");
+  expect(prompt).toContain("<known-payees>");
+  expect(prompt).toContain("No payees found.");
+  expect(prompt).toContain("</known-payees>");
+});
+
+test("empty context includes tags section with fallback message", () => {
+  const prompt = getSystemPrompt(empty);
+  expect(prompt).toContain("<tags>");
+  expect(prompt).toContain("No tags found.");
+  expect(prompt).toContain("</tags>");
 });
 
 // --- populated context ---
@@ -77,6 +92,15 @@ test("populated context includes known payees", () => {
   expect(prompt).toContain("Whole Foods");
   expect(prompt).toContain("Starbucks");
   expect(prompt).toContain("</known-payees>");
+});
+
+test("populated context includes tags", () => {
+  const prompt = getSystemPrompt(populated);
+  expect(prompt).toContain("<tags>");
+  expect(prompt).toContain("groceries");
+  expect(prompt).toContain("weekly");
+  expect(prompt).toContain("source");
+  expect(prompt).toContain("</tags>");
 });
 
 // --- static sections ---
@@ -162,6 +186,7 @@ describe("buildSystemPrompt()", () => {
     mockMemory = "";
     mockAccounts = [];
     mockPayees = [];
+    mockTags = [];
     const prompt = await buildSystemPrompt();
     const today = new Date().toISOString().split("T")[0];
     expect(prompt).toContain(today);
@@ -171,6 +196,7 @@ describe("buildSystemPrompt()", () => {
     mockMemory = "Rent is $2100 monthly";
     mockAccounts = [];
     mockPayees = [];
+    mockTags = [];
     const prompt = await buildSystemPrompt();
     expect(prompt).toContain("<memory>");
     expect(prompt).toContain("Rent is $2100 monthly");
@@ -180,6 +206,7 @@ describe("buildSystemPrompt()", () => {
     mockMemory = "";
     mockAccounts = ["Assets:Checking", "Expenses:Food"];
     mockPayees = [];
+    mockTags = [];
     const prompt = await buildSystemPrompt();
     expect(prompt).toContain("<accounts>");
     expect(prompt).toContain("Assets:Checking");
@@ -189,18 +216,31 @@ describe("buildSystemPrompt()", () => {
     mockMemory = "";
     mockAccounts = [];
     mockPayees = ["Whole Foods", "Amazon"];
+    mockTags = [];
     const prompt = await buildSystemPrompt();
     expect(prompt).toContain("<known-payees>");
     expect(prompt).toContain("Whole Foods");
   });
 
-  test("should omit empty sections", async () => {
+  test("should include tags", async () => {
     mockMemory = "";
     mockAccounts = [];
     mockPayees = [];
+    mockTags = ["groceries", "weekly"];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).toContain("<tags>");
+    expect(prompt).toContain("groceries");
+  });
+
+  test("should omit memory when empty but include fallback for accounts, payees, tags", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = [];
+    mockTags = [];
     const prompt = await buildSystemPrompt();
     expect(prompt).not.toContain("<memory>");
-    expect(prompt).not.toContain("<accounts>");
-    expect(prompt).not.toContain("<known-payees>");
+    expect(prompt).toContain("No accounts found.");
+    expect(prompt).toContain("No payees found.");
+    expect(prompt).toContain("No tags found.");
   });
 });

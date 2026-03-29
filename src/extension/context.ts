@@ -19,6 +19,10 @@ export async function loadPayees(): Promise<string[]> {
   return loadHledgerList("payees");
 }
 
+export async function loadTags(): Promise<string[]> {
+  return loadHledgerList("tags");
+}
+
 async function loadHledgerList(subcommand: string): Promise<string[]> {
   try {
     const journal = join(LEDGER_DIR, "main.journal");
