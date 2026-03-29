@@ -6,7 +6,7 @@ import {
   parseBalTotal,
   parseCSVLine,
   parseRegisterCsv,
-} from "../briefing-data.js";
+} from "../briefing.js";
 
 // Mock at I/O boundary (Bun.spawn) so the real tryRunHledger/runHledger/spawn execute.
 const origSpawn = Bun.spawn;

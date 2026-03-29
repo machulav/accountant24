@@ -1,4 +1,4 @@
-import { tryRunHledger } from "../../hledger.js";
+import { tryRunHledger } from "../hledger.js";
 
 export interface BriefingData {
   netWorth: { amount: number; currency: string; change: number } | null;

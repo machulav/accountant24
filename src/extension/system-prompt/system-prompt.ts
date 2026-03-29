@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadAccounts, loadMemory, loadPayees, loadTags } from "../context.js";
+import { getMemory, listAccounts, listPayees, listTags } from "../data";
 
 export interface SystemPromptContext {
   today: string;
@@ -18,7 +18,7 @@ const STATIC_PREFIX = readFileSync(join(import.meta.dirname, "system.md"), "utf-
 
 export async function buildSystemPrompt(): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
-  const [memory, accounts, payees, tags] = await Promise.all([loadMemory(), loadAccounts(), loadPayees(), loadTags()]);
+  const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
   return getSystemPrompt({ today, memory, accounts, payees, tags });
 }
 

@@ -3,10 +3,9 @@ import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete.js";
 import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
-import { loadAccounts, loadPayees, loadTags } from "./context";
+import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
 import { createBriefingFactory } from "./headers/briefing/briefing.js";
-import { ensureScaffolded } from "./scaffold";
-import { buildSystemPrompt } from "./system-prompt";
+import { getSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 
 // Custom currency-symbol loader animation in green
@@ -72,7 +71,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       });
 
       // Load initial data
-      const [accounts, payees, tags] = await Promise.all([loadAccounts(), loadPayees(), loadTags()]);
+      const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
       autocomplete.setData(accounts, payees, tags);
     }
   });
@@ -80,12 +79,8 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   // Inject dynamic context into system prompt before each agent turn
   // Also refresh autocomplete data with latest payees/accounts
   pi.on("before_agent_start", async (_event, ctx) => {
-    const [systemPrompt, accounts, payees, tags] = await Promise.all([
-      buildSystemPrompt(),
-      loadAccounts(),
-      loadPayees(),
-      loadTags(),
-    ]);
+    const today = new Date().toISOString().split("T")[0];
+    const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
 
     autocomplete.setData(accounts, payees, tags);
 
@@ -93,6 +88,6 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       ctx.ui.setWorkingMessage("Crunching the numbers...");
     }
 
-    return { systemPrompt };
+    return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
   });
 };

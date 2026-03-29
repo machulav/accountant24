@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
 let mockLoadTags: () => Promise<string[]>;
-mock.module("../../context", () => ({
-  loadTags: async () => mockLoadTags(),
+mock.module("../../data/index", () => ({
+  listTags: async () => mockLoadTags(),
 }));
 
 const { tagsCommand } = await import("../tags.js");

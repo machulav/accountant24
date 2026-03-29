@@ -1,1 +1,1 @@
-export { buildSystemPrompt } from "./system-prompt.js";
+export { buildSystemPrompt, getSystemPrompt } from "./system-prompt.js";

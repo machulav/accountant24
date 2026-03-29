@@ -5,11 +5,11 @@ let mockAccounts: string[] = [];
 let mockPayees: string[] = [];
 let mockTags: string[] = [];
 
-mock.module("../../context.js", () => ({
-  loadMemory: async () => mockMemory,
-  loadAccounts: async () => mockAccounts,
-  loadPayees: async () => mockPayees,
-  loadTags: async () => mockTags,
+mock.module("../../data/index", () => ({
+  getMemory: async () => mockMemory,
+  listAccounts: async () => mockAccounts,
+  listPayees: async () => mockPayees,
+  listTags: async () => mockTags,
 }));
 
 const mod = await import("../system-prompt.js");

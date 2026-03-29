@@ -1,8 +1,6 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { LEDGER_DIR } from "../config.js";
-import { HledgerCommandError, HledgerNotFoundError, hledgerCheck } from "../hledger.js";
-import { resolveSafePath } from "./utils.js";
+import { validateLedger } from "../data";
 
 const Params = Type.Object({});
 
@@ -12,25 +10,10 @@ export const validateTool: ToolDefinition<typeof Params, null> = {
   description: "Run hledger check on the journal. No parameters needed.",
   parameters: Params,
   async execute(_id, _params, signal) {
-    const resolved = resolveSafePath("main.journal", LEDGER_DIR);
-
-    try {
-      await hledgerCheck(resolved, { signal });
-    } catch (e) {
-      if (e instanceof HledgerNotFoundError) {
-        return {
-          content: [{ type: "text", text: "hledger not found, skipped journal check." }],
-          details: null,
-        };
-      }
-      if (e instanceof HledgerCommandError) {
-        throw new Error(`Ledger errors:\n${e.message}`);
-      }
-      throw e;
-    }
+    const status = await validateLedger(signal);
 
     return {
-      content: [{ type: "text", text: "Ledger is valid." }],
+      content: [{ type: "text", text: status }],
       details: null,
     };
   },

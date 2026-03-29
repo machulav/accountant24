@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ACCOUNTANT24_HOME } from "../config.js";
+import { ACCOUNTANT24_HOME } from "../../config.js";
 
 const TEMPLATE_DIR = join(import.meta.dirname, "template");
 
@@ -23,8 +23,8 @@ function collectTemplateFiles(dir: string): string[] {
   return files;
 }
 
-export function ensureScaffolded(baseDir?: string): void {
-  const home = baseDir ?? ACCOUNTANT24_HOME;
+export function ensureScaffolded(): void {
+  const home = ACCOUNTANT24_HOME;
 
   for (const dir of ["ledger", "sessions"]) {
     mkdirSync(join(home, dir), { recursive: true });

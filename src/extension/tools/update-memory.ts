@@ -1,8 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { MEMORY_PATH } from "../config.js";
+import { saveMemory } from "../data";
 
 const Params = Type.Object({
   content: Type.String({
@@ -24,8 +22,7 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
   async execute(_id, params) {
     const { content } = params;
 
-    mkdirSync(dirname(MEMORY_PATH), { recursive: true });
-    writeFileSync(MEMORY_PATH, `${content.trim()}\n`);
+    saveMemory(content);
 
     return {
       content: [{ type: "text", text: "Memory updated." }],

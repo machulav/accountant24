@@ -1,8 +1,6 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { ACCOUNTANT24_HOME } from "../config.js";
-import { runHledger } from "../hledger.js";
-import { resolveSafePath } from "./utils.js";
+import { queryLedger } from "../data";
 
 const Params = Type.Object({
   report: Type.Union(
@@ -58,47 +56,6 @@ const Params = Type.Object({
   ),
 });
 
-function buildArgs(params: any, resolved: string): string[] {
-  const args = ["hledger", params.report, "-f", resolved];
-
-  if (params.account_pattern) args.push(params.account_pattern);
-  if (params.description_pattern) args.push(`desc:${params.description_pattern}`);
-  if (params.payee_pattern) args.push(`payee:${params.payee_pattern}`);
-  if (params.amount_filter) args.push(`amt:${params.amount_filter}`);
-  if (params.tag) args.push(`tag:${params.tag}`);
-  if (params.status === "cleared") args.push("status:*");
-  else if (params.status === "pending") args.push("status:!");
-  else if (params.status === "unmarked") args.push("status:");
-
-  if (params.begin_date) args.push("-b", params.begin_date);
-  if (params.end_date) args.push("-e", params.end_date);
-
-  if (params.period) {
-    const map: Record<string, string> = {
-      daily: "--daily",
-      weekly: "--weekly",
-      monthly: "--monthly",
-      quarterly: "--quarterly",
-      yearly: "--yearly",
-    };
-    if (map[params.period]) args.push(map[params.period]);
-  }
-
-  if (params.depth != null) args.push("--depth", String(params.depth));
-  if (params.invert) args.push("--invert");
-  if (params.output_format) args.push("-O", params.output_format);
-
-  // Prevent account name truncation in register reports
-  const REGISTER_WIDTH = 200;
-  if (params.report === "reg" || params.report === "aregister") {
-    args.push(`--width=${REGISTER_WIDTH}`);
-  }
-
-  return args;
-}
-
-export { buildArgs };
-
 export const queryTool: ToolDefinition<typeof Params, null> = {
   name: "query",
   label: "Query Ledger",
@@ -106,11 +63,7 @@ export const queryTool: ToolDefinition<typeof Params, null> = {
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
   parameters: Params,
   async execute(_id, params, signal) {
-    const file = params.file ?? "ledger/main.journal";
-    const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
-
-    const args = buildArgs(params, resolved);
-    const stdout = await runHledger(args.slice(1), { signal });
+    const stdout = await queryLedger(params, signal);
     return { content: [{ type: "text", text: stdout || "(no results)" }], details: null };
   },
 };

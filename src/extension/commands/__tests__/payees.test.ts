@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
 let mockLoadPayees: () => Promise<string[]>;
-mock.module("../../context", () => ({
-  loadPayees: async () => mockLoadPayees(),
+mock.module("../../data/index", () => ({
+  listPayees: async () => mockLoadPayees(),
 }));
 
 const { payeesCommand } = await import("../payees.js");

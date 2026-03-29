@@ -1,8 +1,7 @@
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
 import { LEDGER_DIR } from "../../config.js";
-import type { BriefingData } from "./briefing-data.js";
-import { fetchBriefingData } from "./briefing-data.js";
+import { type BriefingData, fetchBriefingData } from "../../data";
 
 function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
