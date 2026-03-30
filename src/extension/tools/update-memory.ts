@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { saveMemory } from "../data";
+import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   content: Type.String({
@@ -11,14 +12,19 @@ const Params = Type.Object({
   }),
 });
 
+const LABEL = "Update Memory";
+
 export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
   name: "update_memory",
-  label: "Update Memory",
+  label: LABEL,
   description:
     "Rewrite memory.md with updated user preferences, rules, and knowledge. " +
     "Always include ALL existing facts (merged with new ones). " +
     "Organize by topic using headers (##) and bullet points (-).",
   parameters: Params,
+
+  renderCall: createRenderCall({ label: LABEL, expandable: false }),
+
   async execute(_id, params) {
     const { content } = params;
 
@@ -29,4 +35,6 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
       details: null,
     };
   },
+
+  renderResult: createRenderResult<null>(() => []),
 };

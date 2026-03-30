@@ -46,19 +46,18 @@ afterEach(() => {
 const run = (params: any) =>
   validateTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
-test("reports hledger not found", async () => {
+test("throws when hledger not found", async () => {
   mockProc = makeMockProc(127);
-  const result = await run({});
-  expect(result.content[0].text).toContain("hledger not found");
+  await expect(run({})).rejects.toThrow("hledger not found");
 });
 
-test("returns success on valid ledger", async () => {
+test("returns valid result on success", async () => {
   mockProc = makeMockProc(0);
   const result = await run({});
-  expect(result.content[0].text).toBe("Ledger is valid.");
+  expect(result.details.ledgerIsValid).toBe(true);
 });
 
-test("throws on ledger validation error", async () => {
+test("throws on validation failure", async () => {
   mockProc = makeMockProc(1, "", "hledger: Error: account not declared");
   await expect(run({})).rejects.toThrow("account not declared");
 });

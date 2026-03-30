@@ -121,7 +121,7 @@ test("calls hledger check after writing", async () => {
 test("throws on validation failure", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   mockProc = makeMockProc(1, "", "account not declared");
-  await expect(run(basicParams)).rejects.toThrow("Validation failed");
+  await expect(run(basicParams)).rejects.toThrow("account not declared");
 });
 
 test("handles tags", async () => {
@@ -187,12 +187,10 @@ test("rejects multiple postings without amount", async () => {
   ).rejects.toThrow("At most one posting may omit the amount");
 });
 
-test("hledger not found is non-fatal", async () => {
+test("hledger not found throws error", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   mockProc = makeMockProc(127);
-  const result = await run(basicParams);
-  expect(result.content[0].text).toContain("Added transaction");
-  expect(result.content[0].text).toContain("hledger not found");
+  await expect(run(basicParams)).rejects.toThrow("hledger not found");
 });
 
 test("uses 4-space indent for postings", async () => {

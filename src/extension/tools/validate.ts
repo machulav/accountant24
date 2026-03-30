@@ -1,20 +1,28 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { validateLedger } from "../data";
+import { type ValidateLedgerResult, validateLedger } from "../data";
+import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({});
 
-export const validateTool: ToolDefinition<typeof Params, null> = {
+const LABEL = "Validate Ledger";
+
+export const validateTool: ToolDefinition<typeof Params, ValidateLedgerResult> = {
   name: "validate",
-  label: "Validate Ledger",
-  description: "Run hledger check on the journal. No parameters needed.",
+  label: LABEL,
+  description: "Check the ledger for errors.",
   parameters: Params,
+
+  renderCall: createRenderCall({ label: LABEL }),
+
   async execute(_id, _params, signal) {
-    const status = await validateLedger(signal);
+    const result = await validateLedger(signal);
 
     return {
-      content: [{ type: "text", text: status }],
-      details: null,
+      content: [{ type: "text", text: "The ledger is valid." }],
+      details: result,
     };
   },
+
+  renderResult: createRenderResult<ValidateLedgerResult>(() => [{ heading: "", content: "The ledger is valid." }]),
 };

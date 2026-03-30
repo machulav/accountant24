@@ -1,7 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import { dirname, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger } from "../hledger";
+
+const PERIOD_FLAGS: Record<string, string> = {
+  daily: "--daily",
+  weekly: "--weekly",
+  monthly: "--monthly",
+  quarterly: "--quarterly",
+  yearly: "--yearly",
+};
+
+// TUI box border (2) + padding (2) + content indent (2)
+const TUI_CHROME_WIDTH = 6;
 
 // ── Read operations ─────────────────────────────────────────────────
 
@@ -19,7 +30,7 @@ export async function listTags(): Promise<string[]> {
 
 async function loadHledgerList(subcommand: string): Promise<string[]> {
   try {
-    const journal = join(LEDGER_DIR, "main.journal");
+    const journal = resolveSafePath("main.journal", LEDGER_DIR);
     const stdout = await runHledger([subcommand, "-f", journal]);
     return stdout
       .split("\n")
@@ -47,9 +58,9 @@ export interface AddTransactionParams {
 }
 
 export interface AddTransactionResult {
-  txText: string;
-  relPath: string;
-  validationStatus: string;
+  transactionText: string;
+  fullFilePath: string;
+  ledgerIsValid: boolean;
 }
 
 function validateInputs(params: { date: string; postings: any[] }): void {
@@ -109,25 +120,24 @@ export async function addTransaction(
 ): Promise<AddTransactionResult> {
   validateInputs(params);
 
-  const txText = formatTransaction(params);
+  const transactionText = formatTransaction(params);
 
   // Route to monthly file
   const [year, month] = params.date.split("-");
-  const relPath = `ledger/${year}/${month}.journal`;
-  const absPath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
-  const mainPath = join(LEDGER_DIR, "main.journal");
+  const fullFilePath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
+  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
 
   // Ensure directory exists
-  mkdirSync(dirname(absPath), { recursive: true });
+  mkdirSync(dirname(fullFilePath), { recursive: true });
 
   // Append or create
-  const isNew = !existsSync(absPath);
+  const isNew = !existsSync(fullFilePath);
   if (isNew) {
-    writeFileSync(absPath, `${txText}\n`);
+    writeFileSync(fullFilePath, `${transactionText}\n`);
   } else {
-    const existing = readFileSync(absPath, "utf-8");
+    const existing = readFileSync(fullFilePath, "utf-8");
     const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-    writeFileSync(absPath, `${existing}${separator}${txText}\n`);
+    writeFileSync(fullFilePath, `${existing}${separator}${transactionText}\n`);
   }
 
   // Update main.journal: includes and commodity declarations
@@ -158,29 +168,32 @@ export async function addTransaction(
   }
 
   // Validate
-  let validationStatus = "Valid.";
   try {
     await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
   } catch (e) {
-    if (e instanceof HledgerNotFoundError) {
-      validationStatus = "hledger not found, skipped validation.";
-    } else if (e instanceof HledgerCommandError) {
-      throw new Error(`Validation failed:\n${e.message}\n\nTransaction was written to ${relPath} but has errors.`);
-    } else {
-      throw e;
+    if (e instanceof HledgerCommandError) {
+      throw new Error(`Transaction saved to ${fullFilePath} but the ledger has errors:\n\n${e.stderr}`);
     }
+    throw e;
   }
 
-  return { txText, relPath, validationStatus };
+  return { transactionText, fullFilePath, ledgerIsValid: true };
 }
 
 // ── Query ───────────────────────────────────────────────────────────
 
-export async function queryLedger(params: any, signal?: AbortSignal): Promise<string> {
+export interface QueryLedgerResult {
+  command: string;
+  output: string;
+}
+
+export async function queryLedger(params: any, signal?: AbortSignal): Promise<QueryLedgerResult> {
   const file = params.file ?? "ledger/main.journal";
   const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
   const args = buildQueryArgs(params, resolved);
-  return runHledger(args, { signal });
+  const raw = await runHledger(args, { signal });
+  const command = ["hledger", ...args].join(" ");
+  return { command, output: raw || "(no results)" };
 }
 
 function buildQueryArgs(params: any, resolved: string): string[] {
@@ -198,25 +211,17 @@ function buildQueryArgs(params: any, resolved: string): string[] {
   if (params.begin_date) args.push("-b", params.begin_date);
   if (params.end_date) args.push("-e", params.end_date);
 
-  if (params.period) {
-    const map: Record<string, string> = {
-      daily: "--daily",
-      weekly: "--weekly",
-      monthly: "--monthly",
-      quarterly: "--quarterly",
-      yearly: "--yearly",
-    };
-    if (map[params.period]) args.push(map[params.period]);
+  if (params.period && PERIOD_FLAGS[params.period]) {
+    args.push(PERIOD_FLAGS[params.period]);
   }
 
   if (params.depth != null) args.push("--depth", String(params.depth));
   if (params.invert) args.push("--invert");
   if (params.output_format) args.push("-O", params.output_format);
 
-  // Prevent account name truncation in register reports
-  const REGISTER_WIDTH = 200;
   if (params.report === "reg" || params.report === "aregister") {
-    args.push(`--width=${REGISTER_WIDTH}`);
+    const width = (process.stdout.columns || 80) - TUI_CHROME_WIDTH;
+    args.push(`--width=${width}`);
   }
 
   return args;
@@ -224,22 +229,23 @@ function buildQueryArgs(params: any, resolved: string): string[] {
 
 // ── Validation ──────────────────────────────────────────────────────
 
-export async function validateLedger(signal?: AbortSignal): Promise<string> {
+export interface ValidateLedgerResult {
+  ledgerIsValid: boolean;
+}
+
+export async function validateLedger(signal?: AbortSignal): Promise<ValidateLedgerResult> {
   const resolved = resolveSafePath("main.journal", LEDGER_DIR);
 
   try {
     await hledgerCheck(resolved, { signal });
   } catch (e) {
-    if (e instanceof HledgerNotFoundError) {
-      return "hledger not found, skipped journal check.";
-    }
     if (e instanceof HledgerCommandError) {
-      throw new Error(`Ledger errors:\n${e.message}`);
+      throw new Error(e.stderr);
     }
     throw e;
   }
 
-  return "Ledger is valid.";
+  return { ledgerIsValid: true };
 }
 
 // ── Internals ───────────────────────────────────────────────────────

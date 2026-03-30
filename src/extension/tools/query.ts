@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { queryLedger } from "../data";
+import { type QueryLedgerResult, queryLedger } from "../data";
+import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   report: Type.Union(
@@ -56,14 +57,33 @@ const Params = Type.Object({
   ),
 });
 
-export const queryTool: ToolDefinition<typeof Params, null> = {
+const LABEL = "Query Ledger";
+
+export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   name: "query",
-  label: "Query Ledger",
+  label: LABEL,
   description:
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
   parameters: Params,
+
+  renderCall: createRenderCall({ label: LABEL }),
+
   async execute(_id, params, signal) {
-    const stdout = await queryLedger(params, signal);
-    return { content: [{ type: "text", text: stdout || "(no results)" }], details: null };
+    const result = await queryLedger(params, signal);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: result.output,
+        },
+      ],
+      details: result,
+    };
   },
+
+  renderResult: createRenderResult<QueryLedgerResult>(({ details }) => [
+    { heading: "Query", content: details?.command ?? "" },
+    { heading: "Result", content: details?.output ?? "" },
+  ]),
 };

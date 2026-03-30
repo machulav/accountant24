@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { addTransaction } from "../data";
+import { type AddTransactionResult, addTransaction } from "../data";
+import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Posting = Type.Object({
   account: Type.String({ description: "Account name, e.g. Expenses:Food:Groceries" }),
@@ -20,22 +21,27 @@ const Params = Type.Object({
   metadata: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "Optional key-value metadata" })),
 });
 
-export const addTransactionTool: ToolDefinition<typeof Params, null> = {
+const LABEL = "Add Transaction";
+
+export const addTransactionTool: ToolDefinition<typeof Params, AddTransactionResult> = {
   name: "add_transaction",
-  label: "Add Transaction",
+  label: LABEL,
   description: "Add a single transaction. Auto-routes to the correct monthly file and validates.",
   parameters: Params,
+
+  renderCall: createRenderCall({ label: LABEL }),
+
   async execute(_id, params, signal) {
     const result = await addTransaction(params, signal);
 
     return {
-      content: [
-        {
-          type: "text",
-          text: `Added transaction to ${result.relPath}:\n\n${result.txText}\n\nValidation: ${result.validationStatus}`,
-        },
-      ],
-      details: null,
+      content: [{ type: "text", text: `Transaction saved to ${result.fullFilePath}:\n\n${result.transactionText}` }],
+      details: result,
     };
   },
+
+  renderResult: createRenderResult<AddTransactionResult>(({ details }) => [
+    { heading: "Transaction", content: details?.transactionText ?? "" },
+    { heading: "Saved To", content: details?.fullFilePath ?? "" },
+  ]),
 };
