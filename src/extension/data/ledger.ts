@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
-import { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger } from "../hledger";
+import { HledgerCommandError, hledgerCheck, runHledger } from "../hledger";
 
 const PERIOD_FLAGS: Record<string, string> = {
   daily: "--daily",
