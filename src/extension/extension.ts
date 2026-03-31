@@ -8,8 +8,8 @@ import { createBriefingFactory } from "./headers/briefing/briefing";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
 import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
+import { registerBuiltinOverrides } from "./tools/builtin-overrides";
 
-// Custom currency-symbol loader animation in green
 const CURRENCY_FRAMES = ["$", "€", "£", "¥", "₴"];
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
 LoaderProto.updateDisplay = function (this: Record<string, any>) {
@@ -19,6 +19,9 @@ LoaderProto.updateDisplay = function (this: Record<string, any>) {
 };
 
 export const accountant24Extension: ExtensionFactory = (pi) => {
+  // Override built-in tools with custom rendering
+  registerBuiltinOverrides(pi);
+
   // Register custom tools
   pi.registerTool(queryTool);
   pi.registerTool(addTransactionTool);
@@ -64,9 +67,8 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
       const slashCommands = [...BUILTIN_COMMANDS, ...extensionCommands];
       autocomplete.setCommands(slashCommands);
 
-      // Replace file-search editor with payee/account autocomplete
-      // InteractiveMode's setCustomEditorComponent overwrites the autocomplete provider
-      // after the factory runs (line 1357 in interactive-mode.js), so we lock ours in.
+      // Prevent the framework from overwriting our autocomplete provider
+      // after the editor component factory runs.
       ctx.ui.setEditorComponent((tui, theme, keybindings) => {
         const editor = new CustomEditor(tui, theme, keybindings);
         editor.setAutocompleteProvider(autocomplete);

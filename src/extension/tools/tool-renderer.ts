@@ -43,13 +43,16 @@ export function createRenderCall(options: RenderCallOptions) {
 }
 
 export function createRenderResult<TDetails>(
-  getSections: (result: { content: Array<{ type: string; text?: string }>; details: TDetails }) => ToolRenderSection[],
+  getSections: (
+    result: { content: Array<{ type: string; text?: string }>; details: TDetails },
+    args?: any,
+  ) => ToolRenderSection[],
 ) {
   return (
     result: any,
     { isPartial, expanded }: { isPartial: boolean; expanded: boolean },
     theme: Theme,
-    context?: { isError: boolean },
+    context?: { isError: boolean; args?: any },
   ) => {
     if (isPartial || !expanded) return EMPTY_TEXT;
 
@@ -58,7 +61,7 @@ export function createRenderResult<TDetails>(
       const errorText = result.content?.[0]?.type === "text" ? (result.content[0].text ?? "") : "";
       sections = [{ heading: "Error", content: errorText }];
     } else {
-      sections = getSections(result);
+      sections = getSections(result, context?.args);
     }
     if (sections.length === 0) return EMPTY_TEXT;
 

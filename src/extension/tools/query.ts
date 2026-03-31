@@ -83,7 +83,7 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   },
 
   renderResult: createRenderResult<QueryLedgerResult>(({ details }) => [
-    { heading: "Query", content: details?.command ?? "" },
-    { heading: "Result", content: details?.output ?? "" },
+    { heading: "Command", content: details?.command ?? "" },
+    { heading: "Output", content: details?.output ?? "" },
   ]),
 };

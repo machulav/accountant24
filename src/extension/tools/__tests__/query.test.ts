@@ -256,7 +256,7 @@ describe("renderCall wiring", () => {
 });
 
 describe("renderResult wiring", () => {
-  test("should show Query and Result sections with correct content", () => {
+  test("should show Command and Output sections with correct content", () => {
     const result = {
       content: [{ type: "text" as const, text: "100 USD" }],
       details: { command: "hledger bal", output: "100 USD" },
@@ -264,9 +264,9 @@ describe("renderResult wiring", () => {
     // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
     const component = queryTool.renderResult!(result, { expanded: true, isPartial: false }, mockTheme, {} as any);
     const output = component.render(120).join("\n");
-    expect(output).toContain("Query");
+    expect(output).toContain("Command");
     expect(output).toContain("hledger bal");
-    expect(output).toContain("Result");
+    expect(output).toContain("Output");
     expect(output).toContain("100 USD");
   });
 });
