@@ -58,7 +58,7 @@ test("handles multi-section markdown", async () => {
 const mockTheme = { fg: (_c: string, t: string) => t, bold: (t: string) => t } as any;
 
 describe("renderCall wiring", () => {
-  test("should use 'Update Memory' label and not be expandable", () => {
+  test("should use 'Update Memory' label with expand hint", () => {
     // biome-ignore lint/style/noNonNullAssertion: renderCall is defined
     const component = updateMemoryTool.renderCall!({} as any, mockTheme, {
       lastComponent: undefined,
@@ -68,13 +68,13 @@ describe("renderCall wiring", () => {
     } as any);
     const output = component.render(120).join("\n");
     expect(output).toContain("Update Memory");
-    expect(output).not.toContain("ctrl+o");
+    expect(output).toContain("ctrl+o to expand");
   });
 });
 
 describe("renderResult wiring", () => {
-  test("should return empty sections (nothing to expand)", () => {
-    const result = { content: [{ type: "text" as const, text: "Memory updated." }], details: null };
+  test("should show diff when expanded", () => {
+    const result = { content: [{ type: "text" as const, text: "Memory updated." }], details: { diff: "+1 new line" } };
     // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
     const component = updateMemoryTool.renderResult!(
       result,
@@ -82,7 +82,7 @@ describe("renderResult wiring", () => {
       mockTheme,
       {} as any,
     );
-    const output = component.render(120).join("");
-    expect(output).toBe("");
+    const output = component.render(120).join("\n");
+    expect(output.length).toBeGreaterThan(0);
   });
 });

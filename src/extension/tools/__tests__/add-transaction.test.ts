@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -64,6 +64,14 @@ test("formats basic transaction correctly", async () => {
   expect(text).toContain("2026-03-15 * Whole Foods | Groceries");
   expect(text).toContain("Expenses:Food:Groceries    45.00 USD");
   expect(text).toContain("Assets:Checking");
+});
+
+test("returns diff in details", async () => {
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  const result = await run(basicParams);
+  expect(result.details.diff).toBeDefined();
+  expect(result.details.diff).toContain("+");
+  expect(result.details.diff).toContain("Whole Foods");
 });
 
 test("routes to ledger/YYYY/MM.journal", async () => {
@@ -265,4 +273,28 @@ test("should re-throw unexpected validation errors", async () => {
     throw new TypeError("unexpected");
   });
   await expect(run(basicParams)).rejects.toThrow("unexpected");
+});
+
+// ── rendering wiring ──────────────────────────────────────────────
+
+const mockTheme = { fg: (_c: string, t: string) => t, bold: (t: string) => t } as any;
+
+describe("renderResult wiring", () => {
+  test("should show diff and file path when expanded", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "saved" }],
+      details: { transactionText: "tx", fullFilePath: "/path/file.journal", ledgerIsValid: true, diff: "+1 new tx" },
+    };
+    // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
+    const component = addTransactionTool.renderResult!(
+      result,
+      { expanded: true, isPartial: false },
+      mockTheme,
+      {} as any,
+    );
+    const output = component.render(120).join("\n");
+    expect(output).toContain("Diff");
+    expect(output).toContain("File");
+    expect(output).toContain("/path/file.journal");
+  });
 });

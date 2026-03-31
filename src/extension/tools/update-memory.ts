@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { saveMemory } from "../data";
+import { MEMORY_PATH } from "../config";
+import { type SaveMemoryResult, saveMemory } from "../data";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
@@ -14,7 +15,7 @@ const Params = Type.Object({
 
 const LABEL = "Update Memory";
 
-export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
+export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> = {
   name: "update_memory",
   label: LABEL,
   description:
@@ -23,18 +24,20 @@ export const updateMemoryTool: ToolDefinition<typeof Params, null> = {
     "Organize by topic using headers (##) and bullet points (-).",
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL, expandable: false }),
+  renderCall: createRenderCall({ label: LABEL }),
 
   async execute(_id, params) {
     const { content } = params;
-
-    saveMemory(content);
+    const result = saveMemory(content);
 
     return {
       content: [{ type: "text", text: "Memory updated." }],
-      details: null,
+      details: result,
     };
   },
 
-  renderResult: createRenderResult<null>(() => []),
+  renderResult: createRenderResult<SaveMemoryResult>(({ details }) => [
+    { heading: "Diff", content: details?.diff ?? "", type: "diff" },
+    { heading: "File", content: MEMORY_PATH, type: "text" },
+  ]),
 };

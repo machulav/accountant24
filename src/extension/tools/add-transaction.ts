@@ -41,7 +41,7 @@ export const addTransactionTool: ToolDefinition<typeof Params, AddTransactionRes
   },
 
   renderResult: createRenderResult<AddTransactionResult>(({ details }) => [
-    { heading: "Transaction", content: details?.transactionText ?? "" },
-    { heading: "Saved To", content: details?.fullFilePath ?? "" },
+    { heading: "Diff", content: details?.diff ?? "", type: "diff" },
+    { heading: "File", content: details?.fullFilePath ?? "", type: "text" },
   ]),
 };

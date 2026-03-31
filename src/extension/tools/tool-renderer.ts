@@ -1,4 +1,5 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
+import { renderDiff } from "@mariozechner/pi-coding-agent";
 import type { Component } from "@mariozechner/pi-tui";
 import { Text, truncateToWidth } from "@mariozechner/pi-tui";
 
@@ -10,6 +11,7 @@ export interface RenderCallOptions {
 export interface ToolRenderSection {
   heading: string;
   content: string;
+  type?: "text" | "diff";
 }
 
 const EMPTY_TEXT = new Text("", 0, 0);
@@ -71,8 +73,15 @@ export function createRenderResult<TDetails>(
       const section = sections[i];
       if (i > 0) lines.push("");
       if (section.heading) lines.push(`${PAD}${heading(section.heading)}`, "");
-      for (const line of section.content.trimEnd().split("\n")) {
-        lines.push(`${PAD}${theme.fg(textColor, line)}`);
+      if (section.type === "diff") {
+        const rendered = renderDiff(section.content.trimEnd());
+        for (const line of rendered.split("\n")) {
+          lines.push(`${PAD}${line}`);
+        }
+      } else {
+        for (const line of section.content.trimEnd().split("\n")) {
+          lines.push(`${PAD}${theme.fg(textColor, line)}`);
+        }
       }
     }
 

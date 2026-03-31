@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck, runHledger } from "../hledger";
+import { generateDiff } from "./diff";
 
 const PERIOD_FLAGS: Record<string, string> = {
   daily: "--daily",
@@ -61,6 +62,7 @@ export interface AddTransactionResult {
   transactionText: string;
   fullFilePath: string;
   ledgerIsValid: boolean;
+  diff: string;
 }
 
 function validateInputs(params: { date: string; postings: any[] }): void {
@@ -132,13 +134,15 @@ export async function addTransaction(
 
   // Append or create
   const isNew = !existsSync(fullFilePath);
+  const oldContent = isNew ? "" : readFileSync(fullFilePath, "utf-8");
   if (isNew) {
     writeFileSync(fullFilePath, `${transactionText}\n`);
   } else {
-    const existing = readFileSync(fullFilePath, "utf-8");
-    const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-    writeFileSync(fullFilePath, `${existing}${separator}${transactionText}\n`);
+    const separator = oldContent.endsWith("\n") ? "\n" : "\n\n";
+    writeFileSync(fullFilePath, `${oldContent}${separator}${transactionText}\n`);
   }
+  const newContent = readFileSync(fullFilePath, "utf-8");
+  const diff = generateDiff(oldContent, newContent);
 
   // Update main.journal: includes and commodity declarations
   if (existsSync(mainPath)) {
@@ -177,7 +181,7 @@ export async function addTransaction(
     throw e;
   }
 
-  return { transactionText, fullFilePath, ledgerIsValid: true };
+  return { transactionText, fullFilePath, ledgerIsValid: true, diff };
 }
 
 // ── Query ───────────────────────────────────────────────────────────

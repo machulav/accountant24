@@ -157,6 +157,22 @@ describe("createRenderResult()", () => {
     expect(first).not.toBe(second);
   });
 
+  test("should render diff sections using renderDiff", () => {
+    const diffContent = "+1 added line";
+    const diffRenderer = createRenderResult<{ diff: string }>((result) => [
+      { heading: "Diff", content: result.details?.diff ?? "", type: "diff" },
+    ]);
+    const output = diffRenderer(
+      { content: [], details: { diff: diffContent } },
+      { expanded: true, isPartial: false },
+      mockTheme,
+    )
+      .render(120)
+      .join("\n");
+    expect(output).toContain("Diff");
+    expect(output).toContain("added line");
+  });
+
   test("should preserve multiline content within a section", () => {
     const output = renderResult(
       makeResult("line1\nline2\nline3", "cmd"),

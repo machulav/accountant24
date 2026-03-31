@@ -10,5 +10,5 @@ export {
   type ValidateLedgerResult,
   validateLedger,
 } from "./ledger";
-export { getMemory, saveMemory } from "./memory";
+export { getMemory, type SaveMemoryResult, saveMemory } from "./memory";
 export { ensureScaffolded } from "./scaffold/scaffold";

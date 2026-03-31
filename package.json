@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.63.1",
+    "diff": "^8.0.4",
     "zod": "^3.24.0"
   },
   "overrides": {
@@ -44,6 +45,7 @@
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@types/bun": "latest",
+    "@types/diff": "^8.0.0",
     "changelogen": "^0.6.2",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.8.0"
