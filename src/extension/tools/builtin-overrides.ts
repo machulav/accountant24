@@ -119,15 +119,15 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
     }),
   });
 
-  // ── Ls ────────────────────────────────────────────────────────────
+  // ── List ───────────────────────────────────────────────────────────
   const originalLs = createLsTool(cwd);
   pi.registerTool({
     name: originalLs.name,
-    label: "Ls",
+    label: "List",
     description: originalLs.description,
     parameters: originalLs.parameters,
     execute: (id, params, signal, onUpdate) => originalLs.execute(id, params, signal, onUpdate),
-    renderCall: createRenderCall({ label: "Ls" }),
+    renderCall: createRenderCall({ label: "List" }),
     renderResult: createRenderResult((result, args) => [
       { heading: "Path", content: args?.path ?? "." },
       { heading: "Output", content: textContent(result) },

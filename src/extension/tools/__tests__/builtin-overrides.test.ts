@@ -121,7 +121,7 @@ describe("registerBuiltinOverrides()", () => {
       expect(output).toContain("Output");
     });
 
-    test("ls should show Path and Output sections", () => {
+    test("ls should show Path and Output sections (label: List)", () => {
       const tool = pi.tools.get("ls");
       const result = { content: [{ type: "text", text: "file1\nfile2" }], details: {} };
       const ctx = makeContext({ args: { path: "/test/dir" } });
