@@ -49,25 +49,25 @@ describe("ensureScaffolded()", () => {
     mkdirSync(BASE, { recursive: true });
   });
 
-  test("should create ledger directory", () => {
-    ensureScaffolded();
+  test("should create ledger directory", async () => {
+    await ensureScaffolded();
     expect(existsSync(join(BASE, "ledger"))).toBe(true);
   });
 
-  test("should create sessions directory", () => {
-    ensureScaffolded();
+  test("should create sessions directory", async () => {
+    await ensureScaffolded();
     expect(existsSync(join(BASE, "sessions"))).toBe(true);
   });
 
-  test("should write main.journal with header and include directive", () => {
-    ensureScaffolded();
+  test("should write main.journal with header and include directive", async () => {
+    await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
     expect(content).toContain("; Accountant24");
     expect(content).toContain("include accounts.journal");
   });
 
-  test("should write accounts.journal with all five account types", () => {
-    ensureScaffolded();
+  test("should write accounts.journal with all five account types", async () => {
+    await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
     expect(content).toContain("account assets:");
     expect(content).toContain("account liabilities:");
@@ -76,14 +76,14 @@ describe("ensureScaffolded()", () => {
     expect(content).toContain("account expenses:");
   });
 
-  test("should write .gitignore with auth exclusion", () => {
-    ensureScaffolded();
+  test("should write .gitignore with auth exclusion", async () => {
+    await ensureScaffolded();
     const content = readFileSync(join(BASE, ".gitignore"), "utf-8");
     expect(content).toContain("auth.json");
   });
 
-  test("should produce an output file for every template file", () => {
-    ensureScaffolded();
+  test("should produce an output file for every template file", async () => {
+    await ensureScaffolded();
     const templateFiles = collectFiles(TEMPLATE_DIR).map((f) => relative(TEMPLATE_DIR, f));
     for (const relPath of templateFiles) {
       expect(existsSync(join(BASE, relPath))).toBe(true);
@@ -95,51 +95,51 @@ describe("ensureScaffolded()", () => {
     expect(templateFiles.length).toBeGreaterThan(0);
   });
 
-  test("should not overwrite existing main.journal", () => {
+  test("should not overwrite existing main.journal", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "main.journal"), "existing content");
 
-    ensureScaffolded();
+    await ensureScaffolded();
 
     expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("existing content");
   });
 
-  test("should not overwrite existing accounts.journal", () => {
+  test("should not overwrite existing accounts.journal", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "accounts.journal"), "user modified accounts");
 
-    ensureScaffolded();
+    await ensureScaffolded();
 
     expect(readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8")).toBe("user modified accounts");
   });
 
-  test("should not overwrite existing .gitignore", () => {
+  test("should not overwrite existing .gitignore", async () => {
     writeFileSync(join(BASE, ".gitignore"), "custom gitignore");
 
-    ensureScaffolded();
+    await ensureScaffolded();
 
     expect(readFileSync(join(BASE, ".gitignore"), "utf-8")).toBe("custom gitignore");
   });
 
-  test("should create empty memory.md", () => {
-    ensureScaffolded();
+  test("should create empty memory.md", async () => {
+    await ensureScaffolded();
     expect(existsSync(join(BASE, "memory.md"))).toBe(true);
     expect(readFileSync(join(BASE, "memory.md"), "utf-8")).toBe("");
   });
 
-  test("should not overwrite existing memory.md", () => {
+  test("should not overwrite existing memory.md", async () => {
     writeFileSync(join(BASE, "memory.md"), "user memories");
 
-    ensureScaffolded();
+    await ensureScaffolded();
 
     expect(readFileSync(join(BASE, "memory.md"), "utf-8")).toBe("user memories");
   });
 
-  test("should still create missing files when some already exist", () => {
+  test("should still create missing files when some already exist", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "main.journal"), "custom main");
 
-    ensureScaffolded();
+    await ensureScaffolded();
 
     // main.journal preserved
     expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("custom main");
@@ -147,5 +147,40 @@ describe("ensureScaffolded()", () => {
     expect(existsSync(join(BASE, "ledger", "accounts.journal"))).toBe(true);
     // .gitignore created because it was missing
     expect(existsSync(join(BASE, ".gitignore"))).toBe(true);
+  });
+
+  test("should initialize a git repo", async () => {
+    await ensureScaffolded();
+    expect(existsSync(join(BASE, ".git"))).toBe(true);
+  });
+
+  test("should not reinitialize git repo on second run", async () => {
+    await ensureScaffolded();
+    const { statSync } = await import("node:fs");
+    const firstGitTime = statSync(join(BASE, ".git")).birthtimeMs;
+
+    await ensureScaffolded();
+    const secondGitTime = statSync(join(BASE, ".git")).birthtimeMs;
+
+    expect(secondGitTime).toBe(firstGitTime);
+  });
+
+  test("should create initial commit with scaffolded files", async () => {
+    await ensureScaffolded();
+    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: BASE, stdout: "pipe", stderr: "pipe" });
+    const log = await new Response(proc.stdout).text();
+    expect(log).toContain("Initial Accountant24 setup");
+  });
+
+  test("should not create another commit on second run", async () => {
+    await ensureScaffolded();
+    await ensureScaffolded();
+    const proc = Bun.spawn(["git", "log", "--oneline"], { cwd: BASE, stdout: "pipe", stderr: "pipe" });
+    const log = await new Response(proc.stdout).text();
+    const lines = log
+      .trim()
+      .split("\n")
+      .filter((l) => l.length > 0);
+    expect(lines).toHaveLength(1);
   });
 });

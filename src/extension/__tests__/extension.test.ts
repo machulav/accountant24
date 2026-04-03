@@ -63,12 +63,13 @@ describe("accountant24Extension()", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(11);
   });
 
-  test("should register session_start and before_agent_start handlers", () => {
+  test("should register session_start, before_agent_start, and agent_end handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(2);
+    expect(pi.on).toHaveBeenCalledTimes(3);
     expect(pi.handlers.session_start).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
+    expect(pi.handlers.agent_end).toBeDefined();
   });
 });
 

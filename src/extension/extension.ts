@@ -4,6 +4,7 @@ import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
+import { autoCommitAndPush } from "./git";
 import { createBriefingFactory } from "./headers/briefing/briefing";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
@@ -41,7 +42,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
 
   // Scaffold workspace + set up UI on session start
   pi.on("session_start", async (_event, ctx) => {
-    ensureScaffolded();
+    await ensureScaffolded();
 
     if (ctx.hasUI) {
       ctx.ui.setTitle("Accountant24");
@@ -95,5 +96,10 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
     }
 
     return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
+  });
+
+  // Auto-commit and push changes after each agent turn
+  pi.on("agent_end", async () => {
+    await autoCommitAndPush();
   });
 };

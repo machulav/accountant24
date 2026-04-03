@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { ACCOUNTANT24_HOME } from "../../config";
+import { commitAll, gitInit } from "../../git";
 
 const TEMPLATE_DIR = join(import.meta.dirname, "template");
 
@@ -23,7 +24,7 @@ function collectTemplateFiles(dir: string): string[] {
   return files;
 }
 
-export function ensureScaffolded(): void {
+export async function ensureScaffolded(): Promise<void> {
   const home = ACCOUNTANT24_HOME;
 
   for (const dir of ["ledger", "sessions"]) {
@@ -35,5 +36,10 @@ export function ensureScaffolded(): void {
     const outputPath = join(home, relPath);
     mkdirSync(join(outputPath, ".."), { recursive: true });
     writeIfNotExists(outputPath, readFileSync(templatePath, "utf-8"));
+  }
+
+  const freshRepo = await gitInit(home);
+  if (freshRepo) {
+    await commitAll(home, "Initial Accountant24 setup");
   }
 }
