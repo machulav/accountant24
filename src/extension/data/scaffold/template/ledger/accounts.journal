@@ -28,7 +28,6 @@ account liabilities:loan
 ; ====================================================================
 
 account equity:opening-balances
-account equity:adjustments
 
 ; ====================================================================
 ; INCOME — inflows of money (salary, business, interest)

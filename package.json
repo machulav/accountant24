@@ -34,7 +34,12 @@
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.63.1",
+    "@napi-rs/canvas": "^0.1.97",
     "diff": "^8.0.4",
+    "file-type": "^22.0.0",
+    "pdfjs-dist": "5.4.296",
+    "tesseract.js": "^7.0.0",
+    "unpdf": "^1.4.0",
     "zod": "^3.24.0"
   },
   "overrides": {

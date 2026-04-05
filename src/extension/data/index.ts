@@ -1,4 +1,5 @@
 export { type BriefingData, fetchBriefingData } from "./briefing";
+export { type ExtractFileResult, extractFile } from "./file-extract";
 export {
   type AddTransactionResult,
   addTransaction,

@@ -8,6 +8,7 @@ mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
+  FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
 }));
 

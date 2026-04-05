@@ -8,7 +8,7 @@ import { autoCommitAndPush } from "./git";
 import { createBriefingFactory } from "./headers/briefing/briefing";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
-import { addTransactionTool, queryTool, updateMemoryTool, validateTool } from "./tools";
+import { addTransactionTool, extractTextTool, queryTool, updateMemoryTool, validateTool } from "./tools";
 import { registerBuiltinOverrides } from "./tools/builtin-overrides";
 
 const CURRENCY_FRAMES = ["$", "€", "£", "¥", "₴"];
@@ -26,6 +26,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   // Register custom tools
   pi.registerTool(queryTool);
   pi.registerTool(addTransactionTool);
+  pi.registerTool(extractTextTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
 

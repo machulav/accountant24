@@ -59,6 +59,11 @@ describe("ensureScaffolded()", () => {
     expect(existsSync(join(BASE, "sessions"))).toBe(true);
   });
 
+  test("should create files directory", async () => {
+    await ensureScaffolded();
+    expect(existsSync(join(BASE, "files"))).toBe(true);
+  });
+
   test("should write main.journal with header and include directive", async () => {
     await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
