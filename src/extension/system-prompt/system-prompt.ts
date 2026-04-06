@@ -39,8 +39,8 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
 
   parts.push(
     ctx.payees.length > 0
-      ? `\n<known-payees>\nAll known payees:\n${ctx.payees.join("\n")}\n</known-payees>`
-      : `\n<known-payees>\nNo payees found.\n</known-payees>`,
+      ? `\n<payees>\nAll known payees:\n${ctx.payees.join("\n")}\n</payees>`
+      : `\n<payees>\nNo payees found.\n</payees>`,
   );
 
   parts.push(

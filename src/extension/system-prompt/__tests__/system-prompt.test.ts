@@ -54,11 +54,11 @@ test("empty context includes accounts section with fallback message", () => {
   expect(prompt).toContain("</accounts>");
 });
 
-test("empty context includes known-payees section with fallback message", () => {
+test("empty context includes payees section with fallback message", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<known-payees>");
+  expect(prompt).toContain("<payees>");
   expect(prompt).toContain("No payees found.");
-  expect(prompt).toContain("</known-payees>");
+  expect(prompt).toContain("</payees>");
 });
 
 test("empty context includes tags section with fallback message", () => {
@@ -86,12 +86,12 @@ test("populated context includes accounts", () => {
   expect(prompt).toContain("</accounts>");
 });
 
-test("populated context includes known payees", () => {
+test("populated context includes payees", () => {
   const prompt = getSystemPrompt(populated);
-  expect(prompt).toContain("<known-payees>");
+  expect(prompt).toContain("<payees>");
   expect(prompt).toContain("Whole Foods");
   expect(prompt).toContain("Starbucks");
-  expect(prompt).toContain("</known-payees>");
+  expect(prompt).toContain("</payees>");
 });
 
 test("populated context includes tags", () => {
@@ -218,7 +218,7 @@ describe("buildSystemPrompt()", () => {
     mockPayees = ["Whole Foods", "Amazon"];
     mockTags = [];
     const prompt = await buildSystemPrompt();
-    expect(prompt).toContain("<known-payees>");
+    expect(prompt).toContain("<payees>");
     expect(prompt).toContain("Whole Foods");
   });
 

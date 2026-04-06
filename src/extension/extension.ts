@@ -2,7 +2,7 @@ import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete";
-import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
+import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
 import { createBriefingFactory } from "./headers/briefing/briefing";
 import { registerInfoMessageRenderer } from "./message-renderers";
@@ -41,6 +41,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   accountsCommand(pi);
   payeesCommand(pi);
   tagsCommand(pi);
+  memoryCommand(pi);
 
   // Register custom message renderers
   registerInfoMessageRenderer(pi);
