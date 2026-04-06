@@ -2,10 +2,10 @@ import { afterAll, afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { autoCommitAndPush } from "../auto-commit";
+import { commitAndPush } from "../commit-push";
 import { commitAll, gitInit, hasChanges } from "../git";
 
-const BASE = mkdtempSync(join(tmpdir(), "accountant24-autocommit-"));
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-commitpush-"));
 const origSpawn = Bun.spawn;
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
@@ -24,45 +24,50 @@ async function initRepo(dir: string): Promise<void> {
   await spawn(["config", "user.name", "Test"]);
 }
 
-describe("autoCommitAndPush()", () => {
-  test("should commit changes with diff-based message", async () => {
+describe("commitAndPush()", () => {
+  test("should commit with the provided message", async () => {
     const dir = freshDir();
     await initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Add file.txt for testing", dir);
 
+    expect(result.status).toBe("committed");
+    expect(result.commitMessage).toBe("Add file.txt for testing");
+    expect(result.committedFiles).toEqual(["file.txt"]);
+    expect(result.pushed).toBe(false);
     expect(await hasChanges(dir)).toBe(false);
+
     const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
     const log = await new Response(proc.stdout).text();
-    expect(log).toContain("Update file.txt");
+    expect(log).toContain("Add file.txt for testing");
   });
 
-  test("should include multiple file names in message", async () => {
+  test("should return multiple committed files", async () => {
     const dir = freshDir();
     await initRepo(dir);
     writeFileSync(join(dir, "a.txt"), "a");
     writeFileSync(join(dir, "b.txt"), "b");
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Add a and b files", dir);
 
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
-    expect(log).toContain("a.txt");
-    expect(log).toContain("b.txt");
+    expect(result.status).toBe("committed");
+    expect(result.committedFiles).toContain("a.txt");
+    expect(result.committedFiles).toContain("b.txt");
   });
 
-  test("should do nothing when there are no changes", async () => {
+  test("should return no_changes when there are no changes", async () => {
     const dir = freshDir();
     await initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
     await commitAll(dir, "initial");
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Should not commit", dir);
 
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
-    expect(log).toContain("initial");
+    expect(result.status).toBe("no_changes");
+    expect(result.committedFiles).toEqual([]);
+    expect(result.commitMessage).toBe("");
+    expect(result.pushed).toBe(false);
   });
 
   test("should push when remotes are configured", async () => {
@@ -78,14 +83,17 @@ describe("autoCommitAndPush()", () => {
     }).exited;
 
     writeFileSync(join(dir, "file.txt"), "content");
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Push test", dir);
+
+    expect(result.status).toBe("committed");
+    expect(result.pushed).toBe(true);
 
     const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: bareDir, stdout: "pipe" });
     const log = await new Response(proc.stdout).text();
-    expect(log).toContain("Update file.txt");
+    expect(log).toContain("Push test");
   });
 
-  test("should not commit when only session files changed", async () => {
+  test("should return no_changes when only session files changed", async () => {
     const dir = freshDir();
     await initRepo(dir);
     writeFileSync(join(dir, "init.txt"), "init");
@@ -94,14 +102,11 @@ describe("autoCommitAndPush()", () => {
     mkdirSync(join(dir, "sessions"), { recursive: true });
     writeFileSync(join(dir, "sessions", "abc.json"), '{"messages":[]}');
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Should not commit sessions only", dir);
 
-    // Should still have uncommitted session changes
-    const proc = Bun.spawn(["git", "log", "--oneline"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
-    const lines = log.trim().split("\n");
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain("initial");
+    expect(result.status).toBe("no_changes");
+    expect(result.committedFiles).toEqual([]);
+    expect(result.pushed).toBe(false);
   });
 
   test("should commit session files along with meaningful changes", async () => {
@@ -112,9 +117,13 @@ describe("autoCommitAndPush()", () => {
     writeFileSync(join(dir, "sessions", "abc.json"), '{"messages":[]}');
     writeFileSync(join(dir, "memory.md"), "updated memory");
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Update memory", dir);
 
+    expect(result.status).toBe("committed");
+    expect(result.committedFiles).toEqual(["memory.md"]);
+    expect(result.committedFiles).not.toContain("sessions/abc.json");
     expect(await hasChanges(dir)).toBe(false);
+
     // Both files should be committed
     const proc = Bun.spawn(["git", "show", "--name-only", "--format="], { cwd: dir, stdout: "pipe" });
     const show = await new Response(proc.stdout).text();
@@ -122,20 +131,23 @@ describe("autoCommitAndPush()", () => {
     expect(show).toContain("memory.md");
   });
 
-  test("should not include session files in commit message", async () => {
+  test("should exclude all session files from committedFiles", async () => {
     const dir = freshDir();
     await initRepo(dir);
 
     mkdirSync(join(dir, "sessions"), { recursive: true });
-    writeFileSync(join(dir, "sessions", "abc.json"), '{"messages":[]}');
-    writeFileSync(join(dir, "ledger.journal"), "2025-03-30 Groceries");
+    writeFileSync(join(dir, "sessions", "s1.json"), "{}");
+    writeFileSync(join(dir, "sessions", "s2.json"), "{}");
+    writeFileSync(join(dir, "ledger.journal"), "2025-01-01 * Test");
+    writeFileSync(join(dir, "memory.md"), "notes");
 
-    await autoCommitAndPush(dir);
+    const result = await commitAndPush("Mixed changes", dir);
 
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
-    expect(log).toContain("ledger.journal");
-    expect(log).not.toContain("sessions");
+    expect(result.status).toBe("committed");
+    expect(result.committedFiles).toContain("ledger.journal");
+    expect(result.committedFiles).toContain("memory.md");
+    expect(result.committedFiles.every((f: string) => !f.startsWith("sessions/"))).toBe(true);
+    expect(await hasChanges(dir)).toBe(false);
   });
 
   test("should silently fail when git is not installed", async () => {
@@ -146,6 +158,11 @@ describe("autoCommitAndPush()", () => {
       throw err;
     }) as unknown as typeof Bun.spawn;
 
-    await expect(autoCommitAndPush(dir)).resolves.toBeUndefined();
+    await expect(commitAndPush("Should not crash", dir)).resolves.toEqual({
+      status: "no_changes",
+      committedFiles: [],
+      commitMessage: "",
+      pushed: false,
+    });
   });
 });

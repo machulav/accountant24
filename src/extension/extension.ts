@@ -4,11 +4,17 @@ import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
-import { autoCommitAndPush } from "./git";
 import { createBriefingFactory } from "./headers/briefing/briefing";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
-import { addTransactionTool, extractTextTool, queryTool, updateMemoryTool, validateTool } from "./tools";
+import {
+  addTransactionTool,
+  commitAndPushTool,
+  extractTextTool,
+  queryTool,
+  updateMemoryTool,
+  validateTool,
+} from "./tools";
 import { registerBuiltinOverrides } from "./tools/builtin-overrides";
 
 const CURRENCY_FRAMES = ["$", "€", "£", "¥", "₴"];
@@ -26,6 +32,7 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
   // Register custom tools
   pi.registerTool(queryTool);
   pi.registerTool(addTransactionTool);
+  pi.registerTool(commitAndPushTool);
   pi.registerTool(extractTextTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
@@ -97,10 +104,5 @@ export const accountant24Extension: ExtensionFactory = (pi) => {
     }
 
     return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
-  });
-
-  // Auto-commit and push changes after each agent turn
-  pi.on("agent_end", async () => {
-    await autoCommitAndPush();
   });
 };

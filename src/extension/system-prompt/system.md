@@ -52,6 +52,9 @@ Available report types: bal (balances/totals), reg/aregister (transaction histor
 
 FILE INTEGRITY:
 Journal files must be validated after any modification. The edit tool must be used for journal modifications, never bash.
+
+VERSION CONTROL:
+Call commit_and_push after completing meaningful changes with a descriptive commit message. Do not commit after every single tool call — batch related changes into one commit.
 </tool-strategy>
 
 <examples>

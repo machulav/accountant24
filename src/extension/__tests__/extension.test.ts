@@ -57,19 +57,18 @@ describe("Loader currency animation", () => {
 });
 
 describe("accountant24Extension()", () => {
-  test("should register 12 tools (7 built-in overrides + 5 custom)", () => {
+  test("should register 13 tools (7 built-in overrides + 6 custom)", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.registerTool).toHaveBeenCalledTimes(12);
+    expect(pi.registerTool).toHaveBeenCalledTimes(13);
   });
 
-  test("should register session_start, before_agent_start, and agent_end handlers", () => {
+  test("should register session_start and before_agent_start handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(3);
+    expect(pi.on).toHaveBeenCalledTimes(2);
     expect(pi.handlers.session_start).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
-    expect(pi.handlers.agent_end).toBeDefined();
   });
 });
 
