@@ -8,6 +8,7 @@ import {
   createReadTool,
   createWriteTool,
 } from "@mariozechner/pi-coding-agent";
+import { ACCOUNTANT24_HOME } from "../config";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 function textContent(result: { content: Array<{ type: string; text?: string }> }): string {
@@ -15,7 +16,7 @@ function textContent(result: { content: Array<{ type: string; text?: string }> }
 }
 
 export function registerBuiltinOverrides(pi: ExtensionAPI): void {
-  const cwd = process.cwd();
+  const cwd = ACCOUNTANT24_HOME;
 
   // ── Read ──────────────────────────────────────────────────────────
   const originalRead = createReadTool(cwd);
