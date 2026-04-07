@@ -8,7 +8,13 @@ const BASE = mkdtempSync(join(tmpdir(), "accountant24-ext-"));
 
 // No mock.module calls — use real modules to avoid mock leaks.
 // Extension tests work with real modules + temp filesystem via setBaseDir.
-const { accountant24Extension } = await import("../extension.js");
+const { createExtension } = await import("../extension.js");
+
+const mockSettingsManager = {
+  getAutocompleteMaxVisible: () => 5,
+  getEditorPaddingX: () => 0,
+} as any;
+const accountant24Extension = createExtension(mockSettingsManager);
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 

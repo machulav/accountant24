@@ -1,4 +1,4 @@
-import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
+import type { ExtensionFactory, SettingsManager } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete";
@@ -25,85 +25,94 @@ LoaderProto.updateDisplay = function (this: Record<string, any>) {
   this.ui?.requestRender();
 };
 
-export const accountant24Extension: ExtensionFactory = (pi) => {
-  // Override built-in tools with custom rendering
-  registerBuiltinOverrides(pi);
+export function createExtension(settingsManager: SettingsManager): ExtensionFactory {
+  return (pi) => {
+    // Override built-in tools with custom rendering
+    registerBuiltinOverrides(pi);
 
-  // Register custom tools
-  pi.registerTool(queryTool);
-  pi.registerTool(addTransactionTool);
-  pi.registerTool(commitAndPushTool);
-  pi.registerTool(extractTextTool);
-  pi.registerTool(validateTool);
-  pi.registerTool(updateMemoryTool);
+    // Register custom tools
+    pi.registerTool(queryTool);
+    pi.registerTool(addTransactionTool);
+    pi.registerTool(commitAndPushTool);
+    pi.registerTool(extractTextTool);
+    pi.registerTool(validateTool);
+    pi.registerTool(updateMemoryTool);
 
-  // Register custom slash commands
-  accountsCommand(pi);
-  payeesCommand(pi);
-  tagsCommand(pi);
-  memoryCommand(pi);
+    // Register custom slash commands
+    accountsCommand(pi);
+    payeesCommand(pi);
+    tagsCommand(pi);
+    memoryCommand(pi);
 
-  // Register custom message renderers
-  registerInfoMessageRenderer(pi);
+    // Register custom message renderers
+    registerInfoMessageRenderer(pi);
 
-  // Shared autocomplete provider — updated with fresh data before each agent turn
-  const autocomplete = new AccountantAutocompleteProvider([]);
+    // Shared autocomplete provider — updated with fresh data before each agent turn
+    const autocomplete = new AccountantAutocompleteProvider([]);
 
-  // Scaffold workspace + set up UI on session start
-  pi.on("session_start", async (_event, ctx) => {
-    await ensureScaffolded();
+    // Scaffold workspace + set up UI on session start
+    pi.on("session_start", async (_event, ctx) => {
+      await ensureScaffolded();
 
-    if (ctx.hasUI) {
-      ctx.ui.setTitle("Accountant24");
-      ctx.ui.setHeader(createBriefingFactory());
-      ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
+      if (ctx.hasUI) {
+        ctx.ui.setTitle("Accountant24");
+        ctx.ui.setHeader(createBriefingFactory());
+        ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
 
-      // Built-in commands (not exported by pi-coding-agent)
-      const BUILTIN_COMMANDS = [
-        { name: "settings", description: "Open settings menu" },
-        { name: "model", description: "Select model" },
-        { name: "session", description: "Show session info and stats" },
-        { name: "hotkeys", description: "Show all keyboard shortcuts" },
-        { name: "login", description: "Login with OAuth provider" },
-        { name: "logout", description: "Logout from OAuth provider" },
-        { name: "new", description: "Start a new session" },
-        { name: "resume", description: "Resume a different session" },
-        { name: "quit", description: "Quit Accountant24" },
-      ];
-      const extensionCommands = pi.getCommands().map((cmd) => ({
-        name: cmd.name,
-        description: cmd.description,
-      }));
-      const slashCommands = [...BUILTIN_COMMANDS, ...extensionCommands];
-      autocomplete.setCommands(slashCommands);
+        // Built-in commands (not exported by pi-coding-agent)
+        const BUILTIN_COMMANDS = [
+          { name: "new", description: "Start a new session" },
+          { name: "resume", description: "Resume a different session" },
+          { name: "model", description: "Select model" },
+          { name: "login", description: "Login with OAuth provider" },
+          { name: "logout", description: "Logout from OAuth provider" },
+          { name: "session", description: "Show session info and stats" },
+          { name: "hotkeys", description: "Show all keyboard shortcuts" },
+          { name: "quit", description: "Quit Accountant24" },
+        ];
+        const extensionCommands = pi.getCommands().map((cmd) => ({
+          name: cmd.name,
+          description: cmd.description,
+        }));
+        const slashCommands = [...BUILTIN_COMMANDS, ...extensionCommands];
+        autocomplete.setCommands(slashCommands);
 
-      // Prevent the framework from overwriting our autocomplete provider
-      // after the editor component factory runs.
-      ctx.ui.setEditorComponent((tui, theme, keybindings) => {
-        const editor = new CustomEditor(tui, theme, keybindings);
-        editor.setAutocompleteProvider(autocomplete);
-        editor.setAutocompleteProvider = () => {}; // prevent overwrite
-        return editor;
-      });
+        // Prevent the framework from overwriting our autocomplete provider
+        // after the editor component factory runs.
+        ctx.ui.setEditorComponent((tui, theme, keybindings) => {
+          const editor = new CustomEditor(tui, theme, keybindings, {
+            autocompleteMaxVisible: settingsManager.getAutocompleteMaxVisible(),
+            paddingX: settingsManager.getEditorPaddingX(),
+          });
+          editor.setAutocompleteProvider(autocomplete);
+          editor.setAutocompleteProvider = () => {}; // prevent overwrite
+          return editor;
+        });
 
-      // Load initial data
-      const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
+        // Load initial data
+        const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
+        autocomplete.setData(accounts, payees, tags);
+      }
+    });
+
+    // Inject dynamic context into system prompt before each agent turn
+    // Also refresh autocomplete data with latest payees/accounts
+    pi.on("before_agent_start", async (_event, ctx) => {
+      const today = new Date().toISOString().split("T")[0];
+      const [memory, accounts, payees, tags] = await Promise.all([
+        getMemory(),
+        listAccounts(),
+        listPayees(),
+        listTags(),
+      ]);
+
       autocomplete.setData(accounts, payees, tags);
-    }
-  });
 
-  // Inject dynamic context into system prompt before each agent turn
-  // Also refresh autocomplete data with latest payees/accounts
-  pi.on("before_agent_start", async (_event, ctx) => {
-    const today = new Date().toISOString().split("T")[0];
-    const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
+      if (ctx.hasUI) {
+        ctx.ui.setWorkingMessage("Crunching the numbers...");
+      }
 
-    autocomplete.setData(accounts, payees, tags);
-
-    if (ctx.hasUI) {
-      ctx.ui.setWorkingMessage("Crunching the numbers...");
-    }
-
-    return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
-  });
-};
+      return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
+    });
+  };
+}

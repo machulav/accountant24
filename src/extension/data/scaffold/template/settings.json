@@ -1,3 +1,10 @@
 {
-  "hideThinkingBlock": true
+  "enabledModels": [
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "openai/gpt-5.4",
+    "openai/gpt-5.4-mini",
+    "gemma4:31b",
+    "gemma4:26b"
+  ]
 }

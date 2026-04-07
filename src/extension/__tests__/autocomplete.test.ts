@@ -79,12 +79,12 @@ describe("AccountantAutocompleteProvider", () => {
       expect(result).toBeNull();
     });
 
-    test("should limit to 20 results", async () => {
-      const accounts = Array.from({ length: 25 }, (_, i) => `account${i}`);
+    test("should return all results (display limit handled by editor)", async () => {
+      const accounts = Array.from({ length: 60 }, (_, i) => `account${i}`);
       const provider = makeProvider(accounts, []);
       const result = await provider.getSuggestions(["@"], 0, 1);
       expect(result).not.toBeNull();
-      expect(result?.items).toHaveLength(20);
+      expect(result?.items).toHaveLength(60);
     });
 
     test("should detect @ after space delimiter", async () => {

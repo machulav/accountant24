@@ -2,7 +2,6 @@ import type { AutocompleteItem, AutocompleteProvider, SlashCommand } from "@mari
 import { fuzzyFilter } from "@mariozechner/pi-tui";
 
 const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
-const MAX_SUGGESTIONS = 20;
 
 export class AccountantAutocompleteProvider implements AutocompleteProvider {
   private commands: SlashCommand[];
@@ -39,7 +38,7 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
       ];
       const filtered = query ? fuzzyFilter(items, query, (item) => item.label) : items;
       if (filtered.length === 0) return null;
-      return { items: filtered.slice(0, MAX_SUGGESTIONS), prefix: atPrefix };
+      return { items: filtered, prefix: atPrefix };
     }
 
     // / trigger: slash commands
