@@ -26,7 +26,73 @@
   "commitlint": {
     "extends": [
       "@commitlint/config-conventional"
-    ]
+    ],
+    "rules": {
+      "header-max-length": [
+        2,
+        "always",
+        72
+      ],
+      "body-max-line-length": [
+        1,
+        "always",
+        100
+      ],
+      "scope-enum": [
+        2,
+        "always",
+        [
+          "tools",
+          "commands",
+          "skills"
+        ]
+      ]
+    }
+  },
+  "changelog": {
+    "repo": "machulav/accountant24",
+    "noAuthors": true,
+    "types": {
+      "feat": {
+        "title": "🚀 Features",
+        "semver": "minor"
+      },
+      "fix": {
+        "title": "🐞 Bug Fixes",
+        "semver": "patch"
+      },
+      "perf": {
+        "title": "⚡ Performance",
+        "semver": "patch"
+      },
+      "refactor": {
+        "title": "♻️ Refactors",
+        "semver": "patch"
+      },
+      "revert": {
+        "title": "⏪ Reverts",
+        "semver": "patch"
+      },
+      "build": {
+        "title": "📦 Build",
+        "semver": "patch"
+      },
+      "docs": {
+        "title": "📖 Documentation"
+      },
+      "chore": {
+        "title": "🏡 Chore"
+      },
+      "test": {
+        "title": "✅ Tests"
+      },
+      "style": {
+        "title": "🎨 Styles"
+      },
+      "ci": {
+        "title": "🤖 CI"
+      }
+    }
   },
   "piConfig": {
     "name": "accountant24",
