@@ -67,7 +67,7 @@ describe("ensureScaffolded()", () => {
   test("should write main.journal with header and include directive", async () => {
     await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
-    expect(content).toContain("; Accountant24");
+    expect(content).toContain("# Accountant24");
     expect(content).toContain("include accounts.journal");
   });
 
