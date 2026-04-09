@@ -46,13 +46,13 @@ The agent queries your ledger and gives you a formatted answer.
 
 Tell the agent your preferences, recurring expenses, categorization rules, and financial goals. It remembers across sessions and uses this context to make better decisions.
 
-### Shortcuts
+### Use shortcuts
 
 Type `@` to search and insert accounts, payees, or tags inline. Use `/accounts`, `/payees`, `/tags`, `/memory`, and other slash commands for quick actions.
 
-### Git-versioned finances
+### Track every change
 
-Every change is auto-committed to a local git repo. Your financial history gets the same version control as your code. Push to a private repo for backup.
+Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.
 
 ## How it compares
 
@@ -112,7 +112,7 @@ Want your financial data to never leave your machine? Run a local model with [Ol
 
 LLMs are great at understanding natural language. But they hallucinate numbers and can't do accounting on their own.
 
-[pi](https://github.com/badlogic/pi-mono) by [Mario Zechner](https://github.com/badlogic) is the agent framework that ties everything together — handling session management, tool execution, and LLM communication.
+[pi](https://github.com/badlogic/pi-mono) is the agent framework that ties everything together — handling session management, tool execution, and LLM communication.
 
 Put together, they're a perfect match. You speak naturally. The agent translates your words into proper accounting entries. hledger ensures everything balances. You get the rigor of real accounting without the friction.
 
