@@ -10,7 +10,7 @@ So I started experimenting with hledger inside OpenClaw — built a few skills a
 
 That's when I decided to pack everything into a standalone, local-first agent: Accountant24.
 
-I now use it daily — and I'm honestly surprised how enjoyable managing a personal finances can be with a specialized agent.
+I use it every day now — and it's better than I expected.
 
 ## Principles
 
@@ -40,11 +40,11 @@ The agent queries your ledger and gives you a formatted answer.
 
 ### Set rules and facts
 
-> "Remember that my salary is $5,000/month and arrives on the 15th"
+> "I'm visiting Italy from April 10th to 15th. Tag all transactions during this period with the 'trip_italy' tag."
 
 > "My food budget is $600/month"
 
-Tell the agent your preferences, recurring expenses, categorization rules, and financial goals. It remembers across sessions and uses this context to make better decisions.
+The agent remembers what you tell it and uses it to make better decisions.
 
 ### Use shortcuts
 
@@ -108,7 +108,7 @@ Want your financial data to never leave your machine? Run a local model with [Ol
 
 ## Why hledger + LLM + pi
 
-[hledger](https://hledger.org) is a powerful accounting engine with proper double-entry bookkeeping. It's actively developed — [v2 is currently in preview](https://github.com/simonmichael/hledger/releases/tag/1.99.1), introducing automated lot tracking and capital gains calculation for investment accounts. But hledger has a learning curve: journal syntax, report commands, filter expressions.
+[hledger](https://hledger.org) is a powerful accounting engine with proper double-entry bookkeeping. It's actively developed — [v2](https://github.com/simonmichael/hledger/releases/tag/1.99.1) is currently in preview, introducing automated lot tracking and capital gains calculation for investment accounts. But hledger has a learning curve: journal syntax, report commands, filter expressions.
 
 LLMs are great at understanding natural language. But they hallucinate numbers and can't do accounting on their own.
 
