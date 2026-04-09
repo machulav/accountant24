@@ -3,26 +3,26 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR, MEMORY_PATH, setBaseDir } from "../config";
 
-const originalHome = join(homedir(), "accountant24");
+const originalHome = join(homedir(), "Accountant24");
 
 afterEach(() => {
   setBaseDir(originalHome);
 });
 
 describe("config defaults", () => {
-  test("should set ACCOUNTANT24_HOME to ~/accountant24", () => {
+  test("should set ACCOUNTANT24_HOME to ~/Accountant24", () => {
     setBaseDir(originalHome);
-    expect(ACCOUNTANT24_HOME).toBe(join(homedir(), "accountant24"));
+    expect(ACCOUNTANT24_HOME).toBe(join(homedir(), "Accountant24"));
   });
 
-  test("should set MEMORY_PATH to ~/accountant24/memory.md", () => {
+  test("should set MEMORY_PATH to ~/Accountant24/memory.md", () => {
     setBaseDir(originalHome);
-    expect(MEMORY_PATH).toBe(join(homedir(), "accountant24", "memory.md"));
+    expect(MEMORY_PATH).toBe(join(homedir(), "Accountant24", "memory.md"));
   });
 
-  test("should set LEDGER_DIR to ~/accountant24/ledger", () => {
+  test("should set LEDGER_DIR to ~/Accountant24/ledger", () => {
     setBaseDir(originalHome);
-    expect(LEDGER_DIR).toBe(join(homedir(), "accountant24", "ledger"));
+    expect(LEDGER_DIR).toBe(join(homedir(), "Accountant24", "ledger"));
   });
 });
 
