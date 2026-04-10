@@ -14,7 +14,7 @@ If it works this well for me, maybe it'll work for you too. That's why I'm relea
 
 ## Philosophy
 
-Financial data is some of the most personal stuff you have. It deserves a tool that respects that — one that keeps your data yours, gives you the rigor of real accounting without the pain of learning a DSL, and adapts to your life instead of forcing you into a template. Every other decision in Accountant24 flows from that.
+Financial data is some of the most personal stuff you have. It deserves a tool that respects that — one that keeps your data yours, gives you the rigor of real accounting without the pain of learning a domain-specific language, and adapts to your life instead of forcing you into a template. Every other decision in Accountant24 flows from that.
 
 ## What you can do
 
