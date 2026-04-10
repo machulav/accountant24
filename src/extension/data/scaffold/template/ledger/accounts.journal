@@ -1,21 +1,21 @@
-; Default chart of accounts for accountant24
-;
-; Account types:
-;   ASSETS       — things you own (bank accounts, cash, investments)
-;   LIABILITIES  — things you owe (credit cards, loans, mortgages)
-;   EQUITY       — owner's investment, balances assets and liabilities
-;   INCOME       — inflows of money (salary, business, interest)
-;   EXPENSES     — outflows of money (rent, groceries, subscriptions)
+# Default chart of accounts for accountant24
+#
+# Account types:
+#   ASSETS       — things you own (bank accounts, cash, investments)
+#   LIABILITIES  — things you owe (credit cards, loans, mortgages)
+#   EQUITY       — owner's investment, balances assets and liabilities
+#   INCOME       — inflows of money (salary, business, interest)
+#   EXPENSES     — outflows of money (rent, groceries, subscriptions)
 
-; ====================================================================
-; ASSETS — things you own (bank accounts, cash, investments)
-; ====================================================================
+# ====================================================================
+# ASSETS — things you own (bank accounts, cash, investments)
+# ====================================================================
 
 account assets:cash
 
-; ====================================================================
-; LIABILITIES — things you owe (credit cards, loans, mortgages)
-; ====================================================================
+# ====================================================================
+# LIABILITIES — things you owe (credit cards, loans, mortgages)
+# ====================================================================
 
 account liabilities:credit-card
 account liabilities:mortgage
@@ -23,15 +23,15 @@ account liabilities:car-loan
 account liabilities:student-loan
 account liabilities:loan
 
-; ====================================================================
-; EQUITY — owner's investment, balances assets and liabilities
-; ====================================================================
+# ====================================================================
+# EQUITY — owner's investment, balances assets and liabilities
+# ====================================================================
 
 account equity:opening-balances
 
-; ====================================================================
-; INCOME — inflows of money (salary, business, interest)
-; ====================================================================
+# ====================================================================
+# INCOME — inflows of money (salary, business, interest)
+# ====================================================================
 
 account income:salary
 account income:business
@@ -43,9 +43,9 @@ account income:government-benefits
 account income:tax-refund
 account income:other
 
-; ====================================================================
-; EXPENSES — outflows of money (rent, groceries, subscriptions)
-; ====================================================================
+# ====================================================================
+# EXPENSES — outflows of money (rent, groceries, subscriptions)
+# ====================================================================
 
 account expenses:housing:rent
 account expenses:housing:insurance
