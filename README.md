@@ -8,7 +8,7 @@ For years, I managed my personal finances with YNAB. It worked — but every tra
 
 One weekend I started playing with hledger and Claude Code, just to see if an agent could handle the bookkeeping for me. I wrote a couple of small skills, and to my surprise, it actually worked — and it was genuinely fun to use.
 
-So I kept going. I packed everything into a standalone agent built on pi, tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
+So I kept going. I packed everything into a standalone agent, tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
 
 If it works this well for me, maybe it'll work for you too. That's why I'm releasing it as an open source project.
 
@@ -66,7 +66,9 @@ Every modification is auto-committed to a local git repo. Review your history an
 | Memory          | Persistent                 | —                  | —                  | —                        |
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
-| Price           | Free                       | $110–180/yr        | Free               | Free                     |
+| Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
+| GUI             | Terminal chat              | Web + mobile       | Web + desktop      | CLI                      |
+| Price           | Free (+ LLM cost)          | $109/yr            | Free               | Free                     |
 | Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
 
 ## Quick start
@@ -87,7 +89,7 @@ npm install -g accountant24
 a24
 ```
 
-On first launch, Accountant24 creates `~/.accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+On first launch, Accountant24 creates `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
 
 ### Log in & pick a model
 
