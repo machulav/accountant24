@@ -1,18 +1,23 @@
-import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-validate-"));
+const LEDGER = join(BASE, "ledger");
 
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
-  LEDGER_DIR: join(BASE, "ledger"),
+  LEDGER_DIR: LEDGER,
+  FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
 }));
 
-// Mock at Bun.spawn level so real hledger.ts functions execute for coverage
+// Mock at Bun.spawn level. Dispatch on argv: `hledger files` returns the set
+// of .journal files in the test LEDGER dir (simulating hledger's include-
+// graph resolution); anything else (primarily `hledger check`) returns the
+// configurable mock result.
 const origSpawn = Bun.spawn;
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
@@ -24,7 +29,32 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   };
 }
 
-let mockProc: ReturnType<typeof makeMockProc>;
+// Walk LEDGER and return every .journal file: top-level files + monthly
+// files under YYYY/MM.journal.
+function collectLedgerJournalFiles(): string[] {
+  if (!existsSync(LEDGER)) return [];
+  const result: string[] = [];
+  for (const entry of readdirSync(LEDGER, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".journal")) {
+      result.push(join(LEDGER, entry.name));
+    } else if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
+      for (const f of readdirSync(join(LEDGER, entry.name))) {
+        if (/^\d{2}\.journal$/.test(f)) result.push(join(LEDGER, entry.name, f));
+      }
+    }
+  }
+  return result.sort();
+}
+
+let mockExitCode: number;
+let mockStdout: string;
+let mockStderr: string;
+
+const setMock = (exit: number, stdout = "", stderr = "") => {
+  mockExitCode = exit;
+  mockStdout = stdout;
+  mockStderr = stderr;
+};
 
 const { validateTool } = await import("../validate.js");
 
@@ -34,9 +64,18 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  mockProc = makeMockProc(0);
+  setMock(0);
   // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => mockProc);
+  Bun.spawn = mock((argv: string[]) => {
+    if (argv.includes("files")) {
+      const list = collectLedgerJournalFiles().join("\n");
+      return makeMockProc(0, list.length > 0 ? `${list}\n` : "");
+    }
+    return makeMockProc(mockExitCode, mockStdout, mockStderr);
+  });
+  // Clean and recreate ledger dir per test
+  rmSync(LEDGER, { recursive: true, force: true });
+  mkdirSync(LEDGER, { recursive: true });
 });
 
 afterEach(() => {
@@ -47,18 +86,18 @@ const run = (params: any) =>
   validateTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 test("throws when hledger not found", async () => {
-  mockProc = makeMockProc(127);
+  setMock(127);
   await expect(run({})).rejects.toThrow("hledger not found");
 });
 
 test("returns valid result on success", async () => {
-  mockProc = makeMockProc(0);
+  setMock(0);
   const result = await run({});
   expect(result.details.ledgerIsValid).toBe(true);
 });
 
 test("throws on validation failure", async () => {
-  mockProc = makeMockProc(1, "", "hledger: Error: account not declared");
+  setMock(1, "", "hledger: Error: account not declared");
   await expect(run({})).rejects.toThrow("account not declared");
 });
 
@@ -67,4 +106,146 @@ test("re-throws unexpected errors", async () => {
     throw new TypeError("unexpected");
   });
   await expect(run({})).rejects.toThrow("unexpected");
+});
+
+// ── beautification ─────────────────────────────────────────────────
+
+describe("beautification", () => {
+  test("should sort and align each monthly file after hledger check succeeds", async () => {
+    mkdirSync(join(LEDGER, "2025"), { recursive: true });
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    // Out-of-order, misaligned in 2025/12.journal
+    writeFileSync(
+      join(LEDGER, "2025", "12.journal"),
+      [
+        "2025-12-28 * Later",
+        "    Expenses:Misc  10.00 USD",
+        "    Assets:Checking",
+        "",
+        "2025-12-01 * Earlier",
+        "    Expenses:Misc  5.00 USD",
+        "    Assets:Checking",
+      ].join("\n") + "\n",
+    );
+    // Simple file in 2026/01.journal
+    writeFileSync(
+      join(LEDGER, "2026", "01.journal"),
+      "2026-01-01 * Tx\n    Expenses:Food  5.00 USD\n    Assets:Checking\n",
+    );
+
+    await run({});
+
+    const dec = readFileSync(join(LEDGER, "2025", "12.journal"), "utf-8");
+    // Sorted: Earlier before Later
+    expect(dec.indexOf("Earlier")).toBeLessThan(dec.indexOf("Later"));
+    // Aligned to MIN_AMOUNT_COLUMN=70: Expenses:Misc (13) at indent 4 →
+    // padding = 70 - 4 - 13 = 53 spaces
+    expect(dec).toContain(`    Expenses:Misc${" ".repeat(53)}5.00 USD`);
+    expect(dec).toContain(`    Expenses:Misc${" ".repeat(53)}10.00 USD`);
+
+    const jan = readFileSync(join(LEDGER, "2026", "01.journal"), "utf-8");
+    // Expenses:Food (13) at indent 4 → padding = 70 - 4 - 13 = 53 spaces
+    expect(jan).toContain(`    Expenses:Food${" ".repeat(53)}5.00 USD`);
+  });
+
+  test("should not modify main.journal or accounts.journal", async () => {
+    const mainContent = "; main\ninclude 2026/01.journal\n";
+    const accountsContent = "account Assets:Checking\n";
+    writeFileSync(join(LEDGER, "main.journal"), mainContent);
+    writeFileSync(join(LEDGER, "accounts.journal"), accountsContent);
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    writeFileSync(
+      join(LEDGER, "2026", "01.journal"),
+      "2026-01-01 * Tx\n    Expenses:Misc    1.00 USD\n    Assets:Checking\n",
+    );
+
+    await run({});
+
+    expect(readFileSync(join(LEDGER, "main.journal"), "utf-8")).toBe(mainContent);
+    expect(readFileSync(join(LEDGER, "accounts.journal"), "utf-8")).toBe(accountsContent);
+  });
+
+  test("should skip files in non-year-named directories", async () => {
+    mkdirSync(join(LEDGER, "archive"), { recursive: true });
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    const archiveContent =
+      "2020-02-01 * Later\n    Expenses:Misc    1.00 USD\n    Assets:Checking\n\n2020-01-01 * Earlier\n    Expenses:Misc    2.00 USD\n    Assets:Checking\n";
+    writeFileSync(join(LEDGER, "archive", "01.journal"), archiveContent);
+    writeFileSync(
+      join(LEDGER, "2026", "01.journal"),
+      "2026-01-01 * New\n    Expenses:Misc    1.00 USD\n    Assets:Checking\n",
+    );
+
+    await run({});
+
+    // archive/01.journal was not touched (still has transactions in original order)
+    expect(readFileSync(join(LEDGER, "archive", "01.journal"), "utf-8")).toBe(archiveContent);
+  });
+
+  test("should skip files whose name is not two-digit month .journal", async () => {
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    const badContent =
+      "2026-02-01 * Later\n    Expenses:Misc    1.00 USD\n    Assets:Checking\n\n2026-01-01 * Earlier\n    Expenses:Misc    2.00 USD\n    Assets:Checking\n";
+    writeFileSync(join(LEDGER, "2026", "january.journal"), badContent);
+    writeFileSync(
+      join(LEDGER, "2026", "01.journal"),
+      "2026-01-02 * Tx\n    Expenses:Misc    1.00 USD\n    Assets:Checking\n",
+    );
+
+    await run({});
+
+    // january.journal was not touched (still has transactions in original order)
+    expect(readFileSync(join(LEDGER, "2026", "january.journal"), "utf-8")).toBe(badContent);
+  });
+
+  test("should leave files in their beautified form when hledger check fails", async () => {
+    // Beautify runs BEFORE hledgerCheck, so even on check failure the files
+    // on disk reflect the beautified (sorted + aligned) state.
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    const contentBefore =
+      "2026-01-28 * Later\n    Expenses:Misc  1.00 USD\n    Assets:Checking\n\n2026-01-01 * Earlier\n    Expenses:Misc  2.00 USD\n    Assets:Checking\n";
+    writeFileSync(join(LEDGER, "2026", "01.journal"), contentBefore);
+    setMock(1, "", "hledger: Error: account not declared");
+
+    await expect(run({})).rejects.toThrow("account not declared");
+
+    const after = readFileSync(join(LEDGER, "2026", "01.journal"), "utf-8");
+    // Sorted: Earlier (01) before Later (28)
+    expect(after.indexOf("Earlier")).toBeLessThan(after.indexOf("Later"));
+    // Aligned to MIN_AMOUNT_COLUMN=70: Expenses:Misc (13) at indent 4 →
+    // padding = 70 - 4 - 13 = 53 spaces
+    expect(after).toContain(`    Expenses:Misc${" ".repeat(53)}1.00 USD`);
+    expect(after).toContain(`    Expenses:Misc${" ".repeat(53)}2.00 USD`);
+  });
+
+  test("should succeed when there are no monthly files", async () => {
+    // Only non-monthly files in ledger dir
+    writeFileSync(join(LEDGER, "main.journal"), "; empty\n");
+
+    const result = await run({});
+
+    expect(result.details.ledgerIsValid).toBe(true);
+  });
+
+  test("should be idempotent: running validate twice produces identical content", async () => {
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    writeFileSync(
+      join(LEDGER, "2026", "03.journal"),
+      [
+        "2026-03-28 * Later",
+        "    Expenses:Misc  3.00 USD",
+        "    Assets:Checking",
+        "",
+        "2026-03-01 * Earlier",
+        "    Expenses:Misc  1.00 USD",
+        "    Assets:Checking",
+      ].join("\n") + "\n",
+    );
+
+    await run({});
+    const afterFirst = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    await run({});
+    const afterSecond = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(afterSecond).toBe(afterFirst);
+  });
 });
