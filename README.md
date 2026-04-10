@@ -4,21 +4,17 @@ Your personal AI accountant. Talk to it about your money — it handles the book
 
 ## Why I built this
 
-I used YNAB for years to manage my personal finances. It worked, but managing transactions manually was time-consuming, and it wasn't flexible enough.
+For years, I managed my personal finances with YNAB. It worked — but every transaction was a manual chore. I'd fall behind, dread catching up, and put it off for weeks at a time.
 
-So I started experimenting with hledger inside OpenClaw — built a few skills and tools to talk to it through the agent. It worked, but the setup quickly got chaotic, and OpenClaw felt like overkill for something this focused.
+One weekend I started playing with hledger and Claude Code, just to see if an agent could handle the bookkeeping for me. I wrote a couple of small skills, and to my surprise, it actually worked — and it was genuinely fun to use.
 
-That's when I decided to pack everything into a standalone, local-first agent: Accountant24.
+So I kept going. I packed everything into a standalone agent built on [pi](https://github.com/badlogic/pi-mono), tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
 
-I use it every day now — and it's better than I expected.
+If it works this well for me, maybe it'll work for you too. That's why I'm releasing it as an open source project.
 
-## Principles
+## Philosophy
 
-**Your finances are yours.** Plain text files on your device. No cloud, no proprietary format, no lock-in. Even the LLM can run locally on your machine — your financial information never has to leave your device.
-
-**Bookkeeping done right.** Double-entry bookkeeping — the gold standard used by accountants for centuries. Not a simplified budget tracker. Real accounting.
-
-**An AI accountant that learns.** Remembers what matters and learns as you go.
+Financial data is some of the most personal stuff you have. It deserves a tool that respects that — one that keeps your data yours, gives you the rigor of real accounting without the pain of learning a DSL, and adapts to your life instead of forcing you into a template. Every other decision in Accountant24 flows from that.
 
 ## What you can do
 
@@ -26,7 +22,15 @@ I use it every day now — and it's better than I expected.
 
 > "I spent $45 at Whole Foods yesterday"
 
-The agent figures out the details and creates a properly formatted double-entry transaction.
+The agent figures out the details and adds it to your ledger as a proper double-entry transaction.
+
+### Import from files
+
+> "Here's my March bank statement: ~/Downloads/statement-march.pdf"
+
+> "Add this receipt: ~/Desktop/receipt.jpg"
+
+Drop in a PDF bank statement, an invoice, or a photo of a paper receipt. The agent extracts the text, pulls out every transaction, and adds them to your ledger. The original file is archived in your workspace so you can refer back to it later.
 
 ### Ask questions about your money
 
@@ -36,7 +40,7 @@ The agent figures out the details and creates a properly formatted double-entry 
 
 > "Show me all transactions from my last trip to Italy"
 
-The agent queries your ledger and gives you a formatted answer.
+The agent checks your ledger and gives you a clear answer.
 
 ### Set rules and facts
 
@@ -46,26 +50,23 @@ The agent queries your ledger and gives you a formatted answer.
 
 The agent remembers what you tell it and uses it to make better decisions.
 
-### Use shortcuts
-
-Type `@` to search and insert accounts, payees, or tags inline. Use `/accounts`, `/payees`, `/tags`, `/memory`, and other slash commands for quick actions.
-
 ### Track every change
 
 Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.
 
 ## How it compares
 
-|  | Accountant24 | YNAB / Monarch | Actual Budget | hledger CLI |
-|---|---|---|---|---|
-| Data format | Plain text (hledger) | Proprietary cloud | SQLite | Plain text (hledger) |
-| Data location | Your machine | Their servers | Your machine | Your machine |
-| Input method | Natural language | Manual entry | Manual entry | Manual entry |
-| AI | Built-in, learns over time | — | — | — |
-| Memory | Persistent | — | — | — |
-| Accounting | Double-entry bookkeeping | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
-| Price | Free | $110–180/yr | Free | Free |
-| Lock-in | None (plain text) | High | Medium | None (plain text) |
+|                 | Accountant24               | YNAB / Monarch     | Actual Budget      | hledger CLI              |
+| --------------- | -------------------------- | ------------------ | ------------------ | ------------------------ |
+| Data format     | Plain text (hledger)       | Proprietary cloud  | SQLite             | Plain text (hledger)     |
+| Data location   | Your machine               | Their servers      | Your machine       | Your machine             |
+| Input method    | Natural language           | Manual entry       | Manual entry       | Manual entry             |
+| AI              | Built-in, learns over time | —                  | —                  | —                        |
+| Memory          | Persistent                 | —                  | —                  | —                        |
+| Version control | Git, built-in              | —                  | —                  | Via manual setup         |
+| Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
+| Price           | Free                       | $110–180/yr        | Free               | Free                     |
+| Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
 
 ## Quick start
 
@@ -99,37 +100,37 @@ Want your financial data to never leave your machine? Run a local model with [Ol
 2. Pull a Gemma 4 model:
 
    ```bash
-   ollama pull gemma4:26b  # ~16 GB RAM
+   ollama pull gemma4:26b  # requires ~16 GB RAM
    # or
-   ollama pull gemma4:31b  # ~24 GB+ RAM
+   ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
 3. Use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
 
-## Why hledger + LLM + pi
+## Why this stack
 
-[hledger](https://hledger.org) is a powerful accounting engine with proper double-entry bookkeeping. It's actively developed — [v2](https://github.com/simonmichael/hledger/releases/tag/1.99.1) is currently in preview, introducing automated lot tracking and capital gains calculation for investment accounts. But hledger has a learning curve: journal syntax, report commands, filter expressions.
+Each piece of this puzzle does one thing really well.
 
-LLMs are great at understanding natural language. But they hallucinate numbers and can't do accounting on their own.
+**[hledger](https://hledger.org)** is a mature accounting engine with proper double-entry bookkeeping. It's fast, reliable, and stores everything in plain text files you fully own. The catch: it has a steep learning curve — journal syntax, report commands, filter expressions. Not something most people want to deal with.
 
-[pi](https://github.com/badlogic/pi-mono) is the agent framework that ties everything together — handling session management, tool execution, and LLM communication.
+**LLMs** are great at understanding what you mean in plain language. But they hallucinate numbers and can't do accounting on their own. Left alone with a ledger, they'd quietly corrupt your books.
 
-Put together, they're a perfect match. You speak naturally. The agent translates your words into proper accounting entries. hledger ensures everything balances. You get the rigor of real accounting without the friction.
+**[pi](https://github.com/badlogic/pi-mono)** is the agent framework that glues everything together — sessions, tool execution, LLM communication. It's small, well-designed, and easy to extend.
 
-Add persistent memory and custom skills on top — and the agent turns into something more than a bookkeeper. It can help with tax filing, financial planning, automated bank import, and whatever else you teach it. It's a foundation you can build on.
+Put them together and each piece covers the other's weakness. You speak naturally, the LLM figures out what you mean, hledger keeps the math honest, pi orchestrates the whole thing. That's the combination I ended up with after trying a few alternatives — and it's been working well ever since.
 
 ## Credits
 
 Accountant24 wouldn't exist without these projects:
 
-- **[pi](https://github.com/badlogic/pi-mono)** by [Mario Zechner](https://github.com/badlogic) — a minimal, elegant framework for building AI agents.
+- **[pi](https://github.com/badlogic/pi-mono)** by [Mario Zechner](https://github.com/badlogic) — a minimal, but powerful framework for building AI agents.
 - **[hledger](https://hledger.org)** by [Simon Michael](https://github.com/simonmichael) — the accounting engine that makes proper double-entry bookkeeping possible.
 
 Both are remarkable pieces of software.
 
 ## Contributing
 
-Contributions are welcome! Open an issue first to discuss what you'd like to change.
+This is a personal project I use every day, and I'd love to hear from anyone else using it. Bug reports, ideas, feedback, pull requests — all welcome. If you're planning a bigger change, open an issue first so we can talk it through.
 
 ## License
 
