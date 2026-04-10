@@ -64,10 +64,19 @@ async function fallbackHledgerCheck(journalPath: string, opts?: any): Promise<vo
   await fallbackRunHledger(["check", "--strict", "-f", journalPath], opts);
 }
 
+async function fallbackHledgerFiles(journalPath: string, opts?: any): Promise<string[]> {
+  const stdout = await fallbackRunHledger(["files", "-f", journalPath], opts);
+  return stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
 // Decide which functions to use - prefer real module when possible
 let runHledger: typeof fallbackRunHledger;
 let tryRunHledger: typeof fallbackTryRunHledger;
 let hledgerCheck: typeof fallbackHledgerCheck;
+let hledgerFiles: typeof fallbackHledgerFiles;
 
 // Set up before each test
 beforeEach(() => {
@@ -92,6 +101,7 @@ beforeEach(() => {
   runHledger = fallbackRunHledger;
   tryRunHledger = fallbackTryRunHledger;
   hledgerCheck = fallbackHledgerCheck;
+  hledgerFiles = fallbackHledgerFiles;
 
   // Restore Bun.spawn for clean state
   Bun.spawn = origSpawn;
@@ -284,6 +294,52 @@ describe("hledgerCheck()", () => {
   test("should throw HledgerNotFoundError when hledger missing", async () => {
     spawnResult = { exitCode: 127, stdout: "", stderr: "" };
     await expect(hledgerCheck("/path/to/main.journal")).rejects.toThrow(HledgerNotFoundError);
+  });
+});
+
+// ── hledgerFiles() ──────────────────────────────────────────────────
+
+describe("hledgerFiles()", () => {
+  test("should pass files -f and journal path", async () => {
+    spawnResult = { exitCode: 0, stdout: "", stderr: "" };
+    await hledgerFiles("/path/to/main.journal");
+    expect(lastArgs).toEqual(["hledger", "files", "-f", "/path/to/main.journal"]);
+  });
+
+  test("should parse newline-separated file list", async () => {
+    spawnResult = {
+      exitCode: 0,
+      stdout: "/home/u/ledger/main.journal\n/home/u/ledger/accounts.journal\n/home/u/ledger/2026/01.journal\n",
+      stderr: "",
+    };
+    const result = await hledgerFiles("/home/u/ledger/main.journal");
+    expect(result).toEqual([
+      "/home/u/ledger/main.journal",
+      "/home/u/ledger/accounts.journal",
+      "/home/u/ledger/2026/01.journal",
+    ]);
+  });
+
+  test("should return empty array for empty stdout", async () => {
+    spawnResult = { exitCode: 0, stdout: "", stderr: "" };
+    const result = await hledgerFiles("/path/to/main.journal");
+    expect(result).toEqual([]);
+  });
+
+  test("should trim whitespace and drop blank lines", async () => {
+    spawnResult = { exitCode: 0, stdout: "  a.journal  \n\n  b.journal\n\n", stderr: "" };
+    const result = await hledgerFiles("/path/to/main.journal");
+    expect(result).toEqual(["a.journal", "b.journal"]);
+  });
+
+  test("should throw HledgerCommandError on parse failure", async () => {
+    spawnResult = { exitCode: 1, stdout: "", stderr: "parse error" };
+    await expect(hledgerFiles("/path/to/main.journal")).rejects.toThrow(HledgerCommandError);
+  });
+
+  test("should throw HledgerNotFoundError when hledger missing", async () => {
+    spawnResult = { exitCode: 127, stdout: "", stderr: "" };
+    await expect(hledgerFiles("/path/to/main.journal")).rejects.toThrow(HledgerNotFoundError);
   });
 });
 

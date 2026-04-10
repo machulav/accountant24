@@ -3,6 +3,7 @@ import { dirname, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck, runHledger } from "../hledger";
 import { generateDiff } from "./diff";
+import { ledgerFormat } from "./format";
 
 const PERIOD_FLAGS: Record<string, string> = {
   daily: "--daily",
@@ -141,8 +142,6 @@ export async function addTransaction(
     const separator = oldContent.endsWith("\n") ? "\n" : "\n\n";
     writeFileSync(fullFilePath, `${oldContent}${separator}${transactionText}\n`);
   }
-  const newContent = readFileSync(fullFilePath, "utf-8");
-  const diff = generateDiff(oldContent, newContent);
 
   // Update main.journal: includes and commodity declarations
   if (existsSync(mainPath)) {
@@ -171,7 +170,10 @@ export async function addTransaction(
     }
   }
 
-  // Validate
+  // Format every file in the ledger's include graph before validation so
+  // any formatter regression is caught immediately by hledgerCheck.
+  await ledgerFormat(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
+
   try {
     await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
   } catch (e) {
@@ -180,6 +182,9 @@ export async function addTransaction(
     }
     throw e;
   }
+
+  const newContent = readFileSync(fullFilePath, "utf-8");
+  const diff = generateDiff(oldContent, newContent);
 
   return { transactionText, fullFilePath, ledgerIsValid: true, diff };
 }
@@ -238,10 +243,14 @@ export interface ValidateLedgerResult {
 }
 
 export async function validateLedger(signal?: AbortSignal): Promise<ValidateLedgerResult> {
-  const resolved = resolveSafePath("main.journal", LEDGER_DIR);
+  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
+
+  // Format every file in the ledger's include graph before running
+  // hledger check so any formatter regression is caught immediately.
+  await ledgerFormat(mainPath, { signal });
 
   try {
-    await hledgerCheck(resolved, { signal });
+    await hledgerCheck(mainPath, { signal });
   } catch (e) {
     if (e instanceof HledgerCommandError) {
       throw new Error(e.stderr);

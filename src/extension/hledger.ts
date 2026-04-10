@@ -44,6 +44,20 @@ export async function hledgerCheck(journalPath: string, opts?: { cwd?: string; s
   await runHledger(["check", "--strict", "-f", journalPath], opts);
 }
 
+// Returns every file in the include graph of the given journal, one path
+// per line from `hledger files`. Throws HledgerCommandError if the journal
+// cannot be parsed.
+export async function hledgerFiles(
+  journalPath: string,
+  opts?: { cwd?: string; signal?: AbortSignal },
+): Promise<string[]> {
+  const stdout = await runHledger(["files", "-f", journalPath], opts);
+  return stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
 // ── Internals ───────────────────────────────────────────────────────
 
 async function spawn(
