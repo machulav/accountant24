@@ -20,33 +20,34 @@ Financial data is some of the most personal stuff you have. It deserves a tool t
 
 ### Log spending in natural language
 
-> "I spent $45 at Whole Foods yesterday"
+> I spent $45 at Whole Foods yesterday
 
 The agent figures out the details and adds it to your ledger as a proper double-entry transaction.
 
 ### Import from files
 
-> "Here's my March bank statement: ~/Downloads/statement-march.pdf"
+> Here is my March bank statement, please add missing transactions: ~/Downloads/statement-march.pdf
 
-> "Add this receipt: ~/Desktop/receipt.jpg"
+> Add transaction from this receipt: ~/Desktop/receipt.jpg
 
 Drop in a PDF bank statement, an invoice, or a photo of a paper receipt. The agent extracts the text, pulls out every transaction, and adds them to your ledger. The original file is archived in your workspace so you can refer back to it later.
 
 ### Ask questions about your money
 
-> "How much did I spend on food this month?"
+> How much did I spend on food this month?
 
-> "What's my net worth?"
+> What's my net worth?
 
-> "Show me all transactions from my last trip to Italy"
+> Show me all transactions from my last trip to Italy
 
 The agent checks your ledger and gives you a clear answer.
 
 ### Set rules and facts
 
-> "I'm visiting Italy from April 10th to 15th. Tag all transactions during this period with the 'trip_italy' tag."
+> I'm visiting Italy from April 10th to 15th.
+> Tag all transactions during this period with the 'trip_italy' tag.
 
-> "My food budget is $600/month"
+> My food budget is $600/month
 
 The agent remembers what you tell it and uses it to make better decisions.
 
