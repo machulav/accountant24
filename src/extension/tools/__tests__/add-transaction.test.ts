@@ -10,10 +10,12 @@ mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.md"),
+  FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
 }));
 
-// Mock at Bun.spawn level so real hledger.ts functions execute for coverage
+// Mock at Bun.spawn level so real hledger.ts functions execute for coverage.
+// Beautification is pure TS (no subprocess); the only spawn call is hledger check.
 const origSpawn = Bun.spawn;
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
@@ -25,7 +27,15 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   };
 }
 
-let mockProc: ReturnType<typeof makeMockProc>;
+let mockExitCode: number;
+let mockStdout: string;
+let mockStderr: string;
+
+const setMock = (exit: number, stdout = "", stderr = "") => {
+  mockExitCode = exit;
+  mockStdout = stdout;
+  mockStderr = stderr;
+};
 
 const { addTransactionTool } = await import("../add-transaction.js");
 
@@ -35,9 +45,9 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  mockProc = makeMockProc(0);
+  setMock(0);
   // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => mockProc);
+  Bun.spawn = mock(() => makeMockProc(mockExitCode, mockStdout, mockStderr));
   // Clean and recreate ledger dir
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
@@ -128,7 +138,7 @@ test("calls hledger check after writing", async () => {
 
 test("throws on validation failure", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockProc = makeMockProc(1, "", "account not declared");
+  setMock(1, "", "account not declared");
   await expect(run(basicParams)).rejects.toThrow("account not declared");
 });
 
@@ -139,7 +149,7 @@ test("handles tags", async () => {
     tags: ["groceries", "weekly"],
   });
   const text = result.content[0].text;
-  expect(text).toContain("; groceries:, weekly:");
+  expect(text).toContain("# groceries:, weekly:");
 });
 
 test("handles metadata", async () => {
@@ -149,7 +159,7 @@ test("handles metadata", async () => {
     metadata: { source: "manual" },
   });
   const text = result.content[0].text;
-  expect(text).toContain("; source: manual");
+  expect(text).toContain("# source: manual");
 });
 
 test("handles tags and metadata together", async () => {
@@ -160,8 +170,8 @@ test("handles tags and metadata together", async () => {
     metadata: { source: "manual" },
   });
   const text = result.content[0].text;
-  expect(text).toContain("; groceries:, weekly:");
-  expect(text).toContain("; source: manual");
+  expect(text).toContain("# groceries:, weekly:");
+  expect(text).toContain("# source: manual");
 });
 
 test("requires currency when amount present", async () => {
@@ -197,7 +207,7 @@ test("rejects multiple postings without amount", async () => {
 
 test("hledger not found throws error", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  mockProc = makeMockProc(127);
+  setMock(127);
   await expect(run(basicParams)).rejects.toThrow("hledger not found");
 });
 
@@ -273,6 +283,99 @@ test("should re-throw unexpected validation errors", async () => {
     throw new TypeError("unexpected");
   });
   await expect(run(basicParams)).rejects.toThrow("unexpected");
+});
+
+// ── beautification ─────────────────────────────────────────────────
+
+describe("beautification", () => {
+  test("should sort transactions by date in the monthly file after hledger check succeeds", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    // Pre-seed with a later-dated transaction; adding an earlier-dated one should push it above
+    writeFileSync(
+      join(LEDGER, "2026", "03.journal"),
+      "2026-03-28 * Later | After\n    Expenses:Misc    10.00 USD\n    Assets:Checking\n",
+    );
+    await run(basicParams);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    const earlierIdx = content.indexOf("2026-03-15");
+    const laterIdx = content.indexOf("2026-03-28");
+    expect(earlierIdx).toBeGreaterThanOrEqual(0);
+    expect(laterIdx).toBeGreaterThanOrEqual(0);
+    expect(earlierIdx).toBeLessThan(laterIdx);
+  });
+
+  test("should align all posting amounts in the file to a common column derived from the widest account", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    // Pre-seed with a shorter-account transaction
+    writeFileSync(
+      join(LEDGER, "2026", "03.journal"),
+      "2026-03-01 * Old | Existing\n    Expenses:Misc    10.00 USD\n    Assets:Checking\n",
+    );
+    // basicParams adds "Expenses:Food:Groceries" (23 chars) — longer than "Expenses:Misc" (13) and "Assets:Checking" (15)
+    await run(basicParams);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    // Longest account in the file is "Expenses:Food:Groceries" = 23 chars
+    // targetColumn = 4 (indent) + 23 (account) + 4 (MIN_GAP) = 31
+    // "Expenses:Misc" (13) padding = 31 - 4 - 13 = 14 spaces
+    // "Expenses:Food:Groceries" (23) padding = 31 - 4 - 23 = 4 spaces
+    expect(content).toContain(`    Expenses:Misc${" ".repeat(14)}10.00 USD`);
+    expect(content).toContain("    Expenses:Food:Groceries    45.00 USD");
+  });
+
+  test("should not modify the monthly file when hledger check fails", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    const preSeeded = "2026-03-20 * Existing\n    Expenses:Misc  10.00 USD\n    Assets:Checking\n";
+    writeFileSync(join(LEDGER, "2026", "03.journal"), preSeeded);
+    setMock(1, "", "account not declared");
+    await expect(run(basicParams)).rejects.toThrow("account not declared");
+    // The newly-appended content is in the file (addTransaction writes before validation),
+    // but beautification did NOT run — so the pre-existing transaction's original spacing is preserved.
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toContain("    Expenses:Misc  10.00 USD");
+  });
+
+  test("should return a diff reflecting the beautified file content", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    // Pre-seed: an OUT-OF-ORDER transaction dated AFTER basicParams
+    writeFileSync(
+      join(LEDGER, "2026", "03.journal"),
+      "2026-03-28 * Later\n    Expenses:Misc    10.00 USD\n    Assets:Checking\n",
+    );
+    const result = await run(basicParams);
+    const diff = result.details.diff;
+    // Diff should contain additions for the new transaction (Whole Foods)
+    expect(diff).toContain("Whole Foods");
+    // The final file should have the new (earlier) transaction sorted to the top
+    const finalContent = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(finalContent.indexOf("Whole Foods")).toBeLessThan(finalContent.indexOf("Later"));
+  });
+
+  test("should not modify main.journal during beautification", async () => {
+    const originalMain = "; Accountant24 Personal Finances\naccount Assets:Checking\n";
+    writeFileSync(join(LEDGER, "main.journal"), originalMain);
+    await run(basicParams);
+    const mainAfter = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+    // main.journal still has its original opening content (commodity may be prepended, include may be appended)
+    expect(mainAfter).toContain("; Accountant24 Personal Finances");
+    expect(mainAfter).toContain("account Assets:Checking");
+  });
+
+  test("should be idempotent: beautifying a second time should produce identical content", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await run(basicParams);
+    const afterFirst = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    // Run the same add again — it'll add a duplicate transaction; we only check that the format is stable
+    await run({ ...basicParams, payee: "Different Store" });
+    const afterSecond = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    // Verify the first transaction's line is byte-identical in the second state
+    const firstLine = afterFirst.split("\n").find((l) => l.includes("45.00 USD"));
+    expect(firstLine).toBeDefined();
+    expect(afterSecond).toContain(firstLine!);
+  });
 });
 
 // ── rendering wiring ──────────────────────────────────────────────
