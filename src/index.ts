@@ -10,7 +10,7 @@ import {
   VERSION,
 } from "@mariozechner/pi-coding-agent";
 import { minimatch } from "minimatch";
-import { ACCOUNTANT24_HOME, createExtension } from "./extension";
+import { ACCOUNTANT24_HOME, createExtension, getBuiltinSkillsDir } from "./extension";
 
 async function main() {
   const settingsManager = SettingsManager.create(ACCOUNTANT24_HOME, ACCOUNTANT24_HOME);
@@ -26,6 +26,7 @@ async function main() {
     cwd: ACCOUNTANT24_HOME,
     agentDir: ACCOUNTANT24_HOME,
     extensionFactories: [createExtension(settingsManager)],
+    additionalSkillPaths: [getBuiltinSkillsDir()],
     noSkills: true,
     noPromptTemplates: true,
   });
