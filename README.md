@@ -8,7 +8,7 @@ For years, I managed my personal finances with YNAB. It worked — but every tra
 
 One weekend I started playing with hledger and Claude Code, just to see if an agent could handle the bookkeeping for me. I wrote a couple of small skills, and to my surprise, it actually worked — and it was genuinely fun to use.
 
-So I kept going. I packed everything into a standalone agent built on [pi](https://github.com/badlogic/pi-mono), tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
+So I kept going. I packed everything into a standalone agent built on pi, tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
 
 If it works this well for me, maybe it'll work for you too. That's why I'm releasing it as an open source project.
 
@@ -94,7 +94,7 @@ Use `/login` to log in with your LLM provider subscription, then `/model` to pic
 
 ### Go fully local (optional)
 
-Want your financial data to never leave your machine? Run a local model with [Ollama](https://ollama.com). Gemma 4 models are pre-configured in Accountant24 and appear in the `/model` selector.
+Want your financial data to never leave your machine? Run a local model with Ollama. Gemma 4 models are pre-configured in Accountant24 and appear in the `/model` selector.
 
 1. [Download and install Ollama](https://ollama.com/download).
 2. Pull a Gemma 4 model:
@@ -111,11 +111,11 @@ Want your financial data to never leave your machine? Run a local model with [Ol
 
 Each piece of this puzzle does one thing really well.
 
-**[hledger](https://hledger.org)** is a mature accounting engine with proper double-entry bookkeeping. It's fast, reliable, and stores everything in plain text files you fully own. The catch: it has a steep learning curve — journal syntax, report commands, filter expressions. Not something most people want to deal with.
+**hledger** is a mature accounting engine with proper double-entry bookkeeping. It's fast, reliable, and stores everything in plain text files you fully own. The catch: it has a steep learning curve — journal syntax, report commands, filter expressions. Not something most people want to deal with.
 
 **LLMs** are great at understanding what you mean in plain language. But they hallucinate numbers and can't do accounting on their own. Left alone with a ledger, they'd quietly corrupt your books.
 
-**[pi](https://github.com/badlogic/pi-mono)** is the agent framework that glues everything together — sessions, tool execution, LLM communication. It's small, well-designed, and easy to extend.
+**pi** is the agent framework that glues everything together — sessions, tool execution, LLM communication. It's small, well-designed, and easy to extend.
 
 Put them together and each piece covers the other's weakness. You speak naturally, the LLM figures out what you mean, hledger keeps the math honest, pi orchestrates the whole thing. That's the combination I ended up with after trying a few alternatives — and it's been working well ever since.
 
