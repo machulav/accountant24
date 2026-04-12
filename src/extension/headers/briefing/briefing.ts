@@ -15,7 +15,6 @@ const b = {
   changeNegative: (t: string) => chalk.red(t),
   divider: (t: string) => chalk.dim(t),
   dim: (t: string) => chalk.dim(t),
-  txnIncome: (t: string) => chalk.green(t),
   emptyState: (t: string) => chalk.dim.italic(t),
 };
 
@@ -55,13 +54,6 @@ function formatMoney(amount: number, currency: string, forceSign: boolean): stri
   return `${sign}${formatted}`;
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, " ")}`;
-}
-
 export function buildHeaderLine(label: string, width: number): string {
   const prefixLen = 2 + 1 + label.length + 1;
   const fillLen = Math.max(0, width - prefixLen);
@@ -90,11 +82,7 @@ export class Briefing extends Container {
     const contentWidth = width - PAD.length * 2;
 
     const hasData =
-      this.data.netWorth ||
-      this.data.spendThisMonth ||
-      this.data.incomeThisMonth ||
-      this.data.recentTransactions.length > 0 ||
-      this.data.topCategories.length > 0;
+      this.data.netWorth || this.data.spendThisMonth || this.data.incomeThisMonth || this.data.topCategories.length > 0;
 
     if (!hasData) {
       return [
@@ -117,11 +105,6 @@ export class Briefing extends Container {
       lines.push("", ...this.renderThisMonth(width, contentWidth));
     }
 
-    if (this.data.recentTransactions.length > 0) {
-      lines.push("", ...this.renderTransactions(width, contentWidth));
-    }
-
-    lines.push("");
     return lines;
   }
 
@@ -196,41 +179,6 @@ export class Briefing extends Container {
       const left = i < leftLines.length ? leftLines[i] : "";
       const right = i < rightLines.length ? rightLines[i] : "";
       lines.push(`${PAD}${padEnd(left, leftColWidth)}${right}`);
-    }
-
-    return lines;
-  }
-
-  private renderTransactions(width: number, contentWidth: number): string[] {
-    const lines: string[] = [];
-    lines.push(...this.renderSectionDivider("Last Transactions", width));
-
-    const txns = this.data?.recentTransactions ?? [];
-    const count = width < 60 ? Math.min(txns.length, 3) : txns.length;
-    if (count === 0) return lines;
-
-    const leftColWidth = Math.floor(contentWidth * LEFT_COL_RATIO);
-    const dateWidth = 6;
-    const descMaxWidth = Math.min(
-      Math.max(...txns.slice(0, count).map((t) => t.description.length)),
-      leftColWidth - dateWidth - 3,
-    );
-    const amtStrs = txns.slice(0, count).map((t) => formatMoney(t.amount, t.currency, true));
-    const maxAmtLen = Math.max(...amtStrs.map((s) => s.length), 0);
-    const accountSpace = contentWidth - leftColWidth - maxAmtLen - 2;
-
-    for (let i = 0; i < count; i++) {
-      const txn = txns[i];
-      const date = formatDate(txn.date);
-      const amtStr = amtStrs[i];
-      const isIncome = txn.amount > 0;
-      const desc = truncate(txn.description, descMaxWidth);
-
-      const leftPart = `${b.dim(padEnd(date, dateWidth))} ${padEnd(desc, descMaxWidth)}`;
-      const amtPart = isIncome ? b.txnIncome(padStart(amtStr, maxAmtLen)) : padStart(amtStr, maxAmtLen);
-      const accountPart = accountSpace > 3 ? `  ${b.dim(truncate(txn.account, accountSpace))}` : "";
-
-      lines.push(`${PAD}${padEnd(leftPart, leftColWidth)}${amtPart}${accountPart}`);
     }
 
     return lines;

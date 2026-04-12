@@ -4,13 +4,6 @@ export interface BriefingData {
   netWorth: { amount: number; currency: string; change: number } | null;
   spendThisMonth: { amount: number; currency: string } | null;
   incomeThisMonth: { amount: number; currency: string } | null;
-  recentTransactions: Array<{
-    date: string;
-    description: string;
-    amount: number;
-    currency: string;
-    account: string;
-  }>;
   topCategories: Array<{
     name: string;
     amount: number;
@@ -101,37 +94,6 @@ export function parseBalRows(csv: string): Array<{ name: string; amount: number;
   return rows;
 }
 
-// hledger reg CSV columns: txnidx, date, code, description, account, amount, total
-export function parseRegisterCsv(
-  csv: string,
-): Array<{ txnidx: string; date: string; description: string; account: string; amount: number; currency: string }> {
-  const lines = csv.split("\n").filter((l) => l.trim());
-  const rows: Array<{
-    txnidx: string;
-    date: string;
-    description: string;
-    account: string;
-    amount: number;
-    currency: string;
-  }> = [];
-  for (const line of lines) {
-    const fields = parseCSVLine(line);
-    if (fields[0] === "txnidx") continue;
-    if (fields.length >= 6) {
-      const { amount, currency } = parseAmount(fields[5]);
-      rows.push({
-        txnidx: fields[0],
-        date: fields[1],
-        description: fields[3],
-        account: fields[4],
-        amount,
-        currency,
-      });
-    }
-  }
-  return rows;
-}
-
 function getMonthBounds(): { beginDate: string; endDate: string } {
   const now = new Date();
   const year = now.getFullYear();
@@ -148,14 +110,12 @@ function emptyData(): BriefingData {
     netWorth: null,
     spendThisMonth: null,
     incomeThisMonth: null,
-    recentTransactions: [],
     topCategories: [],
     error: null,
   };
 }
 
 const TOP_CATEGORIES_LIMIT = 5;
-const RECENT_TRANSACTIONS_LIMIT = 5;
 
 export async function fetchBriefingData(journalPath: string): Promise<BriefingData> {
   const { beginDate, endDate } = getMonthBounds();
@@ -166,16 +126,14 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
   let expenses: string | null;
   let income: string | null;
   let categories: string | null;
-  let register: string | null;
 
   try {
-    [netWorthNow, netWorthPrev, expenses, income, categories, register] = await Promise.all([
+    [netWorthNow, netWorthPrev, expenses, income, categories] = await Promise.all([
       tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-e", beginDate, "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
-      tryRunHledger(["reg", ...f, "-b", beginDate, "-O", "csv"]),
     ]);
   } catch {
     // tryRunHledger only re-throws HledgerNotFoundError; all other errors return null
@@ -218,48 +176,6 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, TOP_CATEGORIES_LIMIT);
-  }
-
-  // Recent transactions — group postings by txnidx, pick most recent
-  if (register) {
-    const allRows = parseRegisterCsv(register);
-    const byTxn = new Map<string, (typeof allRows)[number][]>();
-    for (const row of allRows) {
-      let group = byTxn.get(row.txnidx);
-      if (!group) {
-        group = [];
-        byTxn.set(row.txnidx, group);
-      }
-      group.push(row);
-    }
-
-    // Sort by date descending, take most recent
-    const txnIds = [...byTxn.keys()].sort((a, b) => {
-      const dateA = byTxn.get(a)?.[0]?.date ?? "";
-      const dateB = byTxn.get(b)?.[0]?.date ?? "";
-      return dateB.localeCompare(dateA);
-    });
-    data.recentTransactions = txnIds.slice(0, RECENT_TRANSACTIONS_LIMIT).map((id) => {
-      const postings = byTxn.get(id) ?? [];
-      const interesting =
-        postings.find((r) => r.account.startsWith("Expenses:") || r.account.startsWith("Income:")) ?? postings[0];
-      const desc = interesting.description.includes("|")
-        ? interesting.description.split("|")[0].trim()
-        : interesting.description;
-      const account = interesting.account.replace(/^(Expenses|Income):/, "");
-      // Expense postings are positive in hledger → show as negative (money out)
-      // Income postings are negative in hledger → show as positive (money in)
-      const isExpenseOrIncome =
-        interesting.account.startsWith("Expenses:") || interesting.account.startsWith("Income:");
-      const displayAmount = isExpenseOrIncome ? -interesting.amount : interesting.amount;
-      return {
-        date: interesting.date,
-        description: desc,
-        amount: displayAmount,
-        currency: interesting.currency,
-        account,
-      };
-    });
   }
 
   return data;
