@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck, runHledger } from "../hledger";
-import { beautifyJournalFile } from "./beautify";
 import { generateDiff } from "./diff";
 
 const PERIOD_FLAGS: Record<string, string> = {
@@ -180,9 +179,7 @@ export async function addTransaction(
     throw e;
   }
 
-  // Beautify the monthly file: sort + align. The file exists (we just
-  // wrote to it), so the returned content is non-null.
-  const newContent = beautifyJournalFile(fullFilePath) ?? "";
+  const newContent = readFileSync(fullFilePath, "utf-8");
   const diff = generateDiff(oldContent, newContent);
 
   return { transactionText, fullFilePath, ledgerIsValid: true, diff };
@@ -253,26 +250,7 @@ export async function validateLedger(signal?: AbortSignal): Promise<ValidateLedg
     throw e;
   }
 
-  // Beautify every monthly file: sort + align
-  for (const f of enumerateMonthlyJournals()) {
-    beautifyJournalFile(f);
-  }
-
   return { ledgerIsValid: true };
-}
-
-function enumerateMonthlyJournals(): string[] {
-  if (!existsSync(LEDGER_DIR)) return [];
-  const out: string[] = [];
-  for (const yearEntry of readdirSync(LEDGER_DIR, { withFileTypes: true })) {
-    if (!yearEntry.isDirectory() || !/^\d{4}$/.test(yearEntry.name)) continue;
-    const yearDir = join(LEDGER_DIR, yearEntry.name);
-    for (const f of readdirSync(yearDir)) {
-      if (!/^\d{2}\.journal$/.test(f)) continue;
-      out.push(join(yearDir, f));
-    }
-  }
-  return out.sort();
 }
 
 // ── Internals ───────────────────────────────────────────────────────
