@@ -120,12 +120,6 @@ export class Briefing extends Container {
     return [line];
   }
 
-  private renderSectionDivider(label: string, width: number): string[] {
-    const prefix = `── ${label} `;
-    const fillLen = Math.max(0, width - prefix.length);
-    return [b.divider(`${prefix}${"─".repeat(fillLen)}`), ""];
-  }
-
   private renderThisMonth(width: number, contentWidth: number): string[] {
     const lines: string[] = [];
     const sp = this.data?.spendThisMonth;
