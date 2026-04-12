@@ -60,8 +60,11 @@ async function main() {
 
   await sh(["gh", "auth", "status"], { allowDry: true });
 
-  // 2. bump version + generate changelog + tag via changelogen
-  //    --release: bump version in package.json, write CHANGELOG.md, commit, tag
+  // 2. capture release notes from changelogen (display-only mode outputs to stdout)
+  const rawMarkdown = await sh(["bunx", "changelogen"], { capture: true, allowDry: true });
+  const releaseNotes = rawMarkdown.split("\n").slice(2).join("\n").trim();
+
+  // 3. bump version + write CHANGELOG.md + commit + tag via changelogen
   //    We do NOT pass --push; push happens after a successful build so a build
   //    failure can be rolled back with `git reset --hard HEAD~1 && git tag -d`.
   await sh(["bunx", "changelogen", "--release"]);
@@ -71,14 +74,14 @@ async function main() {
   const tag = `v${version}`;
   console.log(`[release] staged ${tag}`);
 
-  // 3. build all four binaries with the bumped version baked in
+  // 4. build all four binaries with the bumped version baked in
   await sh(["bun", "run", "scripts/build.ts", "--all"]);
 
-  // 4. push main + tag
+  // 5. push main + tag
   await sh(["git", "push", "origin", "main"]);
   await sh(["git", "push", "origin", tag]);
 
-  // 5. create GitHub Release with tarballs + auto-generated notes
+  // 6. create GitHub Release with tarballs + changelog notes
   await sh([
     "gh",
     "release",
@@ -86,12 +89,13 @@ async function main() {
     tag,
     "--title",
     tag,
-    "--generate-notes",
+    "--notes",
+    releaseNotes,
     ...TARBALLS.map((t) => join(ROOT, "release", t)),
     join(ROOT, "release", "SHA256SUMS"),
   ]);
 
-  // 6. update Homebrew tap
+  // 7. update Homebrew tap
   await updateBrewTap(version);
 
   console.log(`[release] ✓ ${tag} published`);
