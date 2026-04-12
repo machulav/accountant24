@@ -82,7 +82,10 @@ export class Briefing extends Container {
     const contentWidth = width - PAD.length * 2;
 
     const hasData =
-      this.data.netWorth || this.data.spendThisMonth || this.data.incomeThisMonth || this.data.topCategories.length > 0;
+      this.data.netWorth.length > 0 ||
+      this.data.spendThisMonth ||
+      this.data.incomeThisMonth ||
+      this.data.topCategories.length > 0;
 
     if (!hasData) {
       return [
@@ -96,7 +99,7 @@ export class Briefing extends Container {
     const lines: string[] = [];
     lines.push("", b.header(buildHeaderLine("Accountant24", width)));
 
-    if (this.data.netWorth) {
+    if (this.data.netWorth.length > 0) {
       lines.push("", ...this.renderNetWorth());
     }
 
@@ -109,15 +112,31 @@ export class Briefing extends Container {
   }
 
   private renderNetWorth(): string[] {
-    const nw = this.data?.netWorth;
-    if (!nw) return [];
-    let line = `${PAD}${b.label("Net Worth")}  ${b.amount(formatMoney(nw.amount, nw.currency, false))}`;
-    if (nw.change !== 0) {
-      const arrow = nw.change > 0 ? "▲" : "▼";
-      const style = nw.change > 0 ? b.changePositive : b.changeNegative;
-      line += `  ${style(`${arrow} ${formatMoney(Math.abs(nw.change), nw.currency, false)} this month`)}`;
-    }
-    return [line];
+    const entries = this.data?.netWorth ?? [];
+    if (entries.length === 0) return [];
+
+    const label = "Net Worth";
+    const labelPrefix = `${PAD}${b.label(label)}  `;
+    const labelWidth = PAD.length + label.length + 2;
+    const indent = " ".repeat(labelWidth);
+
+    const amtStrs = entries.map((e) => {
+      const sign = e.amount < 0 ? "-" : "";
+      return `${sign}${NUM_FMT.format(Math.abs(e.amount))}`;
+    });
+    const maxAmtLen = Math.max(...amtStrs.map((s) => s.length));
+
+    return entries.map((entry, i) => {
+      const prefix = i === 0 ? labelPrefix : indent;
+      let line = `${prefix}${b.amount(padStart(amtStrs[i], maxAmtLen))}  ${entry.currency}`;
+      if (entry.change !== 0) {
+        const arrow = entry.change > 0 ? "▲" : "▼";
+        const style = entry.change > 0 ? b.changePositive : b.changeNegative;
+        const changeAmt = NUM_FMT.format(Math.abs(entry.change));
+        line += `  ${style(`${arrow} ${changeAmt} this month`)}`;
+      }
+      return line;
+    });
   }
 
   private renderThisMonth(width: number, contentWidth: number): string[] {

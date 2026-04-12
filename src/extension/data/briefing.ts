@@ -1,7 +1,7 @@
 import { tryRunHledger } from "../hledger";
 
 export interface BriefingData {
-  netWorth: { amount: number; currency: string; change: number } | null;
+  netWorth: Array<{ amount: number; currency: string; change: number }>;
   spendThisMonth: { amount: number; currency: string } | null;
   incomeThisMonth: { amount: number; currency: string } | null;
   topCategories: Array<{
@@ -107,7 +107,7 @@ function getMonthBounds(): { beginDate: string; endDate: string } {
 
 function emptyData(): BriefingData {
   return {
-    netWorth: null,
+    netWorth: [],
     spendThisMonth: null,
     incomeThisMonth: null,
     topCategories: [],
@@ -129,8 +129,8 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
 
   try {
     [netWorthNow, netWorthPrev, expenses, income, categories] = await Promise.all([
-      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "-e", beginDate, "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", beginDate, "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
@@ -142,15 +142,26 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
 
   const data = emptyData();
 
-  // Net worth
-  const nwCurrent = netWorthNow ? parseBalTotal(netWorthNow) : null;
-  const nwPrev = netWorthPrev ? parseBalTotal(netWorthPrev) : null;
-  if (nwCurrent) {
-    data.netWorth = {
-      amount: nwCurrent.amount,
-      currency: nwCurrent.currency,
-      change: nwPrev ? nwCurrent.amount - nwPrev.amount : 0,
+  // Net worth — aggregate by currency, compute change from previous month
+  if (netWorthNow) {
+    const aggregate = (csv: string) => {
+      const map = new Map<string, number>();
+      for (const row of parseBalRows(csv)) {
+        map.set(row.currency, (map.get(row.currency) ?? 0) + row.amount);
+      }
+      return map;
     };
+    const current = aggregate(netWorthNow);
+    const prev = netWorthPrev ? aggregate(netWorthPrev) : new Map<string, number>();
+
+    data.netWorth = [...current.entries()]
+      .filter(([, amount]) => amount !== 0)
+      .map(([currency, amount]) => ({
+        amount,
+        currency,
+        change: amount - (prev.get(currency) ?? 0),
+      }))
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   }
 
   // Spend this month

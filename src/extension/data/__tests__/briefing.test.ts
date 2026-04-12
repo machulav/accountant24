@@ -13,7 +13,7 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   };
 }
 
-// Helper: set sequential Bun.spawn responses for the 6 fetchBriefingData queries.
+// Helper: set sequential Bun.spawn responses for the 4 fetchBriefingData queries.
 // null → simulate command error (exitCode 1, tryRunHledger returns null)
 function setBunSpawnResponses(responses: (string | null)[]) {
   let callIndex = 0;
@@ -154,8 +154,9 @@ describe("parseBalRows", () => {
 // ── fetchBriefingData ───────────────────────────────────────────────
 
 // Helpers for controlling tryRunHledger responses per-query
-const NW_NOW = `"account","balance"\n"Assets:Checking","5000.00 USD"\n"total","5000.00 USD"`;
+const NW_SINGLE = `"account","balance"\n"Assets:Checking","5000.00 USD"\n"total","5000.00 USD"`;
 const NW_PREV = `"account","balance"\n"Assets:Checking","4200.00 USD"\n"total","4200.00 USD"`;
+const NW_MULTI = `"account","balance"\n"Assets:Checking","5000.00 USD"\n"Assets:EUR","300.00 EUR"\n"Liabilities:Card","-200.00 USD"\n"total","4800.00 USD"`;
 const EXPENSES = `"account","balance"\n"Expenses","1200.00 USD"\n"total","1200.00 USD"`;
 const INCOME = `"account","balance"\n"Income","-3000.00 USD"\n"total","-3000.00 USD"`;
 const CATEGORIES = `"account","balance"\n"Expenses:Food","500.00 USD"\n"Expenses:Transport","300.00 USD"\n"Expenses:Rent","200.00 USD"\n"Expenses:Utilities","100.00 USD"\n"Expenses:Fun","80.00 USD"\n"Expenses:Other","20.00 USD"\n"total","1200.00 USD"`;
@@ -182,7 +183,7 @@ describe("fetchBriefingData()", () => {
     Bun.spawn = mock(() => makeMockProc(127));
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.error).toContain("hledger is not installed");
-    expect(data.netWorth).toBeNull();
+    expect(data.netWorth).toEqual([]);
     expect(data.spendThisMonth).toBeNull();
     expect(data.incomeThisMonth).toBeNull();
     expect(data.topCategories).toEqual([]);
@@ -193,37 +194,56 @@ describe("fetchBriefingData()", () => {
     Bun.spawn = mock(() => {
       throw new Error("network timeout");
     });
-    // The error is swallowed by tryRunHledger, data fields are null
+    // The error is swallowed by tryRunHledger, data fields are empty
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.netWorth).toBeNull();
+    expect(data.netWorth).toEqual([]);
   });
 
-  test("should return all-null data when all queries return null", async () => {
+  test("should return empty data when all queries return null", async () => {
     setAllQueries(null, null, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.error).toBeNull();
-    expect(data.netWorth).toBeNull();
+    expect(data.netWorth).toEqual([]);
     expect(data.spendThisMonth).toBeNull();
     expect(data.incomeThisMonth).toBeNull();
     expect(data.topCategories).toEqual([]);
   });
 
-  test("should compute net worth with change from previous month", async () => {
-    setAllQueries(NW_NOW, NW_PREV, null, null, null);
+  test("should compute net worth for single currency with change", async () => {
+    setAllQueries(NW_SINGLE, NW_PREV, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.netWorth).toEqual({ amount: 5000, currency: "USD", change: 800 });
+    expect(data.netWorth).toEqual([{ amount: 5000, currency: "USD", change: 800 }]);
   });
 
-  test("should set net worth change to 0 when no previous data", async () => {
-    setAllQueries(NW_NOW, null, null, null, null);
+  test("should set change to full amount when no previous data", async () => {
+    setAllQueries(NW_SINGLE, null, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.netWorth).toEqual({ amount: 5000, currency: "USD", change: 0 });
+    expect(data.netWorth).toEqual([{ amount: 5000, currency: "USD", change: 5000 }]);
   });
 
-  test("should return null net worth when current query returns null", async () => {
-    setAllQueries(null, NW_PREV, null, null, null);
+  test("should aggregate net worth by currency", async () => {
+    setAllQueries(NW_MULTI, null, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.netWorth).toBeNull();
+    // USD: 5000 - 200 = 4800, EUR: 300
+    expect(data.netWorth).toEqual([
+      { amount: 4800, currency: "USD", change: 4800 },
+      { amount: 300, currency: "EUR", change: 300 },
+    ]);
+  });
+
+  test("should sort net worth by absolute amount descending", async () => {
+    const csv = `"account","balance"\n"Assets:A","100.00 USD"\n"Assets:B","5000.00 EUR"\n"Assets:C","2.00 BTC"\n"total","..."`;
+    setAllQueries(csv, null, null, null, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.netWorth[0].currency).toBe("EUR");
+    expect(data.netWorth[1].currency).toBe("USD");
+    expect(data.netWorth[2].currency).toBe("BTC");
+  });
+
+  test("should return empty net worth when query returns null", async () => {
+    setAllQueries(null, null, null, null, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.netWorth).toEqual([]);
   });
 
   test("should return spendThisMonth from expenses total", async () => {
