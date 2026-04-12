@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import { dirname, normalize, resolve } from "node:path";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck, runHledger } from "../hledger";
 import { generateDiff } from "./diff";
