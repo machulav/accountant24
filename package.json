@@ -2,12 +2,10 @@
   "name": "accountant24",
   "version": "0.1.0",
   "type": "module",
-  "bin": {
-    "accountant24": "src/index.ts",
-    "a24": "src/index.ts"
-  },
   "scripts": {
     "start": "bun run src/index.ts",
+    "build": "bun run scripts/build.ts",
+    "build:all": "bun run scripts/build.ts --all",
     "test": "bun test",
     "lint": "biome lint .",
     "format": "biome format --write .",
@@ -15,8 +13,8 @@
     "verify": "biome check --write . && biome check . && bunx tsc --noEmit && bun run test --coverage",
     "eval": "bun run evals/run.ts",
     "pre-commit": "biome check --write . && biome check .",
-    "release": "bunx changelogen --release --push",
-    "release:dry": "bunx changelogen --release --no-commit --no-tag",
+    "release": "bun run scripts/release.ts",
+    "release:dry": "bun run scripts/release.ts --dry-run",
     "prepare": "bunx simple-git-hooks"
   },
   "simple-git-hooks": {

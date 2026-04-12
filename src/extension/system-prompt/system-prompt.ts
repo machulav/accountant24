@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { getMemory, listAccounts, listPayees, listTags } from "../data";
+// Text import so `bun build --compile` inlines system.md into the binary.
+// @ts-expect-error — TS lib doesn't ship types for text import attributes yet
+import systemMdText from "./system.md" with { type: "text" };
 
 export interface SystemPromptContext {
   today: string;
@@ -12,7 +13,7 @@ export interface SystemPromptContext {
 
 // ── Static prefix (loaded from system.md, cached by Claude API) ─────
 
-const STATIC_PREFIX = readFileSync(join(import.meta.dirname, "system.md"), "utf-8");
+const STATIC_PREFIX: string = systemMdText;
 
 // ── Public API ────────────────────────────────────────────────────────
 

@@ -73,14 +73,10 @@ Every modification is auto-committed to a local git repo. Review your history an
 
 ## Quick start
 
-### Prerequisites
-
-Install [hledger](https://hledger.org/install.html) — the accounting engine.
-
 ### Install
 
 ```bash
-npm install -g accountant24
+brew install machulav/tap/accountant24
 ```
 
 ### Run
@@ -89,7 +85,7 @@ npm install -g accountant24
 a24
 ```
 
-On first launch, Accountant24 creates `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
 
 ### Log in & pick a model
 

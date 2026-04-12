@@ -1,16 +1,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-scaffold-"));
 
@@ -23,20 +14,15 @@ mock.module("../../config.js", () => ({
 
 const { ensureScaffolded } = await import("../scaffold/scaffold.js");
 
-const TEMPLATE_DIR = join(import.meta.dirname, "../scaffold/template");
-
-function collectFiles(dir: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const fullPath = join(dir, entry);
-    if (statSync(fullPath).isDirectory()) {
-      files.push(...collectFiles(fullPath));
-    } else {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
+/** Expected template files — mirrors the manifest in scaffold.ts. */
+const EXPECTED_TEMPLATE_FILES = [
+  "memory.md",
+  ".gitignore",
+  "models.json",
+  "settings.json",
+  "ledger/accounts.journal",
+  "ledger/main.journal",
+];
 
 afterAll(() => {
   rmSync(BASE, { recursive: true, force: true });
@@ -89,15 +75,9 @@ describe("ensureScaffolded()", () => {
 
   test("should produce an output file for every template file", async () => {
     await ensureScaffolded();
-    const templateFiles = collectFiles(TEMPLATE_DIR).map((f) => relative(TEMPLATE_DIR, f));
-    for (const relPath of templateFiles) {
+    for (const relPath of EXPECTED_TEMPLATE_FILES) {
       expect(existsSync(join(BASE, relPath))).toBe(true);
     }
-  });
-
-  test("should have at least one template file", () => {
-    const templateFiles = collectFiles(TEMPLATE_DIR);
-    expect(templateFiles.length).toBeGreaterThan(0);
   });
 
   test("should not overwrite existing main.journal", async () => {

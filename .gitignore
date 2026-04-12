@@ -1,5 +1,6 @@
 node_modules/
 dist/
+release/
 *.log
 *.traineddata
 .DS_Store
