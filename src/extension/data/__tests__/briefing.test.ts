@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { fetchBriefingData, parseAmount, parseBalRows, parseBalTotal, parseCSVLine } from "../briefing";
+import { fetchBriefingData, parseAmount, parseAmounts, parseBalRows, parseBalTotal, parseCSVLine } from "../briefing";
 
 // Mock at I/O boundary (Bun.spawn) so the real tryRunHledger/runHledger/spawn execute.
 const origSpawn = Bun.spawn;
@@ -93,6 +93,34 @@ describe("parseAmount", () => {
   });
 });
 
+describe("parseAmounts", () => {
+  test("single amount", () => {
+    expect(parseAmounts("100.00 USD")).toEqual([{ amount: 100, currency: "USD" }]);
+  });
+
+  test("comma-separated multi-currency", () => {
+    expect(parseAmounts("EUR 1917.61, 5.00 USD")).toEqual([
+      { amount: 1917.61, currency: "EUR" },
+      { amount: 5, currency: "USD" },
+    ]);
+  });
+
+  test("preserves thousand separators", () => {
+    expect(parseAmounts("1,234.56 USD")).toEqual([{ amount: 1234.56, currency: "USD" }]);
+  });
+
+  test("multi-currency with thousand separators", () => {
+    expect(parseAmounts("EUR 1,917.61, 1,005.00 USD")).toEqual([
+      { amount: 1917.61, currency: "EUR" },
+      { amount: 1005, currency: "USD" },
+    ]);
+  });
+
+  test("zero", () => {
+    expect(parseAmounts("0")).toEqual([{ amount: 0, currency: "" }]);
+  });
+});
+
 describe("parseBalTotal", () => {
   test("extracts total from balance CSV (lowercase)", () => {
     const csv = `"account","balance"
@@ -149,6 +177,14 @@ describe("parseBalRows", () => {
     const csv = `"account","balance"`;
     expect(parseBalRows(csv)).toEqual([]);
   });
+
+  test("splits multi-currency balance into separate rows", () => {
+    const csv = `"account","balance"\n"expenses","EUR 1917.61, 5.00 USD"\n"Total:","EUR 1917.61, 5.00 USD"`;
+    expect(parseBalRows(csv)).toEqual([
+      { name: "expenses", amount: 1917.61, currency: "EUR" },
+      { name: "expenses", amount: 5, currency: "USD" },
+    ]);
+  });
 });
 
 // ── fetchBriefingData ───────────────────────────────────────────────
@@ -184,8 +220,8 @@ describe("fetchBriefingData()", () => {
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.error).toContain("hledger is not installed");
     expect(data.netWorth).toEqual([]);
-    expect(data.spendThisMonth).toBeNull();
-    expect(data.incomeThisMonth).toBeNull();
+    expect(data.spendThisMonth).toEqual([]);
+    expect(data.incomeThisMonth).toEqual([]);
     expect(data.topCategories).toEqual([]);
   });
 
@@ -204,8 +240,8 @@ describe("fetchBriefingData()", () => {
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.error).toBeNull();
     expect(data.netWorth).toEqual([]);
-    expect(data.spendThisMonth).toBeNull();
-    expect(data.incomeThisMonth).toBeNull();
+    expect(data.spendThisMonth).toEqual([]);
+    expect(data.incomeThisMonth).toEqual([]);
     expect(data.topCategories).toEqual([]);
   });
 
@@ -246,28 +282,69 @@ describe("fetchBriefingData()", () => {
     expect(data.netWorth).toEqual([]);
   });
 
-  test("should return spendThisMonth from expenses total", async () => {
+  test("should return spendThisMonth from expenses", async () => {
     setAllQueries(null, null, EXPENSES, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.spendThisMonth).toEqual({ amount: 1200, currency: "USD" });
+    expect(data.spendThisMonth).toEqual([{ amount: 1200, currency: "USD" }]);
   });
 
-  test("should return null spendThisMonth when expenses null", async () => {
+  test("should return empty spendThisMonth when expenses null", async () => {
     setAllQueries(null, null, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.spendThisMonth).toBeNull();
+    expect(data.spendThisMonth).toEqual([]);
   });
 
   test("should return incomeThisMonth as absolute value", async () => {
     setAllQueries(null, null, null, INCOME, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.incomeThisMonth).toEqual({ amount: 3000, currency: "USD" });
+    expect(data.incomeThisMonth).toEqual([{ amount: 3000, currency: "USD" }]);
   });
 
-  test("should return null incomeThisMonth when income null", async () => {
+  test("should return empty incomeThisMonth when income null", async () => {
     setAllQueries(null, null, null, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.incomeThisMonth).toBeNull();
+    expect(data.incomeThisMonth).toEqual([]);
+  });
+
+  test("should aggregate multi-currency expenses", async () => {
+    const exp = `"account","balance"\n"Expenses","EUR 1917.61, 5.00 USD"\n"Total:","EUR 1917.61, 5.00 USD"`;
+    setAllQueries(null, null, exp, null, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.spendThisMonth).toEqual([
+      { amount: 1917.61, currency: "EUR" },
+      { amount: 5, currency: "USD" },
+    ]);
+  });
+
+  test("should aggregate multi-currency income as absolute values", async () => {
+    const inc = `"account","balance"\n"Income","EUR -3000.00, -500.00 USD"\n"Total:","EUR -3000.00, -500.00 USD"`;
+    setAllQueries(null, null, null, inc, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.incomeThisMonth).toEqual([
+      { amount: 3000, currency: "EUR" },
+      { amount: 500, currency: "USD" },
+    ]);
+  });
+
+  test("should show zero spent with primary currency when hledger returns zero total", async () => {
+    const zeroExp = `"account","balance"\n"Total:","0"`;
+    setAllQueries(NW_SINGLE, null, zeroExp, null, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.spendThisMonth).toEqual([{ amount: 0, currency: "USD" }]);
+  });
+
+  test("should show zero income with primary currency when hledger returns zero total", async () => {
+    const zeroInc = `"account","balance"\n"Total:","0"`;
+    setAllQueries(NW_SINGLE, null, null, zeroInc, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.incomeThisMonth).toEqual([{ amount: 0, currency: "USD" }]);
+  });
+
+  test("should use empty currency for zero fallback when no net worth", async () => {
+    const zeroExp = `"account","balance"\n"Total:","0"`;
+    setAllQueries(null, null, zeroExp, null, null);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.spendThisMonth).toEqual([{ amount: 0, currency: "" }]);
   });
 
   test("should return topCategories sorted descending, limited to 5", async () => {

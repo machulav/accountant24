@@ -2,8 +2,8 @@ import { tryRunHledger } from "../hledger";
 
 export interface BriefingData {
   netWorth: Array<{ amount: number; currency: string; change: number }>;
-  spendThisMonth: { amount: number; currency: string } | null;
-  incomeThisMonth: { amount: number; currency: string } | null;
+  spendThisMonth: Array<{ amount: number; currency: string }>;
+  incomeThisMonth: Array<{ amount: number; currency: string }>;
   topCategories: Array<{
     name: string;
     amount: number;
@@ -67,6 +67,17 @@ export function parseAmount(str: string): { amount: number; currency: string } {
   return { amount: Number.isNaN(num) ? 0 : num, currency: "" };
 }
 
+/** Parse a balance field that may contain comma-separated amounts: "EUR 1917.61, 5.00 USD" */
+export function parseAmounts(str: string): Array<{ amount: number; currency: string }> {
+  const trimmed = str.trim();
+  if (!trimmed || trimmed === "0") return [{ amount: 0, currency: "" }];
+
+  // hledger separates multiple commodities with ", " (comma-space).
+  // Thousand separators use comma WITHOUT space: "1,234.56"
+  // So splitting on ", " is safe.
+  return trimmed.split(", ").map(parseAmount);
+}
+
 export function parseBalTotal(csv: string): { amount: number; currency: string } | null {
   const lines = csv.split("\n").filter((l) => l.trim());
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -87,8 +98,9 @@ export function parseBalRows(csv: string): Array<{ name: string; amount: number;
     const key = fields[0].toLowerCase().replace(/:$/, "");
     if (key === "account" || key === "total") continue;
     if (fields[0] && fields[1]) {
-      const { amount, currency } = parseAmount(fields[1]);
-      rows.push({ name: fields[0], amount, currency });
+      for (const parsed of parseAmounts(fields[1])) {
+        rows.push({ name: fields[0], amount: parsed.amount, currency: parsed.currency });
+      }
     }
   }
   return rows;
@@ -108,8 +120,8 @@ function getMonthBounds(): { beginDate: string; endDate: string } {
 function emptyData(): BriefingData {
   return {
     netWorth: [],
-    spendThisMonth: null,
-    incomeThisMonth: null,
+    spendThisMonth: [],
+    incomeThisMonth: [],
     topCategories: [],
     error: null,
   };
@@ -164,16 +176,33 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   }
 
-  // Spend this month
+  // Primary currency for zero fallback
+  const primaryCurrency = data.netWorth.length > 0 ? data.netWorth[0].currency : "";
+
+  // Spend this month — aggregate by currency
   if (expenses) {
-    const total = parseBalTotal(expenses);
-    if (total) data.spendThisMonth = { amount: total.amount, currency: total.currency };
+    const byCurrency = new Map<string, number>();
+    for (const row of parseBalRows(expenses)) {
+      byCurrency.set(row.currency, (byCurrency.get(row.currency) ?? 0) + row.amount);
+    }
+    const entries = [...byCurrency.entries()]
+      .filter(([, amount]) => amount !== 0)
+      .map(([currency, amount]) => ({ amount, currency }))
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    data.spendThisMonth = entries.length > 0 ? entries : [{ amount: 0, currency: primaryCurrency }];
   }
 
-  // Income this month (naturally negative in hledger, negate for display)
+  // Income this month — aggregate by currency (naturally negative in hledger, negate for display)
   if (income) {
-    const total = parseBalTotal(income);
-    if (total) data.incomeThisMonth = { amount: Math.abs(total.amount), currency: total.currency };
+    const byCurrency = new Map<string, number>();
+    for (const row of parseBalRows(income)) {
+      byCurrency.set(row.currency, (byCurrency.get(row.currency) ?? 0) + row.amount);
+    }
+    const entries = [...byCurrency.entries()]
+      .filter(([, amount]) => amount !== 0)
+      .map(([currency, amount]) => ({ amount: Math.abs(amount), currency }))
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    data.incomeThisMonth = entries.length > 0 ? entries : [{ amount: 0, currency: primaryCurrency }];
   }
 
   // Top categories

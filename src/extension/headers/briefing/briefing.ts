@@ -83,8 +83,8 @@ export class Briefing extends Container {
 
     const hasData =
       this.data.netWorth.length > 0 ||
-      this.data.spendThisMonth ||
-      this.data.incomeThisMonth ||
+      this.data.spendThisMonth.length > 0 ||
+      this.data.incomeThisMonth.length > 0 ||
       this.data.topCategories.length > 0;
 
     if (!hasData) {
@@ -103,7 +103,8 @@ export class Briefing extends Container {
       lines.push("", ...this.renderNetWorth());
     }
 
-    const hasMonthly = this.data.spendThisMonth || this.data.incomeThisMonth || this.data.topCategories.length > 0;
+    const hasMonthly =
+      this.data.spendThisMonth.length > 0 || this.data.incomeThisMonth.length > 0 || this.data.topCategories.length > 0;
     if (hasMonthly) {
       lines.push("", ...this.renderThisMonth(width, contentWidth));
     }
@@ -141,13 +142,13 @@ export class Briefing extends Container {
 
   private renderThisMonth(width: number, contentWidth: number): string[] {
     const lines: string[] = [];
-    const sp = this.data?.spendThisMonth;
-    const inc = this.data?.incomeThisMonth;
+    const spEntries = this.data?.spendThisMonth ?? [];
+    const incEntries = this.data?.incomeThisMonth ?? [];
     const cats = this.data?.topCategories ?? [];
     const leftColWidth = Math.floor(contentWidth * LEFT_COL_RATIO);
 
     // Build divider: ── This Month ────── Top Categories ──────
-    const hasLeft = sp || inc;
+    const hasLeft = spEntries.length > 0 || incEntries.length > 0;
     const hasRight = cats.length > 0;
     let divider: string;
     if (hasLeft && hasRight) {
@@ -168,8 +169,23 @@ export class Briefing extends Container {
 
     // Build left column (Spent / Income)
     const leftLines: string[] = [];
-    if (sp) leftLines.push(`${b.label("Spent")}   ${b.amount(formatMoney(sp.amount, sp.currency, false))}`);
-    if (inc) leftLines.push(`${b.label("Income")}  ${b.amount(formatMoney(inc.amount, inc.currency, false))}`);
+    const spAmts = spEntries.map((e) => NUM_FMT.format(e.amount));
+    const incAmts = incEntries.map((e) => NUM_FMT.format(e.amount));
+    const maxAmtLen = Math.max(0, ...spAmts.map((s) => s.length), ...incAmts.map((s) => s.length));
+    const labelCol = 8; // "Spent   " or "Income  " = 8 visible chars
+    const contIndent = " ".repeat(labelCol);
+
+    for (let i = 0; i < spEntries.length; i++) {
+      const prefix = i === 0 ? `${b.label("Spent")}   ` : contIndent;
+      leftLines.push(`${prefix}${b.amount(padStart(spAmts[i], maxAmtLen))}  ${spEntries[i].currency}`);
+    }
+    if (spEntries.length > 0 && incEntries.length > 0) {
+      leftLines.push("");
+    }
+    for (let i = 0; i < incEntries.length; i++) {
+      const prefix = i === 0 ? `${b.label("Income")}  ` : contIndent;
+      leftLines.push(`${prefix}${b.amount(padStart(incAmts[i], maxAmtLen))}  ${incEntries[i].currency}`);
+    }
 
     // Build right column (categories)
     const rightLines: string[] = [];

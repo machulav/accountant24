@@ -21,8 +21,8 @@ function stripLines(lines: string[]): string[] {
 function fullData(): BriefingData {
   return {
     netWorth: [{ amount: 12450, currency: "USD", change: 860 }],
-    spendThisMonth: { amount: 2340, currency: "USD" },
-    incomeThisMonth: { amount: 5200, currency: "USD" },
+    spendThisMonth: [{ amount: 2340, currency: "USD" }],
+    incomeThisMonth: [{ amount: 5200, currency: "USD" }],
     topCategories: [
       { name: "Food", amount: 890, currency: "USD" },
       { name: "Housing", amount: 650, currency: "USD" },
@@ -44,8 +44,8 @@ describe("Briefing component", () => {
     const b = new Briefing();
     b.setData({
       netWorth: [],
-      spendThisMonth: null,
-      incomeThisMonth: null,
+      spendThisMonth: [],
+      incomeThisMonth: [],
       topCategories: [],
       error: null,
     });
@@ -58,8 +58,8 @@ describe("Briefing component", () => {
     const b = new Briefing();
     b.setData({
       netWorth: [],
-      spendThisMonth: null,
-      incomeThisMonth: null,
+      spendThisMonth: [],
+      incomeThisMonth: [],
       topCategories: [],
       error: "hledger is not installed",
     });
@@ -82,8 +82,8 @@ describe("Briefing component", () => {
     const text = lines.join("\n");
     expect(text).toContain("12,450.00");
     expect(text).toContain("USD");
-    expect(text).toContain("$2,340.00");
-    expect(text).toContain("$5,200.00");
+    expect(text).toContain("2,340.00");
+    expect(text).toContain("5,200.00");
   });
 
   test("renders KPI labels", () => {
@@ -142,8 +142,8 @@ describe("Briefing component", () => {
     const b = new Briefing();
     b.setData({
       netWorth: [],
-      spendThisMonth: null,
-      incomeThisMonth: null,
+      spendThisMonth: [],
+      incomeThisMonth: [],
       topCategories: [{ name: "Food", amount: 100, currency: "USD" }],
       error: null,
     });
@@ -167,8 +167,8 @@ describe("Briefing component", () => {
     const b = new Briefing();
     const data = fullData();
     data.netWorth = [{ amount: 5000, currency: "BRL", change: 0 }];
-    data.spendThisMonth = { amount: 100, currency: "BRL" };
-    data.incomeThisMonth = null;
+    data.spendThisMonth = [{ amount: 100, currency: "BRL" }];
+    data.incomeThisMonth = [];
     data.topCategories = [{ name: "Food", amount: 100, currency: "BRL" }];
     b.setData(data);
     const lines = stripLines(b.render(80));
@@ -191,8 +191,8 @@ describe("Briefing component", () => {
     const b = new Briefing();
     b.setData({
       netWorth: [{ amount: 5000, currency: "USD", change: 100 }],
-      spendThisMonth: null,
-      incomeThisMonth: null,
+      spendThisMonth: [],
+      incomeThisMonth: [],
       topCategories: [],
       error: null,
     });
@@ -201,6 +201,99 @@ describe("Briefing component", () => {
     expect(text).toContain("5,000.00");
     expect(text).toContain("USD");
     expect(text).not.toContain("Top Categories");
+  });
+
+  test("renders multi-currency spent stacked with label on first line", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.spendThisMonth = [
+      { amount: 1917.61, currency: "EUR" },
+      { amount: 5, currency: "USD" },
+    ];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("Spent");
+    expect(text).toContain("1,917.61");
+    expect(text).toContain("EUR");
+    expect(text).toContain("5.00");
+    // "Spent" label appears only once
+    const spentCount = lines.filter((l) => l.includes("Spent")).length;
+    expect(spentCount).toBe(1);
+  });
+
+  test("renders multi-currency income stacked with label on first line", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.incomeThisMonth = [
+      { amount: 3000, currency: "EUR" },
+      { amount: 500, currency: "USD" },
+    ];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("Income");
+    expect(text).toContain("3,000.00");
+    expect(text).toContain("500.00");
+    const incomeCount = lines.filter((l) => l.includes("Income")).length;
+    expect(incomeCount).toBe(1);
+  });
+
+  test("renders zero spent and income with currency code", () => {
+    const b = new Briefing();
+    b.setData({
+      netWorth: [{ amount: 5000, currency: "EUR", change: 0 }],
+      spendThisMonth: [{ amount: 0, currency: "EUR" }],
+      incomeThisMonth: [{ amount: 0, currency: "EUR" }],
+      topCategories: [],
+      error: null,
+    });
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("Spent");
+    expect(text).toContain("Income");
+    expect(text).toContain("0.00");
+    expect(text).toContain("EUR");
+  });
+
+  test("renders gap between spent and income", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.topCategories = [];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const spentIdx = lines.findIndex((l) => l.includes("Spent"));
+    const incomeIdx = lines.findIndex((l) => l.includes("Income"));
+    expect(spentIdx).toBeGreaterThan(-1);
+    expect(incomeIdx).toBeGreaterThan(-1);
+    // There should be a gap line between Spent and Income
+    expect(incomeIdx - spentIdx).toBe(2);
+    expect(lines[spentIdx + 1].trim()).toBe("");
+  });
+
+  test("no empty line between spent and income when only income present", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.spendThisMonth = [];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    expect(text).toContain("Income");
+    expect(text).not.toContain("Spent");
+  });
+
+  test("renders spent currency code instead of symbol", () => {
+    const b = new Briefing();
+    const data = fullData();
+    data.spendThisMonth = [{ amount: 100, currency: "EUR" }];
+    data.incomeThisMonth = [{ amount: 50, currency: "EUR" }];
+    b.setData(data);
+    const lines = stripLines(b.render(80));
+    const text = lines.join("\n");
+    // Should show "100.00  EUR" not "€100.00"
+    expect(text).toContain("100.00");
+    expect(text).toContain("EUR");
+    expect(text).not.toMatch(/€\s*100/);
   });
 
   test("renders multiple currencies stacked", () => {
