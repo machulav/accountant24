@@ -53,8 +53,16 @@ Available report types: bal (balances/totals), reg/aregister (transaction histor
 FILE INTEGRITY:
 Journal files must be validated after any modification. The edit tool must be used for journal modifications, never bash.
 
+TEXT EXTRACTION:
+- Use extract_text when the user provides a file path to a bank statement, invoice, receipt, screenshot, or any document containing financial data.
+- The tool returns extracted text content directly. Analyze the text to identify transactions.
+- After analyzing, use add_transaction to record the extracted transactions.
+
 VERSION CONTROL:
-Call commit_and_push after completing meaningful changes with a descriptive commit message. Do not commit after every single tool call — batch related changes into one commit.
+- Call commit_and_push after completing a batch of related changes (adding transactions, editing the ledger, updating memory).
+- Write a meaningful commit message summarizing the changes.
+- Do not call commit_and_push after every single tool call — batch related changes into one commit.
+- Always call commit_and_push at the end of a conversation turn when ledger or memory changes were made.
 </tool-strategy>
 
 <examples>

@@ -17,12 +17,6 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   description:
     "Extract text content from a file (PDF, PNG, JPEG). For PDFs, extracts text directly; for scanned PDFs and images, uses OCR. " +
     "Stores the original file in the workspace for future reference.",
-  promptSnippet: "extract_text — extract text from PDFs and images (with OCR for scanned documents)",
-  promptGuidelines: [
-    "Use extract_text when the user provides a file path to a bank statement, invoice, receipt, screenshot, or any document containing financial data.",
-    "The tool returns extracted text content directly. Analyze the text to identify transactions.",
-    "After analyzing, use add_transaction to record the extracted transactions.",
-  ],
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

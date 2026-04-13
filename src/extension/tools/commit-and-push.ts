@@ -17,13 +17,6 @@ export const commitAndPushTool: ToolDefinition<typeof Params, CommitAndPushResul
   description:
     "Stage all changes, commit with the provided message, and push to the remote if one is configured. " +
     "Returns the list of committed files and whether a push occurred.",
-  promptSnippet: "commit_and_push — commit all changes and push to remote",
-  promptGuidelines: [
-    "Call commit_and_push after completing a batch of related changes (adding transactions, editing the ledger, updating memory).",
-    "Write a meaningful commit message summarizing the changes.",
-    "Do not call commit_and_push after every single tool call — batch related changes into one commit.",
-    "Always call commit_and_push at the end of a conversation turn when ledger or memory changes were made.",
-  ],
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),
