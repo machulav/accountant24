@@ -114,7 +114,8 @@ describe("Briefing component", () => {
     const text = lines.join("\n");
     expect(text).toContain("Top Categories");
     expect(text).toContain("Food");
-    expect(text).toContain("$890.00");
+    expect(text).toContain("890.00");
+    expect(text).toContain("USD");
     expect(text).toContain("%");
   });
 
@@ -164,7 +165,7 @@ describe("Briefing component", () => {
     expect(text).toContain("Net Worth");
     expect(text).toContain("12,450.00");
     expect(text).toContain("Food");
-    expect(text).toContain("$890.00");
+    expect(text).toContain("890.00");
   });
 
   test("handles missing sections gracefully", () => {

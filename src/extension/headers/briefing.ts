@@ -18,15 +18,6 @@ const b = {
   emptyState: (t: string) => chalk.dim.italic(t),
 };
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  JPY: "¥",
-  UAH: "₴",
-  CHF: "CHF",
-};
-
 const PAD = "  ";
 const LEFT_COL_RATIO = 0.35;
 
@@ -45,12 +36,9 @@ function padStart(str: string, targetVisible: number): string {
   return diff > 0 ? `${" ".repeat(diff)}${str}` : str;
 }
 
-function formatMoney(amount: number, currency: string, forceSign: boolean): string {
+function formatMoney(amount: number, forceSign: boolean): string {
   const formatted = NUM_FMT.format(Math.abs(amount));
   const sign = forceSign ? (amount >= 0 ? "+" : "-") : amount < 0 ? "-" : "";
-  const symbol = CURRENCY_SYMBOLS[currency];
-  if (symbol) return `${sign}${symbol}${formatted}`;
-  if (currency) return `${sign}${formatted} ${currency}`;
   return `${sign}${formatted}`;
 }
 
@@ -171,14 +159,16 @@ export class Briefing extends Container {
     const rightLines: string[] = [];
     if (cats.length > 0) {
       const maxNameLen = Math.max(...cats.map((c) => c.name.length));
-      const maxAmtLen = Math.max(...cats.map((c) => formatMoney(c.amount, c.currency, false).length));
+      const maxAmtLen = Math.max(...cats.map((c) => formatMoney(c.amount, false).length));
       const totalCatAmount = cats.reduce((sum, c) => sum + c.amount, 0);
 
       for (const cat of cats) {
         const name = truncate(cat.name, maxNameLen);
-        const amtStr = formatMoney(cat.amount, cat.currency, false);
+        const amtStr = formatMoney(cat.amount, false);
         const pct = totalCatAmount > 0 ? Math.round((cat.amount / totalCatAmount) * 100) : 0;
-        rightLines.push(`${padEnd(name, maxNameLen)}  ${b.amount(padStart(amtStr, maxAmtLen))}  ${b.dim(`${pct}%`)}`);
+        rightLines.push(
+          `${padEnd(name, maxNameLen)}  ${b.amount(padStart(amtStr, maxAmtLen))}  ${cat.currency}  ${b.dim(`${pct}%`)}`,
+        );
       }
     }
 
