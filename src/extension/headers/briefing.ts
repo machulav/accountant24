@@ -1,7 +1,7 @@
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import type { BriefingData } from "../../data";
-import { buildLogoLine } from "../shared";
+import type { BriefingData } from "../data";
+import { buildLogoLine } from "./shared";
 
 function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
@@ -54,7 +54,7 @@ function formatMoney(amount: number, currency: string, forceSign: boolean): stri
   return `${sign}${formatted}`;
 }
 
-export { buildLogoLine } from "../shared";
+export { buildLogoLine } from "./shared";
 
 export class Briefing extends Container {
   private data: BriefingData | null;

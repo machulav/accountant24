@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { BriefingData } from "../../../data";
+import type { BriefingData } from "../../data";
 import { Briefing } from "../briefing";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes are control chars by definition

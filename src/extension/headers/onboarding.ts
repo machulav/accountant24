@@ -1,6 +1,6 @@
 import { Container } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import { buildLogoLine } from "../shared";
+import { buildLogoLine } from "./shared";
 
 const PAD = "  ";
 

@@ -1,8 +1,8 @@
 import { Container } from "@mariozechner/pi-tui";
 import { LEDGER_DIR } from "../config";
 import { type BriefingData, fetchBriefingData } from "../data";
-import { Briefing } from "./briefing/briefing";
-import { Onboarding } from "./onboarding/onboarding";
+import { Briefing } from "./briefing";
+import { Onboarding } from "./onboarding";
 
 function hasTransactions(data: BriefingData): boolean {
   return (
