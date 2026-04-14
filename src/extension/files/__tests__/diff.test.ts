@@ -29,7 +29,7 @@ describe("generateDiff()", () => {
   });
 
   test("should use ... for skipped context", () => {
-    const lines = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
+    const lines = `${Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n")}\n`;
     const diff = generateDiff(lines, lines.replace("line 10", "changed 10"));
     expect(diff).toContain("...");
     expect(diff).toContain("changed 10");
