@@ -189,7 +189,8 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       .filter(([, amount]) => amount !== 0)
       .map(([currency, amount]) => ({ amount, currency }))
       .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
-    data.spendThisMonth = entries.length > 0 ? entries : [{ amount: 0, currency: primaryCurrency }];
+    data.spendThisMonth =
+      entries.length > 0 ? entries : primaryCurrency ? [{ amount: 0, currency: primaryCurrency }] : [];
   }
 
   // Income this month — aggregate by currency (naturally negative in hledger, negate for display)
@@ -202,7 +203,8 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
       .filter(([, amount]) => amount !== 0)
       .map(([currency, amount]) => ({ amount: Math.abs(amount), currency }))
       .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
-    data.incomeThisMonth = entries.length > 0 ? entries : [{ amount: 0, currency: primaryCurrency }];
+    data.incomeThisMonth =
+      entries.length > 0 ? entries : primaryCurrency ? [{ amount: 0, currency: primaryCurrency }] : [];
   }
 
   // Top categories

@@ -1,12 +1,6 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { BriefingData } from "../../../data";
-import { Briefing, createBriefingFactory } from "../briefing";
-
-// For createBriefingFactory tests: mock Bun.spawn so fetchBriefingData resolves fast
-const origSpawn = Bun.spawn;
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+import { Briefing } from "../briefing";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes are control chars by definition
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
@@ -38,20 +32,6 @@ describe("Briefing component", () => {
   test("returns empty when no data set", () => {
     const b = new Briefing();
     expect(b.render(80)).toEqual([]);
-  });
-
-  test("renders empty state when no transactions", () => {
-    const b = new Briefing();
-    b.setData({
-      netWorth: [],
-      spendThisMonth: [],
-      incomeThisMonth: [],
-      topCategories: [],
-      error: null,
-    });
-    const lines = stripLines(b.render(80));
-    expect(lines.some((l) => l.includes("Accountant24"))).toBe(true);
-    expect(lines.some((l) => l.includes("No transactions yet"))).toBe(true);
   });
 
   test("renders error state", () => {
@@ -320,43 +300,5 @@ describe("Briefing component", () => {
     // "Net Worth" label appears only once
     const nwCount = lines.filter((l) => l.includes("Net Worth")).length;
     expect(nwCount).toBe(1);
-  });
-});
-
-describe("createBriefingFactory()", () => {
-  test("should return a factory function", () => {
-    const factory = createBriefingFactory();
-    expect(typeof factory).toBe("function");
-  });
-
-  test("should return a Briefing when called", () => {
-    // Mock Bun.spawn so fetchBriefingData resolves quickly
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => ({
-      stdout: new Blob([""]).stream(),
-      stderr: new Blob([""]).stream(),
-      exited: Promise.resolve(1),
-      kill: () => {},
-    }));
-    const factory = createBriefingFactory();
-    const tui = { requestRender: mock(() => {}) };
-    const briefing = factory(tui, {});
-    expect(typeof briefing.render).toBe("function");
-    expect(typeof briefing.setData).toBe("function");
-  });
-
-  test("should call requestRender after data loads", async () => {
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => ({
-      stdout: new Blob([""]).stream(),
-      stderr: new Blob([""]).stream(),
-      exited: Promise.resolve(0),
-      kill: () => {},
-    }));
-    const factory = createBriefingFactory();
-    const tui = { requestRender: mock(() => {}) };
-    factory(tui, {});
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(tui.requestRender).toHaveBeenCalledWith(true);
   });
 });

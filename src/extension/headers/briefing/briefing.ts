@@ -1,7 +1,7 @@
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import { LEDGER_DIR } from "../../config";
-import { type BriefingData, fetchBriefingData } from "../../data";
+import type { BriefingData } from "../../data";
+import { buildLogoLine } from "../shared";
 
 function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
@@ -54,11 +54,7 @@ function formatMoney(amount: number, currency: string, forceSign: boolean): stri
   return `${sign}${formatted}`;
 }
 
-export function buildHeaderLine(label: string, width: number): string {
-  const prefixLen = 2 + 1 + label.length + 1;
-  const fillLen = Math.max(0, width - prefixLen);
-  return `── ${label} ${"─".repeat(fillLen)}`;
-}
+export { buildLogoLine } from "../shared";
 
 export class Briefing extends Container {
   private data: BriefingData | null;
@@ -76,28 +72,12 @@ export class Briefing extends Container {
     if (!this.data) return [];
 
     if (this.data.error) {
-      return ["", b.header(buildHeaderLine("Accountant24", width)), "", `${PAD}${b.emptyState(this.data.error)}`];
+      return ["", b.header(buildLogoLine(width)), "", `${PAD}${b.emptyState(this.data.error)}`];
     }
 
     const contentWidth = width - PAD.length * 2;
-
-    const hasData =
-      this.data.netWorth.length > 0 ||
-      this.data.spendThisMonth.length > 0 ||
-      this.data.incomeThisMonth.length > 0 ||
-      this.data.topCategories.length > 0;
-
-    if (!hasData) {
-      return [
-        "",
-        b.header(buildHeaderLine("Accountant24", width)),
-        "",
-        `${PAD}${b.emptyState("No transactions yet. Start by telling me about your spending!")}`,
-      ];
-    }
-
     const lines: string[] = [];
-    lines.push("", b.header(buildHeaderLine("Accountant24", width)));
+    lines.push("", b.header(buildLogoLine(width)));
 
     if (this.data.netWorth.length > 0) {
       lines.push("", ...this.renderNetWorth());
@@ -212,15 +192,4 @@ export class Briefing extends Container {
 
     return lines;
   }
-}
-
-export function createBriefingFactory() {
-  return (tui: any, _theme: any) => {
-    const briefing = new Briefing();
-    fetchBriefingData(`${LEDGER_DIR}/main.journal`).then((data) => {
-      briefing.setData(data);
-      tui.requestRender(true);
-    });
-    return briefing;
-  };
 }

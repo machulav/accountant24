@@ -4,7 +4,7 @@ import { Loader } from "@mariozechner/pi-tui";
 import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
-import { createBriefingFactory } from "./headers/briefing/briefing";
+import { createHeaderFactory } from "./headers";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
 import {
@@ -56,7 +56,7 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
 
       if (ctx.hasUI) {
         ctx.ui.setTitle("Accountant24");
-        ctx.ui.setHeader(createBriefingFactory());
+        ctx.ui.setHeader(createHeaderFactory());
         ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
 
         // Built-in commands (not exported by pi-coding-agent)

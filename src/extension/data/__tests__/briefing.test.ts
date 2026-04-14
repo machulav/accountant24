@@ -340,11 +340,11 @@ describe("fetchBriefingData()", () => {
     expect(data.incomeThisMonth).toEqual([{ amount: 0, currency: "USD" }]);
   });
 
-  test("should use empty currency for zero fallback when no net worth", async () => {
+  test("should return empty spent when no net worth and hledger returns zero", async () => {
     const zeroExp = `"account","balance"\n"Total:","0"`;
     setAllQueries(null, null, zeroExp, null, null);
     const data = await fetchBriefingData("/fake/main.journal");
-    expect(data.spendThisMonth).toEqual([{ amount: 0, currency: "" }]);
+    expect(data.spendThisMonth).toEqual([]);
   });
 
   test("should return topCategories sorted descending, limited to 5", async () => {
