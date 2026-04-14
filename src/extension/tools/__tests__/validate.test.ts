@@ -81,3 +81,30 @@ test("re-throws unexpected errors", async () => {
   });
   await expect(run({})).rejects.toThrow("unexpected");
 });
+
+// ── rendering wiring ──────────────────────────────────────────────
+
+const mockTheme = { fg: (_c: string, t: string) => t, bold: (t: string) => t } as any;
+
+test("renderCall should show label", () => {
+  // biome-ignore lint/style/noNonNullAssertion: renderCall is defined on this tool
+  const component = validateTool.renderCall!({}, mockTheme, {
+    lastComponent: undefined,
+    executionStarted: true,
+    isPartial: false,
+    isError: false,
+  } as any);
+  const output = component.render(120).join("\n");
+  expect(output).toContain("Validate Ledger");
+});
+
+test("renderResult should show valid message when expanded", () => {
+  const result = {
+    content: [{ type: "text" as const, text: "The ledger is valid." }],
+    details: { ledgerIsValid: true },
+  };
+  // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
+  const component = validateTool.renderResult!(result, { expanded: true, isPartial: false }, mockTheme, {} as any);
+  const output = component.render(120).join("\n");
+  expect(output).toContain("The ledger is valid.");
+});

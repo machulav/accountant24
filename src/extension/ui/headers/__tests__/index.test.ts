@@ -36,6 +36,17 @@ describe("createHeaderFactory()", () => {
     expect(typeof header.render).toBe("function");
   });
 
+  test("should render empty before async data loads", () => {
+    // @ts-expect-error - mocking Bun.spawn
+    Bun.spawn = mock(() => makeMockProc(1));
+    const factory = createHeaderFactory();
+    const tui = { requestRender: mock(() => {}) };
+    const header = factory(tui, {});
+    // Before the async fetchBriefingData resolves, active is null → empty render
+    const lines = header.render(80);
+    expect(lines).toEqual([]);
+  });
+
   test("should call requestRender after data loads", async () => {
     // @ts-expect-error - mocking Bun.spawn
     Bun.spawn = mock(() => makeMockProc(0));

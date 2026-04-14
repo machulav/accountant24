@@ -157,6 +157,15 @@ describe("createRenderResult()", () => {
     expect(first).not.toBe(second);
   });
 
+  test("should recompute lines after invalidate()", () => {
+    const component = renderResult(makeResult("test", "cmd"), { expanded: true, isPartial: false }, mockTheme);
+    const first = component.render(100);
+    component.invalidate();
+    const second = component.render(100);
+    // Same width, but cache was invalidated — new array instance
+    expect(first).not.toBe(second);
+  });
+
   test("should render diff sections using renderDiff", () => {
     const diffContent = "+1 added line";
     const diffRenderer = createRenderResult<{ diff: string }>((result) => [
