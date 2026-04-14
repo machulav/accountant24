@@ -14,31 +14,28 @@ function hasTransactions(data: BriefingData): boolean {
 }
 
 class HeaderSwitch extends Container {
-  private active: Container;
-
-  constructor(initial: Container) {
-    super();
-    this.active = initial;
-  }
+  private active: Container | null = null;
 
   setActive(component: Container): void {
     this.active = component;
   }
 
   render(width: number): string[] {
-    return this.active.render(width);
+    return this.active ? this.active.render(width) : [];
   }
 }
 
 export function createHeaderFactory() {
   return (tui: any, _theme: any) => {
-    const header = new HeaderSwitch(new Onboarding());
+    const header = new HeaderSwitch();
 
     fetchBriefingData(`${LEDGER_DIR}/main.journal`).then((data) => {
       if (data.error || hasTransactions(data)) {
         const briefing = new Briefing();
         briefing.setData(data);
         header.setActive(briefing);
+      } else {
+        header.setActive(new Onboarding());
       }
       tui.requestRender(true);
     });
