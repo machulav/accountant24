@@ -5,6 +5,7 @@ import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
 import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
 import { createHeaderFactory } from "./headers";
+import { updateDisplay } from "./loader";
 import { registerInfoMessageRenderer } from "./message-renderers";
 import { getSystemPrompt } from "./system-prompt";
 import {
@@ -17,13 +18,8 @@ import {
 } from "./tools";
 import { registerBuiltinOverrides } from "./tools/builtin-overrides";
 
-const CURRENCY_FRAMES = ["$", "€", "£", "¥", "₴"];
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
-LoaderProto.updateDisplay = function (this: Record<string, any>) {
-  const frame = CURRENCY_FRAMES[Math.floor(this.currentFrame / 2) % CURRENCY_FRAMES.length];
-  this.setText(`\x1b[32m${frame}\x1b[0m ${this.messageColorFn(this.message)}`);
-  this.ui?.requestRender();
-};
+LoaderProto.updateDisplay = updateDisplay;
 
 export function createExtension(settingsManager: SettingsManager): ExtensionFactory {
   return (pi) => {
