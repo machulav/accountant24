@@ -1,4 +1,5 @@
-import { getMemory, listAccounts, listPayees, listTags } from "../data";
+import { listAccounts, listPayees, listTags } from "../ledger";
+import { getMemory } from "../memory";
 // Text import so `bun build --compile` inlines system.md into the binary.
 // @ts-expect-error — TS lib doesn't ship types for text import attributes yet
 import systemMdText from "./system.md" with { type: "text" };

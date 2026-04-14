@@ -1,6 +1,6 @@
 import { Container } from "@mariozechner/pi-tui";
-import { LEDGER_DIR } from "../config";
-import { type BriefingData, fetchBriefingData } from "../data";
+import { LEDGER_DIR } from "../../config";
+import { type BriefingData, fetchBriefingData } from "../../ledger";
 import { Briefing } from "./briefing";
 import { Onboarding } from "./onboarding";
 

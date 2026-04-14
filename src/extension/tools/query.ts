@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { type QueryLedgerResult, queryLedger } from "../data";
+import { type QueryLedgerResult, queryLedger } from "../ledger";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({

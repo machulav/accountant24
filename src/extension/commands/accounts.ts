@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { listAccounts } from "../data";
+import { listAccounts } from "../ledger";
 
 const ACCOUNT_TYPES = [
   { type: "assets", label: "Assets", description: "Things you own (bank accounts, cash, investments)" },

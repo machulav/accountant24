@@ -1,12 +1,10 @@
 import type { ExtensionFactory, SettingsManager } from "@mariozechner/pi-coding-agent";
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
 import { Loader } from "@mariozechner/pi-tui";
-import { AccountantAutocompleteProvider } from "./autocomplete";
 import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
-import { ensureScaffolded, getMemory, listAccounts, listPayees, listTags } from "./data";
-import { createHeaderFactory } from "./headers";
-import { updateDisplay } from "./loader";
-import { registerInfoMessageRenderer } from "./message-renderers";
+import { listAccounts, listPayees, listTags } from "./ledger";
+import { getMemory } from "./memory";
+import { ensureScaffolded } from "./scaffold/scaffold";
 import { getSystemPrompt } from "./system-prompt";
 import {
   addTransactionTool,
@@ -17,6 +15,7 @@ import {
   validateTool,
 } from "./tools";
 import { registerBuiltinOverrides } from "./tools/builtin-overrides";
+import { AccountantAutocompleteProvider, createHeaderFactory, registerInfoMessageRenderer, updateDisplay } from "./ui";
 
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
 LoaderProto.updateDisplay = updateDisplay;

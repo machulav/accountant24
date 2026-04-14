@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { formatTags } from "../tags";
 
 let mockLoadTags: () => Promise<string[]>;
-mock.module("../../data/index", () => ({
+mock.module("../../ledger/index", () => ({
   listTags: async () => mockLoadTags(),
 }));
 

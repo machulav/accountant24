@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { MEMORY_PATH } from "../config";
-import { type SaveMemoryResult, saveMemory } from "../data";
+import { type SaveMemoryResult, saveMemory } from "../memory";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({

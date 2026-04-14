@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { type ExtractFileResult, extractFile } from "../data";
+import { type ExtractFileResult, extractFile } from "../files";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({

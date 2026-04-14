@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { getMemory } from "../data";
+import { getMemory } from "../memory";
 
 export function formatMemory(memory: string): string {
   if (!memory) return "No memory found.";

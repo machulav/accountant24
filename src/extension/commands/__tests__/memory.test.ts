@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 let mockGetMemory: () => Promise<string>;
-mock.module("../../data/index", () => ({
+mock.module("../../memory/index", () => ({
   getMemory: async () => mockGetMemory(),
 }));
 

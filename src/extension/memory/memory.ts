@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { MEMORY_PATH } from "../config";
-import { generateDiff } from "./diff";
+import { generateDiff } from "../files/diff";
 
 export interface SaveMemoryResult {
   diff: string;

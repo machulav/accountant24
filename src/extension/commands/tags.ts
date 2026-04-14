@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { listTags } from "../data";
+import { listTags } from "../ledger";
 
 export function formatTags(tags: string[]): string {
   if (tags.length === 0) return "No tags found.";

@@ -12,7 +12,7 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-const { ensureScaffolded } = await import("../scaffold/scaffold.js");
+const { ensureScaffolded } = await import("../scaffold.js");
 
 /** Expected template files — mirrors the manifest in scaffold.ts. */
 const EXPECTED_TEMPLATE_FILES = [

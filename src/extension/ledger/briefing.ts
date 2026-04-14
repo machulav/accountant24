@@ -1,4 +1,4 @@
-import { tryRunHledger } from "../hledger";
+import { tryRunHledger } from "./hledger";
 
 export interface BriefingData {
   netWorth: Array<{ amount: number; currency: string; change: number }>;

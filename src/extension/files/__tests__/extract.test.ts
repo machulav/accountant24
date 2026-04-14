@@ -15,7 +15,7 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-const { extractFile } = await import("../file-extract.js");
+const { extractFile } = await import("../extract.js");
 
 afterEach(() => {
   const filesDir = join(BASE, "files");

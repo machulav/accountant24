@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { type AddTransactionResult, addTransaction } from "../data";
+import { type AddTransactionResult, addTransaction } from "../ledger";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Posting = Type.Object({

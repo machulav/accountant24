@@ -24,7 +24,7 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   };
 }
 
-const { queryLedger } = await import("../ledger.js");
+const { queryLedger } = await import("../query.js");
 
 afterEach(() => {
   rmSync(BASE, { recursive: true, force: true });

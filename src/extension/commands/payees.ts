@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { listPayees } from "../data";
+import { listPayees } from "../ledger";
 
 export function formatPayees(payees: string[]): string {
   if (payees.length === 0) return "No payees found.";

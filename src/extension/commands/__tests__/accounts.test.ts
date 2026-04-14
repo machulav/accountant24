@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { formatAccounts } from "../accounts";
 
 let mockLoadAccounts: () => Promise<string[]>;
-mock.module("../../data/index", () => ({
+mock.module("../../ledger/index", () => ({
   listAccounts: async () => mockLoadAccounts(),
 }));
 

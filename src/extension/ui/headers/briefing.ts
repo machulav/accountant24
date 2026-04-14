@@ -1,6 +1,6 @@
 import { Container, visibleWidth } from "@mariozechner/pi-tui";
 import chalk from "chalk";
-import type { BriefingData } from "../data";
+import type { BriefingData } from "../../ledger";
 import { buildLogoLine } from "./shared";
 
 function truncate(s: string, max: number): string {

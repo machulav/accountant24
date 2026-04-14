@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ACCOUNTANT24_HOME } from "../../config";
-import { commitAll, gitInit } from "../../git";
+import { ACCOUNTANT24_HOME } from "../config";
+import { commitAll, gitInit } from "../git";
 // @ts-expect-error
 import gitignore from "./template/.gitignore" with { type: "text" };
 // @ts-expect-error
