@@ -19,12 +19,24 @@ const getSystemPrompt = mod.getSystemPrompt;
 const buildSystemPrompt = mod.buildSystemPrompt;
 type SystemPromptContext = typeof mod extends { getSystemPrompt: (ctx: infer C) => any } ? C : never;
 
+const sampleTools = [
+  { name: "read", snippet: "Read file contents", guidelines: ["Use read to examine files instead of cat or sed."] },
+  { name: "bash", snippet: "Execute bash commands" },
+  { name: "query", snippet: "Run hledger reports" },
+  {
+    name: "commit_and_push",
+    snippet: "Commit all changes and push to remote",
+    guidelines: ["Call commit_and_push after completing a batch of related changes."],
+  },
+];
+
 const empty: SystemPromptContext = {
   today: "2026-03-19",
   memory: "",
   accounts: [],
   payees: [],
   tags: [],
+  tools: sampleTools,
 };
 
 const populated: SystemPromptContext = {
@@ -33,6 +45,7 @@ const populated: SystemPromptContext = {
   accounts: ["Assets:Checking", "Expenses:Food:Groceries", "Expenses:Rent"],
   payees: ["Whole Foods", "Starbucks", "John (Landlord)"],
   tags: ["groceries", "weekly", "source"],
+  tools: sampleTools,
 };
 
 // --- empty context ---
@@ -129,6 +142,14 @@ test("includes tool-strategy section with invariants structure", () => {
   expect(prompt).toContain("</tool-strategy>");
 });
 
+test("tool-strategy does not contain migrated subsections", () => {
+  const prompt = getSystemPrompt(empty);
+  expect(prompt).not.toContain("REMEMBERING:");
+  expect(prompt).not.toContain("TEXT EXTRACTION:");
+  expect(prompt).not.toContain("VERSION CONTROL:");
+  expect(prompt).not.toContain("FINANCIAL QUESTIONS:");
+});
+
 test("does not contain prescriptive process language", () => {
   const prompt = getSystemPrompt(empty);
   expect(prompt).not.toContain("This step is mandatory");
@@ -161,6 +182,60 @@ test("includes response-style section", () => {
   expect(prompt).toContain("</response-style>");
 });
 
+// --- tools section ---
+
+test("includes tools section with snippets", () => {
+  const prompt = getSystemPrompt(empty);
+  expect(prompt).toContain("<tools>");
+  expect(prompt).toContain("- read: Read file contents");
+  expect(prompt).toContain("- bash: Execute bash commands");
+  expect(prompt).toContain("- query: Run hledger reports");
+  expect(prompt).toContain("- commit_and_push: Commit all changes and push to remote");
+  expect(prompt).toContain("</tools>");
+});
+
+test("includes tool guidelines in tools section", () => {
+  const prompt = getSystemPrompt(empty);
+  expect(prompt).toContain("Guidelines:");
+  expect(prompt).toContain("- Use read to examine files instead of cat or sed.");
+  expect(prompt).toContain("- Call commit_and_push after completing a batch of related changes.");
+});
+
+test("omits tools section when tools array is empty", () => {
+  const ctx: SystemPromptContext = { ...empty, tools: [] };
+  const prompt = getSystemPrompt(ctx);
+  expect(prompt).not.toContain("<tools>");
+});
+
+test("omits guidelines sub-section when no tools have guidelines", () => {
+  const ctx: SystemPromptContext = {
+    ...empty,
+    tools: [{ name: "validate", snippet: "Check the ledger" }],
+  };
+  const prompt = getSystemPrompt(ctx);
+  expect(prompt).toContain("<tools>");
+  expect(prompt).not.toContain("Guidelines:");
+});
+
+// --- context wrapper ---
+
+test("wraps dynamic sections in context tags", () => {
+  const prompt = getSystemPrompt(populated);
+  expect(prompt).toContain("<context>");
+  expect(prompt).toContain("</context>");
+
+  const contextStart = prompt.indexOf("<context>");
+  const contextEnd = prompt.indexOf("</context>");
+  const sessionPos = prompt.indexOf("<session>");
+  const memoryPos = prompt.indexOf("<memory>");
+  const accountsPos = prompt.indexOf("<accounts>");
+
+  expect(sessionPos).toBeGreaterThan(contextStart);
+  expect(memoryPos).toBeGreaterThan(contextStart);
+  expect(accountsPos).toBeGreaterThan(contextStart);
+  expect(accountsPos).toBeLessThan(contextEnd);
+});
+
 // --- date injection ---
 
 test("injects the provided date", () => {
@@ -170,14 +245,18 @@ test("injects the provided date", () => {
   expect(prompt).not.toContain("2026-03-19");
 });
 
-// --- ordering: static prefix before dynamic tail ---
+// --- ordering: static prefix before tools before context ---
 
-test("static content comes before dynamic content", () => {
+test("static content comes before tools section, tools before context", () => {
   const prompt = getSystemPrompt(populated);
   const identityPos = prompt.indexOf("<identity>");
+  const toolsPos = prompt.indexOf("<tools>");
+  const contextPos = prompt.indexOf("<context>");
   const sessionPos = prompt.indexOf("<session>");
   const memoryPos = prompt.indexOf("<memory>");
-  expect(identityPos).toBeLessThan(sessionPos);
+  expect(identityPos).toBeLessThan(toolsPos);
+  expect(toolsPos).toBeLessThan(contextPos);
+  expect(contextPos).toBeLessThan(sessionPos);
   expect(sessionPos).toBeLessThan(memoryPos);
 });
 
@@ -244,5 +323,24 @@ describe("buildSystemPrompt()", () => {
     expect(prompt).toContain("No accounts found.");
     expect(prompt).toContain("No payees found.");
     expect(prompt).toContain("No tags found.");
+  });
+
+  test("should not include tools section (no tool metadata available)", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = [];
+    mockTags = [];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).not.toContain("<tools>");
+  });
+
+  test("should wrap dynamic sections in context tags", async () => {
+    mockMemory = "";
+    mockAccounts = [];
+    mockPayees = [];
+    mockTags = [];
+    const prompt = await buildSystemPrompt();
+    expect(prompt).toContain("<context>");
+    expect(prompt).toContain("</context>");
   });
 });

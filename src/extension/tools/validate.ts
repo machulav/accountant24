@@ -10,7 +10,8 @@ const LABEL = "Validate Ledger";
 export const validateTool: ToolDefinition<typeof Params, ValidateLedgerResult> = {
   name: "validate",
   label: LABEL,
-  description: "Check the ledger for errors.",
+  description: "Check the ledger for errors",
+  promptSnippet: "Check the ledger for errors",
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

@@ -27,6 +27,7 @@ export const addTransactionTool: ToolDefinition<typeof Params, AddTransactionRes
   name: "add_transaction",
   label: LABEL,
   description: "Add a single transaction. Auto-routes to the correct monthly file and validates.",
+  promptSnippet: "Record a transaction (auto-routes to monthly file, validates)",
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

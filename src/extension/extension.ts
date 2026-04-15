@@ -14,7 +14,7 @@ import {
   updateMemoryTool,
   validateTool,
 } from "./tools";
-import { registerBuiltinOverrides } from "./tools/builtin-overrides";
+import { extractMeta, registerBuiltinOverrides } from "./tools/builtin-overrides";
 import { AccountantAutocompleteProvider, createHeaderFactory, registerInfoMessageRenderer, updateDisplay } from "./ui";
 
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
@@ -23,7 +23,7 @@ LoaderProto.updateDisplay = updateDisplay;
 export function createExtension(settingsManager: SettingsManager): ExtensionFactory {
   return (pi) => {
     // Override built-in tools with custom rendering
-    registerBuiltinOverrides(pi);
+    const builtinMeta = registerBuiltinOverrides(pi);
 
     // Register custom tools
     pi.registerTool(queryTool);
@@ -32,6 +32,14 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     pi.registerTool(extractTextTool);
     pi.registerTool(validateTool);
     pi.registerTool(updateMemoryTool);
+
+    // Collect prompt metadata from all tools
+    const allToolMeta = [
+      ...builtinMeta,
+      ...[queryTool, addTransactionTool, commitAndPushTool, extractTextTool, validateTool, updateMemoryTool].map(
+        extractMeta,
+      ),
+    ];
 
     // Register custom slash commands
     accountsCommand(pi);
@@ -107,7 +115,7 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
         ctx.ui.setWorkingMessage("Crunching the numbers...");
       }
 
-      return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags }) };
+      return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags, tools: allToolMeta }) };
     });
   };
 }

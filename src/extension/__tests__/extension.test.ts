@@ -146,6 +146,55 @@ describe("before_agent_start handler", () => {
     expect(result.systemPrompt.length).toBeGreaterThan(0);
   });
 
+  test("should include tools section with builtin and custom tool snippets", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    const result = await pi.handlers.before_agent_start({}, { hasUI: false });
+    const prompt = result.systemPrompt as string;
+    expect(prompt).toContain("<tools>");
+    expect(prompt).toContain("</tools>");
+    // Builtin tools
+    expect(prompt).toContain("- read:");
+    expect(prompt).toContain("- bash:");
+    expect(prompt).toContain("- edit:");
+    // Custom tools
+    expect(prompt).toContain("- query:");
+    expect(prompt).toContain("- add_transaction:");
+    expect(prompt).toContain("- commit_and_push:");
+    expect(prompt).toContain("- extract_text:");
+    expect(prompt).toContain("- validate:");
+    expect(prompt).toContain("- update_memory:");
+  });
+
+  test("should include context wrapper around dynamic sections", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    const result = await pi.handlers.before_agent_start({}, { hasUI: false });
+    const prompt = result.systemPrompt as string;
+    expect(prompt).toContain("<context>");
+    expect(prompt).toContain("</context>");
+
+    const contextStart = prompt.indexOf("<context>");
+    const sessionPos = prompt.indexOf("<session>");
+    expect(sessionPos).toBeGreaterThan(contextStart);
+  });
+
+  test("should include guidelines from tools", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    const result = await pi.handlers.before_agent_start({}, { hasUI: false });
+    const prompt = result.systemPrompt as string;
+    expect(prompt).toContain("Guidelines:");
+    // Custom tool guideline
+    expect(prompt).toContain("commit_and_push after completing a batch");
+  });
+
   test("should set working message when hasUI", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);

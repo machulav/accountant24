@@ -3,6 +3,10 @@ import { Type } from "@sinclair/typebox";
 import { type QueryLedgerResult, queryLedger } from "../ledger";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
+const REPORT_TYPES =
+  "bal (balances/spending), reg (posting list), aregister (single account with running balance), " +
+  "is (income statement), bs (balance sheet), print (raw transactions), stats (overview)";
+
 const Params = Type.Object({
   report: Type.Union(
     [
@@ -15,8 +19,7 @@ const Params = Type.Object({
       Type.Literal("stats"),
     ],
     {
-      description:
-        "Report type: bal (balances/spending), reg (posting list), aregister (single account with running balance), is (income statement), bs (balance sheet), print (raw transactions), stats (overview)",
+      description: `Report type: ${REPORT_TYPES}`,
     },
   ),
   account_pattern: Type.Optional(Type.String({ description: "Account name regex, e.g. 'Expenses:Food'" })),
@@ -64,6 +67,11 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   label: LABEL,
   description:
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
+  promptSnippet: "Run hledger reports (balance, register, income statement, etc.)",
+  promptGuidelines: [
+    `Available report types: ${REPORT_TYPES}.`,
+    "Use bash for advanced hledger queries beyond the query tool's parameters.",
+  ],
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

@@ -1,31 +1,46 @@
 import type { EditToolDetails, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
-  createBashTool,
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createWriteTool,
+  createBashToolDefinition,
+  createEditToolDefinition,
+  createFindToolDefinition,
+  createGrepToolDefinition,
+  createLsToolDefinition,
+  createReadToolDefinition,
+  createWriteToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 import { ACCOUNTANT24_HOME } from "../config";
+import type { ToolPromptMeta } from "../system-prompt";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 function textContent(result: { content: Array<{ type: string; text?: string }> }): string {
   return result.content[0]?.type === "text" ? (result.content[0].text ?? "") : "";
 }
 
-export function registerBuiltinOverrides(pi: ExtensionAPI): void {
+export function extractMeta(tool: {
+  name: string;
+  promptSnippet?: string;
+  promptGuidelines?: string[];
+}): ToolPromptMeta {
+  return {
+    name: tool.name,
+    snippet: tool.promptSnippet ?? tool.name,
+    ...(tool.promptGuidelines?.length ? { guidelines: tool.promptGuidelines } : {}),
+  };
+}
+
+export function registerBuiltinOverrides(pi: ExtensionAPI): ToolPromptMeta[] {
   const cwd = ACCOUNTANT24_HOME;
+  const meta: ToolPromptMeta[] = [];
 
   // ── Read ──────────────────────────────────────────────────────────
-  const originalRead = createReadTool(cwd);
+  const originalRead = createReadToolDefinition(cwd);
+  meta.push(extractMeta(originalRead));
   pi.registerTool({
     name: originalRead.name,
     label: "Read",
     description: originalRead.description,
     parameters: originalRead.parameters,
-    execute: (id, params, signal, onUpdate) => originalRead.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalRead.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Read" }),
     renderResult: createRenderResult((result, args) => [
       { heading: "File", content: args?.path ?? "" },
@@ -34,13 +49,14 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── Bash ──────────────────────────────────────────────────────────
-  const originalBash = createBashTool(cwd);
+  const originalBash = createBashToolDefinition(cwd);
+  meta.push(extractMeta(originalBash));
   pi.registerTool({
     name: originalBash.name,
     label: "Bash",
     description: originalBash.description,
     parameters: originalBash.parameters,
-    execute: (id, params, signal, onUpdate) => originalBash.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalBash.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Bash" }),
     renderResult: createRenderResult((result, args) => [
       { heading: "Command", content: `$ ${args?.command ?? ""}` },
@@ -49,13 +65,14 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── Edit ──────────────────────────────────────────────────────────
-  const originalEdit = createEditTool(cwd);
+  const originalEdit = createEditToolDefinition(cwd);
+  meta.push(extractMeta(originalEdit));
   pi.registerTool({
     name: originalEdit.name,
     label: "Edit",
     description: originalEdit.description,
     parameters: originalEdit.parameters,
-    execute: (id, params, signal, onUpdate) => originalEdit.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalEdit.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Edit" }),
     renderResult: createRenderResult<EditToolDetails>((result, args) => {
       const diff = result.details?.diff ?? "";
@@ -67,13 +84,14 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── Write ─────────────────────────────────────────────────────────
-  const originalWrite = createWriteTool(cwd);
+  const originalWrite = createWriteToolDefinition(cwd);
+  meta.push(extractMeta(originalWrite));
   pi.registerTool({
     name: originalWrite.name,
     label: "Write",
     description: originalWrite.description,
     parameters: originalWrite.parameters,
-    execute: (id, params, signal, onUpdate) => originalWrite.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalWrite.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Write" }),
     renderResult: createRenderResult((result, args) => [
       { heading: "File", content: args?.path ?? "" },
@@ -82,13 +100,14 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── Grep ──────────────────────────────────────────────────────────
-  const originalGrep = createGrepTool(cwd);
+  const originalGrep = createGrepToolDefinition(cwd);
+  meta.push(extractMeta(originalGrep));
   pi.registerTool({
     name: originalGrep.name,
     label: "Grep",
     description: originalGrep.description,
     parameters: originalGrep.parameters,
-    execute: (id, params, signal, onUpdate) => originalGrep.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalGrep.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Grep" }),
     renderResult: createRenderResult((result, args) => {
       let pattern = args?.pattern ?? "";
@@ -102,13 +121,14 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── Find ──────────────────────────────────────────────────────────
-  const originalFind = createFindTool(cwd);
+  const originalFind = createFindToolDefinition(cwd);
+  meta.push(extractMeta(originalFind));
   pi.registerTool({
     name: originalFind.name,
     label: "Find",
     description: originalFind.description,
     parameters: originalFind.parameters,
-    execute: (id, params, signal, onUpdate) => originalFind.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalFind.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "Find" }),
     renderResult: createRenderResult((result, args) => {
       let pattern = args?.pattern ?? "";
@@ -121,17 +141,20 @@ export function registerBuiltinOverrides(pi: ExtensionAPI): void {
   });
 
   // ── List ───────────────────────────────────────────────────────────
-  const originalLs = createLsTool(cwd);
+  const originalLs = createLsToolDefinition(cwd);
+  meta.push(extractMeta(originalLs));
   pi.registerTool({
     name: originalLs.name,
     label: "List",
     description: originalLs.description,
     parameters: originalLs.parameters,
-    execute: (id, params, signal, onUpdate) => originalLs.execute(id, params, signal, onUpdate),
+    execute: (id, params, signal, onUpdate, ctx) => originalLs.execute(id, params, signal, onUpdate, ctx),
     renderCall: createRenderCall({ label: "List" }),
     renderResult: createRenderResult((result, args) => [
       { heading: "Path", content: args?.path ?? "." },
       { heading: "Output", content: textContent(result) },
     ]),
   });
+
+  return meta;
 }

@@ -22,6 +22,11 @@ export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> =
     "Rewrite memory.md with updated user preferences, rules, and knowledge. " +
     "Always include ALL existing facts (merged with new ones). " +
     "Organize by topic using headers (##) and bullet points (-).",
+  promptSnippet: "Save user preferences and facts to persistent memory",
+  promptGuidelines: [
+    "Memory should contain: personal facts, preferences, explicit categorization rules, and recurring arrangement details.",
+    "Transaction-specific context belongs in the narration, not memory.",
+  ],
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

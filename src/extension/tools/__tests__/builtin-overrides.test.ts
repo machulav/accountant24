@@ -1,6 +1,14 @@
 import { describe, expect, mock, test } from "bun:test";
 import { initTheme } from "@mariozechner/pi-coding-agent";
-import { registerBuiltinOverrides } from "../builtin-overrides";
+import { extractMeta, registerBuiltinOverrides } from "../builtin-overrides";
+import {
+  addTransactionTool,
+  commitAndPushTool,
+  extractTextTool,
+  queryTool,
+  updateMemoryTool,
+  validateTool,
+} from "../index";
 
 initTheme();
 
@@ -25,9 +33,40 @@ function createMockPi() {
   };
 }
 
+describe("extractMeta()", () => {
+  test("should extract name and snippet from tool with promptSnippet", () => {
+    const meta = extractMeta({ name: "read", promptSnippet: "Read file contents" } as any);
+    expect(meta).toEqual({ name: "read", snippet: "Read file contents" });
+  });
+
+  test("should fall back to tool name when promptSnippet is absent", () => {
+    const meta = extractMeta({ name: "unknown_tool" });
+    expect(meta).toEqual({ name: "unknown_tool", snippet: "unknown_tool" });
+  });
+
+  test("should include guidelines when promptGuidelines is present", () => {
+    const meta = extractMeta({
+      name: "edit",
+      promptSnippet: "Edit files",
+      promptGuidelines: ["Use edit for precise changes."],
+    } as any);
+    expect(meta).toEqual({
+      name: "edit",
+      snippet: "Edit files",
+      guidelines: ["Use edit for precise changes."],
+    });
+  });
+
+  test("should omit guidelines key when promptGuidelines is empty", () => {
+    const meta = extractMeta({ name: "bash", promptSnippet: "Run commands", promptGuidelines: [] } as any);
+    expect(meta).toEqual({ name: "bash", snippet: "Run commands" });
+    expect("guidelines" in meta).toBe(false);
+  });
+});
+
 describe("registerBuiltinOverrides()", () => {
   const pi = createMockPi();
-  registerBuiltinOverrides(pi as any);
+  const meta = registerBuiltinOverrides(pi as any);
 
   test("should register 7 built-in tool overrides", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(7);
@@ -38,6 +77,26 @@ describe("registerBuiltinOverrides()", () => {
     expect(pi.tools.has("grep")).toBe(true);
     expect(pi.tools.has("find")).toBe(true);
     expect(pi.tools.has("ls")).toBe(true);
+  });
+
+  test("should return 7 ToolPromptMeta entries", () => {
+    expect(meta).toHaveLength(7);
+    for (const entry of meta) {
+      expect(typeof entry.name).toBe("string");
+      expect(typeof entry.snippet).toBe("string");
+      expect(entry.snippet.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("should return meta for all registered tools", () => {
+    const metaNames = meta.map((m) => m.name);
+    expect(metaNames).toContain("read");
+    expect(metaNames).toContain("bash");
+    expect(metaNames).toContain("edit");
+    expect(metaNames).toContain("write");
+    expect(metaNames).toContain("grep");
+    expect(metaNames).toContain("find");
+    expect(metaNames).toContain("ls");
   });
 
   describe("renderCall", () => {
@@ -177,5 +236,54 @@ describe("registerBuiltinOverrides()", () => {
       expect(output).toContain("/test/dir");
       expect(output).toContain("Output");
     });
+  });
+});
+
+describe("custom tool promptSnippet", () => {
+  const toolsWithSnippet = [
+    { tool: queryTool, name: "query" },
+    { tool: addTransactionTool, name: "add_transaction" },
+    { tool: commitAndPushTool, name: "commit_and_push" },
+    { tool: extractTextTool, name: "extract_text" },
+    { tool: validateTool, name: "validate" },
+    { tool: updateMemoryTool, name: "update_memory" },
+  ];
+
+  for (const { tool, name } of toolsWithSnippet) {
+    test(`${name} should have a promptSnippet`, () => {
+      expect(tool.promptSnippet).toBeDefined();
+      expect(typeof tool.promptSnippet).toBe("string");
+      expect(tool.promptSnippet?.length).toBeGreaterThan(0);
+    });
+  }
+});
+
+describe("custom tool promptGuidelines", () => {
+  test("commit_and_push should have promptGuidelines", () => {
+    expect(commitAndPushTool.promptGuidelines).toBeDefined();
+    expect(commitAndPushTool.promptGuidelines?.length).toBeGreaterThan(0);
+  });
+
+  test("extract_text should have promptGuidelines", () => {
+    expect(extractTextTool.promptGuidelines).toBeDefined();
+    expect(extractTextTool.promptGuidelines?.length).toBeGreaterThan(0);
+  });
+
+  test("query should have promptGuidelines", () => {
+    expect(queryTool.promptGuidelines).toBeDefined();
+    expect(queryTool.promptGuidelines?.length).toBeGreaterThan(0);
+  });
+
+  test("update_memory should have promptGuidelines", () => {
+    expect(updateMemoryTool.promptGuidelines).toBeDefined();
+    expect(updateMemoryTool.promptGuidelines?.length).toBeGreaterThan(0);
+  });
+
+  test("add_transaction should not have promptGuidelines", () => {
+    expect(addTransactionTool.promptGuidelines).toBeUndefined();
+  });
+
+  test("validate should not have promptGuidelines", () => {
+    expect(validateTool.promptGuidelines).toBeUndefined();
   });
 });
