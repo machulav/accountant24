@@ -50,11 +50,9 @@ const populated: SystemPromptContext = {
 
 // --- empty context ---
 
-test("empty context includes session date", () => {
+test("empty context includes date", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<session>");
-  expect(prompt).toContain("2026-03-19");
-  expect(prompt).toContain("</session>");
+  expect(prompt).toContain("Today's date: 2026-03-19");
 });
 
 test("empty context omits memory section", () => {
@@ -226,11 +224,11 @@ test("wraps dynamic sections in context tags", () => {
 
   const contextStart = prompt.indexOf("<context>");
   const contextEnd = prompt.indexOf("</context>");
-  const sessionPos = prompt.indexOf("<session>");
+  const datePos = prompt.indexOf("Today's date:");
   const memoryPos = prompt.indexOf("<memory>");
   const accountsPos = prompt.indexOf("<accounts>");
 
-  expect(sessionPos).toBeGreaterThan(contextStart);
+  expect(datePos).toBeGreaterThan(contextStart);
   expect(memoryPos).toBeGreaterThan(contextStart);
   expect(accountsPos).toBeGreaterThan(contextStart);
   expect(accountsPos).toBeLessThan(contextEnd);
@@ -252,12 +250,12 @@ test("static content comes before tools section, tools before context", () => {
   const identityPos = prompt.indexOf("<identity>");
   const toolsPos = prompt.indexOf("<tools>");
   const contextPos = prompt.indexOf("<context>");
-  const sessionPos = prompt.indexOf("<session>");
+  const datePos = prompt.indexOf("Today's date:");
   const memoryPos = prompt.indexOf("<memory>");
   expect(identityPos).toBeLessThan(toolsPos);
   expect(toolsPos).toBeLessThan(contextPos);
-  expect(contextPos).toBeLessThan(sessionPos);
-  expect(sessionPos).toBeLessThan(memoryPos);
+  expect(contextPos).toBeLessThan(datePos);
+  expect(datePos).toBeLessThan(memoryPos);
 });
 
 // --- buildSystemPrompt() ---

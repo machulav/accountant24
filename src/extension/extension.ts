@@ -33,12 +33,12 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     pi.registerTool(validateTool);
     pi.registerTool(updateMemoryTool);
 
-    // Collect prompt metadata from all tools
+    // Collect prompt metadata from all tools (custom first, then built-in)
     const allToolMeta = [
-      ...builtinMeta,
       ...[queryTool, addTransactionTool, commitAndPushTool, extractTextTool, validateTool, updateMemoryTool].map(
         extractMeta,
       ),
+      ...builtinMeta,
     ];
 
     // Register custom slash commands

@@ -180,8 +180,8 @@ describe("before_agent_start handler", () => {
     expect(prompt).toContain("</context>");
 
     const contextStart = prompt.indexOf("<context>");
-    const sessionPos = prompt.indexOf("<session>");
-    expect(sessionPos).toBeGreaterThan(contextStart);
+    const datePos = prompt.indexOf("Today's date:");
+    expect(datePos).toBeGreaterThan(contextStart);
   });
 
   test("should include guidelines from tools", async () => {

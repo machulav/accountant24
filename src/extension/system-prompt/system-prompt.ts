@@ -37,7 +37,7 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
   // ── Tools section (after static prefix, before dynamic context) ────
   if (ctx.tools.length > 0) {
     const snippetLines = ctx.tools.map((t) => `- ${t.name}: ${t.snippet}`);
-    let toolsSection = `\n<tools>\nAvailable tools:\n${snippetLines.join("\n")}`;
+    let toolsSection = `\n\n<tools>\nAvailable tools:\n${snippetLines.join("\n")}`;
 
     const allGuidelines = ctx.tools.flatMap((t) => t.guidelines ?? []);
     if (allGuidelines.length > 0) {
@@ -49,33 +49,33 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
   }
 
   // ── Dynamic context ────────────────────────────────────────────────
-  parts.push("\n<context>");
+  parts.push("\n\n<context>");
 
-  parts.push(`\n<session>\nToday's date: ${ctx.today}\n</session>`);
+  parts.push(`\n\n<date>\nToday's date: ${ctx.today}\n</date>`);
 
   if (ctx.memory) {
-    parts.push(`\n<memory>\n${ctx.memory}\n</memory>`);
+    parts.push(`\n\n<memory>\n${ctx.memory}\n</memory>`);
   }
 
   parts.push(
     ctx.accounts.length > 0
-      ? `\n<accounts>\nAll known accounts:\n${ctx.accounts.join("\n")}\n</accounts>`
-      : `\n<accounts>\nNo accounts found.\n</accounts>`,
+      ? `\n\n<accounts>\nAll known accounts:\n${ctx.accounts.join("\n")}\n</accounts>`
+      : `\n\n<accounts>\nNo accounts found.\n</accounts>`,
   );
 
   parts.push(
     ctx.payees.length > 0
-      ? `\n<payees>\nAll known payees:\n${ctx.payees.join("\n")}\n</payees>`
-      : `\n<payees>\nNo payees found.\n</payees>`,
+      ? `\n\n<payees>\nAll known payees:\n${ctx.payees.join("\n")}\n</payees>`
+      : `\n\n<payees>\nNo payees found.\n</payees>`,
   );
 
   parts.push(
     ctx.tags.length > 0
-      ? `\n<tags>\nAll known tags:\n${ctx.tags.join("\n")}\n</tags>`
-      : `\n<tags>\nNo tags found.\n</tags>`,
+      ? `\n\n<tags>\nAll known tags:\n${ctx.tags.join("\n")}\n</tags>`
+      : `\n\n<tags>\nNo tags found.\n</tags>`,
   );
 
-  parts.push("\n</context>");
+  parts.push("\n\n</context>");
 
   return parts.join("");
 }
