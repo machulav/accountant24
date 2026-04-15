@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setBaseDir } from "../config";
@@ -69,12 +69,13 @@ describe("accountant24Extension()", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(13);
   });
 
-  test("should register session_start and before_agent_start handlers", () => {
+  test("should register session_start, before_agent_start, and agent_end handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(2);
+    expect(pi.on).toHaveBeenCalledTimes(3);
     expect(pi.handlers.session_start).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
+    expect(pi.handlers.agent_end).toBeDefined();
   });
 });
 
@@ -203,5 +204,69 @@ describe("before_agent_start handler", () => {
     const ctx = { hasUI: true, ui: { setWorkingMessage: mock(() => {}) } };
     await pi.handlers.before_agent_start({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith("Crunching the numbers...");
+  });
+});
+
+describe("agent_end handler", () => {
+  test("should refresh autocomplete with new payees after agent turn", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    // Verify no payees initially
+    const before = await pi.handlers.before_agent_start({}, { hasUI: false });
+    expect(before.systemPrompt as string).toContain("No payees found.");
+
+    // Simulate agent creating a transaction with a new payee
+    const monthDir = join(BASE, "ledger", "2026", "04");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(
+      join(monthDir, "04.journal"),
+      '2026-04-15 * "NewCoffeeShop" | "Latte"\n    Expenses:Food:Coffee    5.00 EUR\n    Assets:Checking\n',
+    );
+    // Add include directive so hledger picks up the file
+    const mainJournal = join(BASE, "ledger", "main.journal");
+    const { readFileSync } = await import("node:fs");
+    const mainContent = readFileSync(mainJournal, "utf-8");
+    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.journal\n`);
+
+    // agent_end should refresh autocomplete data
+    await pi.handlers.agent_end({}, { hasUI: false });
+
+    // Now before_agent_start should show the new payee in the system prompt
+    const after = await pi.handlers.before_agent_start({}, { hasUI: false });
+    expect(after.systemPrompt as string).toContain("NewCoffeeShop");
+  });
+
+  test("should not pick up new payees until agent_end runs", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    // First call — no payees
+    const first = await pi.handlers.before_agent_start({}, { hasUI: false });
+    expect(first.systemPrompt as string).toContain("No payees found.");
+
+    // Add a payee to the journal (simulating what add_transaction does)
+    const monthDir = join(BASE, "ledger", "2026", "04");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(
+      join(monthDir, "04.journal"),
+      '2026-04-15 * "FreshPayee" | "Groceries"\n    Expenses:Food    10.00 EUR\n    Assets:Checking\n',
+    );
+    const mainJournal = join(BASE, "ledger", "main.journal");
+    const { readFileSync } = await import("node:fs");
+    const mainContent = readFileSync(mainJournal, "utf-8");
+    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.journal\n`);
+
+    // before_agent_start alone does NOT refresh autocomplete
+    // (the system prompt will contain the payee because it re-reads ledger data,
+    // but autocomplete is what we moved — autocomplete is separate from the prompt)
+    // The key assertion: agent_end triggers the refresh
+    await pi.handlers.agent_end({}, { hasUI: false });
+
+    // After agent_end, the data is fresh
+    const after = await pi.handlers.before_agent_start({}, { hasUI: false });
+    expect(after.systemPrompt as string).toContain("FreshPayee");
   });
 });

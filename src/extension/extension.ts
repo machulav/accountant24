@@ -99,7 +99,6 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     });
 
     // Inject dynamic context into system prompt before each agent turn
-    // Also refresh autocomplete data with latest payees/accounts
     pi.on("before_agent_start", async (_event, ctx) => {
       const today = new Date().toISOString().split("T")[0];
       const [memory, accounts, payees, tags] = await Promise.all([
@@ -109,13 +108,17 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
         listTags(),
       ]);
 
-      autocomplete.setData(accounts, payees, tags);
-
       if (ctx.hasUI) {
         ctx.ui.setWorkingMessage("Crunching the numbers...");
       }
 
       return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags, tools: allToolMeta }) };
+    });
+
+    // Refresh autocomplete after each agent turn so new payees/accounts are available
+    pi.on("agent_end", async () => {
+      const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
+      autocomplete.setData(accounts, payees, tags);
     });
   };
 }
