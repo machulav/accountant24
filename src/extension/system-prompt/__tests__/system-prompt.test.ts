@@ -118,11 +118,11 @@ test("populated context includes tags", () => {
 
 // --- static sections ---
 
-test("includes identity section", () => {
+test("includes soul section", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<identity>");
+  expect(prompt).toContain("<soul>");
   expect(prompt).toContain("Accountant24");
-  expect(prompt).toContain("</identity>");
+  expect(prompt).toContain("</soul>");
 });
 
 test("includes workspace section", () => {
@@ -131,21 +131,20 @@ test("includes workspace section", () => {
   expect(prompt).toContain("</workspace>");
 });
 
-test("includes tool-strategy section with invariants structure", () => {
+test("includes invariants section with hard rules", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<tool-strategy>");
-  expect(prompt).toContain("DATA QUALITY INVARIANTS:");
-  expect(prompt).toContain("DECISION HEURISTICS:");
-  expect(prompt).toContain("ANTI-PATTERNS");
-  expect(prompt).toContain("</tool-strategy>");
+  expect(prompt).toContain("<invariants>");
+  expect(prompt).toContain("Never fabricate data.");
+  expect(prompt).toContain("Validate the ledger after any modification.");
+  expect(prompt).toContain("</invariants>");
 });
 
-test("tool-strategy does not contain migrated subsections", () => {
+test("includes heuristics section with soft principles", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).not.toContain("REMEMBERING:");
-  expect(prompt).not.toContain("TEXT EXTRACTION:");
-  expect(prompt).not.toContain("VERSION CONTROL:");
-  expect(prompt).not.toContain("FINANCIAL QUESTIONS:");
+  expect(prompt).toContain("<heuristics>");
+  expect(prompt).toContain("Normalize payee spelling");
+  expect(prompt).toContain("Watch for potential duplicates");
+  expect(prompt).toContain("</heuristics>");
 });
 
 test("does not contain prescriptive process language", () => {
@@ -162,22 +161,19 @@ test("does not contain prescriptive process language", () => {
   expect(prompt).not.toContain("ASSISTANT uses:");
 });
 
-test("includes examples section", () => {
+test("does not include examples section (removed — rules + soul drive behavior)", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<examples>");
-  expect(prompt).toContain("</examples>");
+  expect(prompt).not.toContain("<examples>");
 });
 
-test("includes conventions section", () => {
+test("does not include conventions section (merged into heuristics)", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<conventions>");
-  expect(prompt).toContain("</conventions>");
+  expect(prompt).not.toContain("<conventions>");
 });
 
-test("includes response-style section", () => {
+test("does not include separate response-style section (absorbed into soul)", () => {
   const prompt = getSystemPrompt(empty);
-  expect(prompt).toContain("<response-style>");
-  expect(prompt).toContain("</response-style>");
+  expect(prompt).not.toContain("<response-style>");
 });
 
 // --- tools section ---
@@ -247,12 +243,12 @@ test("injects the provided date", () => {
 
 test("static content comes before tools section, tools before context", () => {
   const prompt = getSystemPrompt(populated);
-  const identityPos = prompt.indexOf("<identity>");
+  const soulPos = prompt.indexOf("<soul>");
   const toolsPos = prompt.indexOf("<tools>");
   const contextPos = prompt.indexOf("<context>");
   const datePos = prompt.indexOf("Today's date:");
   const memoryPos = prompt.indexOf("<memory>");
-  expect(identityPos).toBeLessThan(toolsPos);
+  expect(soulPos).toBeLessThan(toolsPos);
   expect(toolsPos).toBeLessThan(contextPos);
   expect(contextPos).toBeLessThan(datePos);
   expect(datePos).toBeLessThan(memoryPos);
