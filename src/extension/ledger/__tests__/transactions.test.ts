@@ -118,14 +118,14 @@ describe("addTransaction() formatting", () => {
   test("should include tags with colon suffix", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction({ ...basicParams, tags: ["groceries", "weekly"] });
-    expect(result.transactionText).toContain("    # groceries:, weekly:");
+    expect(result.transactionText).toContain("    ; groceries:, weekly:");
   });
 
   test("should include metadata as key-value comments", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction({ ...basicParams, metadata: { source: "manual", ref: "123" } });
-    expect(result.transactionText).toContain("    # source: manual");
-    expect(result.transactionText).toContain("    # ref: 123");
+    expect(result.transactionText).toContain("    ; source: manual");
+    expect(result.transactionText).toContain("    ; ref: 123");
   });
 
   test("should use 4-space indent for all posting lines", async () => {

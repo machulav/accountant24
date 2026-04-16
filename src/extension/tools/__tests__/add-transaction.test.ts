@@ -148,7 +148,7 @@ test("handles tags", async () => {
     tags: ["groceries", "weekly"],
   });
   const text = result.content[0].text;
-  expect(text).toContain("# groceries:, weekly:");
+  expect(text).toContain("; groceries:, weekly:");
 });
 
 test("handles metadata", async () => {
@@ -158,7 +158,7 @@ test("handles metadata", async () => {
     metadata: { source: "manual" },
   });
   const text = result.content[0].text;
-  expect(text).toContain("# source: manual");
+  expect(text).toContain("; source: manual");
 });
 
 test("handles tags and metadata together", async () => {
@@ -169,8 +169,8 @@ test("handles tags and metadata together", async () => {
     metadata: { source: "manual" },
   });
   const text = result.content[0].text;
-  expect(text).toContain("# groceries:, weekly:");
-  expect(text).toContain("# source: manual");
+  expect(text).toContain("; groceries:, weekly:");
+  expect(text).toContain("; source: manual");
 });
 
 test("requires currency when amount present", async () => {

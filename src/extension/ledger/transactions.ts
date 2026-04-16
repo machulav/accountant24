@@ -131,12 +131,12 @@ function formatTransaction(params: {
   const lines = [header];
 
   if (params.tags?.length) {
-    lines.push(`    # ${params.tags.map((t) => `${t}:`).join(", ")}`);
+    lines.push(`    ; ${params.tags.map((t) => `${t}:`).join(", ")}`);
   }
 
   if (params.metadata) {
     for (const [key, value] of Object.entries(params.metadata)) {
-      lines.push(`    # ${key}: ${value}`);
+      lines.push(`    ; ${key}: ${value}`);
     }
   }
 
