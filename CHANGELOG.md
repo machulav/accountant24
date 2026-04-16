@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.3
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.2...v0.1.3)
+
+### 🐞 Bug Fixes
+
+- Use `;` for transaction comments instead of `#` ([9460047](https://github.com/machulav/accountant24/commit/9460047))
+
 ## v0.1.2
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.1...v0.1.2)
