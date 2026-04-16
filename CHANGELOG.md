@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.1.2
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.1...v0.1.2)
+
+### 🚀 Features
+
+- Support multi-currency net worth in briefing ([066b5a9](https://github.com/machulav/accountant24/commit/066b5a9))
+- Support multi-currency spent/income in briefing ([b31ce37](https://github.com/machulav/accountant24/commit/b31ce37))
+- Add <tools> section and <context> wrapper to system prompt ([2256013](https://github.com/machulav/accountant24/commit/2256013))
+
+### 🐞 Bug Fixes
+
+- Remove unused join import from ledger.ts ([91f7ff6](https://github.com/machulav/accountant24/commit/91f7ff6))
+- Remove unused renderSectionDivider method ([22632fb](https://github.com/machulav/accountant24/commit/22632fb))
+- Prevent onboarding header flicker on startup ([2128f5c](https://github.com/machulav/accountant24/commit/2128f5c))
+- Resolve all biome lint warnings in test files ([f1ec91c](https://github.com/machulav/accountant24/commit/f1ec91c))
+- Refresh autocomplete after agent turn instead of before ([36aae51](https://github.com/machulav/accountant24/commit/36aae51))
+
+### ♻️ Refactors
+
+- Remove journal beautifier from the agent ([37d7265](https://github.com/machulav/accountant24/commit/37d7265))
+- Remove Last Transactions section from briefing ([327c172](https://github.com/machulav/accountant24/commit/327c172))
+- Move tool prompt guidelines into system prompt ([40bffb6](https://github.com/machulav/accountant24/commit/40bffb6))
+- Extract onboarding header and decouple from briefing ([e4254e4](https://github.com/machulav/accountant24/commit/e4254e4))
+- Flatten headers directory structure and add shared tests ([02293d6](https://github.com/machulav/accountant24/commit/02293d6))
+- Use currency codes instead of symbols in categories ([a398fcd](https://github.com/machulav/accountant24/commit/a398fcd))
+- Extract loader updateDisplay into its own module ([fc22b5d](https://github.com/machulav/accountant24/commit/fc22b5d))
+- Modularize extension into domain-focused directories ([7d63c96](https://github.com/machulav/accountant24/commit/7d63c96))
+- Reorder tools and rename <session> to <date> tag ([76f3b76](https://github.com/machulav/accountant24/commit/76f3b76))
+- Restructure system prompt with soul and invariants/heuristics ([d0e10e2](https://github.com/machulav/accountant24/commit/d0e10e2))
+
+### ✅ Tests
+
+- Add unit tests for ledger, memory, and tool rendering modules ([359bb81](https://github.com/machulav/accountant24/commit/359bb81))
+
 ## v0.1.1
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.0...v0.1.1)
