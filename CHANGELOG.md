@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.1.4
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.3...v0.1.4)
+
+### 🚀 Features
+
+- Split file copy and text extraction into two tools ([02826c2](https://github.com/machulav/accountant24/commit/02826c2))
+- Require workspace-relative paths in extract_text tool ([3d730f7](https://github.com/machulav/accountant24/commit/3d730f7))
+
+### 🐞 Bug Fixes
+
+- Exclude future-dated transactions from briefing and reports ([db5846b](https://github.com/machulav/accountant24/commit/db5846b))
+- Suppress pdfjs-dist warnings that corrupt the TUI ([442c952](https://github.com/machulav/accountant24/commit/442c952))
+- Replace whitespace with hyphens in workspace filenames ([9f9f845](https://github.com/machulav/accountant24/commit/9f9f845))
+
+### ♻️ Refactors
+
+- Overhaul add_transaction tags and posting params ([5da6de3](https://github.com/machulav/accountant24/commit/5da6de3))
+- Rename narration to description across the codebase ([1145fbe](https://github.com/machulav/accountant24/commit/1145fbe))
+
 ## v0.1.3
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.2...v0.1.3)
