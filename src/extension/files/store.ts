@@ -16,7 +16,7 @@ export function copyFileToWorkspace(filePath: string): string {
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${year}${month}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const name = `${stamp}_${basename(filePath)}`;
+  const name = `${stamp}_${basename(filePath).replace(/\s+/g, "-")}`;
   const storedPath = deduplicatePath(dir, name);
   copyFileSync(filePath, storedPath);
 

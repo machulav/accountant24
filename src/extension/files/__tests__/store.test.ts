@@ -104,6 +104,13 @@ describe("copyFileToWorkspace()", () => {
     expect(basename(p2)).toMatch(/-2\.png$/);
   });
 
+  test("should replace whitespace in filename with hyphens", () => {
+    const path = createTestFile("bank statement  2026.pdf", MINIMAL_PNG);
+    const storedPath = copyFileToWorkspace(path);
+
+    expect(basename(storedPath)).toMatch(/^\d{14}_bank-statement-2026\.pdf$/);
+  });
+
   test("should handle files without extension", () => {
     const path = createTestFile("noext", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
