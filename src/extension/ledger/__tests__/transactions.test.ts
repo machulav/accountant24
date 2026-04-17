@@ -47,7 +47,7 @@ function findLine(text: string, search: string): string {
 const basicParams = {
   date: "2026-03-15",
   payee: "Whole Foods",
-  narration: "Groceries",
+  description: "Groceries",
   postings: [
     { account: "Assets:Checking", amount: -45, currency: "USD" },
     { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
@@ -105,7 +105,7 @@ describe("addTransaction() input validation", () => {
 // ── Transaction formatting ──────────────────────────────────────────
 
 describe("addTransaction() formatting", () => {
-  test("should format header as DATE * PAYEE | NARRATION", async () => {
+  test("should format header as DATE * PAYEE | DESCRIPTION", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
     expect(result.transactionText).toStartWith("2026-03-15 * Whole Foods | Groceries");

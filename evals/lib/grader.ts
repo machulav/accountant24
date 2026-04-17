@@ -156,7 +156,7 @@ function blockMatchesAssertion(block: string, assertion: LedgerAssertion): boole
   if (assertion.currency && !lower.includes(assertion.currency.toLowerCase())) return false;
   if (assertion.account && !lower.includes(assertion.account.toLowerCase())) return false;
   if (assertion.date && !block.startsWith(assertion.date)) return false;
-  if (assertion.narration && !lower.includes(assertion.narration.toLowerCase())) return false;
+  if (assertion.description && !lower.includes(assertion.description.toLowerCase())) return false;
 
   return true;
 }

@@ -271,8 +271,8 @@ account Expenses:Food:Coffee
       expect(checks[0].passed).toBe(false);
     });
 
-    it("should check narration when specified", () => {
-      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", narration: "Latte" }] });
+    it("should check description when specified", () => {
+      const evalCase = makeCase({ ledger_contains: [{ payee: "Starbucks", description: "Latte" }] });
       const checks = gradeOutcome(evalCase, makeState());
       expect(checks[0].passed).toBe(true);
     });
@@ -286,7 +286,7 @@ account Expenses:Food:Coffee
             currency: "EUR",
             account: "Groceries",
             date: "2026-03-21",
-            narration: "Weekly",
+            description: "Weekly",
           },
         ],
       });

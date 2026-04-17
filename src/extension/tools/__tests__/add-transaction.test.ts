@@ -62,7 +62,7 @@ const run = (params: any) =>
 const basicParams = {
   date: "2026-03-15",
   payee: "Whole Foods",
-  narration: "Groceries",
+  description: "Groceries",
   postings: [
     { account: "Assets:Checking", amount: -45, currency: "USD" },
     { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },

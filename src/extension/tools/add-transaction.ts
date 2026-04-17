@@ -15,7 +15,7 @@ const Params = Type.Object({
     description:
       'Payee name, e.g. Whole Foods. Use exactly "Unknown" when the user does not know or remember the payee.',
   }),
-  narration: Type.String({ description: "Transaction description" }),
+  description: Type.String({ description: "Transaction description" }),
   postings: Type.Array(Posting, {
     minItems: 2,
     description: "At least 2 postings with explicit amounts and currencies",

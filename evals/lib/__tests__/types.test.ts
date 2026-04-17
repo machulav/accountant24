@@ -185,7 +185,7 @@ describe("EvalCaseSchema", () => {
               currency: "USD",
               account: "Expenses:Food",
               date: "2026-03-22",
-              narration: "coffee",
+              description: "coffee",
             },
           ],
         },

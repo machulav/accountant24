@@ -10,7 +10,7 @@ import { resolveSafePath } from "./paths";
 export interface AddTransactionParams {
   date: string;
   payee: string;
-  narration: string;
+  description: string;
   postings: Array<{
     account: string;
     amount: number;
@@ -117,7 +117,7 @@ function validateInputs(params: Pick<AddTransactionParams, "date" | "postings">)
 }
 
 function formatTransaction(params: AddTransactionParams): string {
-  const header = `${params.date} * ${params.payee} | ${params.narration}`;
+  const header = `${params.date} * ${params.payee} | ${params.description}`;
 
   const lines = [header];
 

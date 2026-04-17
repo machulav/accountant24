@@ -25,7 +25,7 @@ export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> =
   promptSnippet: "Save user preferences and facts to persistent memory",
   promptGuidelines: [
     "Memory should contain: personal facts, preferences, explicit categorization rules, and recurring arrangement details.",
-    "Transaction-specific context belongs in the narration, not memory.",
+    "Transaction-specific context belongs in the description, not memory.",
   ],
   parameters: Params,
 

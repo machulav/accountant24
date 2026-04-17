@@ -24,7 +24,7 @@ const LedgerAssertionSchema = z.object({
   currency: z.string().optional(),
   account: z.string().optional(),
   date: z.string().optional(),
-  narration: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export type LedgerAssertion = z.infer<typeof LedgerAssertionSchema>;
