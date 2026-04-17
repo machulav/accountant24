@@ -63,7 +63,10 @@ const basicParams = {
   date: "2026-03-15",
   payee: "Whole Foods",
   narration: "Groceries",
-  postings: [{ account: "Expenses:Food:Groceries", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
+  postings: [
+    { account: "Assets:Checking", amount: -45, currency: "USD" },
+    { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
+  ],
 };
 
 test("formats basic transaction correctly", async () => {
@@ -71,8 +74,8 @@ test("formats basic transaction correctly", async () => {
   const result = await run(basicParams);
   const text = result.content[0].text;
   expect(text).toContain("2026-03-15 * Whole Foods | Groceries");
-  expect(text).toContain("Expenses:Food:Groceries    45.00 USD");
-  expect(text).toContain("Assets:Checking");
+  expect(text).toMatch(/Expenses:Food:Groceries\s+45\.00 USD/);
+  expect(text).toMatch(/Assets:Checking\s+-45\.00 USD/);
 });
 
 test("returns diff in details", async () => {
@@ -131,7 +134,6 @@ test("does not duplicate existing include", async () => {
 test("calls hledger check after writing", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   await run(basicParams);
-  // Bun.spawn is mocked — hledgerCheck calls runHledger which calls spawn → Bun.spawn
   expect(Bun.spawn).toHaveBeenCalled();
 });
 
@@ -145,41 +147,60 @@ test("handles tags", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run({
     ...basicParams,
-    tags: ["groceries", "weekly"],
+    tags: [{ name: "groceries" }, { name: "weekly" }],
   });
   const text = result.content[0].text;
-  expect(text).toContain("; groceries:, weekly:");
+  expect(text).toContain("; groceries:");
+  expect(text).toContain("; weekly:");
 });
 
-test("handles metadata", async () => {
+test("handles tags with values", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run({
     ...basicParams,
-    metadata: { source: "manual" },
+    tags: [{ name: "source", value: "manual" }],
   });
   const text = result.content[0].text;
   expect(text).toContain("; source: manual");
 });
 
-test("handles tags and metadata together", async () => {
+test("handles mixed tags and duplicate names", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run({
     ...basicParams,
-    tags: ["groceries", "weekly"],
-    metadata: { source: "manual" },
+    tags: [
+      { name: "weekly" },
+      { name: "related_file", value: "a.pdf" },
+      { name: "groceries" },
+      { name: "related_file", value: "b.pdf" },
+    ],
   });
   const text = result.content[0].text;
-  expect(text).toContain("; groceries:, weekly:");
-  expect(text).toContain("; source: manual");
+  expect(text).toContain("; groceries:");
+  expect(text).toContain("; related_file: a.pdf");
+  expect(text).toContain("; related_file: b.pdf");
+  expect(text).toContain("; weekly:");
 });
 
-test("requires currency when amount present", async () => {
+test("rejects posting without amount", async () => {
   await expect(
     run({
       ...basicParams,
-      postings: [{ account: "Expenses:Food", amount: 45 }, { account: "Assets:Checking" }],
+      postings: [{ account: "Expenses:Food", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
     }),
-  ).rejects.toThrow("has amount but no currency");
+  ).rejects.toThrow("missing amount");
+});
+
+test("rejects posting without currency", async () => {
+  await expect(
+    run({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Food", amount: 45, currency: "USD" },
+        { account: "Assets:Checking", amount: -45 },
+      ],
+    }),
+  ).rejects.toThrow("missing currency");
 });
 
 test("rejects invalid date", async () => {
@@ -193,15 +214,6 @@ test("rejects insufficient postings", async () => {
       postings: [{ account: "Expenses:Food", amount: 45, currency: "USD" }],
     }),
   ).rejects.toThrow("At least 2 postings");
-});
-
-test("rejects multiple postings without amount", async () => {
-  await expect(
-    run({
-      ...basicParams,
-      postings: [{ account: "Expenses:Food" }, { account: "Assets:Checking" }, { account: "Assets:Savings" }],
-    }),
-  ).rejects.toThrow("At most one posting may omit the amount");
 });
 
 test("hledger not found throws error", async () => {
@@ -240,7 +252,7 @@ test("should auto-declare multiple missing commodities", async () => {
     postings: [
       { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
       { account: "Expenses:Travel", amount: 100, currency: "EUR" },
-      { account: "Assets:Checking" },
+      { account: "Assets:Checking", amount: -145, currency: "USD" },
     ],
   });
   const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
@@ -262,18 +274,6 @@ test("should not redeclare commodity that exists with a format", async () => {
   const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
   const matches = main.match(/commodity.*USD/g);
   expect(matches).toHaveLength(1);
-});
-
-test("should skip commodity declaration for postings without currency", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
-  await run({
-    ...basicParams,
-    postings: [{ account: "Expenses:Food:Groceries", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
-  });
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  expect(main).toContain("commodity USD");
-  const commodityLines = main.split("\n").filter((l: string) => l.startsWith("commodity"));
-  expect(commodityLines).toHaveLength(1);
 });
 
 test("should re-throw unexpected validation errors", async () => {

@@ -13,11 +13,10 @@ export interface AddTransactionParams {
   narration: string;
   postings: Array<{
     account: string;
-    amount?: number;
-    currency?: string;
+    amount: number;
+    currency: string;
   }>;
-  tags?: string[];
-  metadata?: Record<string, string>;
+  tags?: Array<{ name: string; value?: string }>;
 }
 
 export interface AddTransactionResult {
@@ -100,52 +99,51 @@ export async function addTransaction(
 
 // ── Internals ───────────────────────────────────────────────────────
 
-function validateInputs(params: { date: string; postings: any[] }): void {
+function validateInputs(params: Pick<AddTransactionParams, "date" | "postings">): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
     throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
   }
   if (params.postings.length < 2) {
     throw new Error("At least 2 postings are required.");
   }
-  const blanks = params.postings.filter((p: any) => p.amount == null);
-  if (blanks.length > 1) {
-    throw new Error("At most one posting may omit the amount.");
-  }
   for (const p of params.postings) {
-    if (p.amount != null && !p.currency) {
-      throw new Error(`Posting for ${p.account} has amount but no currency.`);
+    if (p.amount == null) {
+      throw new Error(`Posting for ${p.account} is missing amount.`);
+    }
+    if (!p.currency) {
+      throw new Error(`Posting for ${p.account} is missing currency.`);
     }
   }
 }
 
-function formatTransaction(params: {
-  date: string;
-  payee: string;
-  narration: string;
-  postings: any[];
-  tags?: string[];
-  metadata?: Record<string, string>;
-}): string {
+function formatTransaction(params: AddTransactionParams): string {
   const header = `${params.date} * ${params.payee} | ${params.narration}`;
 
   const lines = [header];
 
   if (params.tags?.length) {
-    lines.push(`    ; ${params.tags.map((t) => `${t}:`).join(", ")}`);
-  }
-
-  if (params.metadata) {
-    for (const [key, value] of Object.entries(params.metadata)) {
-      lines.push(`    ; ${key}: ${value}`);
+    const sortedTags = [...params.tags].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+    for (const tag of sortedTags) {
+      lines.push(tag.value != null ? `    ; ${tag.name}: ${tag.value}` : `    ; ${tag.name}:`);
     }
   }
 
-  for (const p of params.postings) {
-    if (p.amount != null) {
-      lines.push(`    ${p.account}    ${p.amount.toFixed(2)} ${p.currency}`);
-    } else {
-      lines.push(`    ${p.account}`);
-    }
+  const sortedPostings = [...params.postings].sort((a, b) => {
+    const groupA = a.amount < 0 ? 0 : 1;
+    const groupB = b.amount < 0 ? 0 : 1;
+    return groupA - groupB;
+  });
+
+  for (const p of sortedPostings) {
+    const sign = p.amount < 0 ? "-" : "";
+    const amountStr = `${sign}${Math.abs(p.amount).toFixed(2)} ${p.currency}`;
+    const prefix = `    ${p.account}`;
+    // Align first digit at column 70 (1-indexed); sign hangs left at 69
+    const targetCol = 69 - sign.length;
+    const pad = Math.max(2, targetCol - prefix.length);
+    lines.push(`${prefix}${" ".repeat(pad)}${amountStr}`);
   }
 
   return lines.join("\n");

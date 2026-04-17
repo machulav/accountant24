@@ -38,11 +38,20 @@ afterEach(() => {
   Bun.spawn = origSpawn;
 });
 
+function findLine(text: string, search: string): string {
+  const line = text.split("\n").find((l: string) => l.includes(search));
+  if (!line) throw new Error(`Line containing "${search}" not found in:\n${text}`);
+  return line;
+}
+
 const basicParams = {
   date: "2026-03-15",
   payee: "Whole Foods",
   narration: "Groceries",
-  postings: [{ account: "Expenses:Food:Groceries", amount: 45, currency: "USD" }, { account: "Assets:Checking" }],
+  postings: [
+    { account: "Assets:Checking", amount: -45, currency: "USD" },
+    { account: "Expenses:Food:Groceries", amount: 45, currency: "USD" },
+  ],
 };
 
 // ── Input validation ────────────────────────────────────────────────
@@ -65,25 +74,28 @@ describe("addTransaction() input validation", () => {
     ).rejects.toThrow("At least 2 postings are required");
   });
 
-  test("should reject multiple postings without amount", async () => {
+  test("should reject posting without amount", async () => {
     await expect(
       addTransaction({
         ...basicParams,
-        postings: [{ account: "Expenses:Food" }, { account: "Assets:Checking" }, { account: "Assets:Savings" }],
+        postings: [{ account: "Expenses:Food", amount: 45, currency: "USD" }, { account: "Assets:Checking" }] as any,
       }),
-    ).rejects.toThrow("At most one posting may omit the amount");
+    ).rejects.toThrow("missing amount");
   });
 
-  test("should reject posting with amount but no currency", async () => {
+  test("should reject posting without currency", async () => {
     await expect(
       addTransaction({
         ...basicParams,
-        postings: [{ account: "Expenses:Food", amount: 45 }, { account: "Assets:Checking" }],
+        postings: [
+          { account: "Expenses:Food", amount: 45, currency: "USD" },
+          { account: "Assets:Checking", amount: -45 },
+        ] as any,
       }),
-    ).rejects.toThrow("has amount but no currency");
+    ).rejects.toThrow("missing currency");
   });
 
-  test("should accept exactly 2 postings where one omits amount", async () => {
+  test("should accept 2 postings with explicit amounts", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
     expect(result.ledgerIsValid).toBe(true);
@@ -102,30 +114,211 @@ describe("addTransaction() formatting", () => {
   test("should format amount with 2 decimal places and currency", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
-    expect(result.transactionText).toContain("    Expenses:Food:Groceries    45.00 USD");
+    expect(result.transactionText).toMatch(/Expenses:Food:Groceries\s+45\.00 USD/);
   });
 
-  test("should format posting without amount as account only", async () => {
+  test("should align first digit of positive amount at column 70", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
-    expect(result.transactionText).toContain("    Assets:Checking");
-    // The balancing posting should NOT have an amount
+    const line = findLine(result.transactionText, "Expenses:Food:Groceries");
+    expect(line[69]).toBe("4"); // first digit of 45.00 at 0-indexed 69
+  });
+
+  test("should align first digit of negative amount at column 70 with sign at 69", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction(basicParams);
+    const negativeLine = findLine(result.transactionText, "-45.00");
+    const positiveLine = findLine(result.transactionText, " 45.00");
+    expect(negativeLine[69]).toBe("4");
+    expect(positiveLine[69]).toBe("4");
+    expect(negativeLine[68]).toBe("-");
+  });
+
+  test("should order negative amounts before positive", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Food", amount: 30, currency: "USD" },
+        { account: "Assets:Savings", amount: -30, currency: "USD" },
+      ],
+    });
     const lines = result.transactionText.split("\n");
-    const checkingLine = lines.find((l: string) => l.includes("Assets:Checking"));
-    expect(checkingLine).toBe("    Assets:Checking");
+    const postingLines = lines.filter((l: string) => l.startsWith("    ") && !l.trimStart().startsWith(";"));
+    expect(postingLines[0]).toContain("Assets:Savings"); // negative
+    expect(postingLines[1]).toContain("Expenses:Food"); // positive
   });
 
-  test("should include tags with colon suffix", async () => {
+  test("should preserve input order within same sign group", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addTransaction({ ...basicParams, tags: ["groceries", "weekly"] });
-    expect(result.transactionText).toContain("    ; groceries:, weekly:");
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Food", amount: 20, currency: "USD" },
+        { account: "Expenses:Transport", amount: 10, currency: "USD" },
+        { account: "Assets:Checking", amount: -30, currency: "USD" },
+      ],
+    });
+    const lines = result.transactionText.split("\n");
+    const postingLines = lines.filter((l: string) => l.startsWith("    ") && !l.trimStart().startsWith(";"));
+    expect(postingLines[0]).toContain("Assets:Checking"); // negative first
+    expect(postingLines[1]).toContain("Expenses:Food"); // positive, original order preserved
+    expect(postingLines[2]).toContain("Expenses:Transport"); // positive, original order preserved
   });
 
-  test("should include metadata as key-value comments", async () => {
+  test("should group zero amount with positives, not negatives", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addTransaction({ ...basicParams, metadata: { source: "manual", ref: "123" } });
-    expect(result.transactionText).toContain("    ; source: manual");
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Food", amount: 0, currency: "USD" },
+        { account: "Assets:Checking", amount: -10, currency: "USD" },
+        { account: "Assets:Savings", amount: 10, currency: "USD" },
+      ],
+    });
+    const lines = result.transactionText.split("\n");
+    const postingLines = lines.filter((l: string) => l.startsWith("    ") && !l.trimStart().startsWith(";"));
+    expect(postingLines[0]).toContain("Assets:Checking"); // negative first
+    expect(postingLines[1]).toContain("Expenses:Food"); // zero groups with positives
+    expect(postingLines[2]).toContain("Assets:Savings"); // positive
+  });
+
+  test("should render zero amount as 0.00 without sign", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Food", amount: 0, currency: "USD" },
+        { account: "Assets:Checking", amount: 0, currency: "USD" },
+      ],
+    });
+    const line = findLine(result.transactionText, "Expenses:Food");
+    expect(line).toMatch(/Expenses:Food\s+0\.00 USD/);
+    expect(line).not.toContain("-0.00");
+  });
+
+  test("should use minimum 2-space gap when account name is very long", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const longAccount = "Expenses:Food:Groceries:Organic:Vegetables:Imported:Premium:Extra";
+    expect(longAccount).toHaveLength(65);
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: longAccount, amount: 45, currency: "USD" },
+        { account: "Assets:Checking", amount: -45, currency: "USD" },
+      ],
+    });
+    const line = findLine(result.transactionText, longAccount);
+    const amountIdx = line.indexOf("45.00");
+    const prefixLen = 4 + longAccount.length;
+    expect(amountIdx - prefixLen).toBe(2);
+  });
+
+  test("should align amounts consistently regardless of magnitude", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Small", amount: 0.01, currency: "USD" },
+        { account: "Expenses:Large", amount: 99999.99, currency: "USD" },
+        { account: "Assets:Checking", amount: -100000, currency: "USD" },
+      ],
+    });
+    const smallLine = findLine(result.transactionText, "Expenses:Small");
+    const largeLine = findLine(result.transactionText, "Expenses:Large");
+    expect(smallLine[69]).toBe("0"); // 0.01
+    expect(largeLine[69]).toBe("9"); // 99999.99
+  });
+
+  test("should place tags before postings", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [{ name: "groceries" }],
+    });
+    const lines = result.transactionText.split("\n");
+    const tagIdx = lines.findIndex((l: string) => l.includes("; groceries:"));
+    const postingIdx = lines.findIndex((l: string) => l.includes("Expenses:Food"));
+    expect(tagIdx).toBeGreaterThan(0);
+    expect(tagIdx).toBeLessThan(postingIdx);
+  });
+
+  test("should render single tag on its own line", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [{ name: "groceries" }],
+    });
+    const lines = result.transactionText.split("\n");
+    const tagLines = lines.filter((l: string) => l.trimStart().startsWith(";"));
+    expect(tagLines).toHaveLength(1);
+    expect(tagLines[0]).toBe("    ; groceries:");
+  });
+
+  test("should render each tag on its own line", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [{ name: "groceries" }, { name: "weekly" }],
+    });
+    const lines = result.transactionText.split("\n");
+    expect(lines.filter((l: string) => l.includes("; groceries:"))).toHaveLength(1);
+    expect(lines.filter((l: string) => l.includes("; weekly:"))).toHaveLength(1);
+  });
+
+  test("should sort tags alphabetically by name", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [{ name: "zebra" }, { name: "alpha" }, { name: "middle" }],
+    });
+    const lines = result.transactionText.split("\n");
+    const tagLines = lines.filter((l: string) => l.trimStart().startsWith(";"));
+    expect(tagLines[0]).toContain("alpha:");
+    expect(tagLines[1]).toContain("middle:");
+    expect(tagLines[2]).toContain("zebra:");
+  });
+
+  test("should sort tags case-insensitively", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [{ name: "Zebra" }, { name: "alpha" }, { name: "Middle" }],
+    });
+    const lines = result.transactionText.split("\n");
+    const tagLines = lines.filter((l: string) => l.trimStart().startsWith(";"));
+    expect(tagLines[0]).toContain("alpha:");
+    expect(tagLines[1]).toContain("Middle:");
+    expect(tagLines[2]).toContain("Zebra:");
+  });
+
+  test("should render tags with values as key-value comments", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [
+        { name: "source", value: "manual" },
+        { name: "ref", value: "123" },
+      ],
+    });
     expect(result.transactionText).toContain("    ; ref: 123");
+    expect(result.transactionText).toContain("    ; source: manual");
+  });
+
+  test("should allow duplicate tag names with different values", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransaction({
+      ...basicParams,
+      tags: [
+        { name: "related_file", value: "files/receipt1.pdf" },
+        { name: "related_file", value: "files/receipt2.pdf" },
+      ],
+    });
+    const lines = result.transactionText.split("\n");
+    const relatedLines = lines.filter((l: string) => l.includes("; related_file:"));
+    expect(relatedLines).toHaveLength(2);
+    expect(relatedLines[0]).toContain("files/receipt1.pdf");
+    expect(relatedLines[1]).toContain("files/receipt2.pdf");
   });
 
   test("should use 4-space indent for all posting lines", async () => {
@@ -225,7 +418,7 @@ describe("addTransaction() main.journal management", () => {
       postings: [
         { account: "Expenses:Food", amount: 45, currency: "USD" },
         { account: "Expenses:Travel", amount: 100, currency: "EUR" },
-        { account: "Assets:Checking" },
+        { account: "Assets:Checking", amount: -145, currency: "USD" },
       ],
     });
     const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
@@ -247,7 +440,6 @@ describe("addTransaction() diff", () => {
   test("should not have removed lines when writing to empty file", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
-    // All diff lines should be additions (start with +) — no removals (start with -)
     const diffLines = result.diff.split("\n").filter((l: string) => l.trim());
     for (const line of diffLines) {
       expect(line).toMatch(/^\+/);
