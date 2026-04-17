@@ -69,7 +69,7 @@ describe("execute()", () => {
   test("stores full hledger command in details", async () => {
     mockProc = makeMockProc(0, "");
     const result = await run({ report: "bal", account_pattern: "Expenses" });
-    expect(result.details.command).toMatch(/^hledger bal -f .+ Expenses$/);
+    expect(result.details.command).toMatch(/^hledger bal -f .+ Expenses -e tomorrow$/);
   });
 
   test("throws on command not found", async () => {
@@ -147,13 +147,21 @@ describe("arg-building", () => {
     expect(spawnArgs()).toContain("status:");
   });
 
-  test("builds args with date range", async () => {
+  test("defaults to -e tomorrow when no end_date provided", async () => {
+    await run({ report: "bal" });
+    const args = spawnArgs();
+    expect(args).toContain("-e");
+    expect(args).toContain("tomorrow");
+  });
+
+  test("uses explicit end_date instead of tomorrow", async () => {
     await run({ report: "bal", begin_date: "2026-01-01", end_date: "2026-04-01" });
     const args = spawnArgs();
     expect(args).toContain("-b");
     expect(args).toContain("2026-01-01");
     expect(args).toContain("-e");
     expect(args).toContain("2026-04-01");
+    expect(args).not.toContain("tomorrow");
   });
 
   test("builds args with monthly period", async () => {

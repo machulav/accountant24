@@ -41,6 +41,7 @@ function buildQueryArgs(params: any, resolved: string): string[] {
 
   if (params.begin_date) args.push("-b", params.begin_date);
   if (params.end_date) args.push("-e", params.end_date);
+  else args.push("-e", "tomorrow");
 
   if (params.period && PERIOD_FLAGS[params.period]) {
     args.push(PERIOD_FLAGS[params.period]);

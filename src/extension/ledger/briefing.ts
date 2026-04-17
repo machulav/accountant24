@@ -106,15 +106,12 @@ export function parseBalRows(csv: string): Array<{ name: string; amount: number;
   return rows;
 }
 
-function getMonthBounds(): { beginDate: string; endDate: string } {
+function getMonthBounds(): { beginDate: string } {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const beginDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-  const nextYear = month === 11 ? year + 1 : year;
-  const nextMonth = month === 11 ? 1 : month + 2;
-  const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
-  return { beginDate, endDate };
+  return { beginDate };
 }
 
 function emptyData(): BriefingData {
@@ -130,7 +127,7 @@ function emptyData(): BriefingData {
 const TOP_CATEGORIES_LIMIT = 5;
 
 export async function fetchBriefingData(journalPath: string): Promise<BriefingData> {
-  const { beginDate, endDate } = getMonthBounds();
+  const { beginDate } = getMonthBounds();
   const f = ["-f", journalPath];
 
   let netWorthNow: string | null;
@@ -141,11 +138,11 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
 
   try {
     [netWorthNow, netWorthPrev, expenses, income, categories] = await Promise.all([
-      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", "tomorrow", "-O", "csv"]),
       tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", beginDate, "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", endDate, "--depth", "1", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", endDate, "--depth", "2", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "2", "-O", "csv"]),
     ]);
   } catch {
     // tryRunHledger only re-throws HledgerNotFoundError; all other errors return null

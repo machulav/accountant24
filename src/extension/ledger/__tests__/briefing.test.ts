@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fetchBriefingData, parseAmount, parseAmounts, parseBalRows, parseBalTotal, parseCSVLine } from "../briefing";
 
 // Mock at I/O boundary (Bun.spawn) so the real tryRunHledger/runHledger/spawn execute.
@@ -363,5 +366,70 @@ describe("fetchBriefingData()", () => {
     for (const cat of data.topCategories) {
       expect(cat.name).not.toContain("Expenses:");
     }
+  });
+});
+
+// ── Integration: future-dated transactions ─────────────────────────
+// Uses real hledger to verify behavioral contract end-to-end.
+
+describe("fetchBriefingData() future transactions", () => {
+  let tmp: string;
+  let journalPath: string;
+
+  beforeEach(() => {
+    // Restore real Bun.spawn — the outer afterEach will reset it
+    Bun.spawn = origSpawn;
+
+    tmp = mkdtempSync(join(tmpdir(), "briefing-future-"));
+    journalPath = join(tmp, "main.journal");
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    const today = `${y}-${m}-${d}`;
+
+    const future = new Date(now);
+    future.setMonth(future.getMonth() + 1);
+    const fy = future.getFullYear();
+    const fm = String(future.getMonth() + 1).padStart(2, "0");
+    const futureDate = `${fy}-${fm}-15`;
+
+    writeFileSync(
+      journalPath,
+      [
+        `${today} * Current Payee`,
+        `    Expenses:Food    100.00 EUR`,
+        `    Assets:Checking`,
+        ``,
+        `${futureDate} * Future Payee`,
+        `    Expenses:Education    200.00 EUR`,
+        `    Assets:Checking`,
+      ].join("\n"),
+    );
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test("should exclude future-dated transactions from net worth", async () => {
+    const data = await fetchBriefingData(journalPath);
+    expect(data.netWorth).toEqual([{ amount: -100, currency: "EUR", change: -100 }]);
+  });
+
+  test("should exclude future-dated transactions from spent", async () => {
+    const data = await fetchBriefingData(journalPath);
+    expect(data.spendThisMonth).toEqual([{ amount: 100, currency: "EUR" }]);
+  });
+
+  test("should exclude future-dated transactions from income", async () => {
+    const data = await fetchBriefingData(journalPath);
+    expect(data.incomeThisMonth).toEqual([{ amount: 0, currency: "EUR" }]);
+  });
+
+  test("should exclude future-dated transactions from top categories", async () => {
+    const data = await fetchBriefingData(journalPath);
+    expect(data.topCategories).toEqual([{ name: "Food", amount: 100, currency: "EUR" }]);
   });
 });
