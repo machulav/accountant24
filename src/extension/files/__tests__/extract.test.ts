@@ -163,6 +163,43 @@ startxref
       expect(result.text).toContain("(OCR)");
     });
 
+    test("should not emit console.warn during PDF extraction", async () => {
+      const warn = mock(() => {});
+      const origWarn = console.warn;
+      console.warn = warn;
+      try {
+        const path = createTestFile("quiet.pdf", MINIMAL_PDF);
+        await extractFile(path);
+      } finally {
+        console.warn = origWarn;
+      }
+
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    test("should restore console.warn after PDF extraction", async () => {
+      const origWarn = console.warn;
+      const path = createTestFile("restore.pdf", MINIMAL_PDF);
+      await extractFile(path);
+
+      expect(console.warn).toBe(origWarn);
+    });
+
+    test("should restore console.warn even when extraction fails", async () => {
+      const origWarn = console.warn;
+      // PDF with invalid stream that will error during extraction
+      const brokenPdf = Buffer.from("%PDF-1.0\n%%EOF");
+      const path = createTestFile("broken.pdf", brokenPdf);
+
+      try {
+        await extractFile(path);
+      } catch {
+        // expected to fail
+      }
+
+      expect(console.warn).toBe(origWarn);
+    });
+
     test("should set pageCount for PDFs", async () => {
       const path = createTestFile("doc2.pdf", MINIMAL_PDF);
       const result = await extractFile(path);

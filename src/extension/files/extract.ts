@@ -43,6 +43,18 @@ export async function extractFile(filePath: string): Promise<ExtractFileResult> 
 }
 
 async function extractPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
+  // pdfjs-dist emits noisy console.warn calls ("Indexing all PDF objects",
+  // "Please use the `legacy` build") that corrupt the TUI. Silence them.
+  const origWarn = console.warn;
+  console.warn = () => {};
+  try {
+    return await extractPdfInner(buffer);
+  } finally {
+    console.warn = origWarn;
+  }
+}
+
+async function extractPdfInner(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
   const data = new Uint8Array(buffer);
   const { totalPages, text: pages } = await extractText(data, { mergePages: false });
 
