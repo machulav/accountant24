@@ -15,8 +15,7 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   name: "extract_text",
   label: LABEL,
   description:
-    "Extract text content from a file (PDF, PNG, JPEG). For PDFs, extracts text directly; for scanned PDFs and images, uses OCR. " +
-    "Stores the original file in the workspace for future reference.",
+    "Extract text content from a file (PDF, PNG, JPEG). For PDFs, extracts text directly; for scanned PDFs and images, uses OCR.",
   promptSnippet: "Extract text from PDF/image files via OCR",
   promptGuidelines: [
     "Use when the user provides a file path to a bank statement, invoice, receipt, screenshot, or any document containing financial data.",
@@ -29,7 +28,7 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   async execute(_id, params) {
     const result = await extractFile(params.file_path);
 
-    const lines = [`File: ${result.originalPath}`, `Stored: ${result.storedPath}`, `Type: ${result.mimeType}`];
+    const lines = [`File: ${result.filePath}`, `Type: ${result.mimeType}`];
     if (result.pageCount) {
       lines.push(`Pages: ${result.pageCount}`);
     }
@@ -43,8 +42,7 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
 
   renderResult: createRenderResult<ExtractFileResult>(({ details }) => {
     const sections = [
-      { heading: "Source", content: details?.originalPath ?? "" },
-      { heading: "Stored", content: details?.storedPath ?? "" },
+      { heading: "File", content: details?.filePath ?? "" },
       { heading: "Type", content: details?.mimeType ?? "" },
     ];
     if (details?.pageCount) {

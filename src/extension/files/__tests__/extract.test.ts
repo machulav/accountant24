@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-file-extract-"));
 
@@ -16,13 +16,6 @@ mock.module("../../config.js", () => ({
 }));
 
 const { extractFile } = await import("../extract.js");
-
-afterEach(() => {
-  const filesDir = join(BASE, "files");
-  if (existsSync(filesDir)) {
-    rmSync(filesDir, { recursive: true, force: true });
-  }
-});
 
 // Minimal valid PNG: 1x1 pixel, red
 const MINIMAL_PNG = Buffer.from(
@@ -176,82 +169,14 @@ startxref
 
       expect(result.pageCount).toBe(1);
     });
-
-    test("should store original PDF file", async () => {
-      const path = createTestFile("stored.pdf", MINIMAL_PDF);
-      const result = await extractFile(path);
-
-      expect(existsSync(result.storedPath)).toBe(true);
-      expect(readFileSync(result.storedPath)).toEqual(MINIMAL_PDF);
-    });
-  });
-
-  describe("file storage", () => {
-    test("should store file in YYYY/MM directory", async () => {
-      const path = createTestFile("statement.png", MINIMAL_PNG);
-      const result = await extractFile(path);
-
-      const now = new Date();
-      const year = String(now.getFullYear());
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-
-      expect(result.storedPath).toContain(join("files", year, month));
-    });
-
-    test("should prefix filename with timestamp", async () => {
-      const path = createTestFile("statement.png", MINIMAL_PNG);
-      const result = await extractFile(path);
-
-      const now = new Date();
-      const year = String(now.getFullYear());
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-
-      expect(basename(result.storedPath)).toMatch(
-        new RegExp(`^${year}-${month}-${day}_\\d{2}-\\d{2}-\\d{2}_statement\\.png$`),
-      );
-    });
-
-    test("should preserve original file content", async () => {
-      const path = createTestFile("original.png", MINIMAL_PNG);
-      const result = await extractFile(path);
-
-      expect(existsSync(result.storedPath)).toBe(true);
-      expect(readFileSync(result.storedPath)).toEqual(MINIMAL_PNG);
-    });
-
-    test("should never overwrite previously stored files", async () => {
-      const path = createTestFile("dup.png", MINIMAL_PNG);
-
-      const result1 = await extractFile(path);
-      const result2 = await extractFile(path);
-      const result3 = await extractFile(path);
-
-      // All three stored paths must be distinct
-      const paths = new Set([result1.storedPath, result2.storedPath, result3.storedPath]);
-      expect(paths.size).toBe(3);
-
-      // All three files must exist
-      expect(existsSync(result1.storedPath)).toBe(true);
-      expect(existsSync(result2.storedPath)).toBe(true);
-      expect(existsSync(result3.storedPath)).toBe(true);
-    });
   });
 
   describe("result shape", () => {
-    test("should include originalPath matching input", async () => {
+    test("should include filePath matching input", async () => {
       const path = createTestFile("test.png", MINIMAL_PNG);
       const result = await extractFile(path);
 
-      expect(result.originalPath).toBe(path);
-    });
-
-    test("should include storedPath pointing to existing file", async () => {
-      const path = createTestFile("test2.png", MINIMAL_PNG);
-      const result = await extractFile(path);
-
-      expect(result.storedPath).toBeTruthy();
-      expect(existsSync(result.storedPath)).toBe(true);
+      expect(result.filePath).toBe(path);
     });
 
     test("should include text string in result", async () => {
@@ -267,28 +192,31 @@ startxref
 
       expect(result.mimeType).toBe("image/png");
     });
+
+    test("should not include storedPath in result", async () => {
+      const path = createTestFile("test5.png", MINIMAL_PNG);
+      const result = await extractFile(path);
+
+      expect(result).not.toHaveProperty("storedPath");
+    });
   });
 
-  describe("extract_text tool integration", () => {
-    test("should return formatted text content with metadata", async () => {
+  describe("extract_text tool", () => {
+    test("should return extracted text in content for image", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-test.png", MINIMAL_PNG);
+      const path = createTestFile("tool-img.png", MINIMAL_PNG);
 
       const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
 
       expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe("text");
       const text = (result.content[0] as { type: "text"; text: string }).text;
-      expect(text).toContain("File:");
-      expect(text).toContain("Stored:");
-      expect(text).toContain("Type: image/png");
       expect(text).toContain("--- Extracted content ---");
-      expect(text).not.toContain("Pages:");
+      expect(text).not.toContain("Stored:");
     });
 
-    test("should include page count for PDF files", async () => {
+    test("should include page count and text for PDF", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-test.pdf", MINIMAL_PDF);
+      const path = createTestFile("tool-pdf.pdf", MINIMAL_PDF);
 
       const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
 
@@ -297,25 +225,17 @@ startxref
       expect(text).toContain("Grocery Store");
     });
 
-    test("should render result sections when expanded", async () => {
+    test("should return filePath in details, not storedPath", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("render-test.png", MINIMAL_PNG);
-      const execResult = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
+      const path = createTestFile("tool-shape.png", MINIMAL_PNG);
 
-      const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
-      const rendered = extractTextTool.renderResult?.(
-        execResult,
-        { expanded: true, isPartial: false },
-        mockTheme as any,
-        { isError: false } as any,
-      );
+      const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
 
-      // When expanded, renderResult returns a renderable component (not empty text)
-      expect(rendered).toBeDefined();
-      expect(typeof (rendered as any).render).toBe("function");
+      expect(result.details.filePath).toBe(path);
+      expect(result.details).not.toHaveProperty("storedPath");
     });
 
-    test("should render result with Pages section for PDFs", async () => {
+    test("should render File and Content sections, not Stored", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
       const path = createTestFile("render-pdf.pdf", MINIMAL_PDF);
       const execResult = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
@@ -328,27 +248,19 @@ startxref
         { isError: false } as any,
       );
 
-      // Render at a standard width and check output includes Pages
       const lines = (rendered as any).render(120) as string[];
       const text = lines.join("\n");
-      expect(text).toContain("Pages");
-      expect(text).toContain("Source");
+      expect(text).toContain("File");
       expect(text).toContain("Content");
+      expect(text).not.toContain("Stored");
     });
 
-    test("should truncate long content preview in renderResult", async () => {
+    test("should truncate content preview longer than 500 chars", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
 
-      // Simulate a result with long text
       const longResult = {
         content: [{ type: "text" as const, text: "x" }],
-        details: {
-          storedPath: "/stored",
-          originalPath: "/original",
-          mimeType: "application/pdf",
-          pageCount: 1,
-          text: "A".repeat(600),
-        },
+        details: { filePath: "/f", mimeType: "application/pdf", pageCount: 1, text: "A".repeat(600) },
       };
 
       const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
@@ -360,20 +272,7 @@ startxref
       );
 
       const lines = (rendered as any).render(120) as string[];
-      const text = lines.join("\n");
-      expect(text).toContain("...");
-    });
-
-    test("should pass ExtractFileResult as details", async () => {
-      const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-details.png", MINIMAL_PNG);
-
-      const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
-
-      expect(result.details).toHaveProperty("storedPath");
-      expect(result.details).toHaveProperty("originalPath");
-      expect(result.details).toHaveProperty("mimeType");
-      expect(result.details).toHaveProperty("text");
+      expect(lines.join("\n")).toContain("...");
     });
   });
 

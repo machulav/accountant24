@@ -1,14 +1,11 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
-import { fileTypeFromBuffer } from "file-type";
 import Tesseract from "tesseract.js";
 import { definePDFJSModule, extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
-import { FILES_DIR } from "../config";
+import { detectMimeType } from "./mime";
 
 export interface ExtractFileResult {
-  storedPath: string;
-  originalPath: string;
+  filePath: string;
   mimeType: string;
   pageCount?: number;
   text: string;
@@ -17,13 +14,6 @@ export interface ExtractFileResult {
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg"]);
 
 const MIN_CHARS_PER_PAGE = 50;
-
-const EXT_MIME_MAP: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-};
 
 let pdfjsConfigured = false;
 
@@ -49,16 +39,7 @@ export async function extractFile(filePath: string): Promise<ExtractFileResult> 
     throw new Error(`Unsupported file type: ${mimeType}. Supported: ${supported}.`);
   }
 
-  const storedPath = storeFile(filePath, buffer);
-  return { storedPath, originalPath: filePath, mimeType, pageCount, text };
-}
-
-async function detectMimeType(buffer: Buffer, filePath: string): Promise<string> {
-  const detected = await fileTypeFromBuffer(buffer);
-  if (detected) return detected.mime;
-
-  const ext = extname(filePath).toLowerCase();
-  return EXT_MIME_MAP[ext] ?? "application/octet-stream";
+  return { filePath, mimeType, pageCount, text };
 }
 
 async function extractPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
@@ -126,38 +107,4 @@ async function ensurePdfjsPolyfills(): Promise<void> {
   globalThis.Path2D = canvas.Path2D;
   // @ts-expect-error
   globalThis.ImageData = canvas.ImageData;
-}
-
-function storeFile(originalPath: string, buffer: Buffer): string {
-  const now = new Date();
-  const year = String(now.getFullYear());
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-
-  const dir = join(FILES_DIR, year, month);
-  mkdirSync(dir, { recursive: true });
-
-  const timestamp = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-  const name = `${timestamp}_${basename(originalPath)}`;
-  const storedPath = deduplicatePath(dir, name);
-  writeFileSync(storedPath, buffer);
-
-  return storedPath;
-}
-
-function deduplicatePath(dir: string, name: string): string {
-  const target = join(dir, name);
-  if (!existsSync(target)) return target;
-
-  const ext = extname(name);
-  const base = ext.length > 0 ? name.slice(0, -ext.length) : name;
-
-  for (let counter = 2; counter <= 1000; counter++) {
-    const candidate = join(dir, `${base}-${counter}${ext}`);
-    if (!existsSync(candidate)) return candidate;
-  }
-  throw new Error(`Too many files with the same name: ${name}`);
 }

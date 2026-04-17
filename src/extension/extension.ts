@@ -9,6 +9,7 @@ import { getSystemPrompt } from "./system-prompt";
 import {
   addTransactionTool,
   commitAndPushTool,
+  copyFileToWorkspaceTool,
   extractTextTool,
   queryTool,
   updateMemoryTool,
@@ -29,15 +30,22 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     pi.registerTool(queryTool);
     pi.registerTool(addTransactionTool);
     pi.registerTool(commitAndPushTool);
+    pi.registerTool(copyFileToWorkspaceTool);
     pi.registerTool(extractTextTool);
     pi.registerTool(validateTool);
     pi.registerTool(updateMemoryTool);
 
     // Collect prompt metadata from all tools (custom first, then built-in)
     const allToolMeta = [
-      ...[queryTool, addTransactionTool, commitAndPushTool, extractTextTool, validateTool, updateMemoryTool].map(
-        extractMeta,
-      ),
+      ...[
+        queryTool,
+        addTransactionTool,
+        commitAndPushTool,
+        copyFileToWorkspaceTool,
+        extractTextTool,
+        validateTool,
+        updateMemoryTool,
+      ].map(extractMeta),
       ...builtinMeta,
     ];
 
