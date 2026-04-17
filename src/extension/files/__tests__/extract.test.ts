@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-file-extract-"));
 
@@ -239,11 +239,19 @@ startxref
   });
 
   describe("extract_text tool", () => {
+    function createWorkspaceFile(relativePath: string, content: Buffer): string {
+      const dir = dirname(join(BASE, relativePath));
+      mkdirSync(dir, { recursive: true });
+      const fullPath = join(BASE, relativePath);
+      writeFileSync(fullPath, content);
+      return relativePath;
+    }
+
     test("should return extracted text in content for image", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-img.png", MINIMAL_PNG);
+      const relPath = createWorkspaceFile("files/tool-img.png", MINIMAL_PNG);
 
-      const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
+      const result = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
 
       expect(result.content).toHaveLength(1);
       const text = (result.content[0] as { type: "text"; text: string }).text;
@@ -253,29 +261,45 @@ startxref
 
     test("should include page count and text for PDF", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-pdf.pdf", MINIMAL_PDF);
+      const relPath = createWorkspaceFile("files/tool-pdf.pdf", MINIMAL_PDF);
 
-      const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
+      const result = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
 
       const text = (result.content[0] as { type: "text"; text: string }).text;
       expect(text).toContain("Pages: 1");
       expect(text).toContain("Grocery Store");
     });
 
-    test("should return filePath in details, not storedPath", async () => {
+    test("should return relative filePath in details, not storedPath", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("tool-shape.png", MINIMAL_PNG);
+      const relPath = createWorkspaceFile("files/tool-shape.png", MINIMAL_PNG);
 
-      const result = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
+      const result = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
 
-      expect(result.details.filePath).toBe(path);
+      expect(result.details.filePath).toBe(relPath);
       expect(result.details).not.toHaveProperty("storedPath");
+    });
+
+    test("should reject absolute paths", async () => {
+      const { extractTextTool } = await import("../../tools/extract-text.js");
+
+      await expect(
+        extractTextTool.execute("id", { file_path: "/Users/someone/file.pdf" }, undefined, undefined, {} as any),
+      ).rejects.toThrow("Absolute paths are not accepted");
+    });
+
+    test("should reject tilde paths", async () => {
+      const { extractTextTool } = await import("../../tools/extract-text.js");
+
+      await expect(
+        extractTextTool.execute("id", { file_path: "~/Accountant24/files/file.pdf" }, undefined, undefined, {} as any),
+      ).rejects.toThrow("Tilde paths are not accepted");
     });
 
     test("should render File and Content sections, not Stored", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");
-      const path = createTestFile("render-pdf.pdf", MINIMAL_PDF);
-      const execResult = await extractTextTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
+      const relPath = createWorkspaceFile("files/render-pdf.pdf", MINIMAL_PDF);
+      const execResult = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
 
       const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
       const rendered = extractTextTool.renderResult?.(
@@ -297,7 +321,7 @@ startxref
 
       const longResult = {
         content: [{ type: "text" as const, text: "x" }],
-        details: { filePath: "/f", mimeType: "application/pdf", pageCount: 1, text: "A".repeat(600) },
+        details: { filePath: "files/f", mimeType: "application/pdf", pageCount: 1, text: "A".repeat(600) },
       };
 
       const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };

@@ -19,11 +19,11 @@ export const copyFileToWorkspaceTool: ToolDefinition<typeof Params, CopyResult> 
   name: "copy_file_to_workspace",
   label: LABEL,
   description:
-    "Copy a file into the workspace for safekeeping. Returns the new workspace path of the stored copy. " +
-    "Use this path for any subsequent operations on the file.",
-  promptSnippet: "Copy a file into the workspace — returns the stored path",
+    "Copy a file into the workspace for safekeeping. Returns the workspace-relative path of the stored copy " +
+    "(e.g., files/2026/04/20260417160112_file.pdf). Use this path for any subsequent operations on the file.",
+  promptSnippet: "Copy a file into the workspace — returns the workspace-relative stored path",
   promptGuidelines: [
-    "When the user sends or references an external file, first use copy_file_to_workspace to store it in the workspace, then use the returned path for subsequent operations (extract_text, etc.).",
+    "When the user sends or references an external file, first use copy_file_to_workspace to store it in the workspace, then use the returned relative path for subsequent operations (extract_text, etc.).",
   ],
   parameters: Params,
 

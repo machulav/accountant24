@@ -1,11 +1,12 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { type ExtractFileResult, extractFile } from "../files";
+import { type ExtractFileResult, extractFile, resolveWorkspacePath } from "../files";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   file_path: Type.String({
-    description: "Absolute path to the file to extract text from (PDF, PNG, JPEG)",
+    description:
+      "Workspace-relative path to the file (e.g., files/2026/04/20260417160112_file.pdf). Do not use absolute paths.",
   }),
 });
 
@@ -26,9 +27,10 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   renderCall: createRenderCall({ label: LABEL }),
 
   async execute(_id, params) {
-    const result = await extractFile(params.file_path);
+    const absolutePath = resolveWorkspacePath(params.file_path);
+    const result = await extractFile(absolutePath);
 
-    const lines = [`File: ${result.filePath}`, `Type: ${result.mimeType}`];
+    const lines = [`File: ${params.file_path}`, `Type: ${result.mimeType}`];
     if (result.pageCount) {
       lines.push(`Pages: ${result.pageCount}`);
     }
@@ -36,7 +38,7 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
 
     return {
       content: [{ type: "text" as const, text: lines.join("\n") }],
-      details: result,
+      details: { ...result, filePath: params.file_path },
     };
   },
 

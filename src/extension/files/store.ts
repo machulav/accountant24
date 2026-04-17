@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
-import { basename, extname, join } from "node:path";
-import { FILES_DIR } from "../config";
+import { basename, extname, join, relative } from "node:path";
+import { ACCOUNTANT24_HOME, FILES_DIR } from "../config";
 
 export function copyFileToWorkspace(filePath: string): string {
   if (!existsSync(filePath)) {
@@ -20,7 +20,7 @@ export function copyFileToWorkspace(filePath: string): string {
   const storedPath = deduplicatePath(dir, name);
   copyFileSync(filePath, storedPath);
 
-  return storedPath;
+  return relative(ACCOUNTANT24_HOME, storedPath);
 }
 
 function deduplicatePath(dir: string, name: string): string {

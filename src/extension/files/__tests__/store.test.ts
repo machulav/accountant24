@@ -49,6 +49,14 @@ describe("copyFileToWorkspace()", () => {
     expect(typeof storedPath).toBe("string");
   });
 
+  test("should return a workspace-relative path, not absolute", () => {
+    const path = createTestFile("rel.png", MINIMAL_PNG);
+    const storedPath = copyFileToWorkspace(path);
+
+    expect(storedPath.startsWith("/")).toBe(false);
+    expect(storedPath.startsWith("files/")).toBe(true);
+  });
+
   test("should return a path inside YYYY/MM directory", () => {
     const path = createTestFile("statement.png", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
@@ -71,7 +79,7 @@ describe("copyFileToWorkspace()", () => {
     const path = createTestFile("original.png", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
 
-    expect(readFileSync(storedPath)).toEqual(MINIMAL_PNG);
+    expect(readFileSync(join(BASE, storedPath))).toEqual(MINIMAL_PNG);
   });
 
   test("should never overwrite previously stored files", () => {
@@ -82,9 +90,9 @@ describe("copyFileToWorkspace()", () => {
     const p3 = copyFileToWorkspace(path);
 
     expect(new Set([p1, p2, p3]).size).toBe(3);
-    expect(existsSync(p1)).toBe(true);
-    expect(existsSync(p2)).toBe(true);
-    expect(existsSync(p3)).toBe(true);
+    expect(existsSync(join(BASE, p1))).toBe(true);
+    expect(existsSync(join(BASE, p2))).toBe(true);
+    expect(existsSync(join(BASE, p3))).toBe(true);
   });
 
   test("should append -N suffix to deduplicated files", () => {
@@ -101,7 +109,7 @@ describe("copyFileToWorkspace()", () => {
     const storedPath = copyFileToWorkspace(path);
 
     expect(basename(storedPath)).toMatch(/^\d{14}_noext$/);
-    expect(readFileSync(storedPath)).toEqual(MINIMAL_PNG);
+    expect(readFileSync(join(BASE, storedPath))).toEqual(MINIMAL_PNG);
   });
 
   describe("copy_file_to_workspace tool", () => {
@@ -125,7 +133,7 @@ describe("copyFileToWorkspace()", () => {
       const result = await copyFileToWorkspaceTool.execute("id", { file_path: path }, undefined, undefined, {} as any);
 
       expect(result.details.storedPath).toBeTruthy();
-      expect(existsSync(result.details.storedPath)).toBe(true);
+      expect(existsSync(join(BASE, result.details.storedPath))).toBe(true);
     });
 
     test("should render Stored section when expanded", async () => {
