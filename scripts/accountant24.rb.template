@@ -7,6 +7,8 @@ class Accountant24 < Formula
   # Auto-installed when the user runs `brew install machulav/tap/accountant24`.
   # This is the whole point of having a brew formula: no separate prereq step.
   depends_on "hledger"
+  depends_on "poppler"
+  depends_on "tesseract"
 
   on_macos do
     on_arm do

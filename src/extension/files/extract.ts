@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import Tesseract from "tesseract.js";
-import { definePDFJSModule, extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { detectMimeType } from "./mime";
 
 export interface ExtractFileResult {
@@ -15,25 +14,24 @@ const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg"]);
 
 const MIN_CHARS_PER_PAGE = 50;
 
-let pdfjsConfigured = false;
-
 export async function extractFile(filePath: string): Promise<ExtractFileResult> {
-  if (!existsSync(filePath)) {
+  let buffer: Buffer;
+  try {
+    buffer = await readFile(filePath);
+  } catch {
     throw new Error(`File not found: ${filePath}`);
   }
-
-  const buffer = await readFile(filePath);
   const mimeType = await detectMimeType(buffer, filePath);
 
   let text: string;
   let pageCount: number | undefined;
 
   if (mimeType === "application/pdf") {
-    const result = await extractPdf(buffer);
+    const result = await extractPdf(filePath);
     text = result.text;
     pageCount = result.pageCount;
   } else if (SUPPORTED_IMAGE_TYPES.has(mimeType)) {
-    text = await ocrImage(buffer);
+    text = await ocrImage(filePath);
   } else {
     const supported = ["application/pdf", ...SUPPORTED_IMAGE_TYPES].join(", ");
     throw new Error(`Unsupported file type: ${mimeType}. Supported: ${supported}.`);
@@ -42,81 +40,94 @@ export async function extractFile(filePath: string): Promise<ExtractFileResult> 
   return { filePath, mimeType, pageCount, text };
 }
 
-async function extractPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
-  // pdfjs-dist emits noisy console.warn calls ("Indexing all PDF objects",
-  // "Please use the `legacy` build") that corrupt the TUI. Silence them.
-  const origWarn = console.warn;
-  console.warn = () => {};
-  try {
-    return await extractPdfInner(buffer);
-  } finally {
-    console.warn = origWarn;
+async function extractPdf(filePath: string): Promise<{ text: string; pageCount: number }> {
+  const raw = await runPdftotext(filePath);
+
+  // pdftotext separates pages with \f (form feed), with a trailing \f
+  const pages = raw.split("\f");
+  if (pages.length > 0 && pages[pages.length - 1].trim() === "") {
+    pages.pop();
   }
-}
 
-async function extractPdfInner(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
-  const data = new Uint8Array(buffer);
-  const { totalPages, text: pages } = await extractText(data, { mergePages: false });
-
+  const pageCount = Math.max(pages.length, 1);
   const totalChars = pages.reduce((sum, p) => sum + p.trim().length, 0);
-  const avgCharsPerPage = totalPages > 0 ? totalChars / totalPages : 0;
+  const avgCharsPerPage = totalChars / pageCount;
 
   if (avgCharsPerPage >= MIN_CHARS_PER_PAGE) {
-    const formatted = pages.map((pageText, i) => `--- Page ${i + 1} ---\n${pageText.trim()}`).join("\n\n");
-    return { text: formatted, pageCount: totalPages };
+    const formatted = pages.map((t, i) => `--- Page ${i + 1} ---\n${t.trim()}`).join("\n\n");
+    return { text: formatted, pageCount };
   }
 
-  return await ocrPdfPages(buffer, totalPages);
+  return await ocrPdfPages(filePath, pageCount);
 }
 
-async function ocrPdfPages(buffer: Buffer, pageCount: number): Promise<{ text: string; pageCount: number }> {
-  await ensurePdfjsPolyfills();
-  if (!pdfjsConfigured) {
-    await definePDFJSModule(() => import("pdfjs-dist"));
-    pdfjsConfigured = true;
-  }
-  const doc = await getDocumentProxy(new Uint8Array(buffer));
-
-  const worker = await Tesseract.createWorker("eng");
+async function ocrPdfPages(filePath: string, pageCount: number): Promise<{ text: string; pageCount: number }> {
+  const tmpDir = await mkdtemp(join(tmpdir(), "ocr-"));
   try {
     const ocrPages: string[] = [];
     for (let i = 1; i <= pageCount; i++) {
-      const pngBuffer = await renderPageAsImage(doc, i, {
-        scale: 2.0,
-        canvasImport: () => import("@napi-rs/canvas"),
-      });
-      const {
-        data: { text },
-      } = await worker.recognize(Buffer.from(pngBuffer));
-      ocrPages.push(`--- Page ${i} (OCR) ---\n${text.trim()}`);
+      const imgPrefix = join(tmpDir, "page");
+      await runPdftocairo(filePath, imgPrefix, i);
+      const text = await runTesseract(`${imgPrefix}.png`);
+      ocrPages.push(`--- Page ${i} (OCR) ---\n${text}`);
     }
     return { text: ocrPages.join("\n\n"), pageCount };
   } finally {
-    await worker.terminate();
+    await rm(tmpDir, { recursive: true, force: true });
   }
 }
 
-async function ocrImage(buffer: Buffer): Promise<string> {
+async function ocrImage(filePath: string): Promise<string> {
   try {
-    const {
-      data: { text },
-    } = await Tesseract.recognize(buffer, "eng", { errorHandler: () => {} });
-    return text.trim();
+    return await runTesseract(filePath);
   } catch {
     return "";
   }
 }
 
-async function ensurePdfjsPolyfills(): Promise<void> {
-  if (typeof globalThis.DOMMatrix !== "undefined") return;
+// ── CLI helpers ────────────────────────────────────────────────────────
 
-  const canvas = await import("@napi-rs/canvas");
-  // @ts-expect-error — polyfilling browser globals for pdfjs-dist
-  globalThis.DOMMatrix = canvas.DOMMatrix;
-  globalThis.DOMRect = canvas.DOMRect;
-  globalThis.DOMPoint = canvas.DOMPoint;
-  // @ts-expect-error
-  globalThis.Path2D = canvas.Path2D;
-  // @ts-expect-error
-  globalThis.ImageData = canvas.ImageData;
+async function runPdftotext(filePath: string): Promise<string> {
+  return await runCli(["pdftotext", filePath, "-"], "pdftotext");
+}
+
+async function runPdftocairo(filePath: string, outputPrefix: string, page: number): Promise<void> {
+  await runCli(
+    ["pdftocairo", "-png", "-r", "300", "-f", String(page), "-l", String(page), "-singlefile", filePath, outputPrefix],
+    "pdftocairo",
+  );
+}
+
+async function runTesseract(imagePath: string): Promise<string> {
+  return await runCli(["tesseract", imagePath, "stdout", "-l", "eng"], "tesseract");
+}
+
+const BREW_PACKAGE: Record<string, string> = {
+  tesseract: "tesseract",
+  pdftotext: "poppler",
+  pdftocairo: "poppler",
+};
+
+async function runCli(cmd: string[], name: string): Promise<string> {
+  try {
+    const proc = Bun.spawn(cmd, {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+    const exitCode = await proc.exited;
+
+    if (exitCode !== 0) {
+      throw new Error(`${name} exited with code ${exitCode}: ${stderr.trim()}`);
+    }
+
+    return stdout.trim();
+  } catch (err: any) {
+    if (err?.code === "ENOENT") {
+      const pkg = BREW_PACKAGE[name] ?? name;
+      throw new Error(`${name} CLI not found. Install via: brew install ${pkg}`);
+    }
+    throw err;
+  }
 }
