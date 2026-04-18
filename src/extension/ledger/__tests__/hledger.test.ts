@@ -192,8 +192,8 @@ describe("runHledger()", () => {
 
   test("should prepend 'hledger' to args", async () => {
     spawnResult = { exitCode: 0, stdout: "ok", stderr: "" };
-    await runHledger(["bal", "--monthly", "-f", "main.journal"]);
-    expect(lastArgs).toEqual(["hledger", "bal", "--monthly", "-f", "main.journal"]);
+    await runHledger(["bal", "--monthly", "-f", "main.txt"]);
+    expect(lastArgs).toEqual(["hledger", "bal", "--monthly", "-f", "main.txt"]);
   });
 
   test("should handle ENOENT as exit code 127", async () => {
@@ -267,23 +267,23 @@ describe("tryRunHledger()", () => {
 describe("hledgerCheck()", () => {
   test("should pass check --strict -f and journal path", async () => {
     spawnResult = { exitCode: 0, stdout: "", stderr: "" };
-    await hledgerCheck("/path/to/main.journal");
-    expect(lastArgs).toEqual(["hledger", "check", "--strict", "-f", "/path/to/main.journal"]);
+    await hledgerCheck("/path/to/main.txt");
+    expect(lastArgs).toEqual(["hledger", "check", "--strict", "-f", "/path/to/main.txt"]);
   });
 
   test("should resolve on success", async () => {
     spawnResult = { exitCode: 0, stdout: "", stderr: "" };
-    await expect(hledgerCheck("/path/to/main.journal")).resolves.toBeUndefined();
+    await expect(hledgerCheck("/path/to/main.txt")).resolves.toBeUndefined();
   });
 
   test("should throw HledgerCommandError on validation failure", async () => {
     spawnResult = { exitCode: 1, stdout: "", stderr: "account not declared" };
-    await expect(hledgerCheck("/path/to/main.journal")).rejects.toThrow(HledgerCommandError);
+    await expect(hledgerCheck("/path/to/main.txt")).rejects.toThrow(HledgerCommandError);
   });
 
   test("should throw HledgerNotFoundError when hledger missing", async () => {
     spawnResult = { exitCode: 127, stdout: "", stderr: "" };
-    await expect(hledgerCheck("/path/to/main.journal")).rejects.toThrow(HledgerNotFoundError);
+    await expect(hledgerCheck("/path/to/main.txt")).rejects.toThrow(HledgerNotFoundError);
   });
 });
 

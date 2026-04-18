@@ -7,13 +7,13 @@ describe("resolveSafePath()", () => {
 
   describe("valid paths", () => {
     test("should resolve a simple filename within base directory", () => {
-      const result = resolveSafePath("main.journal", baseDir);
-      expect(result).toBe(join(baseDir, "main.journal"));
+      const result = resolveSafePath("main.txt", baseDir);
+      expect(result).toBe(join(baseDir, "main.txt"));
     });
 
     test("should resolve a nested path within base directory", () => {
-      const result = resolveSafePath("2026/03.journal", baseDir);
-      expect(result).toBe(join(baseDir, "2026/03.journal"));
+      const result = resolveSafePath("2026/03.txt", baseDir);
+      expect(result).toBe(join(baseDir, "2026/03.txt"));
     });
 
     test("should resolve a deeply nested path", () => {
@@ -22,18 +22,18 @@ describe("resolveSafePath()", () => {
     });
 
     test("should normalize redundant separators", () => {
-      const result = resolveSafePath("ledger//main.journal", baseDir);
-      expect(result).toBe(join(baseDir, "ledger/main.journal"));
+      const result = resolveSafePath("ledger//main.txt", baseDir);
+      expect(result).toBe(join(baseDir, "ledger/main.txt"));
     });
 
     test("should resolve path with . segments", () => {
-      const result = resolveSafePath("./main.journal", baseDir);
-      expect(result).toBe(join(baseDir, "main.journal"));
+      const result = resolveSafePath("./main.txt", baseDir);
+      expect(result).toBe(join(baseDir, "main.txt"));
     });
 
     test("should resolve path that navigates up but stays within base", () => {
-      const result = resolveSafePath("sub/../main.journal", baseDir);
-      expect(result).toBe(join(baseDir, "main.journal"));
+      const result = resolveSafePath("sub/../main.txt", baseDir);
+      expect(result).toBe(join(baseDir, "main.txt"));
     });
   });
 

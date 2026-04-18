@@ -4,10 +4,8 @@ import { ACCOUNTANT24_HOME } from "../config";
 import { commitAll, gitInit } from "../git";
 // @ts-expect-error
 import gitignore from "./template/.gitignore" with { type: "text" };
-// @ts-expect-error
-import accountsJournal from "./template/ledger/accounts.journal" with { type: "text" };
-// @ts-expect-error
-import mainJournal from "./template/ledger/main.journal" with { type: "text" };
+import accountsJournal from "./template/ledger/accounts.txt" with { type: "text" };
+import mainJournal from "./template/ledger/main.txt" with { type: "text" };
 // Text imports so `bun build --compile` inlines template files into the binary.
 // TS lib doesn't ship types for text import attributes, and for .json files TS
 // treats the import as JSON regardless of the `type: "text"` attribute — Bun
@@ -23,8 +21,8 @@ const TEMPLATE_FILES: Record<string, string> = {
   ".gitignore": gitignore,
   "models.json": modelsJson as unknown as string,
   "settings.json": settingsJson as unknown as string,
-  "ledger/accounts.journal": accountsJournal,
-  "ledger/main.journal": mainJournal,
+  "ledger/accounts.txt": accountsJournal,
+  "ledger/main.txt": mainJournal,
 };
 
 function writeIfNotExists(filePath: string, content: string): void {

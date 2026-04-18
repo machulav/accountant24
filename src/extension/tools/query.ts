@@ -56,7 +56,7 @@ const Params = Type.Object({
     }),
   ),
   file: Type.Optional(
-    Type.String({ description: "Journal file relative to ~/accountant24 (default: ledger/main.journal)" }),
+    Type.String({ description: "Journal file relative to ~/accountant24 (default: ledger/main.txt)" }),
   ),
 });
 

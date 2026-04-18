@@ -7,6 +7,7 @@ const BASE = mkdtempSync(join(tmpdir(), "accountant24-validate-"));
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: join(BASE, "ledger"),
+  MAIN_LEDGER_FILE: join(BASE, "ledger", "main.txt"),
   MEMORY_PATH: join(BASE, "memory.md"),
   FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
@@ -77,13 +78,13 @@ describe("validateLedger()", () => {
     expect(args).toContain("--strict");
   });
 
-  test("should pass the main.journal path to hledger", async () => {
+  test("should pass the main.txt path to hledger", async () => {
     // @ts-expect-error - mocking Bun.spawn
     Bun.spawn = mock(() => makeMockProc(0));
     await validateLedger();
     const args = (Bun.spawn as any).mock.calls[0][0];
     expect(args).toContain("-f");
     const fIdx = args.indexOf("-f");
-    expect(args[fIdx + 1]).toContain("main.journal");
+    expect(args[fIdx + 1]).toContain("main.txt");
   });
 });

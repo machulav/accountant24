@@ -58,20 +58,20 @@ describe("createEvalWorkspace()", () => {
     });
   });
 
-  describe("main.journal", () => {
-    it("should create empty main.journal when no setup", () => {
+  describe("main.txt", () => {
+    it("should create empty main.txt when no setup", () => {
       const ws = createAndTrack(makeCase());
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       expect(content).toBe("");
     });
 
-    it("should create empty main.journal when setup has empty ledger", () => {
+    it("should create empty main.txt when setup has empty ledger", () => {
       const ws = createAndTrack(makeCase({ setup: { ledger: { accounts: [], transactions: [] } } }));
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       expect(content).toBe("");
     });
 
-    it("should write accounts to main.journal", () => {
+    it("should write accounts to main.txt", () => {
       const ws = createAndTrack(
         makeCase({
           setup: {
@@ -82,7 +82,7 @@ describe("createEvalWorkspace()", () => {
           },
         }),
       );
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       expect(content).toBe("account Assets:Checking\naccount Expenses:Food\n");
     });
 
@@ -97,7 +97,7 @@ describe("createEvalWorkspace()", () => {
           },
         }),
       );
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       expect(content).toBe("2026-03-01 * Opening\n    Assets:Checking  100 USD\n    Equity:Opening\n");
     });
 
@@ -115,7 +115,7 @@ describe("createEvalWorkspace()", () => {
           },
         }),
       );
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       expect(content).toContain("2026-01-01 * Tx1\n    A  10 USD\n    B\n\n2026-02-01 * Tx2");
     });
 
@@ -130,7 +130,7 @@ describe("createEvalWorkspace()", () => {
           },
         }),
       );
-      const content = readFileSync(join(ws.ledgerDir, "main.journal"), "utf-8");
+      const content = readFileSync(join(ws.ledgerDir, "main.txt"), "utf-8");
       const lines = content.split("\n");
       // accounts line, blank separator, transaction header
       expect(lines[0]).toBe("account Assets:Checking");
@@ -184,7 +184,7 @@ describe("createEvalWorkspace()", () => {
           },
         }),
       );
-      const journalPath = join(ws.ledgerDir, "main.journal");
+      const journalPath = join(ws.ledgerDir, "main.txt");
       expect(existsSync(journalPath)).toBe(true);
       expect(existsSync(ws.memoryPath)).toBe(true);
       ws.cleanup();
@@ -202,7 +202,7 @@ describe("inspectWorkspace()", () => {
       expect(state.ledgerContent).toBe("");
     });
 
-    it("should read main.journal content", () => {
+    it("should read main.txt content", () => {
       const ws = createAndTrack(
         makeCase({
           setup: {
@@ -223,7 +223,7 @@ describe("inspectWorkspace()", () => {
       const monthDir = join(ws.ledgerDir, "2026", "03");
       mkdirSync(monthDir, { recursive: true });
       writeFileSync(
-        join(monthDir, "03.journal"),
+        join(monthDir, "03.txt"),
         "2026-03-22 * Rewe | Groceries\n    Expenses:Food  10 EUR\n    Assets:Checking\n",
       );
       const state = inspectWorkspace(ws);
@@ -244,10 +244,7 @@ describe("inspectWorkspace()", () => {
       );
       const monthDir = join(ws.ledgerDir, "2026", "03");
       mkdirSync(monthDir, { recursive: true });
-      writeFileSync(
-        join(monthDir, "03.journal"),
-        "2026-03-22 * NewTx\n    Expenses:Food  20 EUR\n    Assets:Checking\n",
-      );
+      writeFileSync(join(monthDir, "03.txt"), "2026-03-22 * NewTx\n    Expenses:Food  20 EUR\n    Assets:Checking\n");
       const state = inspectWorkspace(ws);
       expect(state.ledgerContent).toContain("ExistingTx");
       expect(state.ledgerContent).toContain("NewTx");

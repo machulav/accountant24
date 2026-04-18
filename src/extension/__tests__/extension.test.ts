@@ -221,14 +221,14 @@ describe("agent_end handler", () => {
     const monthDir = join(BASE, "ledger", "2026", "04");
     mkdirSync(monthDir, { recursive: true });
     writeFileSync(
-      join(monthDir, "04.journal"),
+      join(monthDir, "04.txt"),
       '2026-04-15 * "NewCoffeeShop" | "Latte"\n    Expenses:Food:Coffee    5.00 EUR\n    Assets:Checking\n',
     );
     // Add include directive so hledger picks up the file
-    const mainJournal = join(BASE, "ledger", "main.journal");
+    const mainJournal = join(BASE, "ledger", "main.txt");
     const { readFileSync } = await import("node:fs");
     const mainContent = readFileSync(mainJournal, "utf-8");
-    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.journal\n`);
+    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.txt\n`);
 
     // agent_end should refresh autocomplete data
     await pi.handlers.agent_end({}, { hasUI: false });
@@ -251,13 +251,13 @@ describe("agent_end handler", () => {
     const monthDir = join(BASE, "ledger", "2026", "04");
     mkdirSync(monthDir, { recursive: true });
     writeFileSync(
-      join(monthDir, "04.journal"),
+      join(monthDir, "04.txt"),
       '2026-04-15 * "FreshPayee" | "Groceries"\n    Expenses:Food    10.00 EUR\n    Assets:Checking\n',
     );
-    const mainJournal = join(BASE, "ledger", "main.journal");
+    const mainJournal = join(BASE, "ledger", "main.txt");
     const { readFileSync } = await import("node:fs");
     const mainContent = readFileSync(mainJournal, "utf-8");
-    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.journal\n`);
+    writeFileSync(mainJournal, `${mainContent}\ninclude 2026/04/04.txt\n`);
 
     // before_agent_start alone does NOT refresh autocomplete
     // (the system prompt will contain the payee because it re-reads ledger data,

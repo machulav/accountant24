@@ -9,6 +9,7 @@ const LEDGER = join(BASE, "ledger");
 mock.module("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
+  MAIN_LEDGER_FILE: join(LEDGER, "main.txt"),
   MEMORY_PATH: join(BASE, "memory.md"),
   FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
@@ -70,7 +71,7 @@ const basicParams = {
 };
 
 test("formats basic transaction correctly", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run(basicParams);
   const text = result.content[0].text;
   expect(text).toContain("2026-03-15 * Whole Foods | Groceries");
@@ -79,72 +80,72 @@ test("formats basic transaction correctly", async () => {
 });
 
 test("returns diff in details", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run(basicParams);
   expect(result.details.diff).toBeDefined();
   expect(result.details.diff).toContain("+");
   expect(result.details.diff).toContain("Whole Foods");
 });
 
-test("routes to ledger/YYYY/MM.journal", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+test("routes to ledger/YYYY/MM.txt", async () => {
+  writeFileSync(join(LEDGER, "main.txt"), "");
   await run(basicParams);
-  const filePath = join(LEDGER, "2026", "03.journal");
+  const filePath = join(LEDGER, "2026", "03.txt");
   expect(existsSync(filePath)).toBe(true);
   const content = readFileSync(filePath, "utf-8");
   expect(content).toContain("Whole Foods");
 });
 
 test("creates parent directories", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   await run({ ...basicParams, date: "2027-12-01" });
-  expect(existsSync(join(LEDGER, "2027", "12.journal"))).toBe(true);
+  expect(existsSync(join(LEDGER, "2027", "12.txt"))).toBe(true);
 });
 
 test("appends to existing monthly file", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
   writeFileSync(
-    join(LEDGER, "2026", "03.journal"),
+    join(LEDGER, "2026", "03.txt"),
     "2026-03-01 * Old | Existing\n    Expenses:X    10.00 USD\n    Assets:Y\n",
   );
   await run(basicParams);
-  const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+  const content = readFileSync(join(LEDGER, "2026", "03.txt"), "utf-8");
   expect(content).toContain("Old");
   expect(content).toContain("Whole Foods");
 });
 
 test("adds include directive for new monthly files", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "; Accountant24 Personal Finances\n");
+  writeFileSync(join(LEDGER, "main.txt"), "; Accountant24 Personal Finances\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  expect(main).toContain("include 2026/03.journal");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
+  expect(main).toContain("include 2026/03.txt");
 });
 
 test("does not duplicate existing include", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "include 2026/03.journal\n");
+  writeFileSync(join(LEDGER, "main.txt"), "include 2026/03.txt\n");
   mkdirSync(join(LEDGER, "2026"), { recursive: true });
-  writeFileSync(join(LEDGER, "2026", "03.journal"), "");
+  writeFileSync(join(LEDGER, "2026", "03.txt"), "");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  const matches = main.match(/include 2026\/03\.journal/g);
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
+  const matches = main.match(/include 2026\/03\.txt/g);
   expect(matches).toHaveLength(1);
 });
 
 test("calls hledger check after writing", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   await run(basicParams);
   expect(Bun.spawn).toHaveBeenCalled();
 });
 
 test("throws on validation failure", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   setMock(1, "", "account not declared");
   await expect(run(basicParams)).rejects.toThrow("account not declared");
 });
 
 test("handles tags", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run({
     ...basicParams,
     tags: [{ name: "groceries" }, { name: "weekly" }],
@@ -155,7 +156,7 @@ test("handles tags", async () => {
 });
 
 test("handles tags with values", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run({
     ...basicParams,
     tags: [{ name: "source", value: "manual" }],
@@ -165,7 +166,7 @@ test("handles tags with values", async () => {
 });
 
 test("handles mixed tags and duplicate names", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run({
     ...basicParams,
     tags: [
@@ -217,36 +218,36 @@ test("rejects insufficient postings", async () => {
 });
 
 test("hledger not found throws error", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   setMock(127);
   await expect(run(basicParams)).rejects.toThrow("hledger not found");
 });
 
 test("uses 4-space indent for postings", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   const result = await run(basicParams);
   const text = result.content[0].text;
   expect(text).toContain("    Expenses:Food:Groceries");
   expect(text).toContain("    Assets:Checking");
 });
 
-test("should auto-declare missing commodity in main.journal", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "account Assets:Checking\n");
+test("should auto-declare missing commodity in main.txt", async () => {
+  writeFileSync(join(LEDGER, "main.txt"), "account Assets:Checking\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
   expect(main).toContain("commodity USD");
 });
 
 test("should not duplicate existing commodity declaration", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "commodity USD\naccount Assets:Checking\n");
+  writeFileSync(join(LEDGER, "main.txt"), "commodity USD\naccount Assets:Checking\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
   const matches = main.match(/commodity USD/g);
   expect(matches).toHaveLength(1);
 });
 
 test("should auto-declare multiple missing commodities", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   await run({
     ...basicParams,
     postings: [
@@ -255,29 +256,29 @@ test("should auto-declare multiple missing commodities", async () => {
       { account: "Assets:Checking", amount: -145, currency: "USD" },
     ],
   });
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
   expect(main).toContain("commodity USD");
   expect(main).toContain("commodity EUR");
 });
 
 test("should declare commodity without format number", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
   expect(main).toContain("commodity USD");
   expect(main).not.toContain("commodity 1000");
 });
 
 test("should not redeclare commodity that exists with a format", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "commodity 1,000.00 USD\n");
+  writeFileSync(join(LEDGER, "main.txt"), "commodity 1,000.00 USD\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+  const main = readFileSync(join(LEDGER, "main.txt"), "utf-8");
   const matches = main.match(/commodity.*USD/g);
   expect(matches).toHaveLength(1);
 });
 
 test("should re-throw unexpected validation errors", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "main.txt"), "");
   Bun.spawn = mock(() => {
     throw new TypeError("unexpected");
   });
@@ -292,7 +293,7 @@ describe("renderResult wiring", () => {
   test("should show diff and file path when expanded", () => {
     const result = {
       content: [{ type: "text" as const, text: "saved" }],
-      details: { transactionText: "tx", fullFilePath: "/path/file.journal", ledgerIsValid: true, diff: "+1 new tx" },
+      details: { transactionText: "tx", fullFilePath: "/path/file.txt", ledgerIsValid: true, diff: "+1 new tx" },
     };
     // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
     const component = addTransactionTool.renderResult!(
@@ -304,6 +305,6 @@ describe("renderResult wiring", () => {
     const output = component.render(120).join("\n");
     expect(output).toContain("Diff");
     expect(output).toContain("File");
-    expect(output).toContain("/path/file.journal");
+    expect(output).toContain("/path/file.txt");
   });
 });

@@ -19,9 +19,9 @@ How you work:
 
 Your workspace is `~/Accountant24`. All file operations stay within this directory.
 
-- `ledger/main.journal` — Entry point (includes other files via include directives)
-- `ledger/accounts.journal` — Chart of accounts
-- `ledger/YYYY/MM.journal` — Monthly transaction files
+- `ledger/main.txt` — Entry point (includes other files via include directives)
+- `ledger/accounts.txt` — Chart of accounts
+- `ledger/YYYY/MM.txt` — Monthly transaction files
 - `memory.md` — Persistent memory (user facts, preferences, rules)
 - `files/YYYY/MM/` — Stored documents (bank statements, receipts, invoices)
 - `sessions/` — Session data

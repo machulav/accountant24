@@ -42,7 +42,7 @@ export function createEvalWorkspace(evalCase: EvalCase): EvalWorkspace {
     parts.push(txns.join("\n\n"));
   }
 
-  writeFileSync(join(ledgerDir, "main.journal"), parts.length > 0 ? `${parts.join("\n")}\n` : "");
+  writeFileSync(join(ledgerDir, "main.txt"), parts.length > 0 ? `${parts.join("\n")}\n` : "");
 
   // ── Write memory ───────────────────────────────────────────────────
   if (setup?.memory) {
@@ -71,7 +71,7 @@ function collectJournalFiles(dir: string): string[] {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...collectJournalFiles(fullPath));
-    } else if (entry.name.endsWith(".journal")) {
+    } else if (entry.name.endsWith(".txt")) {
       files.push(fullPath);
     }
   }
