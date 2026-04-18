@@ -68,10 +68,7 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   description:
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
   promptSnippet: "Run hledger reports (balance, register, income statement, etc.)",
-  promptGuidelines: [
-    `Available report types: ${REPORT_TYPES}.`,
-    "Use bash for advanced hledger queries beyond the query tool's parameters.",
-  ],
+  promptGuidelines: [`Available report types: ${REPORT_TYPES}.`],
   parameters: Params,
 
   renderCall: createRenderCall({ label: LABEL }),

@@ -42,7 +42,8 @@
         [
           "tools",
           "commands",
-          "skills"
+          "skills",
+          "prompt"
         ]
       ]
     }
