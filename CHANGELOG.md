@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.5
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.4...v0.1.5)
+
+### 🐞 Bug Fixes
+
+- Align library's getAgentDir() with workspace directory ([8caa649](https://github.com/machulav/accountant24/commit/8caa649))
+- **tools:** Replace JS PDF/OCR libs with CLI tools for compiled binary ([3839ea9](https://github.com/machulav/accountant24/commit/3839ea9))
+
+### 📖 Documentation
+
+- Rewrite README intro and section headings for clarity ([314deed](https://github.com/machulav/accountant24/commit/314deed))
+
 ## v0.1.4
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.3...v0.1.4)
