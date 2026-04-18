@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.6
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.5...v0.1.6)
+
+### 🚀 Features
+
+- Show selected model in footer below input field ([1e3ec3a](https://github.com/machulav/accountant24/commit/1e3ec3a))
+- **prompt:** Enforce tool priority over file tools and bash ([5012b90](https://github.com/machulav/accountant24/commit/5012b90))
+
+### 📖 Documentation
+
+- Streamline README structure and reorder sections ([af54bbb](https://github.com/machulav/accountant24/commit/af54bbb))
+
 ## v0.1.5
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.4...v0.1.5)
