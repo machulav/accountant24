@@ -154,7 +154,7 @@ describe("commitAll()", () => {
     const dir = freshDir();
     await initRepo(dir);
     mkdirSync(join(dir, "ledger"), { recursive: true });
-    writeFileSync(join(dir, "ledger", "2025.journal"), "transaction data");
+    writeFileSync(join(dir, "ledger", "2025.txt"), "transaction data");
 
     await commitAll(dir, "add journal");
 
@@ -191,10 +191,10 @@ describe("diffStat()", () => {
     const dir = freshDir();
     await initRepo(dir);
     mkdirSync(join(dir, "ledger"), { recursive: true });
-    writeFileSync(join(dir, "ledger", "2025.journal"), "data");
+    writeFileSync(join(dir, "ledger", "2025.txt"), "data");
 
     const files = await diffStat(dir);
-    expect(files).toContain("ledger/2025.journal");
+    expect(files).toContain("ledger/2025.txt");
   });
 
   test("should include modified files", async () => {

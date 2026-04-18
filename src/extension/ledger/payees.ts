@@ -1,10 +1,9 @@
-import { LEDGER_DIR } from "../config";
+import { MAIN_LEDGER_FILE } from "../config";
 import { runHledger } from "./hledger";
-import { resolveSafePath } from "./paths";
 
 export async function listPayees(): Promise<string[]> {
   try {
-    const journal = resolveSafePath("main.journal", LEDGER_DIR);
+    const journal = MAIN_LEDGER_FILE;
     const stdout = await runHledger(["payees", "-f", journal]);
     return stdout
       .split("\n")

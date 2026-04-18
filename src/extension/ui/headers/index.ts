@@ -1,5 +1,5 @@
 import { Container } from "@mariozechner/pi-tui";
-import { LEDGER_DIR } from "../../config";
+import { MAIN_LEDGER_FILE } from "../../config";
 import { type BriefingData, fetchBriefingData } from "../../ledger";
 import { Briefing } from "./briefing";
 import { Onboarding } from "./onboarding";
@@ -29,7 +29,7 @@ export function createHeaderFactory() {
   return (tui: any, _theme: any) => {
     const header = new HeaderSwitch();
 
-    fetchBriefingData(`${LEDGER_DIR}/main.journal`).then((data) => {
+    fetchBriefingData(MAIN_LEDGER_FILE).then((data) => {
       if (data.error || hasTransactions(data)) {
         const briefing = new Briefing();
         briefing.setData(data);

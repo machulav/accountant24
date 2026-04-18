@@ -1,13 +1,12 @@
-import { LEDGER_DIR } from "../config";
+import { MAIN_LEDGER_FILE } from "../config";
 import { HledgerCommandError, hledgerCheck } from "./hledger";
-import { resolveSafePath } from "./paths";
 
 export interface ValidateLedgerResult {
   ledgerIsValid: boolean;
 }
 
 export async function validateLedger(signal?: AbortSignal): Promise<ValidateLedgerResult> {
-  const resolved = resolveSafePath("main.journal", LEDGER_DIR);
+  const resolved = MAIN_LEDGER_FILE;
 
   try {
     await hledgerCheck(resolved, { signal });

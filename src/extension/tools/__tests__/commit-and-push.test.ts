@@ -52,13 +52,13 @@ describe("commit_and_push tool", () => {
   });
 
   test("should commit with provided message and return details", async () => {
-    writeFileSync(join(BASE, "ledger.journal"), "2025-01-01 * Groceries");
+    writeFileSync(join(BASE, "ledger.txt"), "2025-01-01 * Groceries");
 
     const result = await run({ message: "Add January groceries" });
 
     expect(result.details.status).toBe("committed");
     expect(result.details.commitMessage).toBe("Add January groceries");
-    expect(result.details.committedFiles).toContain("ledger.journal");
+    expect(result.details.committedFiles).toContain("ledger.txt");
     expect(result.details.pushed).toBe(false);
     expect(result.content[0].text).toContain("Add January groceries");
   });
@@ -109,14 +109,14 @@ describe("commit_and_push renderResult", () => {
   test("should show commit message and files for committed status", () => {
     const output = render({
       status: "committed",
-      committedFiles: ["ledger.journal", "memory.md"],
+      committedFiles: ["ledger.txt", "memory.md"],
       commitMessage: "Add groceries",
       pushed: false,
     });
     expect(output).toContain("Message");
     expect(output).toContain("Add groceries");
     expect(output).toContain("Files");
-    expect(output).toContain("ledger.journal");
+    expect(output).toContain("ledger.txt");
     expect(output).toContain("memory.md");
     expect(output).not.toContain("Remote");
   });

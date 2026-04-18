@@ -81,7 +81,7 @@ describe("queryLedger()", () => {
     test("should include -f and the resolved journal path in command", async () => {
       const result = await queryLedger({ report: "bal" });
       expect(result.command).toContain("-f");
-      expect(result.command).toContain("main.journal");
+      expect(result.command).toContain("main.txt");
     });
 
     test("should include account pattern in command", async () => {

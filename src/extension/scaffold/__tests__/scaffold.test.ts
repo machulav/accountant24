@@ -20,8 +20,8 @@ const EXPECTED_TEMPLATE_FILES = [
   ".gitignore",
   "models.json",
   "settings.json",
-  "ledger/accounts.journal",
-  "ledger/main.journal",
+  "ledger/accounts.txt",
+  "ledger/main.txt",
 ];
 
 afterAll(() => {
@@ -50,16 +50,16 @@ describe("ensureScaffolded()", () => {
     expect(existsSync(join(BASE, "files"))).toBe(true);
   });
 
-  test("should write main.journal with header and include directive", async () => {
+  test("should write main.txt with header and include directive", async () => {
     await ensureScaffolded();
-    const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
+    const content = readFileSync(join(BASE, "ledger", "main.txt"), "utf-8");
     expect(content).toContain("# Accountant24");
-    expect(content).toContain("include accounts.journal");
+    expect(content).toContain("include accounts.txt");
   });
 
-  test("should write accounts.journal with all five account types", async () => {
+  test("should write accounts.txt with all five account types", async () => {
     await ensureScaffolded();
-    const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
+    const content = readFileSync(join(BASE, "ledger", "accounts.txt"), "utf-8");
     expect(content).toContain("account assets:");
     expect(content).toContain("account liabilities:");
     expect(content).toContain("account equity:");
@@ -80,22 +80,22 @@ describe("ensureScaffolded()", () => {
     }
   });
 
-  test("should not overwrite existing main.journal", async () => {
+  test("should not overwrite existing main.txt", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
-    writeFileSync(join(BASE, "ledger", "main.journal"), "existing content");
+    writeFileSync(join(BASE, "ledger", "main.txt"), "existing content");
 
     await ensureScaffolded();
 
-    expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("existing content");
+    expect(readFileSync(join(BASE, "ledger", "main.txt"), "utf-8")).toBe("existing content");
   });
 
-  test("should not overwrite existing accounts.journal", async () => {
+  test("should not overwrite existing accounts.txt", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
-    writeFileSync(join(BASE, "ledger", "accounts.journal"), "user modified accounts");
+    writeFileSync(join(BASE, "ledger", "accounts.txt"), "user modified accounts");
 
     await ensureScaffolded();
 
-    expect(readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8")).toBe("user modified accounts");
+    expect(readFileSync(join(BASE, "ledger", "accounts.txt"), "utf-8")).toBe("user modified accounts");
   });
 
   test("should not overwrite existing .gitignore", async () => {
@@ -122,14 +122,14 @@ describe("ensureScaffolded()", () => {
 
   test("should still create missing files when some already exist", async () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
-    writeFileSync(join(BASE, "ledger", "main.journal"), "custom main");
+    writeFileSync(join(BASE, "ledger", "main.txt"), "custom main");
 
     await ensureScaffolded();
 
-    // main.journal preserved
-    expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("custom main");
-    // accounts.journal created because it was missing
-    expect(existsSync(join(BASE, "ledger", "accounts.journal"))).toBe(true);
+    // main.txt preserved
+    expect(readFileSync(join(BASE, "ledger", "main.txt"), "utf-8")).toBe("custom main");
+    // accounts.txt created because it was missing
+    expect(existsSync(join(BASE, "ledger", "accounts.txt"))).toBe(true);
     // .gitignore created because it was missing
     expect(existsSync(join(BASE, ".gitignore"))).toBe(true);
   });

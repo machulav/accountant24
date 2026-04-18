@@ -19,7 +19,7 @@ export interface QueryLedgerResult {
 }
 
 export async function queryLedger(params: any, signal?: AbortSignal): Promise<QueryLedgerResult> {
-  const file = params.file ?? "ledger/main.journal";
+  const file = params.file ?? "ledger/main.txt";
   const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
   const args = buildQueryArgs(params, resolved);
   const raw = await runHledger(args, { signal });

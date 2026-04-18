@@ -138,13 +138,13 @@ describe("commitAndPush()", () => {
     mkdirSync(join(dir, "sessions"), { recursive: true });
     writeFileSync(join(dir, "sessions", "s1.json"), "{}");
     writeFileSync(join(dir, "sessions", "s2.json"), "{}");
-    writeFileSync(join(dir, "ledger.journal"), "2025-01-01 * Test");
+    writeFileSync(join(dir, "ledger.txt"), "2025-01-01 * Test");
     writeFileSync(join(dir, "memory.md"), "notes");
 
     const result = await commitAndPush("Mixed changes", dir);
 
     expect(result.status).toBe("committed");
-    expect(result.committedFiles).toContain("ledger.journal");
+    expect(result.committedFiles).toContain("ledger.txt");
     expect(result.committedFiles).toContain("memory.md");
     expect(result.committedFiles.every((f: string) => !f.startsWith("sessions/"))).toBe(true);
     expect(await hasChanges(dir)).toBe(false);

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
+import { ACCOUNTANT24_HOME, LEDGER_DIR, MAIN_LEDGER_FILE } from "../config";
 import { generateDiff } from "../files/diff";
 import { HledgerCommandError, hledgerCheck } from "./hledger";
 import { resolveSafePath } from "./paths";
@@ -38,8 +38,8 @@ export async function addTransaction(
 
   // Route to monthly file
   const [year, month] = params.date.split("-");
-  const fullFilePath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
-  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
+  const fullFilePath = resolveSafePath(`${year}/${month}.txt`, LEDGER_DIR);
+  const mainPath = MAIN_LEDGER_FILE;
 
   // Ensure directory exists
   mkdirSync(dirname(fullFilePath), { recursive: true });
@@ -54,12 +54,12 @@ export async function addTransaction(
     writeFileSync(fullFilePath, `${oldContent}${separator}${transactionText}\n`);
   }
 
-  // Update main.journal: includes and commodity declarations
+  // Update main ledger: includes and commodity declarations
   if (existsSync(mainPath)) {
     let mainContent = readFileSync(mainPath, "utf-8");
 
     if (isNew) {
-      const includeDirective = `include ${year}/${month}.journal`;
+      const includeDirective = `include ${year}/${month}.txt`;
       if (!mainContent.includes(includeDirective)) {
         const sep = mainContent.endsWith("\n") ? "" : "\n";
         mainContent = `${mainContent}${sep}${includeDirective}\n`;

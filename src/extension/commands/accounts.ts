@@ -33,7 +33,7 @@ export function formatAccounts(accounts: string[]): string {
 
   const lines: string[] = ["# Accounts", ""];
 
-  // Type legend at the top, like accounts.journal header
+  // Type legend at the top, like accounts.txt header
   const presentTypes = ACCOUNT_TYPES.filter(({ type }) => groups.has(type));
   const maxLabelLen = Math.max(...presentTypes.map(({ label }) => label.length), other.length > 0 ? 5 : 0);
   lines.push("> Account types:");
