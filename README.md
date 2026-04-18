@@ -1,22 +1,6 @@
 # Accountant24
 
-Local-first AI agent for personal accounting. Your data stays as plain text files on your machine. Works with any LLM — including local ones.
-
-Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
-
-## Why I built this
-
-For years, I managed my personal finances with YNAB. It worked — but every transaction was a manual chore. I'd fall behind, dread catching up, and put it off for weeks at a time.
-
-One weekend I started playing with hledger and Claude Code, just to see if an agent could handle the bookkeeping for me. I wrote a couple of small skills, and to my surprise, it actually worked — and it was genuinely fun to use.
-
-So I kept going. I packed everything into a standalone agent, tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
-
-If it works this well for me, maybe it'll work for you too. That's why I'm releasing it as an open source project.
-
-## Philosophy
-
-Financial data is some of the most personal stuff you have. It deserves a tool that respects that — one that keeps your data yours, gives you the rigor of real accounting without the pain of learning a domain-specific language, and adapts to your life instead of forcing you into a template. Every other decision in Accountant24 flows from that.
+Local-first AI agent for personal accounting. Your data stays as plain text files on your machine. Works with any LLM — including local ones. Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
 
 ## What you can do
 
@@ -57,22 +41,6 @@ Tell the agent once — it remembers and applies it when it matters.
 
 Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.
 
-## How it compares
-
-|                 | Accountant24               | YNAB / Monarch     | Actual Budget      | hledger CLI              |
-| --------------- | -------------------------- | ------------------ | ------------------ | ------------------------ |
-| Data format     | Plain text (hledger)       | Proprietary cloud  | SQLite             | Plain text (hledger)     |
-| Data location   | Your machine               | Their servers      | Your machine       | Your machine             |
-| Input method    | Natural language           | Manual entry       | Manual entry       | Manual entry             |
-| AI              | Built-in, learns over time | —                  | —                  | —                        |
-| Memory          | Persistent                 | —                  | —                  | —                        |
-| Version control | Git, built-in              | —                  | —                  | Via manual setup         |
-| Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
-| Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
-| GUI             | Terminal chat              | Web + mobile       | Web + desktop      | CLI                      |
-| Price           | Free (+ LLM cost)          | $109/yr            | Free               | Free                     |
-| Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
-
 ## Quick start
 
 ### Install
@@ -107,6 +75,32 @@ Want your financial data to never leave your machine? Run a local model with Oll
    ```
 
 3. Use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+
+## How it compares
+
+|                 | Accountant24               | YNAB / Monarch     | Actual Budget      | hledger CLI              |
+| --------------- | -------------------------- | ------------------ | ------------------ | ------------------------ |
+| Data format     | Plain text (hledger)       | Proprietary cloud  | SQLite             | Plain text (hledger)     |
+| Data location   | Your machine               | Their servers      | Your machine       | Your machine             |
+| Input method    | Natural language           | Manual entry       | Manual entry       | Manual entry             |
+| AI              | Built-in, learns over time | —                  | —                  | —                        |
+| Memory          | Persistent                 | —                  | —                  | —                        |
+| Version control | Git, built-in              | —                  | —                  | Via manual setup         |
+| Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
+| Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
+| GUI             | Terminal chat              | Web + mobile       | Web + desktop      | CLI                      |
+| Price           | Free                       | $100–$180/yr       | Free               | Free                     |
+| Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
+
+## Why I built this
+
+For years, I managed my personal finances with YNAB. It worked — but every transaction was a manual chore. I'd fall behind, dread catching up, and put it off for weeks at a time.
+
+One weekend I started playing with hledger and Claude Code, just to see if an agent could handle the bookkeeping for me. I wrote a couple of small skills, and to my surprise, it actually worked — and it was genuinely fun to use.
+
+So I kept going. I packed everything into a standalone agent, tuned it for this one job, and started using it every day. I'm honestly happier with it than any tool I've used for my money before.
+
+If it works this well for me, maybe it'll work for you too. That's why I'm releasing it as an open source project.
 
 ## Why this stack
 
