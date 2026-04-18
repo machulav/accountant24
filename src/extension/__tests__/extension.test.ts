@@ -69,13 +69,14 @@ describe("accountant24Extension()", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(14);
   });
 
-  test("should register session_start, before_agent_start, and agent_end handlers", () => {
+  test("should register session_start, before_agent_start, agent_end, and model_select handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(3);
+    expect(pi.on).toHaveBeenCalledTimes(4);
     expect(pi.handlers.session_start).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
     expect(pi.handlers.agent_end).toBeDefined();
+    expect(pi.handlers.model_select).toBeDefined();
   });
 });
 
@@ -95,8 +96,11 @@ describe("session_start UI setup", () => {
     accountant24Extension(pi as any);
     let editorFactory: AnyFn | null = null;
     let footerFactory: AnyFn | null = null;
+    const mockTheme = { fg: (color: string, text: string) => `[${color}]${text}` } as any;
+    const mockTui = { requestRender: mock(() => {}) } as any;
     const ctx = {
       hasUI: true,
+      model: { name: "Test Model" },
       ui: {
         setTitle: mock(() => {}),
         setHeader: mock(() => {}),
@@ -121,17 +125,59 @@ describe("session_start UI setup", () => {
     // Call the no-op setAutocompleteProvider guard (line 104)
     editor.setAutocompleteProvider("should be ignored");
 
-    // Invoke the footer factory and its returned render/invalidate
+    // Invoke the footer factory — it receives (tui, theme, footerData) and reads ctx.model
     expect(footerFactory).not.toBeNull();
-    const footer = (footerFactory as any)();
-    expect(footer.render()).toEqual([]);
+    const footer = (footerFactory as any)(mockTui, mockTheme, {});
+    const line = footer.render(80)[0];
+    expect(line).toContain("[dim]Test Model");
     footer.invalidate();
+    footer.dispose();
   });
 
   test("should not set UI when hasUI is false", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
     await pi.handlers.session_start({}, { hasUI: false });
+  });
+});
+
+describe("model_select handler", () => {
+  test("should update footer model name on model switch", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    let footerFactory: AnyFn | null = null;
+    const mockTheme = { fg: (color: string, text: string) => `[${color}]${text}` } as any;
+    const mockTui = { requestRender: mock(() => {}) } as any;
+    const ctx = {
+      hasUI: true,
+      model: { name: "Initial Model" },
+      ui: {
+        setTitle: mock(() => {}),
+        setHeader: mock(() => {}),
+        setFooter: mock((factory: AnyFn) => {
+          footerFactory = factory;
+        }),
+        setEditorComponent: mock(() => {}),
+      },
+    };
+    await pi.handlers.session_start({}, ctx);
+
+    // Create the footer via factory
+    const footer = (footerFactory as any)(mockTui, mockTheme, {});
+    expect(footer.render(80)[0]).toContain("[dim]Initial Model");
+
+    // Simulate model switch — footer triggers requestRender internally
+    mockTui.requestRender.mockClear();
+    pi.handlers.model_select({ model: { name: "New Model" } });
+    expect(footer.render(80)[0]).toContain("[dim]New Model");
+    expect(mockTui.requestRender).toHaveBeenCalledWith(true);
+  });
+
+  test("should not throw when model_select fires before footer is created", () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    // model_select fires without session_start (no footer yet)
+    expect(() => pi.handlers.model_select({ model: { name: "Some Model" } })).not.toThrow();
   });
 });
 

@@ -16,13 +16,21 @@ import {
   validateTool,
 } from "./tools";
 import { extractMeta, registerBuiltinOverrides } from "./tools/builtin-overrides";
-import { AccountantAutocompleteProvider, createHeaderFactory, registerInfoMessageRenderer, updateDisplay } from "./ui";
+import {
+  AccountantAutocompleteProvider,
+  createHeaderFactory,
+  ModelFooter,
+  registerInfoMessageRenderer,
+  updateDisplay,
+} from "./ui";
 
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
 LoaderProto.updateDisplay = updateDisplay;
 
 export function createExtension(settingsManager: SettingsManager): ExtensionFactory {
   return (pi) => {
+    let footer: ModelFooter | null = null;
+
     // Override built-in tools with custom rendering
     const builtinMeta = registerBuiltinOverrides(pi);
 
@@ -68,7 +76,11 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
       if (ctx.hasUI) {
         ctx.ui.setTitle("Accountant24");
         ctx.ui.setHeader(createHeaderFactory());
-        ctx.ui.setFooter(() => ({ render: () => [], invalidate() {} }));
+        ctx.ui.setFooter((tui, theme, _footerData) => {
+          footer = new ModelFooter(tui, theme);
+          if (ctx.model) footer.setModel(ctx.model.name);
+          return footer;
+        });
 
         // Built-in commands (not exported by pi-coding-agent)
         const BUILTIN_COMMANDS = [
@@ -97,6 +109,7 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
           });
           editor.setAutocompleteProvider(autocomplete);
           editor.setAutocompleteProvider = () => {}; // prevent overwrite
+          footer?.setEditor(editor);
           return editor;
         });
 
@@ -127,6 +140,11 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     pi.on("agent_end", async () => {
       const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
       autocomplete.setData(accounts, payees, tags);
+    });
+
+    // Update footer when the user switches models
+    pi.on("model_select", (event) => {
+      footer?.setModel(event.model.name);
     });
   };
 }
