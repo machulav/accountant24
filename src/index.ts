@@ -12,6 +12,9 @@ import {
 import { minimatch } from "minimatch";
 import { ACCOUNTANT24_HOME, createExtension } from "./extension";
 
+// Align the library's getAgentDir() with our workspace so displayed paths (e.g. "Credentials saved to …") match actual file locations.
+process.env.PI_CODING_AGENT_DIR = ACCOUNTANT24_HOME;
+
 async function main() {
   const settingsManager = SettingsManager.create(ACCOUNTANT24_HOME, ACCOUNTANT24_HOME);
   settingsManager.applyOverrides({
