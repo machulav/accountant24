@@ -1,6 +1,8 @@
 # Accountant24
 
-Your personal AI accountant. Talk to it about your money — it handles the bookkeeping, answers questions, and notices things you'd miss. Your data stays as plain text files on your machine. Works with any LLM — including local ones.
+Local-first AI agent for personal accounting. Your data stays as plain text files on your machine. Works with any LLM — including local ones.
+
+Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
 
 ## Why I built this
 
@@ -42,16 +44,16 @@ Drop in a PDF bank statement, an invoice, or a photo of a paper receipt. The age
 
 The agent checks your ledger and gives you a clear answer.
 
-### Set rules and facts
+### Teach the agent as you go
 
 > I'm visiting Italy from April 10th to 15th.
 > Tag all transactions during this period with the 'trip_italy' tag.
 
-> My food budget is $600/month
+> My food budget is $600/month, please notify me when I get close.
 
-The agent remembers what you tell it and uses it to make better decisions.
+Tell the agent once — it remembers and applies it when it matters.
 
-### Track every change
+### Track every change with git
 
 Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.
 
@@ -122,7 +124,7 @@ Put them together and each piece covers the other's weakness. You speak naturall
 
 Accountant24 wouldn't exist without these projects:
 
-- **[pi](https://github.com/badlogic/pi-mono)** by [Mario Zechner](https://github.com/badlogic) — a minimal, but powerful framework for building AI agents.
+- **[pi](https://github.com/badlogic/pi-mono)** by [Mario Zechner](https://github.com/badlogic) — a minimal but powerful framework for building AI agents.
 - **[hledger](https://hledger.org)** by [Simon Michael](https://github.com/simonmichael) — the accounting engine that makes proper double-entry bookkeeping possible.
 
 Both are remarkable pieces of software.
