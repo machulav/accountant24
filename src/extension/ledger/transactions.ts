@@ -54,31 +54,46 @@ export async function addTransaction(
     writeFileSync(fullFilePath, `${oldContent}${separator}${transactionText}\n`);
   }
 
-  // Update main.journal: includes and commodity declarations
+  // Update main.journal: includes
   if (existsSync(mainPath)) {
     let mainContent = readFileSync(mainPath, "utf-8");
+    let mainChanged = false;
 
     if (isNew) {
       const includeDirective = `include ${year}/${month}.journal`;
       if (!mainContent.includes(includeDirective)) {
         const sep = mainContent.endsWith("\n") ? "" : "\n";
         mainContent = `${mainContent}${sep}${includeDirective}\n`;
-        writeFileSync(mainPath, mainContent);
+        mainChanged = true;
       }
     }
 
-    const currencies = new Set(params.postings.filter((p: any) => p.currency).map((p: any) => p.currency));
-    const missingCommodities: string[] = [];
-    for (const cur of currencies) {
-      const pattern = new RegExp(`^commodity\\s+.*${cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m");
-      if (!pattern.test(mainContent)) {
-        missingCommodities.push(cur);
-      }
+    // Ensure main.journal includes commodities.journal (for pre-existing workspaces)
+    if (!mainContent.includes("include commodities.journal")) {
+      mainContent = `include commodities.journal\n${mainContent}`;
+      mainChanged = true;
     }
-    if (missingCommodities.length > 0) {
-      const declarations = missingCommodities.map((c) => `commodity ${c}`).join("\n");
-      writeFileSync(mainPath, `${declarations}\n\n${mainContent}`);
+
+    if (mainChanged) {
+      writeFileSync(mainPath, mainContent);
     }
+  }
+
+  // Auto-declare missing commodities in commodities.journal
+  const commoditiesPath = resolveSafePath("commodities.journal", LEDGER_DIR);
+  const commoditiesContent = existsSync(commoditiesPath) ? readFileSync(commoditiesPath, "utf-8") : "";
+  const currencies = new Set(params.postings.map((p) => p.currency));
+  const missingCommodities: string[] = [];
+  for (const cur of currencies) {
+    const pattern = new RegExp(`^commodity\\s+.*${cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m");
+    if (!pattern.test(commoditiesContent)) {
+      missingCommodities.push(cur);
+    }
+  }
+  if (missingCommodities.length > 0) {
+    const declarations = missingCommodities.map((c) => `commodity ${c}`).join("\n");
+    const sep = commoditiesContent.endsWith("\n") ? "" : "\n";
+    writeFileSync(commoditiesPath, `${commoditiesContent}${sep}${declarations}\n`);
   }
 
   // Validate

@@ -388,26 +388,28 @@ describe("addTransaction() main.journal management", () => {
     expect(matches).toHaveLength(1);
   });
 
-  test("should auto-declare missing commodity", async () => {
+  test("should auto-declare missing commodity in commodities.journal", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "account Assets:Checking\n");
     await addTransaction(basicParams);
-    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-    expect(main).toContain("commodity USD");
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity USD");
   });
 
   test("should not duplicate existing commodity declaration", async () => {
-    writeFileSync(join(LEDGER, "main.journal"), "commodity USD\n");
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    writeFileSync(join(LEDGER, "commodities.journal"), "commodity USD\n");
     await addTransaction(basicParams);
-    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-    const matches = main.match(/commodity USD/g);
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    const matches = commodities.match(/commodity USD/g);
     expect(matches).toHaveLength(1);
   });
 
   test("should not redeclare commodity that exists with a format", async () => {
-    writeFileSync(join(LEDGER, "main.journal"), "commodity 1,000.00 USD\n");
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    writeFileSync(join(LEDGER, "commodities.journal"), "commodity 1,000.00 USD\n");
     await addTransaction(basicParams);
-    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-    const matches = main.match(/commodity.*USD/g);
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    const matches = commodities.match(/commodity.*USD/g);
     expect(matches).toHaveLength(1);
   });
 
@@ -421,9 +423,48 @@ describe("addTransaction() main.journal management", () => {
         { account: "Assets:Checking", amount: -145, currency: "USD" },
       ],
     });
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity USD");
+    expect(commodities).toContain("commodity EUR");
+  });
+
+  test("should add include commodities.journal to main.journal if missing", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "; Accountant24\n");
+    await addTransaction(basicParams);
     const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-    expect(main).toContain("commodity USD");
-    expect(main).toContain("commodity EUR");
+    expect(main).toContain("include commodities.journal");
+  });
+
+  test("should not duplicate include commodities.journal when already present", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "include commodities.journal\n; Accountant24\n");
+    await addTransaction(basicParams);
+    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+    const matches = main.match(/include commodities\.journal/g);
+    expect(matches).toHaveLength(1);
+  });
+
+  test("should create commodities.journal when it does not exist", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    expect(existsSync(join(LEDGER, "commodities.journal"))).toBe(false);
+    await addTransaction(basicParams);
+    expect(existsSync(join(LEDGER, "commodities.journal"))).toBe(true);
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity USD");
+  });
+
+  test("should append new commodity to existing commodities.journal", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    writeFileSync(join(LEDGER, "commodities.journal"), "commodity USD\n");
+    await addTransaction({
+      ...basicParams,
+      postings: [
+        { account: "Expenses:Travel", amount: 100, currency: "EUR" },
+        { account: "Assets:Checking", amount: -100, currency: "EUR" },
+      ],
+    });
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity USD");
+    expect(commodities).toContain("commodity EUR");
   });
 });
 

@@ -230,18 +230,19 @@ test("uses 4-space indent for postings", async () => {
   expect(text).toContain("    Assets:Checking");
 });
 
-test("should auto-declare missing commodity in main.journal", async () => {
+test("should auto-declare missing commodity in commodities.journal", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "account Assets:Checking\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  expect(main).toContain("commodity USD");
+  const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+  expect(commodities).toContain("commodity USD");
 });
 
 test("should not duplicate existing commodity declaration", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "commodity USD\naccount Assets:Checking\n");
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "commodities.journal"), "commodity USD\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  const matches = main.match(/commodity USD/g);
+  const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+  const matches = commodities.match(/commodity USD/g);
   expect(matches).toHaveLength(1);
 });
 
@@ -255,24 +256,25 @@ test("should auto-declare multiple missing commodities", async () => {
       { account: "Assets:Checking", amount: -145, currency: "USD" },
     ],
   });
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  expect(main).toContain("commodity USD");
-  expect(main).toContain("commodity EUR");
+  const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+  expect(commodities).toContain("commodity USD");
+  expect(commodities).toContain("commodity EUR");
 });
 
 test("should declare commodity without format number", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  expect(main).toContain("commodity USD");
-  expect(main).not.toContain("commodity 1000");
+  const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+  expect(commodities).toContain("commodity USD");
+  expect(commodities).not.toContain("commodity 1000");
 });
 
 test("should not redeclare commodity that exists with a format", async () => {
-  writeFileSync(join(LEDGER, "main.journal"), "commodity 1,000.00 USD\n");
+  writeFileSync(join(LEDGER, "main.journal"), "");
+  writeFileSync(join(LEDGER, "commodities.journal"), "commodity 1,000.00 USD\n");
   await run(basicParams);
-  const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
-  const matches = main.match(/commodity.*USD/g);
+  const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+  const matches = commodities.match(/commodity.*USD/g);
   expect(matches).toHaveLength(1);
 });
 

@@ -7,6 +7,8 @@ import gitignore from "./template/.gitignore" with { type: "text" };
 // @ts-expect-error
 import accountsJournal from "./template/ledger/accounts.journal" with { type: "text" };
 // @ts-expect-error
+import commoditiesJournal from "./template/ledger/commodities.journal" with { type: "text" };
+// @ts-expect-error
 import mainJournal from "./template/ledger/main.journal" with { type: "text" };
 // Text imports so `bun build --compile` inlines template files into the binary.
 // TS lib doesn't ship types for text import attributes, and for .json files TS
@@ -24,6 +26,7 @@ const TEMPLATE_FILES: Record<string, string> = {
   "models.json": modelsJson as unknown as string,
   "settings.json": settingsJson as unknown as string,
   "ledger/accounts.journal": accountsJournal,
+  "ledger/commodities.journal": commoditiesJournal,
   "ledger/main.journal": mainJournal,
 };
 

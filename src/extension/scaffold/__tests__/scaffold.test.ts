@@ -21,6 +21,7 @@ const EXPECTED_TEMPLATE_FILES = [
   "models.json",
   "settings.json",
   "ledger/accounts.journal",
+  "ledger/commodities.journal",
   "ledger/main.journal",
 ];
 
@@ -50,11 +51,34 @@ describe("ensureScaffolded()", () => {
     expect(existsSync(join(BASE, "files"))).toBe(true);
   });
 
-  test("should write main.journal with header and include directive", async () => {
+  test("should write main.journal with header and include directives", async () => {
     await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
-    expect(content).toContain("# Accountant24");
+    expect(content).toContain("; Accountant24");
+    expect(content).toContain("include commodities.journal");
     expect(content).toContain("include accounts.journal");
+  });
+
+  test("should create commodities.journal with header comment", async () => {
+    await ensureScaffolded();
+    expect(existsSync(join(BASE, "ledger", "commodities.journal"))).toBe(true);
+    expect(readFileSync(join(BASE, "ledger", "commodities.journal"), "utf-8")).toContain("; Commodity declarations");
+  });
+
+  test("should not overwrite existing commodities.journal", async () => {
+    mkdirSync(join(BASE, "ledger"), { recursive: true });
+    writeFileSync(join(BASE, "ledger", "commodities.journal"), "commodity USD");
+
+    await ensureScaffolded();
+
+    expect(readFileSync(join(BASE, "ledger", "commodities.journal"), "utf-8")).toBe("commodity USD");
+  });
+
+  test("should write accounts.journal with semicolon comments", async () => {
+    await ensureScaffolded();
+    const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
+    expect(content).toContain("; Default chart of accounts");
+    expect(content).not.toMatch(/^#/m);
   });
 
   test("should write accounts.journal with all five account types", async () => {
