@@ -68,11 +68,11 @@ describe("copyFileToWorkspace()", () => {
     expect(storedPath).toContain(join("files", year, month));
   });
 
-  test("should prefix filename with compact timestamp", () => {
+  test("should name file with compact timestamp and extension only", () => {
     const path = createTestFile("statement.png", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
 
-    expect(basename(storedPath)).toMatch(/^\d{14}_statement\.png$/);
+    expect(basename(storedPath)).toMatch(/^\d{14}\.png$/);
   });
 
   test("should preserve original file content", () => {
@@ -104,18 +104,30 @@ describe("copyFileToWorkspace()", () => {
     expect(basename(p2)).toMatch(/-2\.png$/);
   });
 
-  test("should replace whitespace in filename with hyphens", () => {
-    const path = createTestFile("bank statement  2026.pdf", MINIMAL_PNG);
+  test("should not include original filename in stored path", () => {
+    const path = createTestFile("my-important-document.png", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
 
-    expect(basename(storedPath)).toMatch(/^\d{14}_bank-statement-2026\.pdf$/);
+    expect(storedPath).not.toContain("my-important-document");
+  });
+
+  test("should deduplicate different files with the same extension", () => {
+    const path1 = createTestFile("alpha.png", MINIMAL_PNG);
+    const path2 = createTestFile("bravo.png", MINIMAL_PNG);
+
+    const p1 = copyFileToWorkspace(path1);
+    const p2 = copyFileToWorkspace(path2);
+
+    expect(p1).not.toBe(p2);
+    expect(existsSync(join(BASE, p1))).toBe(true);
+    expect(existsSync(join(BASE, p2))).toBe(true);
   });
 
   test("should handle files without extension", () => {
     const path = createTestFile("noext", MINIMAL_PNG);
     const storedPath = copyFileToWorkspace(path);
 
-    expect(basename(storedPath)).toMatch(/^\d{14}_noext$/);
+    expect(basename(storedPath)).toMatch(/^\d{14}$/);
     expect(readFileSync(join(BASE, storedPath))).toEqual(MINIMAL_PNG);
   });
 
@@ -130,7 +142,7 @@ describe("copyFileToWorkspace()", () => {
       expect(result.content[0].type).toBe("text");
       const text = (result.content[0] as { type: "text"; text: string }).text;
       expect(text).toContain("files/");
-      expect(text).toContain("tool-test.png");
+      expect(text).toMatch(/\d{14}\.png/);
     });
 
     test("should return storedPath in details", async () => {
@@ -165,7 +177,7 @@ describe("copyFileToWorkspace()", () => {
       const lines = (rendered as any).render(200) as string[];
       const text = lines.join("\n");
       expect(text).toContain("Stored");
-      expect(text).toContain("render-test");
+      expect(text).toMatch(/\d{14}/);
     });
   });
 });
