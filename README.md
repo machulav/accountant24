@@ -2,6 +2,12 @@
 
 Local-first AI agent for personal accounting. Your data stays as plain text files on your machine. Works with any LLM — including local ones. Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
 
+<p align="center">
+  <img src="assets/demo-session.png" alt="Accountant24 — dashboard and conversation in the terminal" width="600">
+  <br>
+  <a href="https://pi.dev/session/#376b7e484c839761df78d764c39aef55" target="_blank">View full session snapshot →</a>
+</p>
+
 ## What you can do
 
 ### Log spending in natural language
