@@ -69,12 +69,16 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     // Shared autocomplete provider — updated with fresh data before each agent turn
     const autocomplete = new AccountantAutocompleteProvider([]);
 
+    const TITLE = "Accountant24";
+    const setTerminalTitle = () => process.stdout.write(`\x1b]0;${TITLE}\x07`);
+
     // Scaffold workspace + set up UI on session start
     pi.on("session_start", async (_event, ctx) => {
       await ensureScaffolded();
 
       if (ctx.hasUI) {
-        ctx.ui.setTitle("Accountant24");
+        // Override the framework's "π - dirname" title (runs after updateTerminalTitle)
+        setTimeout(setTerminalTitle, 100);
         ctx.ui.setHeader(createHeaderFactory());
         ctx.ui.setFooter((tui, theme, _footerData) => {
           footer = new ModelFooter(tui, theme);
@@ -130,14 +134,21 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
       ]);
 
       if (ctx.hasUI) {
+        ctx.ui.setTitle(TITLE);
         ctx.ui.setWorkingMessage("Crunching the numbers...");
       }
 
       return { systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags, tools: allToolMeta }) };
     });
 
+    // Maintain terminal title across agent lifecycle
+    pi.on("agent_start", async (_event, ctx) => {
+      if (ctx.hasUI) ctx.ui.setTitle(TITLE);
+    });
+
     // Refresh autocomplete after each agent turn so new payees/accounts are available
-    pi.on("agent_end", async () => {
+    pi.on("agent_end", async (_event, ctx) => {
+      if (ctx.hasUI) ctx.ui.setTitle(TITLE);
       const [accounts, payees, tags] = await Promise.all([listAccounts(), listPayees(), listTags()]);
       autocomplete.setData(accounts, payees, tags);
     });

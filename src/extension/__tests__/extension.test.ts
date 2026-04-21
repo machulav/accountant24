@@ -69,12 +69,13 @@ describe("accountant24Extension()", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(14);
   });
 
-  test("should register session_start, before_agent_start, agent_end, and model_select handlers", () => {
+  test("should register session_start, before_agent_start, agent_start, agent_end, and model_select handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(4);
+    expect(pi.on).toHaveBeenCalledTimes(5);
     expect(pi.handlers.session_start).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
+    expect(pi.handlers.agent_start).toBeDefined();
     expect(pi.handlers.agent_end).toBeDefined();
     expect(pi.handlers.model_select).toBeDefined();
   });
@@ -91,7 +92,7 @@ describe("ensureScaffolded (via session_start)", () => {
 });
 
 describe("session_start UI setup", () => {
-  test("should set title and header when hasUI", async () => {
+  test("should set header and footer when hasUI", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
     let editorFactory: AnyFn | null = null;
@@ -102,7 +103,6 @@ describe("session_start UI setup", () => {
       hasUI: true,
       model: { name: "Test Model" },
       ui: {
-        setTitle: mock(() => {}),
         setHeader: mock(() => {}),
         setFooter: mock((factory: AnyFn) => {
           footerFactory = factory;
@@ -113,7 +113,6 @@ describe("session_start UI setup", () => {
       },
     };
     await pi.handlers.session_start({}, ctx);
-    expect(ctx.ui.setTitle).toHaveBeenCalledWith("Accountant24");
     expect(ctx.ui.setHeader).toHaveBeenCalledTimes(1);
     expect(ctx.ui.setFooter).toHaveBeenCalledTimes(1);
     expect(ctx.ui.setEditorComponent).toHaveBeenCalledTimes(1);
@@ -247,13 +246,36 @@ describe("before_agent_start handler", () => {
     accountant24Extension(pi as any);
     await pi.handlers.session_start({}, { hasUI: false });
 
-    const ctx = { hasUI: true, ui: { setWorkingMessage: mock(() => {}) } };
+    const ctx = { hasUI: true, ui: { setTitle: mock(() => {}), setWorkingMessage: mock(() => {}) } };
     await pi.handlers.before_agent_start({}, ctx);
+    expect(ctx.ui.setTitle).toHaveBeenCalledWith("Accountant24");
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith("Crunching the numbers...");
   });
 });
 
+describe("agent_start handler", () => {
+  test("should set terminal title when hasUI", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    const ctx = { hasUI: true, ui: { setTitle: mock(() => {}) } };
+    await pi.handlers.agent_start({}, ctx);
+    expect(ctx.ui.setTitle).toHaveBeenCalledWith("Accountant24");
+  });
+});
+
 describe("agent_end handler", () => {
+  test("should set terminal title when hasUI", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start({}, { hasUI: false });
+
+    const ctx = { hasUI: true, ui: { setTitle: mock(() => {}) } };
+    await pi.handlers.agent_end({}, ctx);
+    expect(ctx.ui.setTitle).toHaveBeenCalledWith("Accountant24");
+  });
+
   test("should refresh autocomplete with new payees after agent turn", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
