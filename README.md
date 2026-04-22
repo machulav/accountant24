@@ -118,7 +118,9 @@ Each piece of this puzzle does one thing really well.
 
 **pi** is the agent framework that glues everything together — sessions, tool execution, LLM communication. It's small, well-designed, and easy to extend.
 
-Put them together and each piece covers the other's weakness. You speak naturally, the LLM figures out what you mean, hledger keeps the math honest, pi orchestrates the whole thing. That's the combination I ended up with after trying a few alternatives — and it's been working well ever since.
+**git** tracks every change to plain text files — which is exactly what a ledger is. The agent commits your changes as you go, so mistakes are easy to undo, and pushing to a private remote gives you backups.
+
+Put them together and each piece covers the other's weakness. You speak naturally, the LLM figures out what you mean, hledger keeps the math honest, git makes every change traceable, and pi orchestrates the whole thing. That's the combination I ended up with after trying a few alternatives — and it's been working well ever since.
 
 ## Credits
 
