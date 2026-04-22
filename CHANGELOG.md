@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.7
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.6...v0.1.7)
+
+### 🚀 Features
+
+- Add commodities.journal to scaffold ([5353fb3](https://github.com/machulav/accountant24/commit/5353fb3))
+- Use timestamp-only naming for workspace files ([0345353](https://github.com/machulav/accountant24/commit/0345353))
+- Override framework terminal title with Accountant24 ([8e8427f](https://github.com/machulav/accountant24/commit/8e8427f))
+
+### 📖 Documentation
+
+- Add demo screenshot and session snapshot link to README ([75c8348](https://github.com/machulav/accountant24/commit/75c8348))
+- Update demo screenshot ([d949130](https://github.com/machulav/accountant24/commit/d949130))
+- Add git to "Why this stack" section ([df801b9](https://github.com/machulav/accountant24/commit/df801b9))
+
 ## v0.1.6
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.5...v0.1.6)
