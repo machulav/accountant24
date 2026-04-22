@@ -5,7 +5,9 @@ Local-first AI agent for personal accounting. Your data stays as plain text file
 <p align="center">
   <img src="assets/demo-session.png" alt="Accountant24 — dashboard and conversation in the terminal" width="600">
   <br>
-  <a href="https://pi.dev/session/#376b7e484c839761df78d764c39aef55" target="_blank">View full session snapshot →</a>
+  <a href="https://pi.dev/session/#376b7e484c839761df78d764c39aef55" target="_blank">View full session snapshot</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/machulav/accountant24-demo-ledger" target="_blank">Explore the demo ledger</a>
 </p>
 
 ## What you can do
