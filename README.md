@@ -71,18 +71,36 @@ Use `/login` to log in with your LLM provider subscription, then `/model` to pic
 
 ### Go fully local (optional)
 
-Want your financial data to never leave your machine? Run a local model with Ollama. Gemma 4 models are pre-configured in Accountant24 and appear in the `/model` selector.
+Want your financial data to never leave your machine? Run a local model with Ollama.
 
 1. [Download and install Ollama](https://ollama.com/download).
 2. Pull a Gemma 4 model:
 
    ```bash
-   ollama pull gemma4:26b  # requires ~16 GB RAM
-   # or
    ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
-3. Use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+3. Create a `~/Accountant24/models.json` file to register the Ollama provider:
+
+   ```json
+   {
+     "providers": {
+       "ollama": {
+         "baseUrl": "http://localhost:11434/v1",
+         "api": "openai-completions",
+         "apiKey": "ollama",
+         "models": [
+           {
+             "id": "gemma4:31b",
+             "name": "Gemma 4 (31B)"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+4. Restart Accountant24, then use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
 
 ## How it compares
 

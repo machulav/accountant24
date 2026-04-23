@@ -18,8 +18,6 @@ const { ensureScaffolded } = await import("../scaffold.js");
 const EXPECTED_TEMPLATE_FILES = [
   "memory.md",
   ".gitignore",
-  "models.json",
-  "settings.json",
   "ledger/accounts.journal",
   "ledger/commodities.journal",
   "ledger/main.journal",
@@ -128,6 +126,12 @@ describe("ensureScaffolded()", () => {
     await ensureScaffolded();
 
     expect(readFileSync(join(BASE, ".gitignore"), "utf-8")).toBe("custom gitignore");
+  });
+
+  test("should not create settings.json or models.json", async () => {
+    await ensureScaffolded();
+    expect(existsSync(join(BASE, "settings.json"))).toBe(false);
+    expect(existsSync(join(BASE, "models.json"))).toBe(false);
   });
 
   test("should create empty memory.md", async () => {

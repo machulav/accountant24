@@ -16,15 +16,11 @@ import mainJournal from "./template/ledger/main.journal" with { type: "text" };
 // still returns the raw text at runtime, so we cast these at the manifest site.
 // @ts-expect-error
 import memoryMd from "./template/memory.md" with { type: "text" };
-import modelsJson from "./template/models.json" with { type: "text" };
-import settingsJson from "./template/settings.json" with { type: "text" };
 
 /** Workspace scaffold manifest. Relative paths → file contents. */
 const TEMPLATE_FILES: Record<string, string> = {
   "memory.md": memoryMd,
   ".gitignore": gitignore,
-  "models.json": modelsJson as unknown as string,
-  "settings.json": settingsJson as unknown as string,
   "ledger/accounts.journal": accountsJournal,
   "ledger/commodities.journal": commoditiesJournal,
   "ledger/main.journal": mainJournal,
