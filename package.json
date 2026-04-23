@@ -98,7 +98,7 @@
     "configDir": ".accountant24"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.63.1",
+    "@mariozechner/pi-coding-agent": "^0.69.0",
     "diff": "^8.0.4",
     "file-type": "^22.0.0",
     "zod": "^3.24.0"

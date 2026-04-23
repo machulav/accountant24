@@ -23,7 +23,12 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
     this.tags = tags;
   }
 
-  async getSuggestions(lines: string[], cursorLine: number, cursorCol: number) {
+  async getSuggestions(
+    lines: string[],
+    cursorLine: number,
+    cursorCol: number,
+    _options?: { signal: AbortSignal; force?: boolean },
+  ) {
     const line = lines[cursorLine] || "";
     const before = line.slice(0, cursorCol);
 
@@ -65,7 +70,7 @@ export class AccountantAutocompleteProvider implements AutocompleteProvider {
       const argumentText = before.slice(spaceIndex + 1);
       const command = this.commands.find((cmd) => cmd.name === commandName);
       if (!command?.getArgumentCompletions) return null;
-      const argumentSuggestions = command.getArgumentCompletions(argumentText);
+      const argumentSuggestions = await command.getArgumentCompletions(argumentText);
       if (!argumentSuggestions || argumentSuggestions.length === 0) return null;
       return { items: argumentSuggestions, prefix: argumentText };
     }

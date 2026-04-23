@@ -1,6 +1,6 @@
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
-import { codingTools } from "@mariozechner/pi-coding-agent";
+import { createCodingTools } from "@mariozechner/pi-coding-agent";
 import {
   addTransactionTool,
   buildSystemPrompt,
@@ -85,7 +85,7 @@ export async function runEval(config: EvalRunConfig, deps: EvalDeps = defaultDep
         initialState: {
           systemPrompt,
           model,
-          tools: [...codingTools, ...deps.customTools] as any,
+          tools: [...createCodingTools(workspace.home), ...deps.customTools] as any,
         },
         streamFn: deps.streamSimple,
       });
