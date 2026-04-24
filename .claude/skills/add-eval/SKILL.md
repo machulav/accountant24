@@ -41,7 +41,7 @@ Each case is a single JSON line with these fields:
 
 ## Available Tools in Beanclaw
 
-The agent has these tools: `query`, `add_transaction`, `validate`, `read`, `write`, `edit`, `bash`, `update_memory`.
+The agent has these tools: `query`, `add_transactions`, `validate`, `read`, `write`, `edit`, `bash`, `update_memory`.
 
 ## Interview Process
 

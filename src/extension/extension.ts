@@ -7,7 +7,7 @@ import { getMemory } from "./memory";
 import { ensureScaffolded } from "./scaffold/scaffold";
 import { getSystemPrompt } from "./system-prompt";
 import {
-  addTransactionTool,
+  addTransactionsTool,
   commitAndPushTool,
   copyFileToWorkspaceTool,
   extractTextTool,
@@ -36,7 +36,7 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
 
     // Register custom tools
     pi.registerTool(queryTool);
-    pi.registerTool(addTransactionTool);
+    pi.registerTool(addTransactionsTool);
     pi.registerTool(commitAndPushTool);
     pi.registerTool(copyFileToWorkspaceTool);
     pi.registerTool(extractTextTool);
@@ -47,7 +47,7 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     const allToolMeta = [
       ...[
         queryTool,
-        addTransactionTool,
+        addTransactionsTool,
         commitAndPushTool,
         copyFileToWorkspaceTool,
         extractTextTool,

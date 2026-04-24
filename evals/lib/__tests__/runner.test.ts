@@ -271,7 +271,7 @@ describe("runEval()", () => {
       mockToolEvents = [
         { type: "tool_execution_start", toolCallId: "tc-1", toolName: "query", args: {} },
         { type: "tool_execution_end", toolCallId: "tc-1", result: {}, isError: false },
-        { type: "tool_execution_start", toolCallId: "tc-2", toolName: "add_transaction", args: {} },
+        { type: "tool_execution_start", toolCallId: "tc-2", toolName: "add_transactions", args: {} },
         { type: "tool_execution_end", toolCallId: "tc-2", result: {}, isError: false },
       ];
       mockAgentMessages = [];
@@ -279,7 +279,7 @@ describe("runEval()", () => {
       const results = await runEval(defaultConfig, makeDeps());
       expect(results[0].toolsCalled).toHaveLength(2);
       expect(results[0].toolsCalled[0].toolName).toBe("query");
-      expect(results[0].toolsCalled[1].toolName).toBe("add_transaction");
+      expect(results[0].toolsCalled[1].toolName).toBe("add_transactions");
     });
   });
 

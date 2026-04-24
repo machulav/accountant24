@@ -16,7 +16,7 @@ describe("loadCases()", () => {
 
     const cases = loadCases();
     // Cases should include entries from different files
-    // add-single-transaction.jsonl has add_transaction cases, cases.jsonl has others
+    // add-single-transaction.jsonl has add_transactions cases, cases.jsonl has others
     const hasAddTransaction = cases.some((c) => c.id.includes("add-coffee"));
     const hasBalanceQuery = cases.some((c) => c.id.includes("balance-query"));
     expect(hasAddTransaction).toBe(true);

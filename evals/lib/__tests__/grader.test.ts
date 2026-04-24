@@ -25,8 +25,8 @@ describe("gradeDeterministic()", () => {
     });
 
     it("should pass when multiple expected tools are all called", () => {
-      const evalCase = makeCase({ tools_called: ["query", "add_transaction"] });
-      const tools = [makeTool("query"), makeTool("add_transaction")];
+      const evalCase = makeCase({ tools_called: ["query", "add_transactions"] });
+      const tools = [makeTool("query"), makeTool("add_transactions")];
       const checks = gradeDeterministic(evalCase, tools, "");
       expect(checks).toHaveLength(2);
       expect(checks.every((c) => c.passed)).toBe(true);

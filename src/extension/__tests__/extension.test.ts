@@ -207,7 +207,7 @@ describe("before_agent_start handler", () => {
     expect(prompt).toContain("- edit:");
     // Custom tools
     expect(prompt).toContain("- query:");
-    expect(prompt).toContain("- add_transaction:");
+    expect(prompt).toContain("- add_transactions:");
     expect(prompt).toContain("- commit_and_push:");
     expect(prompt).toContain("- extract_text:");
     expect(prompt).toContain("- validate:");
@@ -315,7 +315,7 @@ describe("agent_end handler", () => {
     const first = await pi.handlers.before_agent_start({}, { hasUI: false });
     expect(first.systemPrompt as string).toContain("No payees found.");
 
-    // Add a payee to the journal (simulating what add_transaction does)
+    // Add a payee to the journal (simulating what add_transactions does)
     const monthDir = join(BASE, "ledger", "2026", "04");
     mkdirSync(monthDir, { recursive: true });
     writeFileSync(

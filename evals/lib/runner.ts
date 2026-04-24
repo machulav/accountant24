@@ -2,7 +2,7 @@ import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel, streamSimple } from "@mariozechner/pi-ai";
 import { createCodingTools } from "@mariozechner/pi-coding-agent";
 import {
-  addTransactionTool,
+  addTransactionsTool,
   buildSystemPrompt,
   queryTool,
   setBaseDir,
@@ -10,7 +10,7 @@ import {
   validateTool,
 } from "../../src/extension";
 
-const customTools = [validateTool, queryTool, addTransactionTool, updateMemoryTool];
+const customTools = [validateTool, queryTool, addTransactionsTool, updateMemoryTool];
 
 import { gradeDeterministic, gradeOutcome, gradeWithRubric } from "./grader";
 import { loadCases } from "./loader";

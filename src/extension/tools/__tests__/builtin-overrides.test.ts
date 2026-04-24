@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { initTheme } from "@mariozechner/pi-coding-agent";
 import { extractMeta, registerBuiltinOverrides } from "../builtin-overrides";
 import {
-  addTransactionTool,
+  addTransactionsTool,
   commitAndPushTool,
   extractTextTool,
   queryTool,
@@ -242,7 +242,7 @@ describe("registerBuiltinOverrides()", () => {
 describe("custom tool promptSnippet", () => {
   const toolsWithSnippet = [
     { tool: queryTool, name: "query" },
-    { tool: addTransactionTool, name: "add_transaction" },
+    { tool: addTransactionsTool, name: "add_transactions" },
     { tool: commitAndPushTool, name: "commit_and_push" },
     { tool: extractTextTool, name: "extract_text" },
     { tool: validateTool, name: "validate" },
@@ -279,8 +279,8 @@ describe("custom tool promptGuidelines", () => {
     expect(updateMemoryTool.promptGuidelines?.length).toBeGreaterThan(0);
   });
 
-  test("add_transaction should not have promptGuidelines", () => {
-    expect(addTransactionTool.promptGuidelines).toBeUndefined();
+  test("add_transactions should not have promptGuidelines", () => {
+    expect(addTransactionsTool.promptGuidelines).toBeUndefined();
   });
 
   test("validate should not have promptGuidelines", () => {

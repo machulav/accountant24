@@ -19,100 +19,185 @@ export interface AddTransactionParams {
   tags?: Array<{ name: string; value?: string }>;
 }
 
-export interface AddTransactionResult {
-  transactionText: string;
-  fullFilePath: string;
+export interface AddTransactionsResult {
+  transactions: Array<{ transactionText: string; fullFilePath: string }>;
   ledgerIsValid: boolean;
-  diff: string;
+  diffs: Array<{ fullFilePath: string; diff: string }>;
+}
+
+interface FormattedEntry {
+  text: string;
+  fileKey: string;
+  fullFilePath: string;
 }
 
 // ── Public ──────────────────────────────────────────────────────────
 
-export async function addTransaction(
-  params: AddTransactionParams,
+export async function addTransactions(
+  paramsList: AddTransactionParams[],
   signal?: AbortSignal,
-): Promise<AddTransactionResult> {
-  validateInputs(params);
+): Promise<AddTransactionsResult> {
+  validateAll(paramsList);
+  const formatted = formatAll(paramsList);
+  const byFile = groupByFile(formatted);
+  const fileContents = writeMonthlyFiles(byFile);
+  updateMainJournal(byFile);
+  declareMissingCommodities(paramsList);
+  await validateLedger(formatted, signal);
+  const diffs = buildDiffs(byFile, fileContents);
+  const transactions = formatted.map((f) => ({ transactionText: f.text, fullFilePath: f.fullFilePath }));
+  return { transactions, ledgerIsValid: true, diffs };
+}
 
-  const transactionText = formatTransaction(params);
+// ── Pipeline steps ─────────────────────────────────────────────────
 
-  // Route to monthly file
-  const [year, month] = params.date.split("-");
-  const fullFilePath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
-  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
+function validateAll(paramsList: AddTransactionParams[]): void {
+  for (let i = 0; i < paramsList.length; i++) {
+    try {
+      validateInputs(paramsList[i]);
+    } catch (e) {
+      if (paramsList.length > 1 && e instanceof Error) {
+        throw new Error(`Transaction ${i + 1}: ${e.message}`);
+      }
+      throw e;
+    }
+  }
+}
 
-  // Ensure directory exists
-  mkdirSync(dirname(fullFilePath), { recursive: true });
+function formatAll(paramsList: AddTransactionParams[]): FormattedEntry[] {
+  return paramsList.map((params) => {
+    const [year, month] = params.date.split("-");
+    const fullFilePath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
+    return { text: formatTransaction(params), fileKey: `${year}/${month}`, fullFilePath };
+  });
+}
 
-  // Append or create
-  const isNew = !existsSync(fullFilePath);
-  const oldContent = isNew ? "" : readFileSync(fullFilePath, "utf-8");
-  if (isNew) {
-    writeFileSync(fullFilePath, `${transactionText}\n`);
-  } else {
-    const separator = oldContent.endsWith("\n") ? "\n" : "\n\n";
-    writeFileSync(fullFilePath, `${oldContent}${separator}${transactionText}\n`);
+function groupByFile(formatted: FormattedEntry[]): Map<string, FormattedEntry[]> {
+  const byFile = new Map<string, FormattedEntry[]>();
+  for (const entry of formatted) {
+    let group = byFile.get(entry.fileKey);
+    if (!group) {
+      group = [];
+      byFile.set(entry.fileKey, group);
+    }
+    group.push(entry);
+  }
+  return byFile;
+}
+
+interface FileContents {
+  oldContents: Map<string, string>;
+  newContents: Map<string, string>;
+}
+
+/** Writes transactions to monthly journal files. Returns old and new contents for diff generation. */
+function writeMonthlyFiles(byFile: Map<string, FormattedEntry[]>): FileContents {
+  const oldContents = new Map<string, string>();
+  const newContents = new Map<string, string>();
+
+  for (const [fileKey, entries] of byFile) {
+    const fullFilePath = entries[0].fullFilePath;
+    mkdirSync(dirname(fullFilePath), { recursive: true });
+
+    const isNew = !existsSync(fullFilePath);
+    const oldContent = isNew ? "" : readFileSync(fullFilePath, "utf-8");
+    oldContents.set(fileKey, oldContent);
+
+    const joined = entries.map((e) => e.text).join("\n\n");
+    let newContent: string;
+    if (isNew) {
+      newContent = `${joined}\n`;
+    } else {
+      const separator = oldContent.endsWith("\n") ? "\n" : "\n\n";
+      newContent = `${oldContent}${separator}${joined}\n`;
+    }
+    writeFileSync(fullFilePath, newContent);
+    newContents.set(fileKey, newContent);
   }
 
-  // Update main.journal: includes
-  if (existsSync(mainPath)) {
-    let mainContent = readFileSync(mainPath, "utf-8");
-    let mainChanged = false;
+  return { oldContents, newContents };
+}
 
-    if (isNew) {
-      const includeDirective = `include ${year}/${month}.journal`;
-      if (!mainContent.includes(includeDirective)) {
-        const sep = mainContent.endsWith("\n") ? "" : "\n";
-        mainContent = `${mainContent}${sep}${includeDirective}\n`;
-        mainChanged = true;
-      }
-    }
+function updateMainJournal(byFile: Map<string, FormattedEntry[]>): void {
+  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
+  if (!existsSync(mainPath)) return;
 
-    // Ensure main.journal includes commodities.journal (for pre-existing workspaces)
-    if (!mainContent.includes("include commodities.journal")) {
-      mainContent = `include commodities.journal\n${mainContent}`;
+  let mainContent = readFileSync(mainPath, "utf-8");
+  let mainChanged = false;
+
+  for (const [fileKey] of byFile) {
+    const includeDirective = `include ${fileKey}.journal`;
+    if (!mainContent.includes(includeDirective)) {
+      const sep = mainContent.endsWith("\n") ? "" : "\n";
+      mainContent = `${mainContent}${sep}${includeDirective}\n`;
       mainChanged = true;
     }
+  }
 
-    if (mainChanged) {
-      writeFileSync(mainPath, mainContent);
+  // Ensure main.journal includes commodities.journal (for pre-existing workspaces)
+  if (!mainContent.includes("include commodities.journal")) {
+    mainContent = `include commodities.journal\n${mainContent}`;
+    mainChanged = true;
+  }
+
+  if (mainChanged) {
+    writeFileSync(mainPath, mainContent);
+  }
+}
+
+function declareMissingCommodities(paramsList: AddTransactionParams[]): void {
+  const allCurrencies = new Set<string>();
+  for (const params of paramsList) {
+    for (const p of params.postings) {
+      allCurrencies.add(p.currency);
     }
   }
 
-  // Auto-declare missing commodities in commodities.journal
   const commoditiesPath = resolveSafePath("commodities.journal", LEDGER_DIR);
   const commoditiesContent = existsSync(commoditiesPath) ? readFileSync(commoditiesPath, "utf-8") : "";
-  const currencies = new Set(params.postings.map((p) => p.currency));
   const missingCommodities: string[] = [];
-  for (const cur of currencies) {
+  for (const cur of allCurrencies) {
     const pattern = new RegExp(`^commodity\\s+.*${cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m");
     if (!pattern.test(commoditiesContent)) {
       missingCommodities.push(cur);
     }
   }
+
   if (missingCommodities.length > 0) {
     const declarations = missingCommodities.map((c) => `commodity ${c}`).join("\n");
     const sep = commoditiesContent.endsWith("\n") ? "" : "\n";
     writeFileSync(commoditiesPath, `${commoditiesContent}${sep}${declarations}\n`);
   }
+}
 
-  // Validate
+async function validateLedger(formatted: FormattedEntry[], signal?: AbortSignal): Promise<void> {
+  const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
   try {
     await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
   } catch (e) {
     if (e instanceof HledgerCommandError) {
-      throw new Error(`Transaction saved to ${fullFilePath} but the ledger has errors:\n\n${e.stderr}`);
+      const filePaths = [...new Set(formatted.map((f) => f.fullFilePath))].join(", ");
+      throw new Error(`Transactions saved to ${filePaths} but the ledger has errors:\n\n${e.stderr}`);
     }
     throw e;
   }
-
-  const newContent = readFileSync(fullFilePath, "utf-8");
-  const diff = generateDiff(oldContent, newContent);
-
-  return { transactionText, fullFilePath, ledgerIsValid: true, diff };
 }
 
-// ── Internals ───────────────────────────────────────────────────────
+function buildDiffs(
+  byFile: Map<string, FormattedEntry[]>,
+  { oldContents, newContents }: FileContents,
+): AddTransactionsResult["diffs"] {
+  const diffs: AddTransactionsResult["diffs"] = [];
+  for (const [fileKey, entries] of byFile) {
+    const fullFilePath = entries[0].fullFilePath;
+    const oldContent = oldContents.get(fileKey) ?? "";
+    const newContent = newContents.get(fileKey) ?? "";
+    diffs.push({ fullFilePath, diff: generateDiff(oldContent, newContent) });
+  }
+  return diffs;
+}
+
+// ── Validation & formatting ────────────────────────────────────────
 
 function validateInputs(params: Pick<AddTransactionParams, "date" | "postings">): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {

@@ -25,7 +25,19 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   };
 }
 
-const { addTransaction } = await import("../transactions.js");
+const { addTransactions } = await import("../transactions.js");
+
+/** Helper: add a single transaction and return a flat result for backward-compatible test assertions. */
+async function addTransaction(params: any, signal?: AbortSignal) {
+  const r = await addTransactions([params], signal);
+  const tx = r.transactions[0];
+  return {
+    transactionText: tx.transactionText,
+    fullFilePath: tx.fullFilePath,
+    ledgerIsValid: r.ledgerIsValid,
+    diff: r.diffs[0].diff,
+  };
+}
 
 beforeEach(() => {
   rmSync(LEDGER, { recursive: true, force: true });
@@ -517,5 +529,132 @@ describe("addTransaction() hledger validation", () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
     expect(result.ledgerIsValid).toBe(true);
+  });
+});
+
+// ── Batch: addTransactions() ───────────────────────────────────────
+
+const tx2 = {
+  date: "2026-03-20",
+  payee: "Starbucks",
+  description: "Coffee",
+  postings: [
+    { account: "Assets:Checking", amount: -5, currency: "USD" },
+    { account: "Expenses:Food:Coffee", amount: 5, currency: "USD" },
+  ],
+};
+
+const tx3 = {
+  date: "2026-04-01",
+  payee: "Landlord",
+  description: "Rent",
+  postings: [
+    { account: "Assets:Checking", amount: -1000, currency: "EUR" },
+    { account: "Expenses:Housing:Rent", amount: 1000, currency: "EUR" },
+  ],
+};
+
+describe("addTransactions() batch operations", () => {
+  test("should group transactions by monthly file", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([basicParams, tx2]);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toContain("Whole Foods");
+    expect(content).toContain("Starbucks");
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  test("should write to multiple files", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([basicParams, tx3]);
+    expect(existsSync(join(LEDGER, "2026", "03.journal"))).toBe(true);
+    expect(existsSync(join(LEDGER, "2026", "04.journal"))).toBe(true);
+    expect(result.diffs).toHaveLength(2);
+  });
+
+  test("should validate all inputs before writing any files", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await expect(addTransactions([basicParams, { ...tx2, date: "bad" }])).rejects.toThrow(
+      "Transaction 2: Invalid date format",
+    );
+    expect(existsSync(join(LEDGER, "2026", "03.journal"))).toBe(false);
+  });
+
+  test("should not prefix error with index for single-item batch", async () => {
+    await expect(addTransactions([{ ...basicParams, date: "bad" }])).rejects.toThrow("Invalid date format: bad");
+  });
+
+  test("should run hledger check once for the entire batch", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addTransactions([basicParams, tx2, tx3]);
+    expect(Bun.spawn).toHaveBeenCalledTimes(1);
+  });
+
+  test("should collect all commodities across batch", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addTransactions([basicParams, tx3]);
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity USD");
+    expect(commodities).toContain("commodity EUR");
+  });
+
+  test("should update main.journal includes for all new files in one pass", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addTransactions([basicParams, tx3]);
+    const main = readFileSync(join(LEDGER, "main.journal"), "utf-8");
+    expect(main).toContain("include 2026/03.journal");
+    expect(main).toContain("include 2026/04.journal");
+  });
+
+  test("should preserve transaction order in result", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([tx3, basicParams, tx2]);
+    expect(result.transactions[0].transactionText).toContain("Landlord");
+    expect(result.transactions[1].transactionText).toContain("Whole Foods");
+    expect(result.transactions[2].transactionText).toContain("Starbucks");
+  });
+
+  test("should separate transactions in same file with blank line", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addTransactions([basicParams, tx2]);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toContain("Groceries\n");
+    expect(content).toContain("\n\n2026-03-20");
+  });
+
+  test("should append batch to existing monthly file", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    writeFileSync(
+      join(LEDGER, "2026", "03.journal"),
+      "2026-03-01 * Old | Existing\n    Expenses:X  10.00 USD\n    Assets:Y  -10.00 USD\n",
+    );
+    await addTransactions([basicParams, tx2]);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toContain("Old");
+    expect(content).toContain("Whole Foods");
+    expect(content).toContain("Starbucks");
+  });
+
+  test("should include all file paths in hledger error for multi-file batch", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    // @ts-expect-error - mocking Bun.spawn
+    Bun.spawn = mock(() => makeMockProc(1, "", "unbalanced transaction"));
+    await expect(addTransactions([basicParams, tx3])).rejects.toThrow(/2026.*03\.journal.*2026.*04\.journal/);
+  });
+
+  test("should return correct fullFilePath in each diff entry", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([basicParams, tx3]);
+    expect(result.diffs[0].fullFilePath).toBe(join(LEDGER, "2026", "03.journal"));
+    expect(result.diffs[1].fullFilePath).toBe(join(LEDGER, "2026", "04.journal"));
+  });
+
+  test("should include all batch transactions in diff for same file", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([basicParams, tx2]);
+    const diff = result.diffs[0].diff;
+    expect(diff).toContain("Whole Foods");
+    expect(diff).toContain("Starbucks");
   });
 });

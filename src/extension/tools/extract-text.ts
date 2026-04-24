@@ -20,7 +20,7 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   promptSnippet: "Extract text from PDF/image files via OCR",
   promptGuidelines: [
     "Use when the user provides a file path to a bank statement, invoice, receipt, screenshot, or any document containing financial data.",
-    "After analyzing extracted text, use add_transaction to record the identified transactions.",
+    "After analyzing extracted text, use add_transactions to record the identified transactions.",
   ],
   parameters: Params,
 
