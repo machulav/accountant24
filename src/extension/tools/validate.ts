@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
-import { Type } from "@sinclair/typebox";
+import { Type } from "typebox";
 import { type ValidateLedgerResult, validateLedger } from "../ledger";
 import { createRenderCall, createRenderResult } from "./tool-renderer";
 
