@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.1.8
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.7...v0.1.8)
+
+### 🚀 Features
+
+- Change add_transaction tool to add_transactions for batch support ([10e5452](https://github.com/machulav/accountant24/commit/10e5452))
+
+### 🐞 Bug Fixes
+
+- Add spacer before first user message in chat ([db107c4](https://github.com/machulav/accountant24/commit/db107c4))
+- Make transaction description optional ([91b058b](https://github.com/machulav/accountant24/commit/91b058b))
+
+### ♻️ Refactors
+
+- Remove settings.json and models.json from scaffold ([62c33fc](https://github.com/machulav/accountant24/commit/62c33fc))
+- Migrate tool imports from @sinclair/typebox to typebox ([7c5030f](https://github.com/machulav/accountant24/commit/7c5030f))
+
+### 📖 Documentation
+
+- Add demo ledger link to README ([36f979c](https://github.com/machulav/accountant24/commit/36f979c))
+
+### 📦 Build
+
+- Upgrade pi-coding-agent from 0.63.1 to 0.69.0 ([#6](https://github.com/machulav/accountant24/pull/6))
+- Upgrade pi-coding-agent from 0.69.0 to 0.70.2 ([28a8714](https://github.com/machulav/accountant24/commit/28a8714))
+
 ## v0.1.7
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.6...v0.1.7)
