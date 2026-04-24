@@ -123,6 +123,14 @@ describe("addTransaction() formatting", () => {
     expect(result.transactionText).toStartWith("2026-03-15 * Whole Foods | Groceries");
   });
 
+  test("should format header without pipe when description is omitted", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const { description: _, ...noDesc } = basicParams;
+    const result = await addTransaction(noDesc);
+    expect(result.transactionText).toStartWith("2026-03-15 * Whole Foods\n");
+    expect(result.transactionText).not.toContain("|");
+  });
+
   test("should format amount with 2 decimal places and currency", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
