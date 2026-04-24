@@ -3,7 +3,7 @@
 
 Output assets/demo1.mp4
 
-Require a24dev
+Require a24
 Set Shell "zsh"
 Set FontSize 20
 Set Framerate 60
@@ -19,7 +19,7 @@ Set BorderRadius 20
 # Launch Accountant24
 
 Hide
-Type "a24dev 1"
+Type "a24"
 Enter
 Sleep 2s
 Show
