@@ -99,6 +99,7 @@
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.70.2",
+    "@sinclair/typebox": "^0.34.49",
     "diff": "^8.0.4",
     "file-type": "^22.0.0",
     "zod": "^3.24.0"
