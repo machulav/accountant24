@@ -10,7 +10,7 @@ Set Framerate 60
 Set Width 1200
 Set Height 800
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 75ms
+Set TypingSpeed 50ms
 Set Padding 10
 Set Margin 20
 Set MarginFill "#FFFFFF"
@@ -26,37 +26,31 @@ Show
 
 # Teach the agent — memory + auto-tagging
 Sleep 2s
-Type "I'm visiting Berlin today and tomorrow. Tag all transactions during this period with trip_berlin_2026"
+Type "I'm in Berlin. Tag everything from yesterday through tomorrow as trip_berlin_2026"
 Sleep 500ms
 Enter
-Sleep 30s
+Sleep 20s
 
 # Start a new session
-Type "/new"
-Sleep 2s
-Enter
-Sleep 2s
+#Type "/new"
+#Sleep 2s
+#Enter
+#Sleep 2s
 
 # Log multiple transactions in one message
-Type "Thalys Paris-Berlin 59.90, hotel Adina Mitte 129, dinner at Mustafa's Gemüse Kebap 12.50"
+Type "Yesterday: Thalys Paris-Berlin 59.90, hotel Adina Mitte 129, dinner at Mustafa's Gemüse Kebap 12.50, Today: Museum Island 19, lunch at Curry 36 8.50, Thalys Berlin-Paris 59.90"
 Sleep 500ms
 Enter
-Sleep 30s
-
-# Log more transactions
-Type "Museum Island tickets 19, lunch at Curry 36 for 8.50, return train 59.90"
-Sleep 500ms
-Enter
-Sleep 30s
+Sleep 25s
 
 # Start a new session
-Type "/new"
-Sleep 2s
-Enter
-Sleep 2s
+#Type "/new"
+#Sleep 2s
+#Enter
+#Sleep 2s
 
 # Ask a question about spending — demo tag prefill with @
-Type "Summarize "
+Type "How much did I spend on "
 Sleep 500ms
 Type "@"
 Sleep 1s
@@ -67,4 +61,4 @@ Sleep 500ms
 Enter
 Sleep 500ms
 Enter
-Sleep 30s
+Sleep 20s
