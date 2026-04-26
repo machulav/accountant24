@@ -1,13 +1,15 @@
-# Accountant24
+# Accountant24 - Local-first AI agent for personal accounting
 
-Local-first AI agent for personal accounting. Your data stays as plain text files on your machine. Works with any LLM, including local ones. Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
+Your data stays as plain text files on your machine. Works with any LLM, including local ones. Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
+
+<https://github.com/user-attachments/assets/02a0f190-b560-4617-b1a8-8fc124417801>
 
 <p align="center">
-  <img src="assets/demo-session.png" alt="Accountant24 — dashboard and conversation in the terminal" width="600">
-  <br>
-  <a href="https://pi.dev/session/#376b7e484c839761df78d764c39aef55" target="_blank">View full session snapshot</a>
+  <a href="https://pi.dev/session/#b49481d93d63c99880c0578c2047f12c">Session Snapshot #1</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/machulav/accountant24-demo-ledger" target="_blank">Explore the demo ledger</a>
+  <a href="https://pi.dev/session/#d8d6fcd754d85bcdde5515d2ea9d35b2">Session Snapshot #2</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/machulav/accountant24-demo-ledger">Demo Ledger</a>
 </p>
 
 ## What you can do
@@ -67,7 +69,7 @@ On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-c
 
 ### Log in & pick a model
 
-Use `/login` to log in with your LLM provider subscription, then `/model` to pick a model — and you're ready to start chatting.
+Use `/login` to connect your LLM provider, then `/model` to pick a model — and you're ready to start chatting.
 
 ### Go fully local (optional)
 
