@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SettingsManager, VERSION } from "@mariozechner/pi-coding-agent";
+import { SettingsManager, VERSION } from "@earendil-works/pi-coding-agent";
 
 describe("startup settings overrides", () => {
   function createSettingsManager() {

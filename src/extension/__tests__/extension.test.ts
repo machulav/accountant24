@@ -43,7 +43,7 @@ function createMockPi() {
 
 describe("Loader currency animation", () => {
   test("should patch Loader.prototype.updateDisplay with currency frames", async () => {
-    const { Loader } = await import("@mariozechner/pi-tui");
+    const { Loader } = await import("@earendil-works/pi-tui");
     const proto = Loader.prototype as any;
     const obj = {
       currentFrame: 0,

@@ -1,6 +1,6 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
-import { Box, Markdown } from "@mariozechner/pi-tui";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
+import { Box, Markdown } from "@earendil-works/pi-tui";
 
 /** Renders "info" messages as markdown without the default [info] label. */
 export function registerInfoMessageRenderer(pi: ExtensionAPI): void {

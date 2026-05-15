@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AutocompleteItem, SlashCommand } from "@mariozechner/pi-tui";
+import type { AutocompleteItem, SlashCommand } from "@earendil-works/pi-tui";
 import { AccountantAutocompleteProvider } from "../autocomplete";
 
 function makeCommand(

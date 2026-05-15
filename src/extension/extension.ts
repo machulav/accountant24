@@ -1,6 +1,6 @@
-import type { ExtensionFactory, SettingsManager } from "@mariozechner/pi-coding-agent";
-import { CustomEditor } from "@mariozechner/pi-coding-agent";
-import { Loader } from "@mariozechner/pi-tui";
+import type { ExtensionFactory, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { CustomEditor } from "@earendil-works/pi-coding-agent";
+import { Loader } from "@earendil-works/pi-tui";
 import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
 import { listAccounts, listPayees, listTags } from "./ledger";
 import { getMemory } from "./memory";

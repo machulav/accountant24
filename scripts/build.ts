@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RELEASE = join(ROOT, "release");
-const PI = join(ROOT, "node_modules", "@mariozechner", "pi-coding-agent");
+const PI = join(ROOT, "node_modules", "@earendil-works", "pi-coding-agent");
 
 const ALL_TARGETS = [
   "bun-darwin-arm64",
@@ -58,7 +58,7 @@ async function buildTarget(target: Target, version: string): Promise<string> {
   ]);
 
   // 2. stage sidecars expected by pi-coding-agent
-  // see node_modules/@mariozechner/pi-coding-agent/dist/config.js:63-85
+  // see node_modules/@earendil-works/pi-coding-agent/dist/config.js:63-85
   console.log(`[build] staging sidecars for ${target}`);
   stageSidecar(join(ROOT, "package.json"), join(targetDir, "package.json"));
   stageSidecar(join(PI, "dist", "modes", "interactive", "theme"), join(targetDir, "theme"));

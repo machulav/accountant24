@@ -1,5 +1,5 @@
-import type { AutocompleteItem, AutocompleteProvider, SlashCommand } from "@mariozechner/pi-tui";
-import { fuzzyFilter } from "@mariozechner/pi-tui";
+import type { AutocompleteItem, AutocompleteProvider, SlashCommand } from "@earendil-works/pi-tui";
+import { fuzzyFilter } from "@earendil-works/pi-tui";
 
 const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
 

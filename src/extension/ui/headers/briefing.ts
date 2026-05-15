@@ -1,4 +1,4 @@
-import { Container, visibleWidth } from "@mariozechner/pi-tui";
+import { Container, visibleWidth } from "@earendil-works/pi-tui";
 import chalk from "chalk";
 import type { BriefingData } from "../../ledger";
 import { buildLogoLine } from "./shared";

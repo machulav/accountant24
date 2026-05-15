@@ -9,7 +9,7 @@ import {
   SessionManager,
   SettingsManager,
   VERSION,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { minimatch } from "minimatch";
 import { ACCOUNTANT24_HOME, createExtension } from "./extension";
 

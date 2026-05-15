@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { Box, Markdown } from "@mariozechner/pi-tui";
+import { Box, Markdown } from "@earendil-works/pi-tui";
 import { registerInfoMessageRenderer } from "../message-renderers";
 
 type Renderer = (...args: any[]) => any;

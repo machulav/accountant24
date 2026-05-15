@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { visibleWidth } from "@mariozechner/pi-tui";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { ModelFooter } from "../model-footer";
 
 const mockTheme = { fg: (_color: string, text: string) => text } as any;
