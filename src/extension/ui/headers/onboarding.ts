@@ -1,4 +1,4 @@
-import { Container } from "@mariozechner/pi-tui";
+import { Container } from "@earendil-works/pi-tui";
 import chalk from "chalk";
 import { buildLogoLine } from "./shared";
 

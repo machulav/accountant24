@@ -1,5 +1,5 @@
-import { UserMessageComponent } from "@mariozechner/pi-coding-agent";
-import { Container, Spacer } from "@mariozechner/pi-tui";
+import { UserMessageComponent } from "@earendil-works/pi-coding-agent";
+import { Container, Spacer } from "@earendil-works/pi-tui";
 import { LEDGER_DIR } from "../../config";
 import { type BriefingData, fetchBriefingData } from "../../ledger";
 import { Briefing } from "./briefing";

@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { initTheme } from "@mariozechner/pi-coding-agent";
+import { initTheme } from "@earendil-works/pi-coding-agent";
 import { extractMeta, registerBuiltinOverrides } from "../builtin-overrides";
 import {
   addTransactionsTool,

@@ -1,6 +1,6 @@
-import { Agent } from "@mariozechner/pi-agent-core";
-import { getModel, streamSimple } from "@mariozechner/pi-ai";
-import { createCodingTools } from "@mariozechner/pi-coding-agent";
+import { Agent } from "@earendil-works/pi-agent-core";
+import { getModel, streamSimple } from "@earendil-works/pi-ai";
+import { createCodingTools } from "@earendil-works/pi-coding-agent";
 import {
   addTransactionsTool,
   buildSystemPrompt,

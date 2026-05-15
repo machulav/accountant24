@@ -1,4 +1,4 @@
-import type { EditToolDetails, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { EditToolDetails, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   createBashToolDefinition,
   createEditToolDefinition,
@@ -7,7 +7,7 @@ import {
   createLsToolDefinition,
   createReadToolDefinition,
   createWriteToolDefinition,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { ACCOUNTANT24_HOME } from "../config";
 import type { ToolPromptMeta } from "../system-prompt";
 import { createRenderCall, createRenderResult } from "./tool-renderer";

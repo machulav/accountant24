@@ -1,4 +1,4 @@
-import { getModel, streamSimple } from "@mariozechner/pi-ai";
+import { getModel, streamSimple } from "@earendil-works/pi-ai";
 import type { CheckResult, EvalCase, LedgerAssertion, ToolCallRecord } from "./types";
 import type { WorkspaceState } from "./workspace";
 

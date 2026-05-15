@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initTheme } from "@mariozechner/pi-coding-agent";
+import { initTheme } from "@earendil-works/pi-coding-agent";
 import { createRenderCall, createRenderResult } from "../tool-renderer";
 
 initTheme();
