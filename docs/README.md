@@ -1,22 +1,22 @@
-# Accountant24 docs
+# Accountant24 site
 
-Mintlify documentation site for accountant24. Cleaned of the starter-kit
-demo content; only a placeholder home page remains.
+Mintlify project for accountant24, deployed to the root of
+**accountant24.ai**.
+
+## Structure
+
+- `index.mdx` — the marketing landing page at `/` (`mode: "custom"`,
+  full-width, no sidebar).
+- All other pages (`quickstart`, …) are documentation, rendered with the
+  docs sidebar. They are scaffold stubs for now.
 
 ## Local preview
 
 ```bash
-npm i -g mint   # or: npx mint
+npm i -g mint
 cd docs
 mint dev
 ```
 
-View the local preview at `http://localhost:3000`.
-
-## TODO before launch
-
-- [ ] Add brand assets: `logo/light.svg`, `logo/dark.svg`, `favicon.svg`,
-      then point `docs.json` (`logo`, `favicon`) at the real paths
-- [ ] Write real pages and build out `navigation` in `docs.json`
-- [ ] Restore `navbar` links / primary button (e.g. GitHub repo) in `docs.json`
-- [ ] Add `footer.socials` in `docs.json` once channels exist
+The landing is at `http://localhost:3000/`, docs at
+`http://localhost:3000/quickstart`.

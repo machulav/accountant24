@@ -1,0 +1,4 @@
+/* Hide the default Mintlify navbar on the landing page only. */
+html[data-current-path="/"] #navbar {
+  display: none;
+}

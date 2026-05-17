@@ -7,30 +7,28 @@
     "light": "#07C983",
     "dark": "#15803D"
   },
-  "favicon": "/TODO-favicon.svg",
   "navigation": {
     "groups": [
       {
         "group": "Getting started",
         "pages": [
-          "index"
+          "quickstart"
         ]
       }
     ]
   },
   "navbar": {
-    "links": []
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/machulav/accountant24"
+      }
+    ]
   },
   "contextual": {
     "options": [
       "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
+      "view"
     ]
   }
 }
