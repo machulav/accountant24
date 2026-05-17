@@ -9,23 +9,14 @@
   },
   "favicon": "/TODO-favicon.svg",
   "navigation": {
-    "tabs": [
+    "groups": [
       {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "index"
-            ]
-          }
+        "group": "Getting started",
+        "pages": [
+          "index"
         ]
       }
     ]
-  },
-  "logo": {
-    "light": "/logo/TODO-light.svg",
-    "dark": "/logo/TODO-dark.svg"
   },
   "navbar": {
     "links": []
