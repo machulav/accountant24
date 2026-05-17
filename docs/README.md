@@ -1,14 +1,8 @@
-# Accountant24 site
+# Accountant24 docs
 
-Mintlify project for accountant24, deployed to the root of
-**accountant24.ai**.
-
-## Structure
-
-- `index.mdx` — the marketing landing page at `/` (`mode: "custom"`,
-  full-width, no sidebar).
-- All other pages (`quickstart`, …) are documentation, rendered with the
-  docs sidebar. They are scaffold stubs for now.
+Mintlify documentation site for accountant24, deployed to the root of
+**accountant24.ai**. Standard Mintlify docs (sidebar + navbar); no custom
+landing page. Pages are scaffold stubs for now.
 
 ## Local preview
 
@@ -18,5 +12,4 @@ cd docs
 mint dev
 ```
 
-The landing is at `http://localhost:3000/`, docs at
-`http://localhost:3000/quickstart`.
+Then open `http://localhost:3000/`.
