@@ -8,16 +8,11 @@
     "dark": "#15803D"
   },
   "navigation": {
-    "groups": [
-      {
-        "group": "Getting started",
-        "pages": [
-          "index",
-          "use-cases",
-          "quickstart",
-          "comparison"
-        ]
-      }
+    "pages": [
+      "index",
+      "use-cases",
+      "quickstart",
+      "comparison"
     ]
   },
   "navbar": {
