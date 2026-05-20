@@ -1,4 +1,59 @@
 ---
 title: "Quickstart"
-description: "Install Accountant24 and log your first transaction."
+description: "How to install Accountant24 with Homebrew, connect an LLM provider (OpenAI, Anthropic, or local Ollama), and log your first transaction in five minutes."
 ---
+
+## Install
+
+```bash
+brew install machulav/tap/accountant24
+```
+
+## Run
+
+```bash
+a24
+```
+
+On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+
+## Log in & pick a model
+
+Use `/login` to connect your LLM provider, then `/model` to pick a model — and you're ready to start chatting.
+
+## Go fully local (optional)
+
+Want your financial data to never leave your machine? Run a local model with Ollama.
+
+1. [Download and install Ollama](https://ollama.com/download).
+2. Pull a Gemma 4 model:
+
+   ```bash
+   ollama pull gemma4:31b  # requires ~24 GB+ RAM
+   ```
+
+3. Create a `~/Accountant24/models.json` file to register the Ollama provider:
+
+   ```json
+   {
+     "providers": {
+       "ollama": {
+         "baseUrl": "http://localhost:11434/v1",
+         "api": "openai-completions",
+         "apiKey": "ollama",
+         "models": [
+           {
+             "id": "gemma4:31b",
+             "name": "Gemma 4 (31B)"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+4. Restart Accountant24, then use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+
+## What's next
+
+You're ready to talk to your ledger. See the [Use Cases](/use-cases) for examples of what to ask.

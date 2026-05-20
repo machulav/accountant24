@@ -13,7 +13,9 @@
         "group": "Getting started",
         "pages": [
           "index",
-          "quickstart"
+          "use-cases",
+          "quickstart",
+          "comparison"
         ]
       }
     ]
@@ -26,10 +28,30 @@
       }
     ]
   },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/machulav/accountant24"
+    }
+  },
   "contextual": {
     "options": [
       "copy",
-      "view"
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
     ]
+  },
+  "seo": {
+    "metatags": {
+      "og:site_name": "Accountant24",
+      "og:type": "website",
+      "og:url": "https://accountant24.ai",
+      "twitter:card": "summary_large_image",
+      "theme-color": "#16A34A"
+    }
   }
 }
