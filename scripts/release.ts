@@ -61,13 +61,13 @@ async function main() {
   await sh(["gh", "auth", "status"], { allowDry: true });
 
   // 2. capture release notes from changelogen (display-only mode outputs to stdout)
-  const rawMarkdown = await sh(["bunx", "changelogen"], { capture: true, allowDry: true });
+  const rawMarkdown = await sh(["bun", "run", "changelogen"], { capture: true, allowDry: true });
   const releaseNotes = rawMarkdown.split("\n").slice(2).join("\n").trim();
 
   // 3. bump version + write CHANGELOG.md + commit + tag via changelogen
   //    We do NOT pass --push; push happens after a successful build so a build
   //    failure can be rolled back with `git reset --hard HEAD~1 && git tag -d`.
-  await sh(["bunx", "changelogen", "--release"]);
+  await sh(["bun", "run", "changelogen", "--release"]);
 
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
   const version: string = pkg.version;
