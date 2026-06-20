@@ -98,7 +98,7 @@
     "configDir": ".accountant24"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.79.8",
     "diff": "^8.0.4",
     "file-type": "^22.0.0",
     "typebox": "*",
