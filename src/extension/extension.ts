@@ -66,8 +66,10 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     // Register custom message renderers
     registerInfoMessageRenderer(pi);
 
-    // Shared autocomplete provider — updated with fresh data before each agent turn
-    const autocomplete = new AccountantAutocompleteProvider([]);
+    // Shared autocomplete provider — updated with fresh data before each agent turn.
+    // Decorates the built-in provider: we handle @ mentions, it handles slash commands.
+    const autocomplete = new AccountantAutocompleteProvider();
+    let autocompleteRegistered = false;
 
     const TITLE = "Accountant24";
     const setTerminalTitle = () => process.stdout.write(`\x1b]0;${TITLE}\x07`);
@@ -86,7 +88,8 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
           return footer;
         });
 
-        // Built-in commands (not exported by pi-coding-agent)
+        // Curated slash-command list — only the commands we want to expose
+        // (the framework's built-in command names are not exported, so we list them).
         const BUILTIN_COMMANDS = [
           { name: "new", description: "Start a new session" },
           { name: "resume", description: "Resume a different session" },
@@ -101,18 +104,24 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
           name: cmd.name,
           description: cmd.description,
         }));
-        const slashCommands = [...BUILTIN_COMMANDS, ...extensionCommands];
-        autocomplete.setCommands(slashCommands);
+        autocomplete.setCommands([...BUILTIN_COMMANDS, ...extensionCommands]);
 
-        // Prevent the framework from overwriting our autocomplete provider
-        // after the editor component factory runs.
+        // Decorate the built-in provider: we serve @ mentions and our curated
+        // slash list; file-path completion is delegated to the built-in provider.
+        // addAutocompleteProvider re-applies us to the editor (no monkey-patch needed).
+        if (!autocompleteRegistered) {
+          autocompleteRegistered = true;
+          ctx.ui.addAutocompleteProvider((current) => {
+            autocomplete.setDelegate(current);
+            return autocomplete;
+          });
+        }
+
         ctx.ui.setEditorComponent((tui, theme, keybindings) => {
           const editor = new CustomEditor(tui, theme, keybindings, {
             autocompleteMaxVisible: settingsManager.getAutocompleteMaxVisible(),
             paddingX: settingsManager.getEditorPaddingX(),
           });
-          editor.setAutocompleteProvider(autocomplete);
-          editor.setAutocompleteProvider = () => {}; // prevent overwrite
           footer?.setEditor(editor);
           return editor;
         });

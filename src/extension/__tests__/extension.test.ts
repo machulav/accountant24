@@ -107,6 +107,7 @@ describe("session_start UI setup", () => {
         setFooter: mock((factory: AnyFn) => {
           footerFactory = factory;
         }),
+        addAutocompleteProvider: mock(() => {}),
         setEditorComponent: mock((factory: AnyFn) => {
           editorFactory = factory;
         }),
@@ -115,14 +116,13 @@ describe("session_start UI setup", () => {
     await pi.handlers.session_start({}, ctx);
     expect(ctx.ui.setHeader).toHaveBeenCalledTimes(1);
     expect(ctx.ui.setFooter).toHaveBeenCalledTimes(1);
+    expect(ctx.ui.addAutocompleteProvider).toHaveBeenCalledTimes(1);
     expect(ctx.ui.setEditorComponent).toHaveBeenCalledTimes(1);
 
-    // Invoke the editor factory to cover editor setup (lines 101-106)
+    // Invoke the editor factory to cover editor setup
     expect(editorFactory).not.toBeNull();
     const editor = (editorFactory as any)({}, {}, {});
     expect(editor).toBeDefined();
-    // Call the no-op setAutocompleteProvider guard (line 104)
-    editor.setAutocompleteProvider("should be ignored");
 
     // Invoke the footer factory — it receives (tui, theme, footerData) and reads ctx.model
     expect(footerFactory).not.toBeNull();
@@ -156,6 +156,7 @@ describe("model_select handler", () => {
         setFooter: mock((factory: AnyFn) => {
           footerFactory = factory;
         }),
+        addAutocompleteProvider: mock(() => {}),
         setEditorComponent: mock(() => {}),
       },
     };
