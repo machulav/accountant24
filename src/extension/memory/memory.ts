@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { generateDiffString } from "@earendil-works/pi-coding-agent";
 import { MEMORY_PATH } from "../config";
-import { generateDiff } from "../files/diff";
 
 export interface SaveMemoryResult {
   diff: string;
@@ -27,6 +27,6 @@ export function saveMemory(content: string): SaveMemoryResult {
   mkdirSync(dirname(MEMORY_PATH), { recursive: true });
   writeFileSync(MEMORY_PATH, newContent);
 
-  const diff = generateDiff(oldContent, newContent);
+  const diff = generateDiffString(oldContent, newContent).diff;
   return { diff };
 }

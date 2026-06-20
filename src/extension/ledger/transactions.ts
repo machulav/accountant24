@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { generateDiffString } from "@earendil-works/pi-coding-agent";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
-import { generateDiff } from "../files/diff";
 import { HledgerCommandError, hledgerCheck } from "./hledger";
 import { resolveSafePath } from "./paths";
 
@@ -192,7 +192,7 @@ function buildDiffs(
     const fullFilePath = entries[0].fullFilePath;
     const oldContent = oldContents.get(fileKey) ?? "";
     const newContent = newContents.get(fileKey) ?? "";
-    diffs.push({ fullFilePath, diff: generateDiff(oldContent, newContent) });
+    diffs.push({ fullFilePath, diff: generateDiffString(oldContent, newContent).diff });
   }
   return diffs;
 }
