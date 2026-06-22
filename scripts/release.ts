@@ -15,12 +15,16 @@
 //   A24_TAP_REPO   git URL of the tap (default: git@github.com:machulav/homebrew-tap.git)
 //   A24_TAP_LOCAL  local checkout path (default: ../homebrew-tap)
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DRY = process.argv.includes("--dry-run");
+// Re-run only the Homebrew tap update (e.g. to finish a release whose GitHub
+// release already published but whose tap push failed). Uses the current
+// package.json version and release/SHA256SUMS.
+const TAP_ONLY = process.argv.includes("--tap-only");
 const TAP_REPO = process.env.A24_TAP_REPO ?? "git@github.com:machulav/homebrew-tap.git";
 const TAP_LOCAL = process.env.A24_TAP_LOCAL ?? join(ROOT, "..", "homebrew-tap");
 
@@ -48,6 +52,15 @@ const TARBALLS = [
 ] as const;
 
 async function main() {
+  // Recovery path: finish a release whose tap update failed.
+  if (TAP_ONLY) {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
+    console.log(`[release] --tap-only: updating Homebrew tap for v${pkg.version}`);
+    await updateBrewTap(pkg.version);
+    console.log(`[release] ✓ tap updated for v${pkg.version}`);
+    return;
+  }
+
   // 1. preflight checks
   const status = await sh(["git", "status", "--porcelain"], { capture: true, allowDry: true });
   if (status.length > 0) throw new Error(`Working tree not clean:\n${status}`);
@@ -113,12 +126,20 @@ async function updateBrewTap(version: string): Promise<void> {
     if (!shaMap.has(name)) throw new Error(`Missing SHA for ${name} in SHA256SUMS`);
   }
 
-  // ensure tap checkout exists
-  if (!existsSync(join(TAP_LOCAL, ".git"))) {
+  // ensure tap checkout exists and is a clean, up-to-date clone
+  if (existsSync(join(TAP_LOCAL, ".git"))) {
+    await sh(["git", "-C", TAP_LOCAL, "fetch", "origin"]);
+    await sh(["git", "-C", TAP_LOCAL, "pull", "--ff-only"]);
+  } else {
+    // A prior failed run can leave a non-repo dir here (e.g. just `Formula/`);
+    // git clone refuses a non-empty destination, so remove it first.
+    if (existsSync(TAP_LOCAL)) {
+      console.log(`[release] removing stale non-repo tap dir ${TAP_LOCAL}`);
+      if (!DRY) rmSync(TAP_LOCAL, { recursive: true, force: true });
+    }
     console.log(`[release] cloning tap into ${TAP_LOCAL}`);
     await sh(["git", "clone", TAP_REPO, TAP_LOCAL]);
   }
-  await sh(["git", "-C", TAP_LOCAL, "pull", "--ff-only"]);
 
   // render formula from template
   const tmpl = readFileSync(join(ROOT, "scripts", "accountant24.rb.template"), "utf-8");
