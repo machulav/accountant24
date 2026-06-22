@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.1.10
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.9...v0.1.10)
+
+### 🐞 Bug Fixes
+
+- Add missing @sinclair/typebox dependency ([5dd63cb](https://github.com/machulav/accountant24/commit/5dd63cb))
+- Declare typebox as direct dependency instead of @sinclair/typebox ([a717634](https://github.com/machulav/accountant24/commit/a717634))
+
+### ♻️ Refactors
+
+- Use framework generateDiffString instead of custom diff ([93bb047](https://github.com/machulav/accountant24/commit/93bb047))
+- Register autocomplete via addAutocompleteProvider ([654e3d3](https://github.com/machulav/accountant24/commit/654e3d3))
+
+### 📖 Documentation
+
+- Update README with demo video, session links, and login wording ([375ec27](https://github.com/machulav/accountant24/commit/375ec27))
+- Add Mintlify documentation site ([#11](https://github.com/machulav/accountant24/pull/11))
+
+### 📦 Build
+
+- Migrate to @earendil-works/pi-coding-agent 0.74.0 ([#9](https://github.com/machulav/accountant24/pull/9))
+- Upgrade @earendil-works/pi-coding-agent to 0.79.8 ([3492e32](https://github.com/machulav/accountant24/commit/3492e32))
+
+### 🏡 Chore
+
+- Remove CLAUDE.md and docs symlinks ([a24af5e](https://github.com/machulav/accountant24/commit/a24af5e))
+- Harden dependency workflow ([d9cc75e](https://github.com/machulav/accountant24/commit/d9cc75e))
+
 ## v0.1.9
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.8...v0.1.9)
