@@ -16,10 +16,11 @@
     "pre-commit": "biome check --write . && biome check .",
     "release": "bun run scripts/release.ts",
     "release:dry": "bun run scripts/release.ts --dry-run",
+    "commitlint": "commitlint --edit",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "commit-msg": "commitlint --edit $1",
+    "commit-msg": "bun run commitlint $1",
     "pre-commit": "bun run pre-commit"
   },
   "commitlint": {
