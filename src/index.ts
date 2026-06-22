@@ -6,12 +6,22 @@ import {
   createAgentSessionRuntime,
   createAgentSessionServices,
   InteractiveMode,
+  runRpcMode,
   SessionManager,
   SettingsManager,
   VERSION,
 } from "@earendil-works/pi-coding-agent";
 import { minimatch } from "minimatch";
+import { runAuthCli } from "./cli/auth";
 import { ACCOUNTANT24_HOME, createExtension } from "./extension";
+
+/** True when launched as the GUI's RPC sidecar (`--mode rpc` or ACCOUNTANT24_RPC=1). */
+function isRpcMode(): boolean {
+  const argv = process.argv.slice(2);
+  if (process.env.ACCOUNTANT24_RPC === "1" || argv.includes("--rpc")) return true;
+  const modeIndex = argv.indexOf("--mode");
+  return modeIndex >= 0 && argv[modeIndex + 1] === "rpc";
+}
 
 // Align the library's getAgentDir() with our workspace so displayed paths (e.g. "Credentials saved to …") match actual file locations.
 process.env.PI_CODING_AGENT_DIR = ACCOUNTANT24_HOME;
@@ -77,7 +87,26 @@ async function main() {
     }
   }
 
+  if (isRpcMode()) {
+    // Headless JSON-over-stdio mode that the desktop GUI drives. Reuses the
+    // exact same runtime (extension, models, scaffolding) as the TUI.
+    await runRpcMode(runtime);
+    return;
+  }
+
   await new InteractiveMode(runtime, { modelFallbackMessage: runtime.modelFallbackMessage }).run();
 }
 
-main();
+// `accountant24 auth <subcommand>` is a short-lived helper the GUI invokes to
+// manage credentials; it must not build the full agent runtime.
+if (process.argv[2] === "auth") {
+  runAuthCli(process.argv.slice(3)).then(
+    (code) => process.exit(code),
+    (error) => {
+      process.stdout.write(`${JSON.stringify({ type: "error", message: String(error) })}\n`);
+      process.exit(1);
+    },
+  );
+} else {
+  main();
+}

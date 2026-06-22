@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RELEASE = join(ROOT, "release");
 const PI = join(ROOT, "node_modules", "@earendil-works", "pi-coding-agent");
+const DESKTOP_BINARIES = join(ROOT, "desktop", "src-tauri", "binaries");
 
 const ALL_TARGETS = [
   "bun-darwin-arm64",
@@ -25,6 +26,24 @@ const ALL_TARGETS = [
   "bun-linux-arm64",
 ] as const;
 type Target = (typeof ALL_TARGETS)[number];
+
+/** Rust target triples Tauri appends to sidecar names (`externalBin`). */
+const RUST_TRIPLE: Record<Target, string> = {
+  "bun-darwin-arm64": "aarch64-apple-darwin",
+  "bun-darwin-x64": "x86_64-apple-darwin",
+  "bun-linux-x64": "x86_64-unknown-linux-gnu",
+  "bun-linux-arm64": "aarch64-unknown-linux-gnu",
+};
+
+/** Copy a freshly built binary to the Tauri app as a triple-named sidecar. */
+function stageDesktopSidecar(target: Target): void {
+  const from = join(RELEASE, target, "accountant24");
+  if (!existsSync(from)) return;
+  mkdirSync(DESKTOP_BINARIES, { recursive: true });
+  const to = join(DESKTOP_BINARIES, `accountant24-${RUST_TRIPLE[target]}`);
+  cpSync(from, to);
+  console.log(`[build] staged desktop sidecar ${to}`);
+}
 
 /** Platform label used in tarball filenames (strips the `bun-` prefix). */
 function platformLabel(target: Target): string {
@@ -131,6 +150,7 @@ async function main() {
   const tarballs: string[] = [];
   for (const target of targets) {
     tarballs.push(await buildTarget(target, version));
+    stageDesktopSidecar(target);
   }
   if (tarballs.length > 1) {
     await generateChecksums(tarballs);
