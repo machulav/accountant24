@@ -19,7 +19,7 @@
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "commit-msg": "commitlint --edit $1",
+    "commit-msg": "bunx commitlint --edit $1",
     "pre-commit": "bun run pre-commit"
   },
   "commitlint": {
