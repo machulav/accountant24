@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd docs && mint dev"],
+      "port": 3000
+    }
+  ]
+}
