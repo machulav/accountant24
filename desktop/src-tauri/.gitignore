@@ -12,3 +12,7 @@
 # Vendored native tools (hledger, pdftotext, tesseract) are staged at package time
 /bin/*
 !/bin/README.md
+
+# Embedded-agent resources staged by `bun run build` (scripts/build.ts)
+/pi-assets/
+/accountant24-extension.js

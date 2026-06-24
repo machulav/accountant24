@@ -34,8 +34,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/accountant24"],
-    "resources": ["bin", "tessdata"],
+    "externalBin": ["binaries/pi", "binaries/accountant24-auth"],
+    "resources": ["bin", "tessdata", "pi-assets", "accountant24-extension.js"],
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "entitlements.plist"

@@ -1,14 +1,16 @@
 // Headless auth helper for the desktop GUI.
 //
-// The RPC protocol has no `login` command — credentials must already live in
-// auth.json before the agent starts. The GUI therefore drives authentication by
-// invoking the binary as `accountant24 auth <subcommand>`, which wraps the
-// framework's AuthStorage + ModelRegistry and speaks newline-delimited JSON on
+// Stock pi has no headless auth command (only the interactive `/login`), and the
+// RPC protocol has no `login` command — credentials must already live in auth.json
+// before the agent starts. The GUI therefore drives authentication by spawning the
+// compiled `accountant24-auth <subcommand>` binary (see auth-main.ts), which wraps
+// the framework's AuthStorage + ModelRegistry and speaks newline-delimited JSON on
 // stdin/stdout.
 //
 // Crucially, this helper reads/writes auth.json and models.json in
-// ACCOUNTANT24_HOME — the same directory the RPC agent reads (index.ts sets
-// PI_CODING_AGENT_DIR to it) — so what login writes is what the agent reads.
+// ACCOUNTANT24_HOME. The desktop app sets PI_CODING_AGENT_DIR = ACCOUNTANT24_HOME
+// in the sidecar env, so pi's getAuthPath()/getModelsPath() resolve to the same
+// files — what login writes is what the agent reads.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

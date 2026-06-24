@@ -1,4 +1,5 @@
-// RPC agent sidecar: spawn `accountant24 --mode rpc`, bridge its JSONL stdio.
+// RPC agent sidecar: spawn stock `pi --mode rpc` with our customization loaded as
+// an external extension (`-e accountant24-extension.js`), and bridge its JSONL stdio.
 //
 // stdout lines  -> Tauri event "agent-event"  (each line is one RPC event/response)
 // "agent_send"  -> one JSON command written to stdin (+ "\n")
@@ -27,14 +28,25 @@ pub async fn agent_start(app: AppHandle, state: State<'_, AppState>) -> Result<(
     }
 
     crate::debug::log("[rs] agent_start: spawning sidecar");
-    let sidecar = app.shell().sidecar("accountant24").map_err(|e| {
+    let ext_path = crate::env::extension_path(&app)
+        .ok_or_else(|| "could not resolve extension path".to_string())?
+        .to_string_lossy()
+        .to_string();
+    let sidecar = app.shell().sidecar("pi").map_err(|e| {
         crate::debug::log(&format!("[rs] sidecar() error: {e}"));
         e.to_string()
     })?;
     let (mut rx, child) = sidecar
-        .args(["--mode", "rpc"])
+        .args([
+            "--mode",
+            "rpc",
+            "--no-extensions",
+            "--no-skills",
+            "--no-prompt-templates",
+            "-e",
+            ext_path.as_str(),
+        ])
         .envs(sidecar_env(&app))
-        .env("ACCOUNTANT24_RPC", "1")
         .spawn()
         .map_err(|e| {
             crate::debug::log(&format!("[rs] spawn() error: {e}"));

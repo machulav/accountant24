@@ -1,4 +1,4 @@
-import type { ExtensionFactory, SettingsManager } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { CustomEditor } from "@earendil-works/pi-coding-agent";
 import { Loader } from "@earendil-works/pi-tui";
 import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
@@ -27,8 +27,13 @@ import {
 const LoaderProto = Loader.prototype as unknown as Record<string, any>;
 LoaderProto.updateDisplay = updateDisplay;
 
-export function createExtension(settingsManager: SettingsManager): ExtensionFactory {
-  return (pi) => {
+// pi defaults — formerly read from SettingsManager, which the standalone extension
+// no longer receives. The TUI-only editor below uses them when ctx.hasUI.
+const AUTOCOMPLETE_MAX_VISIBLE = 5;
+const EDITOR_PADDING_X = 0;
+
+export function createAccountantExtension(pi: ExtensionAPI): void {
+  {
     let footer: ModelFooter | null = null;
 
     // Override built-in tools with custom rendering
@@ -72,7 +77,12 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     let autocompleteRegistered = false;
 
     const TITLE = "Accountant24";
-    const setTerminalTitle = () => process.stdout.write(`\x1b]0;${TITLE}\x07`);
+    // Terminal-title escapes are only meaningful on a real TTY. Under stock pi's RPC
+    // mode `ctx.hasUI` is true (pi bridges UI calls to RPC events), but stdout is a
+    // pipe carrying JSONL — writing escapes there corrupts the stream. Guard on isTTY.
+    const setTerminalTitle = () => {
+      if (process.stdout.isTTY) process.stdout.write(`\x1b]0;${TITLE}\x07`);
+    };
 
     // Scaffold workspace + set up UI on session start
     pi.on("session_start", async (_event, ctx) => {
@@ -119,8 +129,8 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
 
         ctx.ui.setEditorComponent((tui, theme, keybindings) => {
           const editor = new CustomEditor(tui, theme, keybindings, {
-            autocompleteMaxVisible: settingsManager.getAutocompleteMaxVisible(),
-            paddingX: settingsManager.getEditorPaddingX(),
+            autocompleteMaxVisible: AUTOCOMPLETE_MAX_VISIBLE,
+            paddingX: EDITOR_PADDING_X,
           });
           footer?.setEditor(editor);
           return editor;
@@ -166,5 +176,5 @@ export function createExtension(settingsManager: SettingsManager): ExtensionFact
     pi.on("model_select", (event) => {
       footer?.setModel(event.model.name);
     });
-  };
+  }
 }

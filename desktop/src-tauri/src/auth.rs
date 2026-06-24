@@ -1,8 +1,9 @@
-// Authentication: drives `accountant24 auth <cmd>`.
+// Authentication: drives the `accountant24-auth <cmd>` helper binary.
 //
 // Read-only / one-shot commands (status, providers, models, set-key, logout,
 // detect-ollama, add-ollama) spawn the helper, collect its single JSON line, and
-// return it as a string for the frontend to parse.
+// return it as a string for the frontend to parse. The helper inherits sidecar_env
+// so it reads/writes auth.json + models.json in the same dir the agent uses.
 //
 // `auth_login` is interactive (OAuth needs browser + prompts), so it streams:
 //   sidecar stdout -> Tauri event "auth-event"
@@ -23,8 +24,15 @@ async fn run_oneshot(
     args: Vec<String>,
     stdin_line: Option<String>,
 ) -> Result<String, String> {
-    let sidecar = app.shell().sidecar("accountant24").map_err(|e| e.to_string())?;
-    let (mut rx, mut child) = sidecar.args(args).spawn().map_err(|e| e.to_string())?;
+    let sidecar = app
+        .shell()
+        .sidecar("accountant24-auth")
+        .map_err(|e| e.to_string())?;
+    let (mut rx, mut child) = sidecar
+        .args(args)
+        .envs(crate::env::sidecar_env(app))
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
     if let Some(line) = stdin_line {
         let mut l = line;
@@ -45,24 +53,24 @@ async fn run_oneshot(
 
 #[tauri::command]
 pub async fn auth_status(app: AppHandle) -> Result<String, String> {
-    run_oneshot(&app, vec!["auth".into(), "status".into()], None).await
+    run_oneshot(&app, vec!["status".into()], None).await
 }
 
 #[tauri::command]
 pub async fn auth_providers(app: AppHandle) -> Result<String, String> {
-    run_oneshot(&app, vec!["auth".into(), "providers".into()], None).await
+    run_oneshot(&app, vec!["providers".into()], None).await
 }
 
 #[tauri::command]
 pub async fn auth_models(app: AppHandle) -> Result<String, String> {
-    run_oneshot(&app, vec!["auth".into(), "models".into()], None).await
+    run_oneshot(&app, vec!["models".into()], None).await
 }
 
 #[tauri::command]
 pub async fn auth_set_key(app: AppHandle, provider: String, key: String) -> Result<String, String> {
     run_oneshot(
         &app,
-        vec!["auth".into(), "set-key".into(), "--provider".into(), provider],
+        vec!["set-key".into(), "--provider".into(), provider],
         Some(key),
     )
     .await
@@ -72,7 +80,7 @@ pub async fn auth_set_key(app: AppHandle, provider: String, key: String) -> Resu
 pub async fn auth_logout(app: AppHandle, provider: String) -> Result<String, String> {
     run_oneshot(
         &app,
-        vec!["auth".into(), "logout".into(), "--provider".into(), provider],
+        vec!["logout".into(), "--provider".into(), provider],
         None,
     )
     .await
@@ -80,14 +88,14 @@ pub async fn auth_logout(app: AppHandle, provider: String) -> Result<String, Str
 
 #[tauri::command]
 pub async fn auth_detect_ollama(app: AppHandle) -> Result<String, String> {
-    run_oneshot(&app, vec!["auth".into(), "detect-ollama".into()], None).await
+    run_oneshot(&app, vec!["detect-ollama".into()], None).await
 }
 
 #[tauri::command]
 pub async fn auth_add_ollama(app: AppHandle, model: String) -> Result<String, String> {
     run_oneshot(
         &app,
-        vec!["auth".into(), "add-ollama".into(), "--model".into(), model],
+        vec!["add-ollama".into(), "--model".into(), model],
         None,
     )
     .await
@@ -105,9 +113,13 @@ pub async fn auth_login(
         let _ = child.kill();
     }
 
-    let sidecar = app.shell().sidecar("accountant24").map_err(|e| e.to_string())?;
+    let sidecar = app
+        .shell()
+        .sidecar("accountant24-auth")
+        .map_err(|e| e.to_string())?;
     let (mut rx, child) = sidecar
-        .args(["auth", "login", "--provider", provider.as_str()])
+        .args(["login", "--provider", provider.as_str()])
+        .envs(crate::env::sidecar_env(&app))
         .spawn()
         .map_err(|e| e.to_string())?;
 
