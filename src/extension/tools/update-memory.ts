@@ -22,8 +22,8 @@ export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> =
     "Organize by topic using headers (##) and bullet points (-).",
   promptSnippet: "Save user preferences and facts to persistent memory",
   promptGuidelines: [
-    "Memory should contain: personal facts, preferences, explicit categorization rules, and recurring arrangement details.",
-    "Transaction-specific context belongs in the description, not memory.",
+    "Use update_memory to store: personal facts, preferences, explicit categorization rules, and recurring arrangement details.",
+    "Transaction-specific context belongs in the transaction description, not in update_memory.",
   ],
   parameters: Params,
 

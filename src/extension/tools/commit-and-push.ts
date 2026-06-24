@@ -19,7 +19,7 @@ export const commitAndPushTool: ToolDefinition<typeof Params, CommitAndPushResul
   promptSnippet: "Commit all changes and push to remote",
   promptGuidelines: [
     "Call commit_and_push after completing a batch of related changes, not after every single tool call.",
-    "Write a meaningful commit message summarizing the changes.",
+    "Give commit_and_push a meaningful commit message summarizing the changes.",
     "Always call commit_and_push at the end of a conversation turn when ledger or memory changes were made.",
   ],
   parameters: Params,
