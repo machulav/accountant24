@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type QueryLedgerResult, queryLedger } from "../ledger";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const REPORT_TYPES =
   "bal (balances/spending), reg (posting list), aregister (single account with running balance), " +
@@ -71,8 +70,6 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   promptGuidelines: [`Available report types: ${REPORT_TYPES}.`],
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params, signal) {
     const result = await queryLedger(params, signal);
 
@@ -86,9 +83,4 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
       details: result,
     };
   },
-
-  renderResult: createRenderResult<QueryLedgerResult>(({ details }) => [
-    { heading: "Command", content: details?.command ?? "" },
-    { heading: "Output", content: details?.output ?? "" },
-  ]),
 };

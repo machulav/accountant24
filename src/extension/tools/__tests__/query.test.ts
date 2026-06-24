@@ -2,9 +2,6 @@ import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "b
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initTheme } from "@earendil-works/pi-coding-agent";
-
-initTheme();
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-query-"));
 mock.module("../../config.js", () => ({
@@ -238,43 +235,5 @@ describe("arg-building", () => {
     expect(args).toContain("--invert");
     expect(args).toContain("-O");
     expect(args).toContain("csv");
-  });
-});
-
-// ── rendering wiring ──────────────────────────────────────────────
-// Detailed renderCall/renderResult behavior is tested in tool-renderer.test.ts.
-// These tests verify the query tool wires the correct label and sections.
-
-const mockTheme = {
-  fg: (_color: string, text: string) => text,
-  bold: (text: string) => text,
-} as any;
-
-describe("renderCall wiring", () => {
-  test("should use 'Ledger query' label", () => {
-    // biome-ignore lint/style/noNonNullAssertion: renderCall is defined
-    const component = queryTool.renderCall!({} as any, mockTheme, {
-      lastComponent: undefined,
-      executionStarted: false,
-      isPartial: false,
-    } as any);
-    const output = component.render(120).join("\n");
-    expect(output).toContain("Query Ledger");
-  });
-});
-
-describe("renderResult wiring", () => {
-  test("should show Command and Output sections with correct content", () => {
-    const result = {
-      content: [{ type: "text" as const, text: "100 USD" }],
-      details: { command: "hledger bal", output: "100 USD" },
-    };
-    // biome-ignore lint/style/noNonNullAssertion: renderResult is defined
-    const component = queryTool.renderResult!(result, { expanded: true, isPartial: false }, mockTheme, {} as any);
-    const output = component.render(120).join("\n");
-    expect(output).toContain("Command");
-    expect(output).toContain("hledger bal");
-    expect(output).toContain("Output");
-    expect(output).toContain("100 USD");
   });
 });

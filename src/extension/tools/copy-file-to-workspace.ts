@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { copyFileToWorkspace } from "../files";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   file_path: Type.String({
@@ -27,8 +26,6 @@ export const copyFileToWorkspaceTool: ToolDefinition<typeof Params, CopyResult> 
   ],
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params) {
     const storedPath = await copyFileToWorkspace(params.file_path);
 
@@ -37,8 +34,4 @@ export const copyFileToWorkspaceTool: ToolDefinition<typeof Params, CopyResult> 
       details: { storedPath },
     };
   },
-
-  renderResult: createRenderResult<CopyResult>(({ details }) => [
-    { heading: "Stored", content: details?.storedPath ?? "" },
-  ]),
 };

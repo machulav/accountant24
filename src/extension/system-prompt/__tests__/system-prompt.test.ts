@@ -20,14 +20,15 @@ const buildSystemPrompt = mod.buildSystemPrompt;
 type SystemPromptContext = typeof mod extends { getSystemPrompt: (ctx: infer C) => any } ? C : never;
 
 const sampleTools = [
-  { name: "read", snippet: "Read file contents", guidelines: ["Use read to examine files instead of cat or sed."] },
+  { name: "read", snippet: "Read file contents" },
   { name: "bash", snippet: "Execute bash commands" },
   { name: "query", snippet: "Run hledger reports" },
-  {
-    name: "commit_and_push",
-    snippet: "Commit all changes and push to remote",
-    guidelines: ["Call commit_and_push after completing a batch of related changes."],
-  },
+  { name: "commit_and_push", snippet: "Commit all changes and push to remote" },
+];
+
+const sampleGuidelines = [
+  "Use read to examine files instead of cat or sed.",
+  "Call commit_and_push after completing a batch of related changes.",
 ];
 
 const empty: SystemPromptContext = {
@@ -37,6 +38,7 @@ const empty: SystemPromptContext = {
   payees: [],
   tags: [],
   tools: sampleTools,
+  guidelines: sampleGuidelines,
 };
 
 const populated: SystemPromptContext = {
@@ -46,6 +48,7 @@ const populated: SystemPromptContext = {
   payees: ["Whole Foods", "Starbucks", "John (Landlord)"],
   tags: ["groceries", "weekly", "source"],
   tools: sampleTools,
+  guidelines: sampleGuidelines,
 };
 
 // --- empty context ---
@@ -205,6 +208,7 @@ test("omits guidelines sub-section when no tools have guidelines", () => {
   const ctx: SystemPromptContext = {
     ...empty,
     tools: [{ name: "validate", snippet: "Check the ledger" }],
+    guidelines: [],
   };
   const prompt = getSystemPrompt(ctx);
   expect(prompt).toContain("<tools>");

@@ -32,6 +32,12 @@ pub async fn agent_start(app: AppHandle, state: State<'_, AppState>) -> Result<(
         .ok_or_else(|| "could not resolve extension path".to_string())?
         .to_string_lossy()
         .to_string();
+    // Run pi with the workspace as its cwd so the built-in file/bash tools operate
+    // on the ledger. Ensure it exists first (the extension scaffolds its contents on
+    // session_start, but current_dir requires the dir to exist at spawn time).
+    let workspace = crate::env::workspace_dir(&app)
+        .ok_or_else(|| "could not resolve workspace dir".to_string())?;
+    std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
     let sidecar = app.shell().sidecar("pi").map_err(|e| {
         crate::debug::log(&format!("[rs] sidecar() error: {e}"));
         e.to_string()
@@ -46,6 +52,7 @@ pub async fn agent_start(app: AppHandle, state: State<'_, AppState>) -> Result<(
             "-e",
             ext_path.as_str(),
         ])
+        .current_dir(&workspace)
         .envs(sidecar_env(&app))
         .spawn()
         .map_err(|e| {

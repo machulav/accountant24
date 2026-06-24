@@ -154,30 +154,5 @@ describe("copyFileToWorkspace()", () => {
       expect(result.details.storedPath).toBeTruthy();
       expect(existsSync(join(BASE, result.details.storedPath))).toBe(true);
     });
-
-    test("should render Stored section when expanded", async () => {
-      const { copyFileToWorkspaceTool } = await import("../../tools/copy-file-to-workspace.js");
-      const path = createTestFile("render-test.png", MINIMAL_PNG);
-      const execResult = await copyFileToWorkspaceTool.execute(
-        "id",
-        { file_path: path },
-        undefined,
-        undefined,
-        {} as any,
-      );
-
-      const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
-      const rendered = copyFileToWorkspaceTool.renderResult?.(
-        execResult,
-        { expanded: true, isPartial: false },
-        mockTheme as any,
-        { isError: false } as any,
-      );
-
-      const lines = (rendered as any).render(200) as string[];
-      const text = lines.join("\n");
-      expect(text).toContain("Stored");
-      expect(text).toMatch(/\d{14}/);
-    });
   });
 });

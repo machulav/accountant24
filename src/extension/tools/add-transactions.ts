@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type AddTransactionsResult, addTransactions } from "../ledger";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Posting = Type.Object({
   account: Type.String({ description: "Account name, e.g. Expenses:Food:Groceries" }),
@@ -51,8 +50,6 @@ export const addTransactionsTool: ToolDefinition<typeof Params, AddTransactionsR
   promptSnippet: "Record transactions (auto-routes to monthly files, validates)",
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params, signal) {
     const result = await addTransactions(params.transactions, signal);
 
@@ -70,13 +67,4 @@ export const addTransactionsTool: ToolDefinition<typeof Params, AddTransactionsR
       details: result,
     };
   },
-
-  renderResult: createRenderResult<AddTransactionsResult>(({ details }) => {
-    if (!details?.diffs) return [];
-    return details.diffs.map((d) => ({
-      heading: d.fullFilePath,
-      content: d.diff,
-      type: "diff" as const,
-    }));
-  }),
 };

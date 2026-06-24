@@ -272,46 +272,6 @@ startxref
         extractTextTool.execute("id", { file_path: "~/Accountant24/files/file.pdf" }, undefined, undefined, {} as any),
       ).rejects.toThrow("Tilde paths are not accepted");
     });
-
-    test("should render File and Content sections, not Stored", async () => {
-      const { extractTextTool } = await import("../../tools/extract-text.js");
-      const relPath = createWorkspaceFile("files/render-pdf.pdf", MINIMAL_PDF);
-      const execResult = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
-
-      const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
-      const rendered = extractTextTool.renderResult?.(
-        execResult,
-        { expanded: true, isPartial: false },
-        mockTheme as any,
-        { isError: false } as any,
-      );
-
-      const lines = (rendered as any).render(120) as string[];
-      const text = lines.join("\n");
-      expect(text).toContain("File");
-      expect(text).toContain("Content");
-      expect(text).not.toContain("Stored");
-    });
-
-    test("should truncate content preview longer than 500 chars", async () => {
-      const { extractTextTool } = await import("../../tools/extract-text.js");
-
-      const longResult = {
-        content: [{ type: "text" as const, text: "x" }],
-        details: { filePath: "files/f", mimeType: "application/pdf", pageCount: 1, text: "A".repeat(600) },
-      };
-
-      const mockTheme = { fg: (_: string, s: string) => s, bg: (_: string, s: string) => s, bold: (s: string) => s };
-      const rendered = extractTextTool.renderResult?.(
-        longResult,
-        { expanded: true, isPartial: false },
-        mockTheme as any,
-        { isError: false } as any,
-      );
-
-      const lines = (rendered as any).render(120) as string[];
-      expect(lines.join("\n")).toContain("...");
-    });
   });
 
   describe("MIME detection", () => {

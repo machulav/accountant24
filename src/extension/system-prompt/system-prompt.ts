@@ -4,19 +4,16 @@ import { getMemory } from "../memory";
 // @ts-expect-error — TS lib doesn't ship types for text import attributes yet
 import systemMdText from "./system.md" with { type: "text" };
 
-export interface ToolPromptMeta {
-  name: string;
-  snippet: string;
-  guidelines?: string[];
-}
-
 export interface SystemPromptContext {
   today: string;
   memory: string;
   accounts: string[];
   payees: string[];
   tags: string[];
-  tools: ToolPromptMeta[];
+  /** Active tools to advertise, as (name, one-line snippet) pairs. */
+  tools: Array<{ name: string; snippet: string }>;
+  /** Flat list of guideline bullets for the active tools. */
+  guidelines: string[];
 }
 
 // ── Static prefix (loaded from system.md, cached by Claude API) ─────
@@ -28,7 +25,7 @@ const STATIC_PREFIX: string = systemMdText;
 export async function buildSystemPrompt(): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
   const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
-  return getSystemPrompt({ today, memory, accounts, payees, tags, tools: [] });
+  return getSystemPrompt({ today, memory, accounts, payees, tags, tools: [], guidelines: [] });
 }
 
 export function getSystemPrompt(ctx: SystemPromptContext): string {
@@ -39,9 +36,8 @@ export function getSystemPrompt(ctx: SystemPromptContext): string {
     const snippetLines = ctx.tools.map((t) => `- ${t.name}: ${t.snippet}`);
     let toolsSection = `\n\n<tools>\nAvailable tools:\n${snippetLines.join("\n")}`;
 
-    const allGuidelines = ctx.tools.flatMap((t) => t.guidelines ?? []);
-    if (allGuidelines.length > 0) {
-      toolsSection += `\n\nGuidelines:\n${allGuidelines.map((g) => `- ${g}`).join("\n")}`;
+    if (ctx.guidelines.length > 0) {
+      toolsSection += `\n\nGuidelines:\n${ctx.guidelines.map((g) => `- ${g}`).join("\n")}`;
     }
 
     toolsSection += "\n</tools>";

@@ -1,8 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { MEMORY_PATH } from "../config";
 import { type SaveMemoryResult, saveMemory } from "../memory";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   content: Type.String({
@@ -29,8 +27,6 @@ export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> =
   ],
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params) {
     const { content } = params;
     const result = saveMemory(content);
@@ -40,9 +36,4 @@ export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> =
       details: result,
     };
   },
-
-  renderResult: createRenderResult<SaveMemoryResult>(({ details }) => [
-    { heading: "Diff", content: details?.diff ?? "", type: "diff" },
-    { heading: "File", content: MEMORY_PATH, type: "text" },
-  ]),
 };

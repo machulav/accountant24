@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type CommitAndPushResult, commitAndPush } from "../git";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   message: Type.String({
@@ -25,8 +24,6 @@ export const commitAndPushTool: ToolDefinition<typeof Params, CommitAndPushResul
   ],
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params) {
     const result = await commitAndPush(params.message);
 
@@ -46,18 +43,4 @@ export const commitAndPushTool: ToolDefinition<typeof Params, CommitAndPushResul
       details: result,
     };
   },
-
-  renderResult: createRenderResult<CommitAndPushResult>(({ details }) => {
-    if (details?.status === "no_changes") {
-      return [{ heading: "", content: "No changes to commit." }];
-    }
-    const sections = [
-      { heading: "Message", content: details?.commitMessage ?? "" },
-      { heading: "Files", content: details?.committedFiles?.join("\n") ?? "" },
-    ];
-    if (details?.pushed) {
-      sections.push({ heading: "Remote", content: "Pushed to remote." });
-    }
-    return sections;
-  }),
 };

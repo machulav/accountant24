@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type ExtractFileResult, extractFile, resolveWorkspacePath } from "../files";
-import { createRenderCall, createRenderResult } from "./tool-renderer";
 
 const Params = Type.Object({
   file_path: Type.String({
@@ -24,8 +23,6 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
   ],
   parameters: Params,
 
-  renderCall: createRenderCall({ label: LABEL }),
-
   async execute(_id, params) {
     const absolutePath = resolveWorkspacePath(params.file_path);
     const result = await extractFile(absolutePath);
@@ -41,20 +38,4 @@ export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> =
       details: { ...result, filePath: params.file_path },
     };
   },
-
-  renderResult: createRenderResult<ExtractFileResult>(({ details }) => {
-    const sections = [
-      { heading: "File", content: details?.filePath ?? "" },
-      { heading: "Type", content: details?.mimeType ?? "" },
-    ];
-    if (details?.pageCount) {
-      sections.push({ heading: "Pages", content: String(details.pageCount) });
-    }
-    const text = details?.text ?? "";
-    const preview = text.length > 500 ? `${text.slice(0, 500)}...` : text;
-    if (preview) {
-      sections.push({ heading: "Content", content: preview });
-    }
-    return sections;
-  }),
 };

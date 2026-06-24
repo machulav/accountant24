@@ -33,13 +33,19 @@ pub fn extension_path(app: &AppHandle) -> Option<PathBuf> {
     agent_resource_dir(app).map(|d| d.join("accountant24-extension.js"))
 }
 
+/// The Accountant24 workspace (~/Accountant24): the agent's working dir and the
+/// location of the ledger, auth.json, and models.json.
+pub fn workspace_dir(app: &AppHandle) -> Option<PathBuf> {
+    app.path().home_dir().ok().map(|home| home.join("Accountant24"))
+}
+
 /// Env overrides shared by the agent + auth sidecars.
 pub fn sidecar_env(app: &AppHandle) -> HashMap<String, String> {
     let mut env = HashMap::new();
 
     // Workspace dir: ledger + auth.json + models.json all under ~/Accountant24.
-    if let Ok(home) = app.path().home_dir() {
-        let workspace = home.join("Accountant24").to_string_lossy().to_string();
+    if let Some(workspace) = workspace_dir(app) {
+        let workspace = workspace.to_string_lossy().to_string();
         env.insert("ACCOUNTANT24_HOME".to_string(), workspace.clone());
         env.insert("PI_CODING_AGENT_DIR".to_string(), workspace);
     }
