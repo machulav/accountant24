@@ -3,7 +3,7 @@
   "version": "0.1.9",
   "type": "module",
   "scripts": {
-    "start": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --no-extensions --no-skills --no-prompt-templates -e src/extension/entry.ts",
+    "start": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e src/extension/entry.ts",
     "build": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",
     "test": "bun test",
