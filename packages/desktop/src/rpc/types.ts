@@ -106,18 +106,13 @@ export type AgentEvent =
     }
   | { type: "response"; id?: string; command: string; success: boolean; data?: unknown; error?: string };
 
-// ---- Chat view model ----------------------------------------------------
+// ---- Sessions (from the sessions helper) --------------------------------
 
-export type ChatItem =
-  | { kind: "user"; id: string; text: string }
-  | { kind: "assistant"; id: string; text: string; thinking: string; done: boolean }
-  | { kind: "tool"; id: string; name: string; status: "running" | "done" | "error"; result: string };
-
-export interface UiDialog {
+export interface SessionSummary {
+  path: string;
   id: string;
-  method: "confirm" | "select" | "input";
-  title?: string;
-  message?: string;
-  options?: string[];
-  placeholder?: string;
+  name: string;
+  firstMessage: string;
+  messageCount: number;
+  modified: string;
 }

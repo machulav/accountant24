@@ -12,6 +12,7 @@ import type {
   AuthProviders,
   AuthStatus,
   OllamaInfo,
+  SessionSummary,
 } from "./types";
 
 async function parse<T>(promise: Promise<string>): Promise<T> {
@@ -47,6 +48,11 @@ export const agentApi = {
       dlog(`agent-error: ${event.payload}`);
       cb(event.payload);
     }),
+};
+
+export const sessionsApi = {
+  list: () => parse<{ type: string; sessions: SessionSummary[] }>(invoke<string>("sessions_list")),
+  delete: (path: string) => parse<{ type: string; path?: string; message?: string }>(invoke<string>("sessions_delete", { path })),
 };
 
 export const authApi = {

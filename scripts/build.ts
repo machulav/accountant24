@@ -5,7 +5,7 @@
 //   1. `pi`                        — stock pi-coding-agent CLI, bun-compiled (the agent sidecar)
 //   2. `accountant24-extension.js` — our customization, pre-bundled to a single self-contained
 //                                    ESM file, loaded by pi via `-e`
-//   3. `accountant24-auth`         — small auth helper binary (AuthStorage/ModelRegistry over JSON)
+//   3. `accountant24-helper`       — helper binary wrapping pi APIs (auth, models, sessions)
 //
 // pi's package.json + theme/ + export-html/ are staged into resources/pi/ and exposed to the
 // sidecar via PI_PACKAGE_DIR (see desktop/src-tauri/src/env.rs). The extension bundle externalizes
@@ -107,7 +107,7 @@ async function bundleExtension(): Promise<string> {
 
 /** Step 3 — compile the auth helper binary for `target` (normal bundling, not jiti). */
 async function buildAuth(target: Target): Promise<void> {
-  console.log(`[build] compiling auth helper for ${target}`);
+  console.log(`[build] compiling helper for ${target}`);
   await run([
     "bun",
     "build",
@@ -115,9 +115,9 @@ async function buildAuth(target: Target): Promise<void> {
     "--minify",
     "--sourcemap",
     `--target=${target}`,
-    join(ROOT, "packages", "auth-helper-cli", "src", "auth-main.ts"),
+    join(ROOT, "packages", "pi-helper-cli", "src", "auth-main.ts"),
     "--outfile",
-    join(RELEASE, target, "accountant24-auth"),
+    join(RELEASE, target, "accountant24-helper"),
   ]);
 }
 
@@ -141,13 +141,13 @@ function stageExtension(extPath: string): void {
   console.log(`[build] staged extension → ${dest}`);
 }
 
-/** Stage the pi + auth binaries as Tauri sidecars under their Rust-triple names. */
+/** Stage the pi + helper binaries as Tauri sidecars under their Rust-triple names. */
 function stageSidecars(target: Target): void {
   mkdirSync(DESKTOP_BINARIES, { recursive: true });
   const triple = RUST_TRIPLE[target];
   cpSync(join(RELEASE, target, "pi"), join(DESKTOP_BINARIES, `pi-${triple}`));
-  cpSync(join(RELEASE, target, "accountant24-auth"), join(DESKTOP_BINARIES, `accountant24-auth-${triple}`));
-  console.log(`[build] staged sidecars pi-${triple}, accountant24-auth-${triple}`);
+  cpSync(join(RELEASE, target, "accountant24-helper"), join(DESKTOP_BINARIES, `accountant24-helper-${triple}`));
+  console.log(`[build] staged sidecars pi-${triple}, accountant24-helper-${triple}`);
 }
 
 async function main() {

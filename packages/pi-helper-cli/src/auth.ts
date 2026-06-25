@@ -1,20 +1,20 @@
-// Headless auth helper for the desktop GUI.
+// Headless helper for the desktop GUI: auth, models, and sessions.
 //
-// Stock pi has no headless auth command (only the interactive `/login`), and the
-// RPC protocol has no `login` command — credentials must already live in auth.json
-// before the agent starts. The GUI therefore drives authentication by spawning the
-// compiled `accountant24-auth <subcommand>` binary (see auth-main.ts), which wraps
-// the framework's AuthStorage + ModelRegistry and speaks newline-delimited JSON on
-// stdin/stdout.
+// Stock pi has no headless auth command (only the interactive `/login`), the RPC
+// protocol has no `login` command (credentials must live in auth.json before the
+// agent starts), and RPC can't list/delete sessions. The GUI therefore drives all
+// of this by spawning the compiled `accountant24-helper <subcommand>` binary (see
+// auth-main.ts), which wraps the framework's AuthStorage + ModelRegistry +
+// SessionManager and speaks newline-delimited JSON on stdin/stdout.
 //
 // Crucially, this helper reads/writes auth.json and models.json in
 // ACCOUNTANT24_HOME. The desktop app sets PI_CODING_AGENT_DIR = ACCOUNTANT24_HOME
 // in the sidecar env, so pi's getAuthPath()/getModelsPath() resolve to the same
 // files — what login writes is what the agent reads.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { ACCOUNTANT24_HOME } from "./config";
 
 /** Callback bag accepted by AuthStorage.login — derived to avoid a direct pi-ai import. */
@@ -46,6 +46,44 @@ function uniqueProviders(modelRegistry: ModelRegistry): string[] {
   const seen = new Set<string>();
   for (const model of modelRegistry.getAll()) seen.add(model.provider);
   return [...seen].sort();
+}
+
+/** The pi sessions directory for this workspace. */
+function sessionsDir(): string {
+  return join(ACCOUNTANT24_HOME, "sessions");
+}
+
+/** List sessions for the workspace (RPC has no list command; this wraps SessionManager.list). */
+async function cmdSessionsList(): Promise<number> {
+  const infos = await SessionManager.list(ACCOUNTANT24_HOME, sessionsDir());
+  const sessions = infos.map((s) => ({
+    path: s.path,
+    id: s.id,
+    name: s.name ?? "",
+    firstMessage: s.firstMessage ?? "",
+    messageCount: s.messageCount,
+    modified: s.modified instanceof Date ? s.modified.toISOString() : String(s.modified),
+  }));
+  emit({ type: "sessions", sessions });
+  return 0;
+}
+
+/** Delete a session file. Refuses paths outside the sessions directory. */
+function cmdSessionsDelete(argv: string[]): number {
+  const i = argv.findIndex((a) => a === "--path");
+  const path = i >= 0 ? argv[i + 1] : undefined;
+  if (!path) {
+    emit({ type: "error", message: "session path is required (--path)" });
+    return 1;
+  }
+  const dir = resolve(sessionsDir());
+  if (!resolve(path).startsWith(dir)) {
+    emit({ type: "error", message: "refusing to delete a path outside the sessions directory" });
+    return 1;
+  }
+  rmSync(path, { force: true });
+  emit({ type: "done", path });
+  return 0;
 }
 
 /** Parse `--provider <id>` (or `-p <id>`) out of an argv list. */
@@ -346,6 +384,10 @@ export async function runAuthCli(argv: string[]): Promise<number> {
         return await cmdDetectOllama();
       case "add-ollama":
         return cmdAddOllama(rest);
+      case "sessions-list":
+        return await cmdSessionsList();
+      case "sessions-delete":
+        return cmdSessionsDelete(rest);
       default:
         emit({ type: "error", message: `unknown auth subcommand: ${subcommand ?? "(none)"}` });
         return 1;

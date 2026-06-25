@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "files": {
-    "includes": ["packages/pi-extension/**", "packages/auth-helper-cli/**", "packages/evals/**", "*.json", "*.ts"]
+    "includes": ["packages/pi-extension/**", "packages/pi-helper-cli/**", "packages/evals/**", "*.json", "*.ts"]
   },
   "vcs": {
     "enabled": true,

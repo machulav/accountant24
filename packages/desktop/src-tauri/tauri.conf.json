@@ -16,7 +16,9 @@
         "width": 980,
         "height": 720,
         "minWidth": 560,
-        "minHeight": 480
+        "minHeight": 480,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {
@@ -34,7 +36,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/pi", "binaries/accountant24-auth"],
+    "externalBin": ["binaries/pi", "binaries/accountant24-helper"],
     "resources": ["bin", "tessdata", "pi-assets", "accountant24-extension.js"],
     "macOS": {
       "minimumSystemVersion": "10.15",

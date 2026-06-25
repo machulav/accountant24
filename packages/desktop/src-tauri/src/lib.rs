@@ -47,6 +47,8 @@ pub fn run() {
             auth::auth_login,
             auth::auth_login_respond,
             auth::auth_login_cancel,
+            auth::sessions_list,
+            auth::sessions_delete,
             debug::debug_log,
         ])
         .build(tauri::generate_context!())

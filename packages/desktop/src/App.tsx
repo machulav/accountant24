@@ -2,7 +2,7 @@
 // is already configured (auth.json), then hand off.
 
 import { useEffect, useState } from "react";
-import { Chat } from "./components/Chat";
+import { ChatLayout } from "./components/ChatLayout";
 import { Login } from "./components/Login";
 import { authApi } from "./rpc/api";
 
@@ -18,7 +18,8 @@ export default function App() {
       .catch(() => setPhase("login"));
   }, []);
 
-  if (phase === "loading") return <div className="center muted">Loading…</div>;
+  if (phase === "loading")
+    return <div className="text-muted-foreground flex h-dvh items-center justify-center">Loading…</div>;
   if (phase === "login") return <Login onDone={() => setPhase("chat")} />;
-  return <Chat />;
+  return <ChatLayout />;
 }

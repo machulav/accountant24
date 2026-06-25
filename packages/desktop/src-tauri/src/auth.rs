@@ -1,4 +1,4 @@
-// Authentication: drives the `accountant24-auth <cmd>` helper binary.
+// Drives the `accountant24-helper <cmd>` binary (auth, models, sessions).
 //
 // Read-only / one-shot commands (status, providers, models, set-key, logout,
 // detect-ollama, add-ollama) spawn the helper, collect its single JSON line, and
@@ -26,7 +26,7 @@ async fn run_oneshot(
 ) -> Result<String, String> {
     let sidecar = app
         .shell()
-        .sidecar("accountant24-auth")
+        .sidecar("accountant24-helper")
         .map_err(|e| e.to_string())?;
     let (mut rx, mut child) = sidecar
         .args(args)
@@ -101,6 +101,18 @@ pub async fn auth_add_ollama(app: AppHandle, model: String) -> Result<String, St
     .await
 }
 
+/// List the agent's sessions (pi RPC can't list sessions; the helper wraps SessionManager.list).
+#[tauri::command]
+pub async fn sessions_list(app: AppHandle) -> Result<String, String> {
+    run_oneshot(&app, vec!["sessions-list".into()], None).await
+}
+
+/// Delete a session file by path.
+#[tauri::command]
+pub async fn sessions_delete(app: AppHandle, path: String) -> Result<String, String> {
+    run_oneshot(&app, vec!["sessions-delete".into(), "--path".into(), path], None).await
+}
+
 /// Start an interactive OAuth login. Streams `auth-event`s; opens auth URLs.
 #[tauri::command]
 pub async fn auth_login(
@@ -115,7 +127,7 @@ pub async fn auth_login(
 
     let sidecar = app
         .shell()
-        .sidecar("accountant24-auth")
+        .sidecar("accountant24-helper")
         .map_err(|e| e.to_string())?;
     let (mut rx, child) = sidecar
         .args(["login", "--provider", provider.as_str()])

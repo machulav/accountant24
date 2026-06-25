@@ -1,7 +1,7 @@
-// Entry point for the `accountant24-auth` helper binary.
+// Entry point for the `accountant24-helper` binary.
 //
 // Compiled standalone via `bun build --compile` and bundled into the desktop app.
-// The app spawns it as `accountant24-auth <subcommand> [flags]`; argv[2..] is the
+// The app spawns it as `accountant24-helper <subcommand> [flags]`; argv[2..] is the
 // subcommand and its flags (slice(2): a compiled bun binary has two leading argv
 // entries before user args).
 import { runAuthCli } from "./auth";
