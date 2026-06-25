@@ -1,18 +1,22 @@
 {
   "name": "accountant24",
   "version": "0.1.9",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "start": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e src/extension/entry.ts",
+    "start": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e packages/pi-extension/src/entry.ts",
     "build": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",
     "test": "bun test",
-    "audit": "bun audit",
+    "audit": "bun audit --audit-level=moderate",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write .",
     "verify": "bun run audit && biome check --write . && biome check . && tsc --noEmit && bun run test --coverage",
-    "eval": "bun run evals/run.ts",
+    "eval": "bun run packages/evals/run.ts",
     "pre-commit": "biome check --write . && biome check .",
     "release": "bun run scripts/release.ts",
     "release:dry": "bun run scripts/release.ts --dry-run",
@@ -94,23 +98,19 @@
       }
     }
   },
-  "piConfig": {
-    "name": "accountant24",
-    "configDir": ".accountant24"
-  },
-  "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.79.8",
-    "file-type": "22.0.1",
-    "typebox": "1.1.38",
-    "zod": "3.25.76"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
+    "@earendil-works/pi-coding-agent": "0.79.8",
     "@types/bun": "1.3.13",
     "changelogen": "0.6.2",
     "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@earendil-works/pi-ai": "0.79.8",
+    "@earendil-works/pi-agent-core": "0.79.8",
+    "@earendil-works/pi-tui": "0.79.8"
   }
 }

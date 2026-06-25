@@ -15,7 +15,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
-import { ACCOUNTANT24_HOME } from "../extension/config";
+import { ACCOUNTANT24_HOME } from "./config";
 
 /** Callback bag accepted by AuthStorage.login — derived to avoid a direct pi-ai import. */
 type LoginCallbacks = Parameters<AuthStorage["login"]>[1];

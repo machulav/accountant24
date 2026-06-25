@@ -1,0 +1,10 @@
+{
+  "name": "@accountant24/auth-helper-cli",
+  "version": "0.1.9",
+  "private": true,
+  "type": "module",
+  "description": "Headless auth helper for the desktop app — wraps pi's AuthStorage/ModelRegistry over JSON.",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.79.8"
+  }
+}

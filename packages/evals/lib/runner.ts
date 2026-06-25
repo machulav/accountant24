@@ -1,6 +1,3 @@
-import { Agent } from "@earendil-works/pi-agent-core";
-import { getModel, streamSimple } from "@earendil-works/pi-ai";
-import { createCodingTools } from "@earendil-works/pi-coding-agent";
 import {
   addTransactionsTool,
   buildSystemPrompt,
@@ -8,7 +5,10 @@ import {
   setBaseDir,
   updateMemoryTool,
   validateTool,
-} from "../../src/extension";
+} from "@accountant24/pi-extension";
+import { Agent } from "@earendil-works/pi-agent-core";
+import { getModel, streamSimple } from "@earendil-works/pi-ai";
+import { createCodingTools } from "@earendil-works/pi-coding-agent";
 
 const customTools = [validateTool, queryTool, addTransactionsTool, updateMemoryTool];
 

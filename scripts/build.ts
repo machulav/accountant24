@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RELEASE = join(ROOT, "release");
 const PI = join(ROOT, "node_modules", "@earendil-works", "pi-coding-agent");
-const DESKTOP = join(ROOT, "desktop", "src-tauri");
+const DESKTOP = join(ROOT, "packages", "desktop", "src-tauri");
 const DESKTOP_BINARIES = join(DESKTOP, "binaries");
 
 const ALL_TARGETS = ["bun-darwin-arm64", "bun-darwin-x64", "bun-linux-x64", "bun-linux-arm64"] as const;
@@ -95,7 +95,7 @@ async function bundleExtension(): Promise<string> {
   await run([
     "bun",
     "build",
-    join(ROOT, "src", "extension", "entry.ts"),
+    join(ROOT, "packages", "pi-extension", "src", "entry.ts"),
     "--target=node",
     "--format=esm",
     "--outfile",
@@ -115,7 +115,7 @@ async function buildAuth(target: Target): Promise<void> {
     "--minify",
     "--sourcemap",
     `--target=${target}`,
-    join(ROOT, "src", "cli", "auth-main.ts"),
+    join(ROOT, "packages", "auth-helper-cli", "src", "auth-main.ts"),
     "--outfile",
     join(RELEASE, target, "accountant24-auth"),
   ]);

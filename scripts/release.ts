@@ -22,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DESKTOP = join(ROOT, "desktop");
+const DESKTOP = join(ROOT, "packages", "desktop");
 const DMG_DIR = join(DESKTOP, "src-tauri", "target", "release", "bundle", "dmg");
 const DRY = process.argv.includes("--dry-run");
 
