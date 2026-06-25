@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e packages/pi-extension/src/entry.ts",
+    "start": "bun run build && cd packages/desktop && bun run tauri dev",
+    "start:agent": "bun node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e packages/pi-extension/src/entry.ts",
     "build": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",
     "test": "bun test",
