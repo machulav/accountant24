@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Headless helper for the desktop app — wraps pi APIs (auth, models, sessions) the RPC mode can't expose.",
   "dependencies": {
+    "@earendil-works/pi-ai": "0.79.8",
     "@earendil-works/pi-coding-agent": "0.79.8"
   }
 }

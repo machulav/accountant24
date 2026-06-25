@@ -24,6 +24,7 @@
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-dialog": "^2",
         "@tauri-apps/plugin-opener": "^2",
+        "assistant-stream": "^0.3.24",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
@@ -71,6 +72,7 @@
       "name": "@accountant24/pi-helper-cli",
       "version": "0.1.9",
       "dependencies": {
+        "@earendil-works/pi-ai": "0.79.8",
         "@earendil-works/pi-coding-agent": "0.79.8",
       },
     },

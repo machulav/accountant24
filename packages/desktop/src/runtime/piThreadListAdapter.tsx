@@ -10,6 +10,7 @@ import {
   type ThreadHistoryAdapter,
   useAui,
 } from "@assistant-ui/react";
+import { createAssistantStream } from "assistant-stream";
 import { type PropsWithChildren, useMemo } from "react";
 import { sessionsApi } from "../rpc/api";
 import type { SessionSummary } from "../rpc/types";
@@ -72,6 +73,46 @@ export const piThreadListAdapter = {
   async rename(remoteId: string, newTitle: string) {
     await agentBridge.request({ type: "switch_session", sessionPath: remoteId }, "switch_session");
     await agentBridge.request({ type: "set_session_name", name: newTitle }, "set_session_name");
+  },
+
+  // Auto-title a new chat after its first turn. assistant-ui calls this once the
+  // first run ends, reads the streamed text as the title, and shows it instantly.
+  // We ask the active model for a short summary title (best-effort), fall back to a
+  // trimmed first message, and persist via set_session_name so it survives reloads.
+  async generateTitle(
+    remoteId: string,
+    messages: readonly { role?: string; content?: readonly { type?: string; text?: string }[] }[],
+  ) {
+    const firstUser = messages.find((m) => m.role === "user");
+    const text = (firstUser?.content ?? [])
+      .filter((p) => p.type === "text")
+      .map((p) => p.text ?? "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const fallback = (text.length > 50 ? `${text.slice(0, 50).trimEnd()}…` : text) || "New Chat";
+
+    let title = fallback;
+    try {
+      const state = await agentBridge.request<{ model?: { provider: string; id: string } }>(
+        { type: "get_state" },
+        "get_state",
+      );
+      const res = await sessionsApi.generateTitle(text, state.model);
+      if (res.title?.trim()) title = res.title.trim();
+    } catch {
+      // keep the first-message fallback (e.g. a local model that can't comply)
+    }
+
+    await agentBridge
+      .request({ type: "set_session_name", name: title }, "set_session_name")
+      .catch(() => undefined);
+    const cached = cache.find((s) => s.path === remoteId);
+    if (cached) cached.name = title;
+    return createAssistantStream((c) => {
+      c.appendText(title);
+      c.close();
+    });
   },
 
   async delete(remoteId: string) {
