@@ -38,6 +38,9 @@ pub async fn agent_start(app: AppHandle, state: State<'_, AppState>) -> Result<(
     let workspace = crate::env::workspace_dir(&app)
         .ok_or_else(|| "could not resolve workspace dir".to_string())?;
     std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
+    // Store sessions flat in <workspace>/sessions (no per-cwd subfolder); the
+    // helper lists the same dir for the sidebar.
+    let sessions_dir = workspace.join("sessions").to_string_lossy().to_string();
     let sidecar = app.shell().sidecar("pi").map_err(|e| {
         crate::debug::log(&format!("[rs] sidecar() error: {e}"));
         e.to_string()
@@ -49,6 +52,8 @@ pub async fn agent_start(app: AppHandle, state: State<'_, AppState>) -> Result<(
             "--no-extensions",
             "--no-skills",
             "--no-prompt-templates",
+            "--session-dir",
+            sessions_dir.as_str(),
             "-e",
             ext_path.as_str(),
         ])
