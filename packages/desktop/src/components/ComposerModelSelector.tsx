@@ -11,6 +11,7 @@ export function ComposerModelSelector() {
       models={models}
       value={value}
       onValueChange={onSelect}
+      searchable
       variant="ghost"
       size="sm"
     />
