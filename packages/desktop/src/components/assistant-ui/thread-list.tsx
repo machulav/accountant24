@@ -145,7 +145,7 @@ export const ThreadListNew = forwardRef<
         variant="ghost"
         data-slot="aui_thread-list-new"
         className={cn(
-          "hover:bg-muted data-active:bg-muted h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal",
+          "hover:bg-foreground/[0.06] data-active:bg-foreground/[0.06] mt-3 h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal",
           className,
         )}
         {...props}
@@ -160,7 +160,7 @@ export const ThreadListNew = forwardRef<
               data-slot="aui_thread-list-new-label"
               className={cn("whitespace-nowrap", labelClassName)}
             >
-              New Thread
+              New Chat
             </span>
           </>
         )}
@@ -196,7 +196,7 @@ export const ThreadListItem: FC = () => {
   return (
     <ThreadListItemPrimitive.Root
       data-slot="aui_thread-list-item"
-      className="group/thread-list-item hover:bg-muted focus-visible:bg-muted data-active:bg-muted has-focus-visible:bg-muted has-data-[state=open]:bg-muted relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none"
+      className="group/thread-list-item hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] data-active:bg-foreground/[0.06] data-active:font-medium has-focus-visible:bg-foreground/[0.06] has-data-[state=open]:bg-foreground/[0.06] relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none"
     >
       <ThreadListItemPrimitive.Trigger
         data-slot="aui_thread-list-item-trigger"
@@ -222,7 +222,7 @@ const ThreadListItemMore: FC = () => {
           variant="ghost"
           size="icon"
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-accent absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover/thread-list-item:opacity-100 group-has-focus-visible/thread-list-item:opacity-100 data-[state=open]:opacity-100"
+          className="absolute end-1.5 top-1/2 size-6 -translate-y-1/2 bg-transparent p-0 opacity-0 hover:bg-transparent group-hover/thread-list-item:opacity-100 group-has-focus-visible/thread-list-item:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
           <span className="sr-only">More options</span>
