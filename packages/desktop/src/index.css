@@ -3,6 +3,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Electron: draggable window regions (replaces Tauri's data-tauri-drag-region).
+   Interactive children opt back out so they stay clickable. */
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+.app-drag-region :where(button, input, a, [role="button"]) {
+  -webkit-app-region: no-drag;
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

@@ -1,9 +1,9 @@
-// A `PiClient` (from @assistant-ui/react-pi) implemented over the existing pi
-// `--mode rpc` Tauri sidecar — so the official `usePiRuntime` drives all message
-// projection / streaming / tool / thread-list rendering, while pi keeps running
-// our `accountant24-extension.js`. This is the transport the package leaves open
-// (HTTP/SSE is just one implementation); we mirror `client/httpClient.ts` against
-// the sidecar instead of fetch/SSE.
+// A `PiClient` (from @assistant-ui/react-pi) implemented over the pi `--mode rpc`
+// child process (spawned by the Electron main process, bridged via IPC) — so the
+// official `usePiRuntime` drives all message projection / streaming / tool /
+// thread-list rendering, while pi keeps running our `accountant24-extension.js`.
+// This is the transport the package leaves open (HTTP/SSE is just one
+// implementation); we mirror `client/httpClient.ts` against the sidecar.
 //
 // pi is single-active-session; the runtime is multi-thread. We bridge that by
 // treating `threadId` = pi session-file path and issuing `switch_session` before
@@ -55,7 +55,7 @@ const toModelInfo = (m: ModelInfo): PiModelInfo => ({
   supportsThinking: Boolean(m.reasoning),
 });
 
-export function createTauriPiClient(): PiClient {
+export function createElectronPiClient(): PiClient {
   /** The session pi currently has loaded (its single active session). */
   let activeThreadId: string | undefined;
   /** Serializes switch_session so events route to the intended thread. */

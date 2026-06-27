@@ -2,8 +2,7 @@
 // Release orchestrator (app-only desktop build):
 //   1. preflight: working tree clean, on main, `gh` authenticated
 //   2. bump version + generate changelog + tag (changelogen --release)
-//   3. stage the embedded-agent sidecars (scripts/build.ts) + build the .app/.dmg
-//      (tauri build)
+//   3. build the .app/.dmg (electron-builder, via `bun run dist`)
 //   4. push main + tag
 //   5. create a GitHub Release with the .dmg
 //
@@ -11,8 +10,9 @@
 //   bun run release            # full release
 //   bun run release:dry        # show what would happen, no state changes
 //
-// Code signing / notarization is governed by the usual Tauri env vars
-// (APPLE_CERTIFICATE, APPLE_SIGNING_IDENTITY, APPLE_ID, …) when present.
+// Code signing / notarization is governed by electron-builder env vars
+// (CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID)
+// when present.
 //
 // NOTE: builds the host architecture only. Shipping both Apple-Silicon and Intel
 // (or a universal) .dmg is a follow-up.
@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DESKTOP = join(ROOT, "packages", "desktop");
-const DMG_DIR = join(DESKTOP, "src-tauri", "target", "release", "bundle", "dmg");
+const DMG_DIR = join(DESKTOP, "release");
 const DRY = process.argv.includes("--dry-run");
 
 type CmdOpts = { cwd?: string; capture?: boolean; allowDry?: boolean };
@@ -66,10 +66,8 @@ async function main() {
   const tag = `v${version}`;
   console.log(`[release] staged ${tag}`);
 
-  // 4. stage the embedded-agent sidecars (pi + auth + extension) then bundle the app.
-  //    tauri's beforeBuildCommand builds the frontend; this stages the binaries it needs.
-  await sh(["bun", "run", "scripts/build.ts"]);
-  await sh(["bun", "run", "tauri", "build"], { cwd: DESKTOP });
+  // 4. bundle the extension, build main/preload/renderer, then package the .app/.dmg.
+  await sh(["bun", "run", "dist"]);
 
   // locate the produced .dmg(s)
   const dmgs = DRY ? [] : readdirSync(DMG_DIR).filter((f) => f.endsWith(".dmg")).map((f) => join(DMG_DIR, f));

@@ -4,9 +4,11 @@
 //   - Local: detect Ollama and register a model (no key needed).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 import { authApi } from "../rpc/api";
 import type { AuthEvent, AuthProviders, OllamaInfo } from "../rpc/types";
+
+/** An IPC event unsubscriber (returned by authApi.onEvent / onTerminated). */
+type UnlistenFn = () => void;
 
 type Mode = "menu" | "apikey" | "oauth" | "ollama";
 

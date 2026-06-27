@@ -3,8 +3,8 @@ import { usePiRuntime } from "@assistant-ui/react-pi";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { agentBridge } from "../runtime/agentBridge";
+import { createElectronPiClient } from "../runtime/electronPiClient";
 import { PiClientContext } from "../runtime/modelsContext";
-import { createTauriPiClient } from "../runtime/tauriPiClient";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
 import {
@@ -28,7 +28,7 @@ function SidebarToggle() {
 export function ChatLayout() {
   // pi is the single source of truth; the official react-pi runtime renders it
   // over a custom client that talks to our extension-enabled sidecar.
-  const client = useMemo(() => createTauriPiClient(), []);
+  const client = useMemo(() => createElectronPiClient(), []);
   const runtime = usePiRuntime({ client });
 
   // react-pi stubs out generateTitle, so a new chat keeps its placeholder name.
@@ -59,13 +59,13 @@ export function ChatLayout() {
         <SidebarProvider className="h-dvh">
           <Sidebar>
             {/* spacer + drag region so the list clears the overlaid traffic lights */}
-            <SidebarHeader data-tauri-drag-region className="h-7" />
+            <SidebarHeader className="app-drag-region h-7" />
             <SidebarContent className="px-2">
               <ThreadList />
             </SidebarContent>
           </Sidebar>
           <SidebarInset className="relative min-w-0">
-            <div data-tauri-drag-region className="absolute inset-x-0 top-0 z-20 h-7" />
+            <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
             <Thread />
           </SidebarInset>

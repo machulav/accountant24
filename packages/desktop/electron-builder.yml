@@ -1,0 +1,39 @@
+appId: com.accountant24.desktop
+productName: Accountant24
+# asar disabled on purpose: the agent runs as a child Node process (Electron-as-
+# Node) that resolves pi + loads native deps from node_modules; keeping the tree
+# on real disk avoids the asar/asar.unpacked path + native-module pitfalls.
+asar: false
+
+directories:
+  buildResources: build
+  output: release
+
+# out/ (electron-vite build) + the app manifest. electron-builder also bundles
+# the production dependencies (pi SDK, react, …) automatically.
+files:
+  - out/**/*
+  - package.json
+  - "!**/*.{map,md}"
+
+# Vendored, on-disk resources the agent child reads via env (PATH / TESSDATA_PREFIX)
+# and `pi -e`. Land under Contents/Resources/ → matches env.ts resourceDir().
+extraResources:
+  - from: resources/bin
+    to: bin
+  - from: resources/tessdata
+    to: tessdata
+  - from: resources/accountant24-extension.js
+    to: accountant24-extension.js
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.finance
+  icon: build/icon.icns
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Notarization runs when APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+  # (or an API key) are present in the environment.

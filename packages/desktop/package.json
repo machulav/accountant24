@@ -3,19 +3,19 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "out/main/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p electron/tsconfig.json"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.24",
     "@assistant-ui/react-markdown": "^0.14.5",
     "@assistant-ui/react-pi": "0.0.5",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2",
+    "@earendil-works/pi-ai": "0.79.8",
+    "@earendil-works/pi-coding-agent": "0.79.8",
     "assistant-stream": "^0.3.24",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -30,10 +30,13 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",
-    "@tauri-apps/cli": "^2",
+    "@types/node": "^26.0.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"

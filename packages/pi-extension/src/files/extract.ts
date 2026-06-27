@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnText } from "../spawn";
 import { detectMimeType } from "./mime";
 
 export interface ExtractFileResult {
@@ -110,13 +111,7 @@ const BREW_PACKAGE: Record<string, string> = {
 
 async function runCli(cmd: string[], name: string): Promise<string> {
   try {
-    const proc = Bun.spawn(cmd, {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-    const exitCode = await proc.exited;
+    const { exitCode, stdout, stderr } = await spawnText(cmd);
 
     if (exitCode !== 0) {
       throw new Error(`${name} exited with code ${exitCode}: ${stderr.trim()}`);

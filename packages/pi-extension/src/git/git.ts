@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { spawnText } from "../spawn";
 
 // ── Commands ────────────────────────────────────────────────────────
 
@@ -45,15 +46,7 @@ async function spawn(
   opts: { cwd: string },
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   try {
-    const proc = Bun.spawn(cmd, {
-      cwd: opts.cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-    const exitCode = await proc.exited;
-    return { exitCode, stdout, stderr };
+    return await spawnText(cmd, opts);
   } catch (err: any) {
     if (err?.code === "ENOENT") {
       return { exitCode: 127, stdout: "", stderr: `Command not found: ${cmd[0]}` };
