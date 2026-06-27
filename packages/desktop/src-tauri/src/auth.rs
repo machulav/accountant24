@@ -113,26 +113,6 @@ pub async fn sessions_delete(app: AppHandle, path: String) -> Result<String, Str
     run_oneshot(&app, vec!["sessions-delete".into(), "--path".into(), path], None).await
 }
 
-/// Generate a concise chat title from the first message (one-shot LLM completion).
-#[tauri::command]
-pub async fn generate_title(
-    app: AppHandle,
-    text: String,
-    provider: Option<String>,
-    model: Option<String>,
-) -> Result<String, String> {
-    let mut args = vec!["generate-title".into(), "--text".into(), text];
-    if let Some(p) = provider {
-        args.push("--provider".into());
-        args.push(p);
-    }
-    if let Some(m) = model {
-        args.push("--model".into());
-        args.push(m);
-    }
-    run_oneshot(&app, args, None).await
-}
-
 /// Start an interactive OAuth login. Streams `auth-event`s; opens auth URLs.
 #[tauri::command]
 pub async fn auth_login(

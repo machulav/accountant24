@@ -53,10 +53,6 @@ export const agentApi = {
 export const sessionsApi = {
   list: () => parse<{ type: string; sessions: SessionSummary[] }>(invoke<string>("sessions_list")),
   delete: (path: string) => parse<{ type: string; path?: string; message?: string }>(invoke<string>("sessions_delete", { path })),
-  generateTitle: (text: string, model?: { provider: string; id: string }) =>
-    parse<{ type: string; title?: string; message?: string }>(
-      invoke<string>("generate_title", { text, provider: model?.provider, model: model?.id }),
-    ),
 };
 
 export const authApi = {

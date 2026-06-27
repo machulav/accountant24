@@ -115,7 +115,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
 
           <div
             data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden [&_[data-aui-top-anchor-target]]:min-h-[85dvh]"
+            className="mb-14 flex flex-col gap-y-6 empty:hidden"
           >
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}

@@ -1,26 +1,24 @@
-// Singleton bridge between the pi sidecar (callback-based agent-event stream over
-// RPC) and assistant-ui's per-turn async-generator adapters.
+// Singleton dispatcher over the pi sidecar's RPC stream (JSON lines over Tauri IPC).
 //
 // - Owns the sidecar lifecycle (`agent_start`, once) and the ONE agent-event
 //   subscription for the app's lifetime.
-// - `runPrompt()` turns the callback stream into an async iterator scoped to a
-//   single `agent_start … agent_end` cycle (the sidecar is single-threaded, so
-//   one run owns the stream at a time).
-// - Auto-approves `extension_ui_request` (tool-permission prompts) in v1 so tools
-//   don't hang — this is a local single-user personal agent; a real permission
-//   UI is a follow-up.
+// - `request()` sends a command and resolves with its matching `response`.
+// - `addEventListener()` fans out the live event stream (everything except
+//   `response`) to subscribers — this is what the PiClient's `subscribe()` taps.
+// - Auto-approves `extension_ui_request` (tool-permission prompts) so tools don't
+//   hang. A real approval UI is a follow-up; until then host-UI requests are not
+//   surfaced to the runtime.
 
 import { agentApi } from "../rpc/api";
 import type { AgentEvent } from "../rpc/types";
 
-type ActiveRun = {
-  push: (e: AgentEvent) => void;
-  fail: (err: Error) => void;
-};
+type EventListener = (e: AgentEvent) => void;
+type ErrorListener = (message: string) => void;
 
 class AgentBridge {
   private startPromise: Promise<void> | null = null;
-  private active: ActiveRun | null = null;
+  private readonly listeners = new Set<EventListener>();
+  private readonly errorListeners = new Set<ErrorListener>();
 
   /** Spawn the sidecar + attach the single event subscription (idempotent). */
   ensureStarted(): Promise<void> {
@@ -28,8 +26,8 @@ class AgentBridge {
       this.startPromise = (async () => {
         await agentApi.start();
         await agentApi.onEvent((e) => this.handle(e));
-        await agentApi.onTerminated(() => this.active?.fail(new Error("The agent process stopped.")));
-        await agentApi.onError((m) => this.active?.fail(new Error(m)));
+        await agentApi.onTerminated(() => this.fail("The agent process stopped."));
+        await agentApi.onError((m) => this.fail(m));
       })();
     }
     return this.startPromise;
@@ -43,7 +41,26 @@ class AgentBridge {
       agentApi.send(response).catch(() => undefined);
       return;
     }
-    this.active?.push(e);
+    // `response` events are consumed by request()'s own listener; everything
+    // else is live stream output for subscribers.
+    if (e.type === "response") return;
+    for (const fn of [...this.listeners]) fn(e);
+  }
+
+  private fail(message: string): void {
+    for (const fn of [...this.errorListeners]) fn(message);
+  }
+
+  /** Subscribe to the live event stream. Returns an unsubscribe function. */
+  addEventListener(fn: EventListener): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  /** Subscribe to sidecar process errors/termination. Returns an unsubscribe. */
+  addErrorListener(fn: ErrorListener): () => void {
+    this.errorListeners.add(fn);
+    return () => this.errorListeners.delete(fn);
   }
 
   /** Send a raw RPC command (ensures the sidecar is up first). */
@@ -70,56 +87,6 @@ class AgentBridge {
           void agentApi.send(command);
         });
     });
-  }
-
-  /** Drive one prompt; yields its events until `agent_end`. Throws if the sidecar dies. */
-  async *runPrompt(message: string, signal: AbortSignal): AsyncGenerator<AgentEvent> {
-    await this.ensureStarted();
-
-    const queue: AgentEvent[] = [];
-    let wake: ((r: IteratorResult<AgentEvent>) => void) | null = null;
-    let failure: Error | null = null;
-
-    this.active = {
-      push: (e) => {
-        if (wake) {
-          const w = wake;
-          wake = null;
-          w({ value: e, done: false });
-        } else {
-          queue.push(e);
-        }
-      },
-      fail: (err) => {
-        failure = err;
-        if (wake) {
-          const w = wake;
-          wake = null;
-          w({ value: undefined as never, done: true });
-        }
-      },
-    };
-
-    const onAbort = () => {
-      agentApi.send({ type: "abort" }).catch(() => undefined);
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
-
-    try {
-      await agentApi.send({ type: "prompt", message });
-      while (true) {
-        if (failure) throw failure;
-        const queued = queue.shift();
-        const next = queued ?? (await new Promise<IteratorResult<AgentEvent>>((r) => (wake = r))).value;
-        if (failure) throw failure;
-        if (!next) return;
-        yield next;
-        if (next.type === "agent_end") return;
-      }
-    } finally {
-      signal.removeEventListener("abort", onAbort);
-      this.active = null;
-    }
   }
 }
 

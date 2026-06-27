@@ -1,11 +1,10 @@
-import { AssistantRuntimeProvider, useLocalRuntime, useRemoteThreadListRuntime } from "@assistant-ui/react";
-import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { usePiRuntime } from "@assistant-ui/react-pi";
+import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { useAgentModels } from "../hooks/useAgentModels";
-import { agentAdapter } from "../runtime/agentAdapter";
-import { ModelsContext } from "../runtime/modelsContext";
-import { piThreadListAdapter } from "../runtime/piThreadListAdapter";
-import type { ModelOption } from "./assistant-ui/model-selector";
+import { agentBridge } from "../runtime/agentBridge";
+import { PiClientContext } from "../runtime/modelsContext";
+import { createTauriPiClient } from "../runtime/tauriPiClient";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
 import {
@@ -27,20 +26,36 @@ function SidebarToggle() {
 }
 
 export function ChatLayout() {
-  const runtime = useRemoteThreadListRuntime({
-    runtimeHook: () => useLocalRuntime(agentAdapter),
-    adapter: piThreadListAdapter,
-  });
-  const { value, models, selectModel } = useAgentModels();
+  // pi is the single source of truth; the official react-pi runtime renders it
+  // over a custom client that talks to our extension-enabled sidecar.
+  const client = useMemo(() => createTauriPiClient(), []);
+  const runtime = usePiRuntime({ client });
 
-  const options: ModelOption[] = useMemo(
-    () => models.map((m) => ({ id: `${m.provider}/${m.id}`, name: m.name, description: m.provider })),
-    [models],
-  );
+  // react-pi stubs out generateTitle, so a new chat keeps its placeholder name.
+  // When a still-untitled chat finishes its first run, title it from the first
+  // user message via the thread item's own rename — an optimistic, single-thread
+  // update (no list refetch) that also persists the name. Titled chats are
+  // skipped, so this never clobbers a manual rename or fires twice.
+  useEffect(() => {
+    return agentBridge.addEventListener((e) => {
+      if (e.type !== "agent_end") return;
+      const item = runtime.threads.mainItem;
+      if (item.getState().title) return;
+      const firstUser = runtime.thread.getState().messages.find((m) => m.role === "user");
+      const text = (firstUser?.content ?? [])
+        .filter((p): p is { type: "text"; text: string } => p.type === "text")
+        .map((p) => p.text)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!text) return;
+      void item.rename(text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text);
+    });
+  }, [runtime]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ModelsContext.Provider value={{ value, models: options, onSelect: selectModel }}>
+      <PiClientContext.Provider value={client}>
         <SidebarProvider className="h-dvh">
           <Sidebar>
             {/* spacer + drag region so the list clears the overlaid traffic lights */}
@@ -55,7 +70,7 @@ export function ChatLayout() {
             <Thread />
           </SidebarInset>
         </SidebarProvider>
-      </ModelsContext.Provider>
+      </PiClientContext.Provider>
     </AssistantRuntimeProvider>
   );
 }

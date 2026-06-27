@@ -14,7 +14,6 @@
 
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { completeSimple } from "@earendil-works/pi-ai";
 import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { ACCOUNTANT24_HOME } from "./config";
 
@@ -97,70 +96,6 @@ function getProvider(argv: string[]): string | undefined {
 function getModel(argv: string[]): string | undefined {
   const i = argv.indexOf("--model");
   return i >= 0 ? argv[i + 1] : undefined;
-}
-
-const TITLE_SYSTEM_PROMPT =
-  "You write a short, descriptive title for a chat based on the user's first message. " +
-  "Rules: 3-6 words; Title Case; no surrounding quotes; no trailing punctuation; no emojis. " +
-  "Reply with ONLY the title.";
-
-/** Trim model output down to a clean one-line title. */
-function sanitizeTitle(raw: string): string {
-  let t = (raw.split("\n").find((l) => l.trim()) ?? "").trim();
-  t = t.replace(/^["'`*]+|["'`*]+$/g, "").trim(); // surrounding quotes / markdown
-  t = t.replace(/[.!?,;:]+$/g, "").trim(); // trailing punctuation
-  if (t.length > 60) t = `${t.slice(0, 60).trimEnd()}…`;
-  return t;
-}
-
-/**
- * Generate a concise chat title from the first message via a one-shot LLM call.
- * Stateless (does not touch any session). The app falls back to a trimmed first
- * message if this errors (e.g. a local model that can't follow the instruction).
- */
-async function cmdGenerateTitle(argv: string[]): Promise<number> {
-  const i = argv.indexOf("--text");
-  const text = (i >= 0 ? argv[i + 1] : "")?.trim();
-  if (!text) {
-    emit({ type: "error", message: "text is required (--text)" });
-    return 1;
-  }
-  const { modelRegistry } = createRegistry();
-  const models = modelRegistry.getAvailable();
-  if (models.length === 0) {
-    emit({ type: "error", message: "no authenticated models available" });
-    return 1;
-  }
-  const provider = getProvider(argv);
-  const modelId = getModel(argv);
-  const model = models.find((m) => m.provider === provider && m.id === modelId) ?? models[0];
-
-  const auth = await modelRegistry.getApiKeyAndHeaders(model);
-  if (!auth.ok) {
-    emit({ type: "error", message: "could not resolve model credentials" });
-    return 1;
-  }
-
-  const context = {
-    systemPrompt: TITLE_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: [{ type: "text", text: text.slice(0, 2000) }] }],
-  } as Parameters<typeof completeSimple>[1];
-
-  const response = await completeSimple(model, context, {
-    apiKey: auth.apiKey,
-    headers: auth.headers,
-    env: auth.env,
-  });
-  if (response.stopReason === "error" || response.stopReason === "aborted") {
-    emit({ type: "error", message: response.errorMessage || "title generation failed" });
-    return 1;
-  }
-  const raw = (response.content as { type: string; text?: string }[])
-    .filter((c) => c.type === "text")
-    .map((c) => c.text ?? "")
-    .join(" ");
-  emit({ type: "title", title: sanitizeTitle(raw) });
-  return 0;
 }
 
 /**
@@ -453,8 +388,6 @@ export async function runAuthCli(argv: string[]): Promise<number> {
         return await cmdSessionsList();
       case "sessions-delete":
         return cmdSessionsDelete(rest);
-      case "generate-title":
-        return await cmdGenerateTitle(rest);
       default:
         emit({ type: "error", message: `unknown auth subcommand: ${subcommand ?? "(none)"}` });
         return 1;
