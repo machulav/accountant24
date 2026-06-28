@@ -45,6 +45,13 @@ export const sessionsApi = {
   delete: (path: string) => api.invoke<{ type: string; path?: string; message?: string }>("sessions_delete", { path }),
 };
 
+export const filesApi = {
+  /** Archive an attached file (base64 bytes) into the workspace; resolves with
+   *  the stored copy's workspace-relative path. */
+  archiveToWorkspace: (name: string, dataBase64: string) =>
+    api.invoke<string>("files_archive_to_workspace", { name, dataBase64 }),
+};
+
 export const authApi = {
   status: () => api.invoke<AuthStatus>("auth_status"),
   providers: () => api.invoke<AuthProviders>("auth_providers"),

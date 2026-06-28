@@ -3,6 +3,7 @@
 
 import { app, BrowserWindow } from "electron";
 import { killAgent, registerAgentIpc } from "./agent";
+import { registerFilesIpc } from "./files";
 import { registerPiIpc } from "./pi";
 import { createWindow } from "./window";
 
@@ -13,6 +14,7 @@ app.whenReady().then(() => {
   // App-global IPC handlers (registered once); sends go to the current window.
   registerAgentIpc(getWin);
   registerPiIpc(getWin);
+  registerFilesIpc();
 
   mainWindow = createWindow();
   mainWindow.on("closed", () => {
