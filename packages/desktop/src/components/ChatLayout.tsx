@@ -1,9 +1,17 @@
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  CompositeAttachmentAdapter,
+} from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { agentBridge } from "../runtime/agentBridge";
 import { createElectronPiClient } from "../runtime/electronPiClient";
+import {
+  ArchivingImageAttachmentAdapter,
+  WorkspaceFileAttachmentAdapter,
+} from "../runtime/fileAttachmentAdapter";
 import { PiClientContext } from "../runtime/modelsContext";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
@@ -29,7 +37,20 @@ export function ChatLayout() {
   // pi is the single source of truth; the official react-pi runtime renders it
   // over a custom client that talks to our extension-enabled sidecar.
   const client = useMemo(() => createElectronPiClient(), []);
-  const runtime = usePiRuntime({ client });
+  // Every attached file is archived into the workspace. Routed by MIME:
+  //  - model-readable images → archived AND sent as image content (vision)
+  //  - everything else (PDF, CSV, …) → archived AND sent as a workspace path the
+  //    agent reads/extracts (pi carries only text + images to the model)
+  // The "*" adapter must be last (it handles all remaining types).
+  const attachments = useMemo(
+    () =>
+      new CompositeAttachmentAdapter([
+        new ArchivingImageAttachmentAdapter(),
+        new WorkspaceFileAttachmentAdapter("*"),
+      ]),
+    [],
+  );
+  const runtime = usePiRuntime({ client, adapters: { attachments } });
 
   // react-pi stubs out generateTitle, so a new chat keeps its placeholder name.
   // When a still-untitled chat finishes its first run, title it from the first
@@ -44,7 +65,7 @@ export function ChatLayout() {
       const firstUser = runtime.thread.getState().messages.find((m) => m.role === "user");
       const text = (firstUser?.content ?? [])
         .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text)
+        .map((p) => extractAttachmentRefs(p.text).text)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim();

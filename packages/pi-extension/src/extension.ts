@@ -7,7 +7,6 @@ import { getSystemPrompt } from "./system-prompt";
 import {
   addTransactionsTool,
   commitAndPushTool,
-  copyFileToWorkspaceTool,
   extractTextTool,
   queryTool,
   updateMemoryTool,
@@ -23,7 +22,6 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   pi.registerTool(queryTool);
   pi.registerTool(addTransactionsTool);
   pi.registerTool(commitAndPushTool);
-  pi.registerTool(copyFileToWorkspaceTool);
   pi.registerTool(extractTextTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
