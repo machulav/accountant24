@@ -11,6 +11,12 @@
 .app-drag-region :where(button, input, a, [role="button"]) {
   -webkit-app-region: no-drag;
 }
+/* For interactive elements that overlap a drag region as a sibling (not a
+   child), so the no-drag rule above can't reach them — e.g. the sidebar toggle
+   floating over the title-bar strip. Without this the OS eats their clicks. */
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
 
 :root {
   --radius: 0.625rem;

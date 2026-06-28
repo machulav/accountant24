@@ -30,7 +30,11 @@ import {
 function SidebarToggle() {
   const { state, isMobile } = useSidebar();
   const offset = isMobile || state === "collapsed";
-  return <SidebarTrigger className={cn("absolute top-1.5 z-30", offset ? "left-20" : "left-2")} />;
+  return (
+    <SidebarTrigger
+      className={cn("app-no-drag absolute top-[7px] z-30", offset ? "left-20" : "left-2")}
+    />
+  );
 }
 
 export function ChatLayout() {
