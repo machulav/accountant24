@@ -5,8 +5,7 @@ import {
 import { usePiRuntime } from "@assistant-ui/react-pi";
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { mentionsToPlainText } from "../lib/mentions";
-import { extractAttachmentRefs } from "../lib/attachmentMarker";
+import { deriveChatTitle } from "../lib/chatTitle";
 import { agentBridge } from "../runtime/agentBridge";
 import { createElectronPiClient } from "../runtime/electronPiClient";
 import {
@@ -81,24 +80,16 @@ export function ChatLayout() {
       const item = runtime.threads.mainItem;
       if (item.getState().title) return;
       const firstUser = runtime.thread.getState().messages.find((m) => m.role === "user");
-      const parts = (firstUser?.content ?? [])
+      const texts = (firstUser?.content ?? [])
         .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => extractAttachmentRefs(p.text));
-      // Render mention directives as their plain label so a title never shows
-      // raw `:account[…]` syntax.
-      const text = mentionsToPlainText(parts.map((p) => p.text).join(" "))
-        .replace(/\s+/g, " ")
-        .trim();
-      // An attachment-only message has no visible text; fall back to the file
-      // name(s) so the chat doesn't keep its "New Chat" placeholder (and so a
-      // reload doesn't surface the raw "[[attachment]]{…}" marker as the title).
-      // Documents carry their name in the message marker; images are gone from
-      // the transcript, so use the names the adapter reported for this run.
-      const title =
-        text ||
-        [...parts.flatMap((p) => p.refs).map((r) => r.name), ...sentImages].join(", ");
+        .map((p) => p.text);
+      // Title from the first user message: its text (markers stripped, mentions
+      // as plain labels), or the attached file/image names for an attachment-only
+      // message. `sentImages` are the names the adapter reported for this run,
+      // since images are gone from the transcript.
+      const title = deriveChatTitle({ texts, imageNames: sentImages });
       if (!title) return;
-      void item.rename(title.length > 60 ? `${title.slice(0, 60).trimEnd()}…` : title);
+      void item.rename(title);
     });
   }, [runtime]);
 
