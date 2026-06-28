@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { sessionsApi } from "@/rpc/api";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -14,7 +15,9 @@ import { MoreHorizontalIcon, PlusIcon, TrashIcon } from "lucide-react";
 import {
   forwardRef,
   Fragment,
+  useEffect,
   useMemo,
+  useState,
   type ComponentPropsWithoutRef,
   type FC,
 } from "react";
@@ -62,25 +65,48 @@ export const ThreadListItems: FC<ComponentPropsWithoutRef<"div">> = ({
 
 const DAY_IN_MS = 86_400_000;
 
-const dateGroupLabel = (
-  date: Date | undefined,
-  startOfToday: number,
-): string => {
-  if (!date || date.getTime() >= startOfToday) return "Today";
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return "Yesterday";
+const dateGroupLabel = (time: number | undefined, startOfToday: number): string => {
+  if (time === undefined || time >= startOfToday) return "Today";
+  if (time >= startOfToday - DAY_IN_MS) return "Yesterday";
   return "Earlier";
 };
 
 type ThreadListGroup = { label: string; indices: number[] };
 
+/** Session modified-time per thread, keyed by id (= the session file path).
+ *  react-pi drops the date when mapping to the assistant-ui thread item, so we
+ *  read it straight from the sessions list. Refetched whenever the set of
+ *  threads changes (new/deleted/renamed chat). */
+function useSessionTimes(threadIds: readonly string[]): Map<string, number> {
+  const [times, setTimes] = useState<Map<string, number>>(new Map());
+  const key = threadIds.join("\n");
+  useEffect(() => {
+    let cancelled = false;
+    sessionsApi
+      .list()
+      .then((res) => {
+        if (cancelled) return;
+        const map = new Map<string, number>();
+        for (const s of res.sessions ?? []) {
+          const t = Date.parse(s.modified);
+          if (!Number.isNaN(t)) map.set(s.path, t);
+        }
+        setTimes(map);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+  return times;
+}
+
 const ThreadListItemGroups: FC = () => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
-  const threadItems = useAuiState((s) => s.threads.threadItems);
+  const times = useSessionTimes(threadIds);
 
   const groups = useMemo<ThreadListGroup[] | null>(() => {
-    const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    const dates = threadIds.map((id) => itemsById.get(id)?.lastMessageAt);
-    if (!dates.some(Boolean)) return null;
+    if (times.size === 0) return null;
 
     const now = new Date();
     const startOfToday = new Date(
@@ -88,15 +114,16 @@ const ThreadListItemGroups: FC = () => {
       now.getMonth(),
       now.getDate(),
     ).getTime();
+    // Unknown time (e.g. a brand-new, unsaved chat) sorts to the top / "Today".
     const time = (index: number) =>
-      dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      times.get(threadIds[index]!) ?? Number.MAX_SAFE_INTEGER;
     const indices = threadIds
       .map((_, index) => index)
       .sort((a, b) => time(b) - time(a));
 
     const result: ThreadListGroup[] = [];
     for (const index of indices) {
-      const label = dateGroupLabel(dates[index], startOfToday);
+      const label = dateGroupLabel(times.get(threadIds[index]!), startOfToday);
       const lastGroup = result[result.length - 1];
       if (lastGroup?.label === label) {
         lastGroup.indices.push(index);
@@ -105,7 +132,7 @@ const ThreadListItemGroups: FC = () => {
       }
     }
     return result;
-  }, [threadIds, threadItems]);
+  }, [threadIds, times]);
 
   if (!groups) {
     return (
