@@ -7,6 +7,7 @@
 // the raw text (see lib/attachmentMarker + runtime/fileAttachmentAdapter).
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { LedgerDirectiveText } from "@/components/assistant-ui/mentions";
 import { extractAttachmentRefs } from "@/lib/attachmentMarker";
 import { cn } from "@/lib/utils";
 import {
@@ -137,9 +138,9 @@ export const UserMessageImage: ImageMessagePartComponent = ({
 
 /** Renders a sent user-message text part. Non-image attachments arrive inlined
  *  as `[[attachment]]{…}` markers; we lift them out as file chips and show only
- *  the human-written text. */
-export const UserMessageText: TextMessagePartComponent = ({ text }) => {
-  const { text: visible, refs } = extractAttachmentRefs(text);
+ *  the human-written text, with any @-mention directives rendered as chips. */
+export const UserMessageText: TextMessagePartComponent = (props) => {
+  const { text: visible, refs } = extractAttachmentRefs(props.text);
   return (
     <>
       {refs.length > 0 && (
@@ -149,7 +150,7 @@ export const UserMessageText: TextMessagePartComponent = ({ text }) => {
           ))}
         </div>
       )}
-      {visible && <span className="whitespace-pre-wrap">{visible}</span>}
+      {visible && <LedgerDirectiveText {...props} text={visible} />}
     </>
   );
 };

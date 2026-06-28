@@ -21,6 +21,7 @@ const INVOKE_CHANNELS = new Set([
   "sessions_list",
   "sessions_delete",
   "files_archive_to_workspace",
+  "ledger_mentions",
 ]);
 
 const EVENT_CHANNELS = new Set(["agent-event", "agent-terminated", "agent-error", "auth-event", "auth-terminated"]);

@@ -1,5 +1,15 @@
 // Subset of the pi RPC protocol and the auth-helper protocol that the UI uses.
 
+// ---- Ledger mentions (@-mention picker data) ----------------------------
+
+/** Entity names available to the chat composer's @-mention popover, sourced
+ *  from `hledger` against the workspace journal. */
+export interface LedgerMentions {
+  accounts: string[];
+  payees: string[];
+  tags: string[];
+}
+
 // ---- Models -------------------------------------------------------------
 
 export interface ModelInfo {

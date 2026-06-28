@@ -133,3 +133,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Lexical composer input (@assistant-ui/react-lexical) — gives the composer
+   inline @mention chips. The library ships no stylesheet; it only renders a
+   wrapper (.aui-lexical-editor), the editable area (.aui-lexical-input), and an
+   overlay placeholder (.aui-lexical-placeholder), so we own the CSS. Padding +
+   min-height live on the editable AND the placeholder (not the wrapper) so the
+   placeholder sits exactly where typed text begins — matching the old textarea
+   (min-h-10 / px-2.5 py-1 / text-base). The wrapper carries width + max-height. */
+.aui-lexical-editor {
+  position: relative;
+}
+.aui-lexical-input {
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.625rem;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.aui-lexical-placeholder {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  padding: 0.25rem 0.625rem;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted-foreground);
+  opacity: 0.8;
+}
+
+/* Mention chip styling lives in the MentionPill component (Tailwind utilities,
+   using assistant-ui's tested directive-chip alignment recipe: inline-flex +
+   items-baseline + [&_svg]:self-center). Per-type colors are applied there too. */

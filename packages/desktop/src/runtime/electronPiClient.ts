@@ -24,6 +24,7 @@ import type {
   PiThreadSnapshot,
   PiTranscriptMessage,
 } from "@assistant-ui/react-pi";
+import { mentionsToPlainText } from "../lib/mentions";
 import { sessionsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
@@ -97,7 +98,7 @@ export function createElectronPiClient(): PiClient {
       metadata: {
         id: threadId,
         status: running.has(threadId) || state.isStreaming ? "running" : "idle",
-        ...(state.sessionName ? { title: state.sessionName } : {}),
+        ...(state.sessionName ? { title: mentionsToPlainText(state.sessionName) } : {}),
         ...(state.sessionFile ? { sessionFile: state.sessionFile } : {}),
         messageCount: state.messageCount ?? list.length,
         config: state.model
@@ -156,7 +157,7 @@ export function createElectronPiClient(): PiClient {
         (s: SessionSummary): PiThreadMetadata => ({
           id: s.path,
           status: "idle",
-          title: s.name || s.firstMessage || baseName(s.path),
+          title: mentionsToPlainText(s.name || s.firstMessage || baseName(s.path)),
           sessionFile: s.path,
           messageCount: s.messageCount,
           updatedAt: s.modified,

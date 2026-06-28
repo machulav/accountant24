@@ -33,6 +33,13 @@ export function piCliPath(): string {
   return path.join(path.dirname(main), "cli.js");
 }
 
+/** Dir holding the vendored native tools (hledger/pdftotext/tesseract). Prepended
+ *  to the agent child's PATH; also used to resolve a tool's absolute path when we
+ *  run one directly from the main process (which does NOT inherit that PATH). */
+export function binDir(): string {
+  return path.join(resourceDir(), "bin");
+}
+
 /** The bundled extension passed to `pi -e`. Loaded as JS in both dev and
  *  packaged (Electron-as-Node can't parse the TS source); produced by
  *  scripts/bundle-extension.ts. */
@@ -49,7 +56,7 @@ export function agentEnv(): NodeJS.ProcessEnv {
     PI_CODING_AGENT_DIR: workspace,
   };
   const res = resourceDir();
-  const bin = path.join(res, "bin");
+  const bin = binDir();
   if (existsSync(bin)) env.PATH = `${bin}${path.delimiter}${env.PATH ?? ""}`;
   const tessdata = path.join(res, "tessdata");
   if (existsSync(tessdata)) env.TESSDATA_PREFIX = tessdata;

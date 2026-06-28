@@ -11,6 +11,7 @@ import type {
   AuthModels,
   AuthProviders,
   AuthStatus,
+  LedgerMentions,
   OllamaInfo,
   SessionSummary,
 } from "./types";
@@ -50,6 +51,11 @@ export const filesApi = {
    *  the stored copy's workspace-relative path. */
   archiveToWorkspace: (name: string, dataBase64: string) =>
     api.invoke<string>("files_archive_to_workspace", { name, dataBase64 }),
+};
+
+export const ledgerApi = {
+  /** Fetch accounts/payees/tags for the @-mention picker. */
+  mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
 };
 
 export const authApi = {

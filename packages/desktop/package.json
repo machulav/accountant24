@@ -8,10 +8,12 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p electron/tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "verify": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.24",
+    "@assistant-ui/react-lexical": "^0.2.4",
     "@assistant-ui/react-markdown": "^0.14.5",
     "@assistant-ui/react-pi": "0.0.5",
     "@earendil-works/pi-ai": "0.79.8",

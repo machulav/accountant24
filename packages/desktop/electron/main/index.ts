@@ -4,6 +4,7 @@
 import { app, BrowserWindow } from "electron";
 import { killAgent, registerAgentIpc } from "./agent";
 import { registerFilesIpc } from "./files";
+import { registerLedgerIpc } from "./ledger";
 import { registerPiIpc } from "./pi";
 import { createWindow } from "./window";
 
@@ -15,6 +16,7 @@ app.whenReady().then(() => {
   registerAgentIpc(getWin);
   registerPiIpc(getWin);
   registerFilesIpc();
+  registerLedgerIpc();
 
   mainWindow = createWindow();
   mainWindow.on("closed", () => {

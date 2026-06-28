@@ -12,13 +12,15 @@ import remarkGfm from "remark-gfm";
 import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
+import { MentionPill } from "@/components/assistant-ui/mentions";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { remarkMentions } from "@/lib/remark-mentions";
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMentions]}
       className="aui-md"
       components={defaultComponents}
       defer
@@ -242,6 +244,17 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
+  // Mention directives (`:account[…]` etc.) are rewritten by remarkMentions into
+  // `<span data-mention-type data-mention-label>`; render those as the shared
+  // chip, and pass every other span through untouched.
+  span: ({ className, ...props }) => {
+    const type = (props as Record<string, unknown>)["data-mention-type"];
+    const label = (props as Record<string, unknown>)["data-mention-label"];
+    if (typeof type === "string" && typeof label === "string") {
+      return <MentionPill type={type} label={label} />;
+    }
+    return <span className={className} {...props} />;
+  },
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (

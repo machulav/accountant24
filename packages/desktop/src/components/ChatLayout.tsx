@@ -5,6 +5,7 @@ import {
 import { usePiRuntime } from "@assistant-ui/react-pi";
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { mentionsToPlainText } from "../lib/mentions";
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { agentBridge } from "../runtime/agentBridge";
 import { createElectronPiClient } from "../runtime/electronPiClient";
@@ -83,9 +84,9 @@ export function ChatLayout() {
       const parts = (firstUser?.content ?? [])
         .filter((p): p is { type: "text"; text: string } => p.type === "text")
         .map((p) => extractAttachmentRefs(p.text));
-      const text = parts
-        .map((p) => p.text)
-        .join(" ")
+      // Render mention directives as their plain label so a title never shows
+      // raw `:account[…]` syntax.
+      const text = mentionsToPlainText(parts.map((p) => p.text).join(" "))
         .replace(/\s+/g, " ")
         .trim();
       // An attachment-only message has no visible text; fall back to the file
