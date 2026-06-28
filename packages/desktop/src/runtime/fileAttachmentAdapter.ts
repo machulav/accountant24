@@ -77,7 +77,15 @@ export class ArchivingImageAttachmentAdapter extends ArchivingAttachmentAdapter 
   accept = MODEL_IMAGE_TYPES;
   protected type = "image" as const;
 
-  protected toContent(_name: string, _path: string, dataUrl: string) {
+  // pi projects a sent image as a bare `image` content part — the filename is
+  // dropped, so it can't be recovered from the transcript later. Report it here
+  // (the one place we still have it) so a file-only chat can be titled from it.
+  constructor(private readonly onSend?: (name: string) => void) {
+    super();
+  }
+
+  protected toContent(name: string, _path: string, dataUrl: string) {
+    this.onSend?.(name);
     return [{ type: "image" as const, image: dataUrl }];
   }
 }

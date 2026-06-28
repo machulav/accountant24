@@ -3,7 +3,7 @@ import {
   CompositeAttachmentAdapter,
 } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { agentBridge } from "../runtime/agentBridge";
@@ -42,10 +42,15 @@ export function ChatLayout() {
   //  - everything else (PDF, CSV, …) → archived AND sent as a workspace path the
   //    agent reads/extracts (pi carries only text + images to the model)
   // The "*" adapter must be last (it handles all remaining types).
+  // Image filenames are lost once pi projects them to bare `image` parts, so the
+  // adapter reports each sent image's name here. `pending` collects the current
+  // send; `run` is the snapshot taken at agent_start so a run is titled only from
+  // its own images (not images left over from an earlier, already-titled chat).
+  const imageNames = useRef<{ pending: string[]; run: string[] }>({ pending: [], run: [] });
   const attachments = useMemo(
     () =>
       new CompositeAttachmentAdapter([
-        new ArchivingImageAttachmentAdapter(),
+        new ArchivingImageAttachmentAdapter((name) => imageNames.current.pending.push(name)),
         new WorkspaceFileAttachmentAdapter("*"),
       ]),
     [],
@@ -59,18 +64,36 @@ export function ChatLayout() {
   // skipped, so this never clobbers a manual rename or fires twice.
   useEffect(() => {
     return agentBridge.addEventListener((e) => {
+      // Claim this run's images before agent_end so a later message can't retitle.
+      if (e.type === "agent_start") {
+        imageNames.current.run = imageNames.current.pending;
+        imageNames.current.pending = [];
+        return;
+      }
       if (e.type !== "agent_end") return;
+      const sentImages = imageNames.current.run;
+      imageNames.current.run = [];
       const item = runtime.threads.mainItem;
       if (item.getState().title) return;
       const firstUser = runtime.thread.getState().messages.find((m) => m.role === "user");
-      const text = (firstUser?.content ?? [])
+      const parts = (firstUser?.content ?? [])
         .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => extractAttachmentRefs(p.text).text)
+        .map((p) => extractAttachmentRefs(p.text));
+      const text = parts
+        .map((p) => p.text)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim();
-      if (!text) return;
-      void item.rename(text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text);
+      // An attachment-only message has no visible text; fall back to the file
+      // name(s) so the chat doesn't keep its "New Chat" placeholder (and so a
+      // reload doesn't surface the raw "[[attachment]]{…}" marker as the title).
+      // Documents carry their name in the message marker; images are gone from
+      // the transcript, so use the names the adapter reported for this run.
+      const title =
+        text ||
+        [...parts.flatMap((p) => p.refs).map((r) => r.name), ...sentImages].join(", ");
+      if (!title) return;
+      void item.rename(title.length > 60 ? `${title.slice(0, 60).trimEnd()}…` : title);
     });
   }, [runtime]);
 
