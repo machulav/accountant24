@@ -1,36 +1,32 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fetchBriefingData, parseAmount, parseAmounts, parseBalRows, parseBalTotal, parseCSVLine } from "../briefing";
 
-// Mock at I/O boundary (Bun.spawn) so the real tryRunHledger/runHledger/spawn execute.
-const origSpawn = Bun.spawn;
+// Mock at I/O boundary (spawnText) so the real tryRunHledger/runHledger/spawn execute.
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
-// Helper: set sequential Bun.spawn responses for the 4 fetchBriefingData queries.
+// Helper: set sequential spawnText responses for the 4 fetchBriefingData queries.
 // null → simulate command error (exitCode 1, tryRunHledger returns null)
 function setBunSpawnResponses(responses: (string | null)[]) {
   let callIndex = 0;
-  // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => {
+  vi.mocked(spawnText).mockImplementation(async () => {
     const r = responses[callIndex++];
     if (r === null) return makeMockProc(1, "", "error");
     return makeMockProc(0, r ?? "");
   });
 }
 
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+afterEach(() => {});
 
 describe("parseCSVLine", () => {
   test("simple fields", () => {
@@ -218,8 +214,7 @@ describe("fetchBriefingData()", () => {
 
   test("should return error when HledgerNotFoundError is thrown", async () => {
     // exitCode 127 → HledgerNotFoundError
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => makeMockProc(127));
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(127));
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.error).toContain("hledger is not installed");
     expect(data.netWorth).toEqual([]);
@@ -230,9 +225,7 @@ describe("fetchBriefingData()", () => {
 
   test("should return empty data when spawn throws unexpected error", async () => {
     // tryRunHledger catches all non-HledgerNotFoundError errors, returns null
-    Bun.spawn = mock(() => {
-      throw new Error("network timeout");
-    });
+    vi.mocked(spawnText).mockRejectedValue(new Error("network timeout"));
     // The error is swallowed by tryRunHledger, data fields are empty
     const data = await fetchBriefingData("/fake/main.journal");
     expect(data.netWorth).toEqual([]);
@@ -377,8 +370,12 @@ describe("fetchBriefingData() future transactions", () => {
   let journalPath: string;
 
   beforeEach(() => {
-    // Restore real Bun.spawn — the outer afterEach will reset it
-    Bun.spawn = origSpawn;
+    // This block runs against real hledger; delegate the spawnText mock to it.
+    vi.mocked(spawnText).mockImplementation(async (cmd, opts) => {
+      const r = spawnSync(cmd[0], cmd.slice(1), { cwd: opts?.cwd, encoding: "utf8" });
+      if (r.error) throw r.error;
+      return { exitCode: r.status ?? 0, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+    });
 
     tmp = mkdtempSync(join(tmpdir(), "briefing-future-"));
     journalPath = join(tmp, "main.journal");

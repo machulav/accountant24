@@ -1,14 +1,13 @@
-#!/usr/bin/env bun
 // Release orchestrator (app-only desktop build):
 //   1. preflight: working tree clean, on main, `gh` authenticated
 //   2. bump version + generate changelog + tag (changelogen --release)
-//   3. build the .app/.dmg (electron-builder, via `bun run dist`)
+//   3. build the .app/.dmg (electron-builder, via `npm run dist`)
 //   4. push main + tag
 //   5. create a GitHub Release with the .dmg
 //
 // Usage:
-//   bun run release            # full release
-//   bun run release:dry        # show what would happen, no state changes
+//   npm run release            # full release
+//   npm run release:dry        # show what would happen, no state changes
 //
 // Code signing / notarization is governed by electron-builder env vars
 // (CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID)
@@ -17,6 +16,7 @@
 // NOTE: builds the host architecture only. Shipping both Apple-Silicon and Intel
 // (or a universal) .dmg is a follow-up.
 
+import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,38 +28,37 @@ const DRY = process.argv.includes("--dry-run");
 
 type CmdOpts = { cwd?: string; capture?: boolean; allowDry?: boolean };
 
-async function sh(cmd: string[], opts: CmdOpts = {}): Promise<string> {
+function sh(cmd: string[], opts: CmdOpts = {}): string {
   console.log(`$ ${cmd.join(" ")}`);
   if (DRY && !opts.allowDry) return "";
-  const proc = Bun.spawn(cmd, {
+  const r = spawnSync(cmd[0], cmd.slice(1), {
     cwd: opts.cwd ?? ROOT,
-    stdout: opts.capture ? "pipe" : "inherit",
-    stderr: "inherit",
+    stdio: ["inherit", opts.capture ? "pipe" : "inherit", "inherit"],
+    encoding: "utf8",
   });
-  const out = opts.capture ? await new Response(proc.stdout).text() : "";
-  const code = await proc.exited;
-  if (code !== 0) throw new Error(`Command failed (${code}): ${cmd.join(" ")}`);
-  return out.trim();
+  if (r.error) throw r.error;
+  if (r.status !== 0) throw new Error(`Command failed (${r.status}): ${cmd.join(" ")}`);
+  return opts.capture ? (r.stdout ?? "").trim() : "";
 }
 
-async function main() {
+function main() {
   // 1. preflight checks
-  const status = await sh(["git", "status", "--porcelain"], { capture: true, allowDry: true });
+  const status = sh(["git", "status", "--porcelain"], { capture: true, allowDry: true });
   if (status.length > 0) throw new Error(`Working tree not clean:\n${status}`);
 
-  const branch = await sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], { capture: true, allowDry: true });
+  const branch = sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], { capture: true, allowDry: true });
   if (branch !== "main") throw new Error(`Must release from main (currently on ${branch})`);
 
-  await sh(["gh", "auth", "status"], { allowDry: true });
+  sh(["gh", "auth", "status"], { allowDry: true });
 
   // 2. capture release notes from changelogen (display-only mode outputs to stdout)
-  const rawMarkdown = await sh(["bun", "run", "changelogen"], { capture: true, allowDry: true });
+  const rawMarkdown = sh(["npx", "changelogen"], { capture: true, allowDry: true });
   const releaseNotes = rawMarkdown.split("\n").slice(2).join("\n").trim();
 
   // 3. bump version + write CHANGELOG.md + commit + tag via changelogen.
   //    No --push; push happens after a successful build so a failure can be rolled
   //    back with `git reset --hard HEAD~1 && git tag -d`.
-  await sh(["bun", "run", "changelogen", "--release"]);
+  sh(["npx", "changelogen", "--release"]);
 
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
   const version: string = pkg.version;
@@ -67,7 +66,7 @@ async function main() {
   console.log(`[release] staged ${tag}`);
 
   // 4. bundle the extension, build main/preload/renderer, then package the .app/.dmg.
-  await sh(["bun", "run", "dist"]);
+  sh(["npm", "run", "dist"]);
 
   // locate the produced .dmg(s)
   const dmgs = DRY ? [] : readdirSync(DMG_DIR).filter((f) => f.endsWith(".dmg")).map((f) => join(DMG_DIR, f));
@@ -75,16 +74,18 @@ async function main() {
   for (const dmg of dmgs) console.log(`[release] built ${dmg}`);
 
   // 5. push main + tag
-  await sh(["git", "push", "origin", "main"]);
-  await sh(["git", "push", "origin", tag]);
+  sh(["git", "push", "origin", "main"]);
+  sh(["git", "push", "origin", tag]);
 
   // 6. create the GitHub Release with the .dmg artifacts
-  await sh(["gh", "release", "create", tag, "--title", tag, "--notes", releaseNotes, ...dmgs]);
+  sh(["gh", "release", "create", tag, "--title", tag, "--notes", releaseNotes, ...dmgs]);
 
   console.log(`[release] ✓ ${tag} published`);
 }
 
-main().catch((err) => {
+try {
+  main();
+} catch (err) {
   console.error("[release] failed:", err);
   process.exit(1);
-});
+}

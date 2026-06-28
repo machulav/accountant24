@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { gradeDeterministic, gradeOutcome } from "../grader";
 import type { WorkspaceState } from "../workspace";
 import { makeCase as _makeCase, makeTool } from "./helpers";

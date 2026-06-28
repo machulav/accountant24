@@ -10,10 +10,10 @@ import accountsJournal from "./template/ledger/accounts.journal" with { type: "t
 import commoditiesJournal from "./template/ledger/commodities.journal" with { type: "text" };
 // @ts-expect-error
 import mainJournal from "./template/ledger/main.journal" with { type: "text" };
-// Text imports so `bun build --compile` inlines template files into the binary.
-// TS lib doesn't ship types for text import attributes, and for .json files TS
-// treats the import as JSON regardless of the `type: "text"` attribute — Bun
-// still returns the raw text at runtime, so we cast these at the manifest site.
+// Text imports so esbuild inlines template files into the bundle (the text
+// loaders in scripts/bundle-extension.ts). TS lib doesn't ship types for text
+// import attributes, and for .json files TS treats the import as JSON regardless
+// of the `type: "text"` attribute, so we cast these at the manifest site.
 // @ts-expect-error
 import memoryMd from "./template/memory.md" with { type: "text" };
 

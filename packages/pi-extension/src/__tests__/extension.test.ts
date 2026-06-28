@@ -1,7 +1,7 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { setBaseDir } from "../config";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-ext-"));
@@ -25,12 +25,12 @@ type AnyFn = Function;
 function createMockPi() {
   const handlers: Record<string, AnyFn> = {};
   return {
-    registerTool: mock(() => {}),
-    registerCommand: mock(() => {}),
-    on: mock((event: string, handler: AnyFn) => {
+    registerTool: vi.fn(() => {}),
+    registerCommand: vi.fn(() => {}),
+    on: vi.fn((event: string, handler: AnyFn) => {
       handlers[event] = handler;
     }),
-    sendMessage: mock(() => {}),
+    sendMessage: vi.fn(() => {}),
     handlers,
   };
 }

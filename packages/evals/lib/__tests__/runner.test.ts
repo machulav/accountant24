@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EvalDeps, EvalRunConfig } from "../runner";
 import { runEval } from "../runner";
 import type { CheckResult, LoadedEvalCase } from "../types";
@@ -15,7 +15,7 @@ let mockGradeWithRubricCalled = false;
 let mockGradeWithRubricArgs: unknown[] = [];
 let mockInspectWorkspaceCalled = false;
 let mockWorkspaceHome = "/tmp/fake-workspace";
-const mockWorkspaceCleanup = mock(() => {});
+const mockWorkspaceCleanup = vi.fn(() => {});
 let capturedSetBaseDir: string | undefined;
 let capturedGetModelArgs: unknown[] = [];
 let capturedLoadCasesFilter: string | undefined;

@@ -1,16 +1,16 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 
 let mockMemory = "";
 let mockAccounts: string[] = [];
 let mockPayees: string[] = [];
 let mockTags: string[] = [];
 
-mock.module("../../ledger/index", () => ({
+vi.mock("../../ledger/index", () => ({
   listAccounts: async () => mockAccounts,
   listPayees: async () => mockPayees,
   listTags: async () => mockTags,
 }));
-mock.module("../../memory/index", () => ({
+vi.mock("../../memory/index", () => ({
   getMemory: async () => mockMemory,
 }));
 

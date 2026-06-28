@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { afterEach, describe, expect, test } from "vitest";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-file-store-"));
 
-import { mock } from "bun:test";
+import { vi } from "vitest";
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),

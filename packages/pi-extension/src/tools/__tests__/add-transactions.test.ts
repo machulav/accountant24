@@ -1,4 +1,8 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +10,7 @@ import { join } from "node:path";
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-add-tx-"));
 const LEDGER = join(BASE, "ledger");
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.md"),
@@ -14,16 +18,10 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-// Mock at Bun.spawn level so real hledger.ts functions execute for coverage.
-const origSpawn = Bun.spawn;
+// Mock at spawnText level so real hledger.ts functions execute for coverage.
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
 let mockExitCode: number;
@@ -39,22 +37,18 @@ const setMock = (exit: number, stdout = "", stderr = "") => {
 const { addTransactionsTool } = await import("../add-transactions.js");
 
 afterAll(() => {
-  Bun.spawn = origSpawn;
   rmSync(BASE, { recursive: true, force: true });
 });
 
 beforeEach(() => {
   setMock(0);
-  // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => makeMockProc(mockExitCode, mockStdout, mockStderr));
+  vi.mocked(spawnText).mockImplementation(async () => makeMockProc(mockExitCode, mockStdout, mockStderr));
   // Clean and recreate ledger dir
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
 });
 
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+afterEach(() => {});
 
 const run = (params: any) =>
   addTransactionsTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
@@ -136,7 +130,7 @@ test("does not duplicate existing include", async () => {
 test("calls hledger check after writing", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   await run({ transactions: [basicTx] });
-  expect(Bun.spawn).toHaveBeenCalled();
+  expect(spawnText).toHaveBeenCalled();
 });
 
 test("throws on validation failure", async () => {
@@ -295,9 +289,7 @@ test("should not redeclare commodity that exists with a format", async () => {
 
 test("should re-throw unexpected validation errors", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  Bun.spawn = mock(() => {
-    throw new TypeError("unexpected");
-  });
+  vi.mocked(spawnText).mockRejectedValue(new TypeError("unexpected"));
   await expect(run({ transactions: [basicTx] })).rejects.toThrow("unexpected");
 });
 
@@ -376,7 +368,7 @@ describe("batch transactions", () => {
   test("should run hledger check only once for the entire batch", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     await run({ transactions: [basicTx, tx2, tx3] });
-    expect(Bun.spawn).toHaveBeenCalledTimes(1);
+    expect(spawnText).toHaveBeenCalledTimes(1);
   });
 
   test("should collect commodities from all transactions", async () => {

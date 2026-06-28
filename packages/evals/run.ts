@@ -8,7 +8,7 @@ export function parseModelArg(arg: string): { provider: string; model: string } 
   return { provider: arg.slice(0, slashIndex), model: arg.slice(slashIndex + 1) };
 }
 
-// CLI args: skip "bun" and script path
+// CLI args: skip node and the script path
 const args = process.argv.slice(2);
 const filter = process.env.EVAL_FILTER;
 

@@ -1,29 +1,21 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, type Mock, test, vi } from "vitest";
 
 // ── Strategy ────────────────────────────────────────────────────────
-// hledger.ts wraps Bun.spawn. Other test files mock hledger.js exports
-// via mock.module (which leaks between files in bun). To test the
-// behavioural specification we use fallback implementations.
-//
-// HOWEVER: mod.tryRunHledger (from ...utils spread in other mocks)
-// is still the REAL function whose module-scope closure calls the
-// real internal runHledger → real spawn → Bun.spawn. We exploit
-// this to cover the real tryRunHledger code (lines 31-38) by
-// mocking Bun.spawn in a separate describe block.
+// Verify the runHledger / tryRunHledger / hledgerCheck behavioural contract
+// (exit-code handling, ENOENT → HledgerNotFoundError, abort signal) against
+// fallback implementations that mirror hledger.ts's spec, driven by the
+// spawnResult / spawnThrow test state below.
 // ─────────────────────────────────────────────────────────────────────
 
 const mod = await import("../hledger.js");
 const { HledgerNotFoundError, HledgerCommandError } = mod;
 
-// Keep a reference to real Bun.spawn for restoration
-const origSpawn = Bun.spawn;
-
-// ── Test state for both paths ───────────────────────────────────────
+// ── Test state ──────────────────────────────────────────────────────
 
 let spawnResult: { exitCode: number; stdout: string; stderr: string };
 let spawnThrow: Error | null;
 let lastArgs: string[];
-let killFn: ReturnType<typeof mock>;
+let killFn: Mock<() => void>;
 
 // Fallback implementation matching hledger.ts spec
 async function spawn(
@@ -74,27 +66,11 @@ beforeEach(() => {
   spawnResult = { exitCode: 0, stdout: "", stderr: "" };
   spawnThrow = null;
   lastArgs = [];
-  killFn = mock(() => {});
+  killFn = vi.fn(() => {});
 
-  // Check if the real module's runHledger uses Bun.spawn
-  // by replacing Bun.spawn and seeing if it takes effect
-  const testResult = { exitCode: 0, stdout: "__test__", stderr: "" };
-  // @ts-expect-error - testing if real Bun.spawn mocking works
-  Bun.spawn = mock(() => ({
-    stdout: new Blob([testResult.stdout]).stream(),
-    stderr: new Blob([""]).stream(),
-    exited: Promise.resolve(0),
-    kill: () => {},
-  }));
-
-  // We'll determine which path to use based on the first test
-  // For now, use fallback to be safe when running together
   runHledger = fallbackRunHledger;
   tryRunHledger = fallbackTryRunHledger;
   hledgerCheck = fallbackHledgerCheck;
-
-  // Restore Bun.spawn for clean state
-  Bun.spawn = origSpawn;
 });
 
 // ── Error types ─────────────────────────────────────────────────────
@@ -181,7 +157,7 @@ describe("runHledger()", () => {
     spawnResult = { exitCode: 1, stdout: "partial output", stderr: "something went wrong" };
     try {
       await runHledger(["bal"]);
-      expect.unreachable("should have thrown");
+      throw new Error("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(HledgerCommandError);
       const err = e as InstanceType<typeof HledgerCommandError>;
@@ -218,7 +194,7 @@ describe("runHledger()", () => {
     spawnResult = { exitCode: 127, stdout: "", stderr: "" };
     try {
       await runHledger(["bal"]);
-      expect.unreachable("should have thrown");
+      throw new Error("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(HledgerNotFoundError);
       expect(e).not.toBeInstanceOf(HledgerCommandError);

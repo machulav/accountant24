@@ -1,4 +1,8 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +10,7 @@ import { join } from "node:path";
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-transactions-"));
 const LEDGER = join(BASE, "ledger");
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.md"),
@@ -14,15 +18,8 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-const origSpawn = Bun.spawn;
-
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
 const { addTransactions } = await import("../transactions.js");
@@ -42,13 +39,10 @@ async function addTransaction(params: any, signal?: AbortSignal) {
 beforeEach(() => {
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
-  // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => makeMockProc(0));
+  vi.mocked(spawnText).mockResolvedValue(makeMockProc(0));
 });
 
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+afterEach(() => {});
 
 function findLine(text: string, search: string): string {
   const line = text.split("\n").find((l: string) => l.includes(search));
@@ -513,23 +507,19 @@ describe("addTransaction() diff", () => {
 describe("addTransaction() hledger validation", () => {
   test("should throw with stderr when hledger check fails", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => makeMockProc(1, "", "account not declared"));
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "account not declared"));
     await expect(addTransaction(basicParams)).rejects.toThrow("account not declared");
   });
 
   test("should throw when hledger is not found", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => makeMockProc(127));
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(127));
     await expect(addTransaction(basicParams)).rejects.toThrow("hledger not found");
   });
 
   test("should re-throw unexpected errors from hledger", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    Bun.spawn = mock(() => {
-      throw new TypeError("unexpected");
-    });
+    vi.mocked(spawnText).mockRejectedValue(new TypeError("unexpected"));
     await expect(addTransaction(basicParams)).rejects.toThrow("unexpected");
   });
 
@@ -595,7 +585,7 @@ describe("addTransactions() batch operations", () => {
   test("should run hledger check once for the entire batch", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     await addTransactions([basicParams, tx2, tx3]);
-    expect(Bun.spawn).toHaveBeenCalledTimes(1);
+    expect(spawnText).toHaveBeenCalledTimes(1);
   });
 
   test("should collect all commodities across batch", async () => {
@@ -646,8 +636,7 @@ describe("addTransactions() batch operations", () => {
 
   test("should include all file paths in hledger error for multi-file batch", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    // @ts-expect-error - mocking Bun.spawn
-    Bun.spawn = mock(() => makeMockProc(1, "", "unbalanced transaction"));
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "unbalanced transaction"));
     await expect(addTransactions([basicParams, tx3])).rejects.toThrow(/2026.*03\.journal.*2026.*04\.journal/);
   });
 

@@ -1,8 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 import { formatAccounts } from "../accounts";
 
 let mockLoadAccounts: () => Promise<string[]>;
-mock.module("../../ledger/index", () => ({
+vi.mock("../../ledger/index", () => ({
   listAccounts: async () => mockLoadAccounts(),
 }));
 
@@ -10,7 +10,7 @@ const { accountsCommand } = await import("../accounts.js");
 
 describe("accountsCommand()", () => {
   test("should register command named 'accounts' with correct description", () => {
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     accountsCommand(pi);
     expect(pi.registerCommand).toHaveBeenCalledTimes(1);
     const [name, opts] = pi.registerCommand.mock.calls[0];
@@ -20,7 +20,7 @@ describe("accountsCommand()", () => {
 
   test("should send formatted accounts when accounts exist", async () => {
     mockLoadAccounts = async () => ["assets:checking", "expenses:food:groceries"];
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     accountsCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();
@@ -33,7 +33,7 @@ describe("accountsCommand()", () => {
 
   test("should send 'No accounts found.' when no accounts", async () => {
     mockLoadAccounts = async () => [];
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     accountsCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();

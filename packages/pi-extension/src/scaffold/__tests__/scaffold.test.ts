@@ -1,11 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-scaffold-"));
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
@@ -180,16 +181,14 @@ describe("ensureScaffolded()", () => {
 
   test("should create initial commit with scaffolded files", async () => {
     await ensureScaffolded();
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: BASE, stdout: "pipe", stderr: "pipe" });
-    const log = await new Response(proc.stdout).text();
+    const { stdout: log } = await spawnText(["git", "log", "--oneline", "-1"], { cwd: BASE });
     expect(log).toContain("Initial Accountant24 setup");
   });
 
   test("should not create another commit on second run", async () => {
     await ensureScaffolded();
     await ensureScaffolded();
-    const proc = Bun.spawn(["git", "log", "--oneline"], { cwd: BASE, stdout: "pipe", stderr: "pipe" });
-    const log = await new Response(proc.stdout).text();
+    const { stdout: log } = await spawnText(["git", "log", "--oneline"], { cwd: BASE });
     const lines = log
       .trim()
       .split("\n")

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import chalk from "chalk";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EvalResult } from "../types";
 import { makeResult } from "./helpers";
 
@@ -10,14 +10,14 @@ let capturedRunEvalConfig: any;
 
 // ── Mock runner and reporter ────────────────────────────────────────
 
-mock.module("../runner.js", () => ({
+vi.mock("../runner.js", () => ({
   runEval: async (config: any) => {
     capturedRunEvalConfig = config;
     return mockRunEvalResult;
   },
 }));
 
-mock.module("../reporter.js", () => ({
+vi.mock("../reporter.js", () => ({
   formatResults: () => "MOCK_REPORT",
 }));
 
@@ -123,7 +123,7 @@ describe("renderTable()", () => {
 describe("createProgressHandler()", () => {
   it("should not write to stdout on start event", () => {
     const handler = createProgressHandler();
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       handler({ type: "start", total: 5 });
       expect(writeSpy).not.toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe("createProgressHandler()", () => {
 
   it("should write table on case_start event", () => {
     const handler = createProgressHandler();
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       handler({ type: "start", total: 3 });
       handler({ type: "case_start", index: 0, total: 3, id: "test-001" });
@@ -149,7 +149,7 @@ describe("createProgressHandler()", () => {
 
   it("should update row and rewrite table on case_end event", () => {
     const handler = createProgressHandler();
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       handler({ type: "start", total: 1 });
       handler({ type: "case_start", index: 0, total: 1, id: "test-001" });
@@ -165,7 +165,7 @@ describe("createProgressHandler()", () => {
 
   it("should show FAIL for failed case_end", () => {
     const handler = createProgressHandler();
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       handler({ type: "start", total: 1 });
       handler({ type: "case_start", index: 0, total: 1, id: "fail-001" });
@@ -180,7 +180,7 @@ describe("createProgressHandler()", () => {
 
   it("should include model label in table output", () => {
     const handler = createProgressHandler("openai/gpt-5");
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       handler({ type: "start", total: 1 });
       handler({ type: "case_start", index: 0, total: 1, id: "test-001" });
@@ -195,7 +195,7 @@ describe("createProgressHandler()", () => {
 describe("main()", () => {
   it("should return exitCode 0 when all results pass", async () => {
     mockRunEvalResult = [makeResult({ id: "pass-001", passed: true })];
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       const { exitCode } = await main(defaultConfig);
       expect(exitCode).toBe(0);
@@ -206,8 +206,8 @@ describe("main()", () => {
 
   it("should return exitCode 1 when any result fails", async () => {
     mockRunEvalResult = [makeResult({ id: "pass-001", passed: true }), makeResult({ id: "fail-001", passed: false })];
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const { exitCode } = await main(defaultConfig);
       expect(exitCode).toBe(1);
@@ -220,7 +220,7 @@ describe("main()", () => {
 
   it("should log formatted results when results exist", async () => {
     mockRunEvalResult = [makeResult({ id: "test-001", passed: true })];
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       await main(defaultConfig);
       expect(logSpy).toHaveBeenCalledWith("MOCK_REPORT");
@@ -231,7 +231,7 @@ describe("main()", () => {
 
   it("should not log when results are empty", async () => {
     mockRunEvalResult = [];
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       await main(defaultConfig);
       expect(logSpy).not.toHaveBeenCalled();

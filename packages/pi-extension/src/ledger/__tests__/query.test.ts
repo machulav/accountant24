@@ -1,10 +1,14 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-ledger-"));
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
@@ -12,30 +16,22 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-// Mock at I/O boundary (Bun.spawn) so the real hledger.ts functions execute.
-const origSpawn = Bun.spawn;
+// Mock at I/O boundary (spawnText) so the real hledger.ts functions execute.
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
 const { queryLedger } = await import("../query.js");
 
 afterEach(() => {
   rmSync(BASE, { recursive: true, force: true });
-  Bun.spawn = origSpawn;
 });
 
 describe("queryLedger()", () => {
   describe("return shape", () => {
     beforeEach(() => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(0, "100 USD  Expenses:Food"));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(0, "100 USD  Expenses:Food"));
     });
 
     test("should return an object with command and output fields", async () => {
@@ -57,15 +53,13 @@ describe("queryLedger()", () => {
 
   describe("(no results) fallback", () => {
     test("should return output=(no results) when hledger returns empty string", async () => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(0, ""));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(0, ""));
       const result = await queryLedger({ report: "bal" });
       expect(result.output).toBe("(no results)");
     });
 
     test("should return actual output when hledger returns non-empty content", async () => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(0, "500 USD  Expenses"));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(0, "500 USD  Expenses"));
       const result = await queryLedger({ report: "bal" });
       expect(result.output).not.toBe("(no results)");
       expect(result.output).toContain("Expenses");
@@ -74,8 +68,7 @@ describe("queryLedger()", () => {
 
   describe("command string", () => {
     beforeEach(() => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(0, ""));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(0, ""));
     });
 
     test("should include -f and the resolved journal path in command", async () => {
@@ -113,14 +106,12 @@ describe("queryLedger()", () => {
 
   describe("error handling", () => {
     test("should throw when hledger is not found", async () => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(127));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(127));
       await expect(queryLedger({ report: "bal" })).rejects.toThrow("hledger not found");
     });
 
     test("should throw when hledger exits with non-zero code", async () => {
-      // @ts-expect-error - mocking Bun.spawn
-      Bun.spawn = mock(() => makeMockProc(1, "", "parse error"));
+      vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "parse error"));
       await expect(queryLedger({ report: "bal" })).rejects.toThrow("parse error");
     });
 

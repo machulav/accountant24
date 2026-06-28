@@ -1,7 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 
 let mockGetMemory: () => Promise<string>;
-mock.module("../../memory/index", () => ({
+vi.mock("../../memory/index", () => ({
   getMemory: async () => mockGetMemory(),
 }));
 
@@ -9,7 +9,7 @@ const { formatMemory, memoryCommand } = await import("../memory.js");
 
 describe("memoryCommand()", () => {
   test("should register command named 'memory' with correct description", () => {
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     memoryCommand(pi);
     expect(pi.registerCommand).toHaveBeenCalledTimes(1);
     const [name, opts] = pi.registerCommand.mock.calls[0];
@@ -19,7 +19,7 @@ describe("memoryCommand()", () => {
 
   test("should send formatted memory when memory exists", async () => {
     mockGetMemory = async () => "## Personal\n- Name: Volo";
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     memoryCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();
@@ -32,7 +32,7 @@ describe("memoryCommand()", () => {
 
   test("should send 'No memory found.' when memory is empty", async () => {
     mockGetMemory = async () => "";
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     memoryCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();

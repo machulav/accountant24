@@ -1,11 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-commit-tool-"));
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
@@ -16,7 +17,7 @@ mock.module("../../config.js", () => ({
 const { commitAndPushTool } = await import("../commit-and-push.js");
 
 async function gitRun(args: string[], cwd = BASE) {
-  return Bun.spawn(["git", ...args], { cwd, stdout: "pipe", stderr: "pipe" }).exited;
+  return spawnText(["git", ...args], { cwd });
 }
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
@@ -65,7 +66,7 @@ describe("commit_and_push tool", () => {
 
   test("should report pushed=true when remote exists", async () => {
     const bareDir = mkdtempSync(join(tmpdir(), "accountant24-bare-"));
-    await Bun.spawn(["git", "init", "--bare"], { cwd: bareDir, stdout: "pipe", stderr: "pipe" }).exited;
+    await spawnText(["git", "init", "--bare"], { cwd: bareDir });
     await gitRun(["remote", "add", "origin", bareDir]);
 
     writeFileSync(join(BASE, "file.txt"), "content");

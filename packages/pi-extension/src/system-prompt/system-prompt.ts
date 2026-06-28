@@ -1,6 +1,6 @@
 import { listAccounts, listPayees, listTags } from "../ledger";
 import { getMemory } from "../memory";
-// Text import so `bun build --compile` inlines system.md into the binary.
+// Text import so esbuild inlines system.md into the bundle (scripts/bundle-extension.ts).
 // @ts-expect-error — TS lib doesn't ship types for text import attributes yet
 import systemMdText from "./system.md" with { type: "text" };
 

@@ -1,8 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 import { formatTags } from "../tags";
 
 let mockLoadTags: () => Promise<string[]>;
-mock.module("../../ledger/index", () => ({
+vi.mock("../../ledger/index", () => ({
   listTags: async () => mockLoadTags(),
 }));
 
@@ -10,7 +10,7 @@ const { tagsCommand } = await import("../tags.js");
 
 describe("tagsCommand()", () => {
   test("should register command named 'tags' with correct description", () => {
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     tagsCommand(pi);
     expect(pi.registerCommand).toHaveBeenCalledTimes(1);
     const [name, opts] = pi.registerCommand.mock.calls[0];
@@ -20,7 +20,7 @@ describe("tagsCommand()", () => {
 
   test("should send formatted tags when tags exist", async () => {
     mockLoadTags = async () => ["groceries", "weekly"];
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     tagsCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();
@@ -33,7 +33,7 @@ describe("tagsCommand()", () => {
 
   test("should send 'No tags found.' when no tags", async () => {
     mockLoadTags = async () => [];
-    const pi = { registerCommand: mock(() => {}), sendMessage: mock(() => {}) } as any;
+    const pi = { registerCommand: vi.fn(() => {}), sendMessage: vi.fn(() => {}) } as any;
     tagsCommand(pi);
     const handler = pi.registerCommand.mock.calls[0][1].handler;
     await handler();

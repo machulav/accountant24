@@ -1,29 +1,39 @@
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
 import { commitAll, diffStat, gitInit, hasChanges, hasRemotes, push } from "../git";
 
+vi.mock("../../spawn");
+
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-git-"));
-const origSpawn = Bun.spawn;
+
+// Real git for test setup/verification, independent of the spawnText mock.
+function git(args: string[], cwd: string): string {
+  return spawnSync("git", args, { cwd, encoding: "utf8" }).stdout ?? "";
+}
 
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
-afterEach(() => {
-  Bun.spawn = origSpawn;
+
+// By default the module under test runs REAL git; the failure tests below override.
+beforeEach(() => {
+  vi.mocked(spawnText).mockImplementation(async (cmd, opts) => {
+    const r = spawnSync(cmd[0], cmd.slice(1), { cwd: opts?.cwd, encoding: "utf8" });
+    if (r.error) throw r.error;
+    return { exitCode: r.status ?? 0, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+  });
 });
 
-// Helper: create a fresh git repo in a temp dir
 function freshDir(): string {
-  const dir = mkdtempSync(join(BASE, "repo-"));
-  return dir;
+  return mkdtempSync(join(BASE, "repo-"));
 }
 
 async function initRepo(dir: string): Promise<void> {
   await gitInit(dir);
-  // Configure user for commits in this test repo
-  const spawn = (args: string[]) => Bun.spawn(["git", ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" }).exited;
-  await spawn(["config", "user.email", "test@test.com"]);
-  await spawn(["config", "user.name", "Test"]);
+  git(["config", "user.email", "test@test.com"], dir);
+  git(["config", "user.name", "Test"], dir);
 }
 
 // ── gitInit() ───────────────────────────────────────────────────────
@@ -98,11 +108,7 @@ describe("hasRemotes()", () => {
   test("should return true when a remote is configured", async () => {
     const dir = freshDir();
     await initRepo(dir);
-    await Bun.spawn(["git", "remote", "add", "origin", "https://example.com/repo.git"], {
-      cwd: dir,
-      stdout: "pipe",
-      stderr: "pipe",
-    }).exited;
+    git(["remote", "add", "origin", "https://example.com/repo.git"], dir);
 
     expect(await hasRemotes(dir)).toBe(true);
   });
@@ -118,8 +124,7 @@ describe("commitAll()", () => {
 
     await commitAll(dir, "test commit message");
 
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
+    const log = git(["log", "--oneline", "-1"], dir);
     expect(log).toContain("test commit message");
   });
 
@@ -133,8 +138,7 @@ describe("commitAll()", () => {
     await commitAll(dir, "add untracked");
 
     expect(await hasChanges(dir)).toBe(false);
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: dir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
+    const log = git(["log", "--oneline", "-1"], dir);
     expect(log).toContain("add untracked");
   });
 
@@ -226,23 +230,18 @@ describe("push()", () => {
   test("should push to a local bare remote", async () => {
     // Set up a bare repo as remote
     const bareDir = freshDir();
-    await Bun.spawn(["git", "init", "--bare"], { cwd: bareDir, stdout: "pipe", stderr: "pipe" }).exited;
+    git(["init", "--bare"], bareDir);
 
     const dir = freshDir();
     await initRepo(dir);
-    await Bun.spawn(["git", "remote", "add", "origin", bareDir], {
-      cwd: dir,
-      stdout: "pipe",
-      stderr: "pipe",
-    }).exited;
+    git(["remote", "add", "origin", bareDir], dir);
 
     writeFileSync(join(dir, "file.txt"), "content");
     await commitAll(dir, "initial commit");
     await push(dir);
 
     // Verify the bare repo received the commit
-    const proc = Bun.spawn(["git", "log", "--oneline", "-1"], { cwd: bareDir, stdout: "pipe" });
-    const log = await new Response(proc.stdout).text();
+    const log = git(["log", "--oneline", "-1"], bareDir);
     expect(log).toContain("initial commit");
   });
 });
@@ -251,11 +250,11 @@ describe("push()", () => {
 
 describe("when git is not installed", () => {
   function simulateGitMissing(): void {
-    Bun.spawn = ((_cmd: string[], _opts?: any) => {
-      const err: any = new Error("spawn git ENOENT");
+    vi.mocked(spawnText).mockImplementation(async () => {
+      const err: NodeJS.ErrnoException = new Error("spawn git ENOENT");
       err.code = "ENOENT";
       throw err;
-    }) as unknown as typeof Bun.spawn;
+    });
   }
 
   test("gitInit() should silently fail", async () => {
@@ -300,9 +299,7 @@ describe("when git is not installed", () => {
 describe("when spawn throws a non-ENOENT error", () => {
   test("should re-throw the error", async () => {
     const dir = freshDir();
-    Bun.spawn = (() => {
-      throw new Error("unexpected failure");
-    }) as unknown as typeof Bun.spawn;
+    vi.mocked(spawnText).mockRejectedValue(new Error("unexpected failure"));
 
     await expect(hasChanges(dir)).rejects.toThrow("unexpected failure");
   });

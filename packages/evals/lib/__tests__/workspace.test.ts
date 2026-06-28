@@ -1,6 +1,6 @@
-import { afterAll, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 import { createEvalWorkspace, inspectWorkspace } from "../workspace";
 import { makeCase as _makeCase } from "./helpers";
 

@@ -1,27 +1,25 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-query-"));
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
   setBaseDir: () => {},
 }));
 
-// Mock Bun.spawn instead of hledger.js — this is the real I/O boundary.
+// Mock spawnText instead of hledger.js — this is the real I/O boundary.
 // This lets the real hledger.ts functions execute (contributing to coverage).
-const origSpawn = Bun.spawn;
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
 let mockProc: ReturnType<typeof makeMockProc>;
@@ -31,18 +29,15 @@ const { queryTool } = await import("../query.js");
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 beforeEach(() => {
   mockProc = makeMockProc(0, "");
-  // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => mockProc);
+  vi.mocked(spawnText).mockImplementation(async () => mockProc);
 });
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+afterEach(() => {});
 
 const run = (params: any) => queryTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
-/** Extract the args array passed to the most recent Bun.spawn call */
+/** Extract the args array passed to the most recent spawnText call */
 function spawnArgs(): string[] {
-  const calls = (Bun.spawn as any).mock.calls;
+  const calls = vi.mocked(spawnText).mock.calls;
   return calls[calls.length - 1][0];
 }
 
@@ -93,7 +88,7 @@ describe("execute()", () => {
   });
 });
 
-// ── arg-building (Bun.spawn args) ─────────────────────────────────
+// ── arg-building (spawnText args) ─────────────────────────────────
 
 describe("arg-building", () => {
   test("builds basic bal command", async () => {

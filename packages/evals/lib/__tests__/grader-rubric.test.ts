@@ -1,10 +1,10 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { makeCase as _makeCase, makeTool } from "./helpers";
 
 let mockJudgeResponse = "PASS: looks good";
 let lastPrompt = "";
 
-mock.module("@earendil-works/pi-ai", () => ({
+vi.mock("@earendil-works/pi-ai", () => ({
   getModel: () => ({}),
   streamSimple: (_model: unknown, opts: { messages: { content: string }[] }) => {
     lastPrompt = opts.messages[0]?.content ?? "";

@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, test } from "bun:test";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, test } from "vitest";
 import { ACCOUNTANT24_HOME, LEDGER_DIR, MEMORY_PATH, setBaseDir } from "../config";
 
 const originalHome = join(homedir(), "Accountant24");

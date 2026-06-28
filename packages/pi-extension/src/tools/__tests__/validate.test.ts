@@ -1,4 +1,8 @@
-import { afterAll, afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
+
+vi.mock("../../spawn");
+
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +10,7 @@ import { join } from "node:path";
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-validate-"));
 const LEDGER = join(BASE, "ledger");
 
-mock.module("../../config.js", () => ({
+vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: LEDGER,
@@ -14,16 +18,10 @@ mock.module("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-// Mock at Bun.spawn level — the only spawn call is hledger check.
-const origSpawn = Bun.spawn;
+// Mock at spawnText level — the only spawn call is hledger check.
 
 function makeMockProc(exitCode: number, stdout = "", stderr = "") {
-  return {
-    stdout: new Blob([stdout]).stream(),
-    stderr: new Blob([stderr]).stream(),
-    exited: Promise.resolve(exitCode),
-    kill: mock(() => {}),
-  };
+  return { exitCode, stdout, stderr };
 }
 
 let mockExitCode: number;
@@ -39,22 +37,18 @@ const setMock = (exit: number, stdout = "", stderr = "") => {
 const { validateTool } = await import("../validate.js");
 
 afterAll(() => {
-  Bun.spawn = origSpawn;
   rmSync(BASE, { recursive: true, force: true });
 });
 
 beforeEach(() => {
   setMock(0);
-  // @ts-expect-error - mocking Bun.spawn
-  Bun.spawn = mock(() => makeMockProc(mockExitCode, mockStdout, mockStderr));
+  vi.mocked(spawnText).mockImplementation(async () => makeMockProc(mockExitCode, mockStdout, mockStderr));
   // Clean and recreate ledger dir per test
   rmSync(LEDGER, { recursive: true, force: true });
   mkdirSync(LEDGER, { recursive: true });
 });
 
-afterEach(() => {
-  Bun.spawn = origSpawn;
-});
+afterEach(() => {});
 
 const run = (params: any) =>
   validateTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
@@ -76,8 +70,6 @@ test("throws on validation failure", async () => {
 });
 
 test("re-throws unexpected errors", async () => {
-  Bun.spawn = mock(() => {
-    throw new TypeError("unexpected");
-  });
+  vi.mocked(spawnText).mockRejectedValue(new TypeError("unexpected"));
   await expect(run({})).rejects.toThrow("unexpected");
 });
