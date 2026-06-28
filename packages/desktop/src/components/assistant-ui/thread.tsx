@@ -54,11 +54,16 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
-// Startup exposes a loading placeholder thread; treat it as a new chat so
-// the composer mounts centered. Loads after startup keep the docked layout.
+// Center the composer only for a genuinely new, empty chat. "New chat" is the
+// not-yet-created thread (its id is the runtime's `newThreadId`); switching to an
+// existing thread keeps the docked layout. Keying off `mainThreadId ===
+// newThreadId` (a stable fact) instead of `!isLoading` avoids a flicker: during a
+// switch there's a frame where messages are already cleared but `isLoading` hasn't
+// flipped true yet, which made the welcome layout flash. `threads.isLoading`
+// covers the startup placeholder before the thread list resolves.
 const isNewChatView = (s: AssistantState) =>
   s.thread.messages.length === 0 &&
-  (!s.thread.isLoading || s.threads.isLoading);
+  (s.threads.mainThreadId === s.threads.newThreadId || s.threads.isLoading);
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const isEmpty = useAuiState(isNewChatView);
