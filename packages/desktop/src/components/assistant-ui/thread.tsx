@@ -1,19 +1,12 @@
 "use client";
 
+import {
+  ChainOfThoughtRoot,
+  ChainOfThoughtStep,
+} from "@/components/assistant-ui/chain-of-thought";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningRoot,
-  ReasoningText,
-  ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { ComposerModelSelector } from "@/components/ComposerModelSelector";
@@ -30,33 +23,18 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
-import {
-  createContext,
-  useContext,
-  type ComponentType,
-  type FC,
-  type PropsWithChildren,
-} from "react";
-
-export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+import { createContext, useContext, type ComponentType, type FC } from "react";
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
- * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`.
+ * `Welcome` replace whole sections; `ToolFallback` overrides how a tool call
+ * renders. Tool UIs registered by name (toolkit `render`, `useAssistantDataUI`)
+ * take precedence over `ToolFallback`.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
-  ToolGroup?:
-    | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
-    | undefined;
-  ReasoningGroup?:
-    | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
-    | undefined;
 };
 
 export type ThreadProps = {
@@ -278,11 +256,7 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
-  const {
-    ToolFallback: ToolFallbackComponent = ToolFallback,
-    ToolGroup,
-    ReasoningGroup,
-  } = useContext(ThreadComponentsContext);
+  const { ToolFallback: ToolFallbackComponent = ToolFallback } = useContext(ThreadComponentsContext);
 
   return (
     <MessagePrimitive.Root
@@ -297,50 +271,38 @@ const AssistantMessage: FC = () => {
       >
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
-            reasoning: ["group-chainOfThought", "group-reasoning"],
-            "tool-call": ["group-chainOfThought", "group-tool"],
+            // Reasoning + tool calls share ONE group, so a turn renders as a
+            // single ordered chain-of-thought timeline (not per-type collapsibles).
+            reasoning: ["group-chainOfThought"],
+            "tool-call": ["group-chainOfThought"],
             "standalone-tool-call": [],
           })}
         >
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-tool":
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
+                  <ChainOfThoughtRoot
+                    count={part.indices.length}
+                    endIndex={part.indices[part.indices.length - 1] ?? 0}
+                  >
+                    {children}
+                  </ChainOfThoughtRoot>
                 );
-              case "group-reasoning": {
-                if (ReasoningGroup) {
-                  return (
-                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                  );
-                }
-                const running = part.status.type === "running";
-                return (
-                  <ReasoningRoot streaming={running} variant="ghost">
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
-                );
-              }
               case "text":
                 return <MarkdownText />;
               case "reasoning":
-                return <Reasoning {...part} />;
+                return (
+                  <ChainOfThoughtStep variant="reasoning">
+                    <Reasoning {...part} />
+                  </ChainOfThoughtStep>
+                );
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                return (
+                  <ChainOfThoughtStep variant="tool">
+                    {part.toolUI ?? <ToolFallbackComponent {...part} />}
+                  </ChainOfThoughtStep>
+                );
               case "data":
                 return part.dataRendererUI;
               case "indicator":
