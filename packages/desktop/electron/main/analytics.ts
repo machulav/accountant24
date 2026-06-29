@@ -10,7 +10,7 @@ import { consumeFirstLaunch, isAnalyticsEnabled } from "./settings";
 
 // Not a secret — Aptabase app keys are embedded in the client, like a website
 // analytics id. EU region instance.
-const APP_KEY = "A-EU-1931893507";
+const APP_KEY = "A-EU-0473586488";
 
 /** Initialize the Aptabase SDK. Safe to call before tracking; emits nothing on
  *  its own. */
