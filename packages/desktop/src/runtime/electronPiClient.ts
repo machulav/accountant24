@@ -26,7 +26,7 @@ import type {
 } from "@assistant-ui/react-pi";
 import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
-import { sessionsApi, settingsApi } from "../rpc/api";
+import { analyticsApi, sessionsApi, settingsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
@@ -169,6 +169,7 @@ export function createElectronPiClient(): PiClient {
 
     async createThread(input) {
       await agentBridge.request({ type: "new_session" }, "new_session");
+      analyticsApi.track("chat_created");
       // Pick the model for the fresh session: the model the user chose in the
       // composer for this new chat, else the configured default. Sent before
       // get_state so the snapshot reflects it (stdin commands run in order).
@@ -202,6 +203,7 @@ export function createElectronPiClient(): PiClient {
 
     async sendMessage(threadId, input: PiSendMessageInput) {
       await ensureActive(threadId);
+      analyticsApi.track("user_message_sent"); // count only; never the message content
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
       await agentBridge.send({
         type: "prompt",

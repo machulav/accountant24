@@ -93,6 +93,14 @@ export const ledgerApi = {
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
 };
 
+export const analyticsApi = {
+  /** Fire-and-forget a UI analytics event; main enforces the opt-out. Pass only
+   *  event names + string/number props — never user content (message text, etc.). */
+  track(event: string, props?: Record<string, string | number>): void {
+    api.invoke<void>("analytics_track", { event, props }).catch(() => undefined);
+  },
+};
+
 export const authApi = {
   status: () => api.invoke<AuthStatus>("auth_status"),
   providers: () => api.invoke<AuthProviders>("auth_providers"),

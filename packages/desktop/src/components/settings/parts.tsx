@@ -5,15 +5,15 @@ export function Section({
   description,
   children,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="border-b px-6 py-5 last:border-b-0">
-      <h2 className="text-sm font-semibold">{title}</h2>
+      {title && <h2 className="text-sm font-semibold">{title}</h2>}
       {description && <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>}
-      <div className="mt-4">{children}</div>
+      <div className={title || description ? "mt-4" : ""}>{children}</div>
     </section>
   );
 }

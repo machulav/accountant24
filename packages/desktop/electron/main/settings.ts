@@ -17,6 +17,13 @@ export interface AppSettings {
   defaultModel?: string;
   /** `provider/modelId` ids the user can pick from in chat. Empty/absent = all enabled. */
   enabledModels?: string[];
+  /** Anonymous usage analytics opt-out. Absent = on (the default). */
+  analyticsEnabled?: boolean;
+  /** Whether the first-run analytics notice has been acknowledged/dismissed. */
+  analyticsNoticeAcknowledged?: boolean;
+  /** Set true after the first launch; used to emit the one-time `app_installed`
+   *  event exactly once. Main-process only. */
+  firstLaunchDone?: boolean;
 }
 
 function appSettingsPath(): string {
@@ -51,6 +58,9 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
   if (Array.isArray(raw.enabledModels)) {
     out.enabledModels = (raw.enabledModels as unknown[]).filter((x): x is string => typeof x === "string");
   }
+  if (typeof raw.analyticsEnabled === "boolean") out.analyticsEnabled = raw.analyticsEnabled;
+  if (typeof raw.analyticsNoticeAcknowledged === "boolean") out.analyticsNoticeAcknowledged = raw.analyticsNoticeAcknowledged;
+  if (typeof raw.firstLaunchDone === "boolean") out.firstLaunchDone = raw.firstLaunchDone;
   return out;
 }
 
@@ -90,8 +100,29 @@ function writeSettings(patch: Partial<AppSettings>): AppSettings {
   return merged;
 }
 
-/** Register settings IPC handlers. */
-export function registerSettingsIpc(): void {
+/** Register settings IPC handlers.
+ *  @param opts.onAnalyticsToggled called when `analyticsEnabled` actually flips,
+ *    with the new value — lets the caller record the opt-in/opt-out. */
+export function registerSettingsIpc(opts?: { onAnalyticsToggled?: (enabled: boolean) => void }): void {
   ipcMain.handle("settings_get", () => readSettings());
-  ipcMain.handle("settings_set", (_e, patch: Partial<AppSettings>) => writeSettings(patch));
+  ipcMain.handle("settings_set", (_e, patch: Partial<AppSettings>) => {
+    const before = readSettings().analyticsEnabled ?? true;
+    const merged = writeSettings(patch);
+    const after = merged.analyticsEnabled ?? true;
+    if (after !== before) opts?.onAnalyticsToggled?.(after);
+    return merged;
+  });
+}
+
+/** Whether anonymous usage analytics are enabled (default on, opt-out). */
+export function isAnalyticsEnabled(): boolean {
+  return readSettings().analyticsEnabled ?? true;
+}
+
+/** Returns true exactly once — on the first-ever launch — and persists a marker
+ *  so subsequent launches return false. Used to emit a one-time install event. */
+export function consumeFirstLaunch(): boolean {
+  const first = !readSettings().firstLaunchDone;
+  if (first) writeSettings({ firstLaunchDone: true });
+  return first;
 }

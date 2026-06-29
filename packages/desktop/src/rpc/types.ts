@@ -35,6 +35,10 @@ export interface AppSettings {
   defaultModel?: string;
   /** `provider/modelId` ids the user can pick from in chat. Empty/absent = all enabled. */
   enabledModels?: string[];
+  /** Anonymous usage analytics opt-out. Absent = on (the default). */
+  analyticsEnabled?: boolean;
+  /** Whether the first-run analytics notice has been acknowledged/dismissed. */
+  analyticsNoticeAcknowledged?: boolean;
 }
 
 // ---- Auth helper records (`accountant24 auth ...`) ----------------------

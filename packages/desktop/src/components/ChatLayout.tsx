@@ -14,6 +14,7 @@ import {
   WorkspaceFileAttachmentAdapter,
 } from "../runtime/fileAttachmentAdapter";
 import { PiClientContext } from "../runtime/modelsContext";
+import { AnalyticsNotice } from "./AnalyticsNotice";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
 import { Settings } from "./settings/Settings";
@@ -125,6 +126,7 @@ export function ChatLayout() {
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
             <Thread />
+            <AnalyticsNotice />
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>

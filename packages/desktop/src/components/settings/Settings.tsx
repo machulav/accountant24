@@ -4,21 +4,23 @@
 // Dialog so it gets focus trapping and Esc-to-close for free.
 
 import { useState } from "react";
-import { CpuIcon, PlugIcon } from "lucide-react";
+import { CpuIcon, PlugIcon, ShieldIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { AnalyticsSettings } from "./AnalyticsSettings";
 import { ModelsSettings } from "./ModelsSettings";
 import { ProvidersSettings } from "./ProvidersSettings";
 
-type Section = "providers" | "models";
+export type SettingsSection = "providers" | "models" | "privacy";
 
-const NAV: { id: Section; label: string; icon: typeof CpuIcon }[] = [
+const NAV: { id: SettingsSection; label: string; icon: typeof CpuIcon }[] = [
   { id: "providers", label: "Providers", icon: PlugIcon },
   { id: "models", label: "Models", icon: CpuIcon },
+  { id: "privacy", label: "Privacy", icon: ShieldIcon },
 ];
 
 export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [section, setSection] = useState<Section>("providers");
+  const [section, setSection] = useState<SettingsSection>("providers");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,6 +54,7 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
         <div className="min-w-0 flex-1 overflow-y-auto">
           {section === "providers" && <ProvidersSettings />}
           {section === "models" && <ModelsSettings />}
+          {section === "privacy" && <AnalyticsSettings />}
         </div>
       </DialogContent>
     </Dialog>
