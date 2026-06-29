@@ -22,11 +22,13 @@ const iconFor = (type: string): FC<{ className?: string }> =>
   ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
 
 // Per-type colors (static strings so Tailwind keeps them). account=blue,
-// payee=green, tag=yellow, each with a dark-mode variant.
+// payee=green, tag=yellow. Muted/desaturated dusty tones rather than Tailwind's
+// vivid stock hues, so the chips read calm instead of bright. Each has a
+// dark-mode variant.
 const TYPE_COLORS: Record<string, string> = {
-  account: "bg-blue-200 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
-  payee: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
-  tag: "bg-amber-200 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+  account: "bg-[#d4def0] text-[#3f5685] dark:bg-[#2c3850] dark:text-[#a7bdde]",
+  payee: "bg-[#d2e8db] text-[#3f6e55] dark:bg-[#293d31] dark:text-[#a3c9b1]",
+  tag: "bg-[#efe1cd] text-[#856b41] dark:bg-[#3f3626] dark:text-[#d8c096]",
 };
 
 /** The single inline chip used for a mention — in the composer (Lexical
