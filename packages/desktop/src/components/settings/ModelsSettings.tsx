@@ -39,6 +39,7 @@ function DefaultModelSection({
     // composer, not to Settings.
     <ModelSelector.Root
       models={options}
+      modal
       {...(value !== undefined ? { value } : {})}
       onValueChange={onSelect}
     >

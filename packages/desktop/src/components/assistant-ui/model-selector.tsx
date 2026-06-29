@@ -172,6 +172,12 @@ export type ModelSelectorRootProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Make the popover modal. Needed when the selector lives inside a Radix Dialog:
+   * the dialog's scroll lock otherwise blocks wheel/trackpad scrolling over the
+   * portaled popover list. A modal popover installs its own scoped scroll lock.
+   */
+  modal?: boolean;
   children: ReactNode;
 };
 
@@ -186,6 +192,7 @@ function ModelSelectorRoot({
   open: openProp,
   defaultOpen,
   onOpenChange,
+  modal,
   children,
 }: ModelSelectorRootProps) {
   const [value, setValue] = useControllableState({
@@ -233,7 +240,7 @@ function ModelSelectorRoot({
   return (
     <ModelSelectorContext.Provider value={contextValue}>
       {/* `?? false` narrows away undefined for exactOptionalPropertyTypes consumers. */}
-      <Popover open={open ?? false} onOpenChange={setOpen}>
+      <Popover open={open ?? false} onOpenChange={setOpen} {...(modal ? { modal: true } : {})}>
         {children}
       </Popover>
     </ModelSelectorContext.Provider>
