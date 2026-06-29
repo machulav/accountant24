@@ -21,6 +21,22 @@ export interface ModelInfo {
   contextWindow?: number;
 }
 
+// ---- App settings (app-owned config in ~/Accountant24/settings.json) -----
+
+/** A concrete model pick: provider + the provider's model id. */
+export interface ModelRef {
+  provider: string;
+  modelId: string;
+}
+
+/** The app's own settings (distinct from pi's config, which we don't write). */
+export interface AppSettings {
+  /** Model new chats start with, as a `provider/modelId` id (same format as enabledModels). */
+  defaultModel?: string;
+  /** `provider/modelId` ids the user can pick from in chat. Empty/absent = all enabled. */
+  enabledModels?: string[];
+}
+
 // ---- Auth helper records (`accountant24 auth ...`) ----------------------
 
 export interface AuthProviderRow {
@@ -29,6 +45,10 @@ export interface AuthProviderRow {
   oauth: boolean;
   configured: boolean;
   source?: string;
+  /** Human label for how a configured provider is authenticated (e.g. "Subscription", "API key"). */
+  connection?: string;
+  /** Whether the credential lives in auth.json and can be logged out (vs env / models.json). */
+  removable?: boolean;
 }
 
 export interface AuthStatus {

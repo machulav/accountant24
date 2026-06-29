@@ -3,7 +3,8 @@ import {
   CompositeAttachmentAdapter,
 } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { useEffect, useMemo, useRef } from "react";
+import { SettingsIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { deriveChatTitle } from "../lib/chatTitle";
 import { agentBridge } from "../runtime/agentBridge";
@@ -15,11 +16,16 @@ import {
 import { PiClientContext } from "../runtime/modelsContext";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
+import { Settings } from "./settings/Settings";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -60,6 +66,7 @@ export function ChatLayout() {
     [],
   );
   const runtime = usePiRuntime({ client, adapters: { attachments } });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // react-pi stubs out generateTitle, so a new chat keeps its placeholder name.
   // When a still-untitled chat finishes its first run, title it from the first
@@ -103,12 +110,23 @@ export function ChatLayout() {
             <SidebarContent className="px-2">
               <ThreadList />
             </SidebarContent>
+            <SidebarFooter className="px-2">
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
+                    <SettingsIcon className="size-4" />
+                    Settings
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
           </Sidebar>
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
             <Thread />
           </SidebarInset>
+          <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>
       </PiClientContext.Provider>
     </AssistantRuntimeProvider>

@@ -88,4 +88,10 @@ export function registerAgentIpc(getWin: () => BrowserWindow | null): void {
     child.stdin.write(`${JSON.stringify(command)}\n`);
   });
   ipcMain.handle("agent_stop", () => killAgent());
+  // Respawn the child so it re-reads auth.json + models.json — used after the app
+  // adds/removes a provider, since the agent caches both in memory at startup.
+  ipcMain.handle("agent_restart", () => {
+    killAgent();
+    spawnAgent(getWin);
+  });
 }

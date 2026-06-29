@@ -6,6 +6,7 @@ import { killAgent, registerAgentIpc } from "./agent";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerPiIpc } from "./pi";
+import { registerSettingsIpc } from "./settings";
 import { createWindow } from "./window";
 
 let mainWindow: BrowserWindow | null = null;
@@ -15,6 +16,7 @@ app.whenReady().then(() => {
   // App-global IPC handlers (registered once); sends go to the current window.
   registerAgentIpc(getWin);
   registerPiIpc(getWin);
+  registerSettingsIpc();
   registerFilesIpc();
   registerLedgerIpc();
 

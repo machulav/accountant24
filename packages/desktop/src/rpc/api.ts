@@ -7,6 +7,7 @@
 
 import type {
   AgentEvent,
+  AppSettings,
   AuthEvent,
   AuthModels,
   AuthProviders,
@@ -23,10 +24,24 @@ export function dlog(msg: string): void {
   console.debug("[a24]", msg);
 }
 
+/** Fired after the agent's model set changes (e.g. a provider was added and the
+ *  agent was restarted), so the composer's picker re-fetches its model list. */
+const MODELS_CHANGED = "a24:models-changed";
+
 export const agentApi = {
   start: () => api.invoke<void>("agent_start"),
   send: (command: object) => api.invoke<void>("agent_send", command),
   stop: () => api.invoke<void>("agent_stop"),
+  /** Respawn the agent so it re-reads auth.json + models.json, then notify the UI. */
+  async restart(): Promise<void> {
+    await api.invoke<void>("agent_restart");
+    window.dispatchEvent(new Event(MODELS_CHANGED));
+  },
+  /** Subscribe to model-set changes; returns an unsubscribe function. */
+  onModelsChanged(cb: () => void): () => void {
+    window.addEventListener(MODELS_CHANGED, cb);
+    return () => window.removeEventListener(MODELS_CHANGED, cb);
+  },
   onEvent: async (cb: (event: AgentEvent) => void): Promise<() => void> =>
     api.on("agent-event", (payload) => {
       try {
@@ -53,6 +68,26 @@ export const filesApi = {
     api.invoke<string>("files_archive_to_workspace", { name, dataBase64 }),
 };
 
+/** Fired after the app settings change, so live views (e.g. the composer's model
+ *  picker) can re-read without an app restart. */
+const SETTINGS_CHANGED = "a24:settings-changed";
+
+export const settingsApi = {
+  /** Read the app's own settings (~/Accountant24/settings.json). */
+  get: () => api.invoke<AppSettings>("settings_get"),
+  /** Merge-patch the app settings; resolves with the merged result. */
+  async set(patch: Partial<AppSettings>): Promise<AppSettings> {
+    const merged = await api.invoke<AppSettings>("settings_set", patch);
+    window.dispatchEvent(new Event(SETTINGS_CHANGED));
+    return merged;
+  },
+  /** Subscribe to settings changes; returns an unsubscribe function. */
+  onChange(cb: () => void): () => void {
+    window.addEventListener(SETTINGS_CHANGED, cb);
+    return () => window.removeEventListener(SETTINGS_CHANGED, cb);
+  },
+};
+
 export const ledgerApi = {
   /** Fetch accounts/payees/tags for the @-mention picker. */
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
@@ -67,6 +102,8 @@ export const authApi = {
   logout: (provider: string) => api.invoke<{ type: string; message?: string }>("auth_logout", { provider }),
   detectOllama: () => api.invoke<OllamaInfo>("auth_detect_ollama"),
   addOllama: (model: string) => api.invoke<{ type: string; message?: string }>("auth_add_ollama", { model }),
+  addAllOllama: () => api.invoke<{ type: string; message?: string; count?: number }>("auth_add_all_ollama"),
+  removeOllama: () => api.invoke<{ type: string; message?: string }>("auth_remove_ollama"),
   login: (provider: string) => api.invoke<void>("auth_login", { provider }),
   loginRespond: (id: string, value: string | null) => api.invoke<void>("auth_login_respond", { id, value }),
   loginCancel: () => api.invoke<void>("auth_login_cancel"),

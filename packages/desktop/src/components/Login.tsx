@@ -3,22 +3,12 @@
 //   - OAuth: sign in to a subscription (Claude Pro/Max, ChatGPT) via the browser.
 //   - Local: detect Ollama and register a model (no key needed).
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { authApi } from "../rpc/api";
-import type { AuthEvent, AuthProviders, OllamaInfo } from "../rpc/types";
-
-/** An IPC event unsubscriber (returned by authApi.onEvent / onTerminated). */
-type UnlistenFn = () => void;
+import type { AuthProviders, OllamaInfo } from "../rpc/types";
+import { useOAuthLogin } from "./auth/useOAuthLogin";
 
 type Mode = "menu" | "apikey" | "oauth" | "ollama";
-
-interface PendingRequest {
-  id: string;
-  kind: "prompt" | "select" | "manual_code";
-  message: string;
-  placeholder?: string;
-  options?: { id: string; label: string }[];
-}
 
 export function Login({ onDone }: { onDone: () => void }) {
   const [providers, setProviders] = useState<AuthProviders | null>(null);
@@ -145,85 +135,14 @@ function OAuthForm({
   onBack: () => void;
   onDone: () => void;
 }) {
-  const [active, setActive] = useState<string | null>(null);
-  const [log, setLog] = useState<string[]>([]);
-  const [request, setRequest] = useState<PendingRequest | null>(null);
+  const { active, log, request, error, start, respond, cancel } = useOAuthLogin(onDone);
   const [answer, setAnswer] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const unlisteners = useRef<UnlistenFn[]>([]);
 
-  const cleanup = useCallback(() => {
-    for (const un of unlisteners.current) un();
-    unlisteners.current = [];
-  }, []);
-
-  useEffect(() => cleanup, [cleanup]);
-
-  const onAuthEvent = useCallback(
-    (event: AuthEvent) => {
-      switch (event.type) {
-        case "auth":
-          setLog((l) => [...l, "Opened your browser to authorize. Complete sign-in there…"]);
-          break;
-        case "device_code":
-          setLog((l) => [
-            ...l,
-            `Enter code ${event.userCode} at ${event.verificationUri}`,
-          ]);
-          break;
-        case "progress":
-          setLog((l) => [...l, event.message]);
-          break;
-        case "prompt":
-          setRequest({ id: event.id, kind: "prompt", message: event.message, placeholder: event.placeholder });
-          break;
-        case "select":
-          setRequest({ id: event.id, kind: "select", message: event.message, options: event.options });
-          break;
-        case "manual_code":
-          setRequest({ id: event.id, kind: "manual_code", message: "Paste the code from your browser" });
-          break;
-        case "done":
-          cleanup();
-          onDone();
-          break;
-        case "error":
-          setError(event.message);
-          setActive(null);
-          cleanup();
-          break;
-      }
-    },
-    [cleanup, onDone],
-  );
-
-  const startLogin = async (providerId: string) => {
-    setActive(providerId);
-    setLog([]);
-    setError(null);
-    setRequest(null);
-    cleanup();
-    unlisteners.current.push(await authApi.onEvent(onAuthEvent));
-    unlisteners.current.push(
-      await authApi.onTerminated((code) => {
-        if (code && code !== 0) setError("Login process exited unexpectedly.");
-      }),
-    );
-    await authApi.login(providerId);
-  };
+  const startLogin = (providerId: string) => start(providerId);
 
   const answerRequest = (value: string | null) => {
-    if (!request) return;
-    authApi.loginRespond(request.id, value).catch(() => undefined);
-    setRequest(null);
+    respond(value);
     setAnswer("");
-  };
-
-  const cancel = () => {
-    authApi.loginCancel().catch(() => undefined);
-    cleanup();
-    setActive(null);
-    setRequest(null);
   };
 
   if (!active) {

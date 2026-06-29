@@ -24,10 +24,12 @@ import type {
   PiThreadSnapshot,
   PiTranscriptMessage,
 } from "@assistant-ui/react-pi";
+import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
-import { sessionsApi } from "../rpc/api";
+import { sessionsApi, settingsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
+import { newChatModel } from "./newChatModel";
 
 /** Subset of the `get_state` response we read. */
 type PiState = {
@@ -167,6 +169,20 @@ export function createElectronPiClient(): PiClient {
 
     async createThread(input) {
       await agentBridge.request({ type: "new_session" }, "new_session");
+      // Pick the model for the fresh session: the model the user chose in the
+      // composer for this new chat, else the configured default. Sent before
+      // get_state so the snapshot reflects it (stdin commands run in order).
+      try {
+        const chosen = newChatModel.get() ?? parseModelId((await settingsApi.get()).defaultModel ?? "");
+        if (chosen) {
+          await agentBridge.send({ type: "set_model", provider: chosen.provider, modelId: chosen.modelId });
+        }
+      } catch {
+        // No model configured / settings unreadable: keep pi's own default.
+      } finally {
+        // Reset so the next new chat starts from the default again.
+        newChatModel.set(undefined);
+      }
       const state = await agentBridge.request<PiState>({ type: "get_state" }, "get_state");
       const id = state.sessionFile ?? state.sessionId ?? `pending-${(pendingCounter += 1)}`;
       activeThreadId = id;
