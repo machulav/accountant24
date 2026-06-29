@@ -1,3 +1,6 @@
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
 import { describe, expect, it } from "vitest";
 import { remarkMentions } from "../remark-mentions";
 
@@ -58,10 +61,30 @@ describe("remarkMentions", () => {
     expect(tree.children![0]!.children).toEqual([{ type: "text", value: "see :foo[bar]" }]);
   });
 
-  it("leaves inline code untouched (directive stays literal)", () => {
+  it("turns a backticked directive (inlineCode) into a mention chip", () => {
+    // The model often wraps a directive in backticks; markdown parses that as an
+    // inlineCode node. It should still render as a chip, not a literal code span.
     const code: Node = { type: "inlineCode", value: ":payee[Rewe]" };
     const tree = run(root(para(code)));
-    expect(tree.children![0]!.children![0]).toEqual({ type: "inlineCode", value: ":payee[Rewe]" });
+    expect(tree.children![0]!.children![0]).toEqual({
+      type: "mention",
+      data: { hName: "span", hProperties: { "data-mention-type": "payee", "data-mention-label": "Rewe" } },
+      children: [{ type: "text", value: "Rewe" }],
+    });
+  });
+
+  it("keeps non-directive inline code code-styled when splitting", () => {
+    const code: Node = { type: "inlineCode", value: "x = :account[Assets:Bank]" };
+    const tree = run(root(para(code)));
+    const children = tree.children![0]!.children!;
+    expect(children[0]).toEqual({ type: "inlineCode", value: "x = " });
+    expect(children[1]!.type).toBe("mention");
+  });
+
+  it("leaves inline code without a directive untouched", () => {
+    const code: Node = { type: "inlineCode", value: "ledger balance" };
+    const tree = run(root(para(code)));
+    expect(tree.children![0]!.children![0]).toEqual({ type: "inlineCode", value: "ledger balance" });
   });
 
   it("leaves fenced code blocks untouched", () => {
@@ -87,5 +110,60 @@ describe("remarkMentions", () => {
     const tree = run(root(para(text(":tag[a] and :tag[b]"))));
     const kinds = tree.children![0]!.children!.map((n) => n.type);
     expect(kinds).toEqual(["mention", "text", "mention"]);
+  });
+});
+
+// End-to-end against a real markdown parse, mirroring markdown-text.tsx's
+// `remarkPlugins={[remarkGfm, remarkMentions]}`. This proves actual model output
+// (which markdown turns into text/inlineCode nodes) renders as chips — the unit
+// tests above feed hand-built nodes and can't catch a regression in how the parser
+// classifies a directive.
+describe("remarkMentions (real markdown pipeline)", () => {
+  /** Parse markdown the way the app does and collect every mention node's label. */
+  function mentionLabels(md: string): { type: string; label: string }[] {
+    const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMentions);
+    const tree = processor.runSync(processor.parse(md)) as Node;
+    const out: { type: string; label: string }[] = [];
+    const visit = (n: Node): void => {
+      if (n.type === "mention") {
+        const p = n.data!.hProperties!;
+        out.push({ type: p["data-mention-type"]!, label: p["data-mention-label"]! });
+      }
+      n.children?.forEach(visit);
+    };
+    visit(tree);
+    return out;
+  }
+
+  it("renders a bare directive as a chip", () => {
+    expect(mentionLabels("Logged :payee[EDEKA] today")).toEqual([{ type: "payee", label: "EDEKA" }]);
+  });
+
+  it("renders a backticked directive as a chip (the reported bug)", () => {
+    expect(mentionLabels("Paid from `:account[assets:bank:n26]`")).toEqual([
+      { type: "account", label: "assets:bank:n26" },
+    ]);
+  });
+
+  it("renders bare and backticked directives consistently in one message", () => {
+    const md = "Logged :payee[EDEKA] to `:account[expenses:food:groceries]` from `:account[assets:bank:n26]`";
+    expect(mentionLabels(md)).toEqual([
+      { type: "payee", label: "EDEKA" },
+      { type: "account", label: "expenses:food:groceries" },
+      { type: "account", label: "assets:bank:n26" },
+    ]);
+  });
+
+  it("renders directives inside list items and emphasis", () => {
+    const md = "- spent at `:payee[Rewe]`\n- _balance_ of :account[assets:cash]";
+    expect(mentionLabels(md)).toEqual([
+      { type: "payee", label: "Rewe" },
+      { type: "account", label: "assets:cash" },
+    ]);
+  });
+
+  it("leaves directives inside a fenced code block literal", () => {
+    const md = "```\n:account[Assets:Bank]\n```";
+    expect(mentionLabels(md)).toEqual([]);
   });
 });

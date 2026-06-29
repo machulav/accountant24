@@ -5,10 +5,12 @@
 // walks the mdast and splits any `text` node on those directives (see
 // `parseMentions`), replacing each with a node that becomes
 // `<span data-mention-type data-mention-label>` in hast — picked up by the `span`
-// override in markdown-text.tsx and rendered as a MentionPill. Code spans and
-// fenced blocks are mdast `inlineCode`/`code` nodes (not `text`), so they're left
-// literal. Dependency-free (no unist-util-visit / mdast types) — parsing lives in
-// the tested `./mentions` module.
+// override in markdown-text.tsx and rendered as a MentionPill. The model often
+// wraps a directive in backticks (`` `:account[a:b]` ``), which markdown parses as
+// an `inlineCode` node rather than `text`; we split those too so the chip renders
+// instead of a literal code span. Multi-line fenced `code` blocks are left literal.
+// Dependency-free (no unist-util-visit / mdast types) — parsing lives in the tested
+// `./mentions` module.
 
 import { parseMentions } from "./mentions";
 
@@ -19,14 +21,15 @@ type MdNode = {
   data?: { hName?: string; hProperties?: Record<string, string> };
 };
 
-/** Split a text node's value into text + mention mdast nodes, or null if it
- *  contains no mention directive (leave the node untouched). */
-function splitText(value: string): MdNode[] | null {
+/** Split a node's value into mention + leftover mdast nodes, or null if it
+ *  contains no mention directive (leave the node untouched). Leftover (non-
+ *  mention) text keeps `textType` so an `inlineCode` span stays code-styled. */
+function splitText(value: string, textType: "text" | "inlineCode"): MdNode[] | null {
   const segments = parseMentions(value);
   if (segments.length === 1 && segments[0]!.kind === "text") return null;
   return segments.map((seg) =>
     seg.kind === "text"
-      ? { type: "text", value: seg.value }
+      ? { type: textType, value: seg.value }
       : {
           type: "mention",
           data: { hName: "span", hProperties: { "data-mention-type": seg.type, "data-mention-label": seg.label } },
@@ -39,8 +42,8 @@ function walk(node: MdNode): void {
   if (!node.children) return;
   const next: MdNode[] = [];
   for (const child of node.children) {
-    if (child.type === "text" && typeof child.value === "string") {
-      const parts = splitText(child.value);
+    if ((child.type === "text" || child.type === "inlineCode") && typeof child.value === "string") {
+      const parts = splitText(child.value, child.type);
       if (parts) {
         next.push(...parts);
         continue;
