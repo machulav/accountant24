@@ -185,9 +185,62 @@ function writeOllamaModels(ids: string[]) {
   return { type: "done", provider: "ollama", count: ids.length };
 }
 
-function addOllama(modelId: string) {
+// Ollama defaults every model to a 4096-token context (num_ctx), regardless of
+// what the model supports — and its OpenAI-compatible endpoint (which pi uses)
+// ignores a per-request num_ctx. With the accountant24 system prompt alone near
+// 4k tokens, replies come back empty (the context is full). The fix: bake a
+// larger num_ctx into each model in place via /api/create, which the OpenAI
+// endpoint *does* honor. This only adds a tiny config layer — it does not
+// re-download weights.
+const OLLAMA_TARGET_NUM_CTX = 32768;
+
+/** The model's trained max context, if discoverable (`<arch>.context_length`). */
+async function ollamaModelMaxContext(model: string): Promise<number | undefined> {
+  try {
+    const res = await fetch(`${OLLAMA_BASE_URL}/api/show`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as { model_info?: Record<string, unknown> };
+    for (const [key, value] of Object.entries(data.model_info ?? {})) {
+      if (key.endsWith(".context_length") && typeof value === "number") return value;
+    }
+  } catch {
+    // best effort
+  }
+  return undefined;
+}
+
+/** Re-create each model in place with a larger num_ctx (capped at its trained
+ *  max). Best-effort and idempotent; failures (e.g. cloud models) are ignored. */
+async function bakeOllamaContext(ids: string[]): Promise<void> {
+  await Promise.all(
+    ids.map(async (model) => {
+      const max = await ollamaModelMaxContext(model);
+      const numCtx = Math.min(OLLAMA_TARGET_NUM_CTX, max ?? OLLAMA_TARGET_NUM_CTX);
+      if (numCtx <= 4096) return; // nothing to gain over Ollama's default
+      try {
+        await fetch(`${OLLAMA_BASE_URL}/api/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model, from: model, parameters: { num_ctx: numCtx } }),
+          signal: AbortSignal.timeout(60000),
+        });
+      } catch {
+        // best effort — a model that can't be re-created just keeps its default
+      }
+    }),
+  );
+}
+
+async function addOllama(modelId: string) {
   if (!modelId) return { type: "error", message: "missing model" };
-  return writeOllamaModels([modelId]);
+  const result = writeOllamaModels([modelId]);
+  if (result.type === "done") await bakeOllamaContext([modelId]);
+  return result;
 }
 
 /** Connect Ollama by registering every locally-installed model at once. */
@@ -197,7 +250,9 @@ async function addAllOllama() {
   if (info.models.length === 0) {
     return { type: "error", message: "Ollama is running but has no models. Pull one with `ollama pull`." };
   }
-  return writeOllamaModels(info.models);
+  const result = writeOllamaModels(info.models);
+  if (result.type === "done") await bakeOllamaContext(info.models);
+  return result;
 }
 
 /** Remove the whole Ollama provider the app added to models.json. Only Ollama is
