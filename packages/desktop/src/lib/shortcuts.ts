@@ -12,6 +12,7 @@ export type Shortcut = {
 };
 
 export const SHORTCUTS = {
+  newChat: { key: "n", mod: true },
   openSettings: { key: ",", mod: true },
 } satisfies Record<string, Shortcut>;
 

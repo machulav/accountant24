@@ -60,7 +60,10 @@ export function ChatLayout() {
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  useKeyboardShortcuts({ openSettings: () => setSettingsOpen(true) });
+  useKeyboardShortcuts({
+    newChat: () => void runtime.threads.switchToNewThread(),
+    openSettings: () => setSettingsOpen(true),
+  });
 
   // react-pi stubs out generateTitle, so a new chat keeps its placeholder name.
   // When a still-untitled chat finishes its first run, title it from the first

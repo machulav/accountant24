@@ -67,10 +67,20 @@ describe("matchShortcut", () => {
   it("ignores names whose combo does not match the event", () => {
     expect(matchShortcut(ev(","), ["openSettings"])).toBeUndefined();
   });
+
+  it("picks the right name when several are registered", () => {
+    const names = ["newChat", "openSettings"] as const;
+    expect(matchShortcut(ev("n", { metaKey: true }), names)).toBe("newChat");
+    expect(matchShortcut(ev(",", { metaKey: true }), names)).toBe("openSettings");
+  });
 });
 
 describe("SHORTCUTS registry", () => {
   it("binds openSettings to mod+comma", () => {
     expect(SHORTCUTS.openSettings).toEqual({ key: ",", mod: true });
+  });
+
+  it("binds newChat to mod+n", () => {
+    expect(SHORTCUTS.newChat).toEqual({ key: "n", mod: true });
   });
 });
