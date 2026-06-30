@@ -42,16 +42,6 @@
         1,
         "always",
         100
-      ],
-      "scope-enum": [
-        2,
-        "always",
-        [
-          "tools",
-          "commands",
-          "skills",
-          "prompt"
-        ]
       ]
     }
   },
