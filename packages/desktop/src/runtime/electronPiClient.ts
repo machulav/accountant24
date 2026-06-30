@@ -123,6 +123,7 @@ export function createElectronPiClient(): PiClient {
       case "agent_start":
         return { type: "agent_start" };
       case "agent_end":
+        analyticsApi.track("agent_message_sent"); // count only; never the response content
         return { type: "agent_end" };
       case "turn_start": {
         const t = (turns.get(threadId) ?? -1) + 1;

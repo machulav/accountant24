@@ -97,7 +97,7 @@ const WE_SEND = [
   "App version",
   "Operating system",
   "Country, derived without storing your IP",
-  "Anonymous events (counts only): app_installed, app_opened, chat_created, user_message_sent, analytics_enabled, analytics_disabled",
+  "Anonymous events (counts only): app_installed, app_opened, app_closed, chat_created, user_message_sent, agent_message_sent, analytics_enabled, analytics_disabled",
 ];
 
 const WE_NEVER_SEND = [

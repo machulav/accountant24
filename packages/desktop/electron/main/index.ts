@@ -3,7 +3,7 @@
 
 import { app, BrowserWindow } from "electron";
 import { killAgent, registerAgentIpc } from "./agent";
-import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch } from "./analytics";
+import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerPiIpc } from "./pi";
@@ -43,4 +43,7 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => killAgent());
+app.on("before-quit", () => {
+  trackQuit();
+  killAgent();
+});

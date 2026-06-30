@@ -28,6 +28,14 @@ export function trackLaunch(): void {
   trackEvent("app_opened");
 }
 
+/** Fire the app-quit event, gated on the opt-out. Best-effort: the SDK sends
+ *  this over the network as the process is tearing down, so it may not always
+ *  land. */
+export function trackQuit(): void {
+  if (!isAnalyticsEnabled()) return;
+  trackEvent("app_closed");
+}
+
 /** Record the user flipping the analytics opt-out. Called directly (bypassing
  *  the opt-out gate) so the "disabled" event is the last thing we send before
  *  going quiet, and "enabled" is sent right after they opt back in. */
