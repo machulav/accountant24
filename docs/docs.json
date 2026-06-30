@@ -1,0 +1,53 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Accountant24",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "navigation": {
+    "pages": [
+      "index",
+      "use-cases",
+      "quickstart",
+      "comparison",
+      "faq"
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/machulav/accountant24"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/machulav/accountant24"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "seo": {
+    "metatags": {
+      "og:site_name": "Accountant24",
+      "og:type": "website",
+      "og:url": "https://accountant24.ai",
+      "twitter:card": "summary_large_image",
+      "theme-color": "#16A34A"
+    }
+  }
+}

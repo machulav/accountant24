@@ -1,6 +1,6 @@
 {
   "name": "accountant24",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -25,7 +25,7 @@
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "commit-msg": "commitlint --edit $1",
+    "commit-msg": "npx --no-install commitlint --edit $1",
     "pre-commit": "npm run pre-commit"
   },
   "commitlint": {

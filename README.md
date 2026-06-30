@@ -1,6 +1,6 @@
-# Accountant24 - Local-first AI agent for personal accounting
+# Accountant24 - Free, local-first AI agent for personal finance
 
-Your data stays as plain text files on your machine. Works with any LLM, including local ones. Log spending, import statements, ask questions, teach the agent, track changes with git, and more.
+Track spending in plain language, import bank statements and receipts, ask questions about your money. Your data stays as plain text files on your machine. Works with any LLM, including local ones. All changes are versioned with git.
 
 <https://github.com/user-attachments/assets/02a0f190-b560-4617-b1a8-8fc124417801>
 
@@ -97,7 +97,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
 | Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
-| GUI             | Desktop app                | Web + mobile       | Web + desktop      | CLI                      |
+| Interface       | Desktop app                | Web + mobile       | Web + desktop      | CLI                      |
 | Price           | Free                       | $100–$180/yr       | Free               | Free                     |
 | Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
 

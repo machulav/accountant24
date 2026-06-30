@@ -1,0 +1,25 @@
+---
+title: "FAQ"
+sidebarTitle: "FAQ"
+description: "Answers to common questions about Accountant24: data privacy, offline use, supported LLMs, pricing, and data format."
+---
+
+## Is my financial data private?
+
+Yes. Everything stays on your machine as plain-text files. Nothing is uploaded unless you choose to push your git repo to a remote you control. Run a local model with Ollama and even the AI runs on your device, so nothing leaves your computer.
+
+## Does it work offline?
+
+Yes, with a local model via Ollama. Cloud providers (OpenAI, Anthropic) need a connection, but you can switch to a local model anytime and keep working fully offline.
+
+## Which LLMs can I use?
+
+Any of them: OpenAI, Anthropic, or local models through Ollama. Switch providers whenever you like without changing your data.
+
+## Is it really free?
+
+Yes. Accountant24 is free and open source (MIT), with no subscription. If you use a paid LLM provider you pay them for your own usage; with a local model there's nothing to pay at all.
+
+## What format is my data in, and is there lock-in?
+
+Your data is plain-text [hledger](https://hledger.org) journal files that you fully own, tracked with git. There's no proprietary database and no lock-in. If Accountant24 ever went away, your books would still open in hledger.
