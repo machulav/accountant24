@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { matchesShortcut, matchShortcut, SHORTCUTS, type Shortcut, type ShortcutEvent } from "../shortcuts";
+import {
+  matchesShortcut,
+  matchShortcut,
+  SHORTCUTS,
+  type Shortcut,
+  type ShortcutEvent,
+  shortcutTokens,
+} from "../shortcuts";
 
 /** Build a ShortcutEvent, defaulting every modifier to off. */
 function ev(key: string, mods: Partial<ShortcutEvent> = {}): ShortcutEvent {
@@ -77,10 +84,33 @@ describe("matchShortcut", () => {
 
 describe("SHORTCUTS registry", () => {
   it("binds openSettings to mod+comma", () => {
-    expect(SHORTCUTS.openSettings).toEqual({ key: ",", mod: true });
+    expect(SHORTCUTS.openSettings).toMatchObject({ key: ",", mod: true });
   });
 
   it("binds newChat to mod+n", () => {
-    expect(SHORTCUTS.newChat).toEqual({ key: "n", mod: true });
+    expect(SHORTCUTS.newChat).toMatchObject({ key: "n", mod: true });
+  });
+
+  it("gives every shortcut a display label", () => {
+    for (const def of Object.values(SHORTCUTS)) {
+      expect(def.label).toBeTruthy();
+    }
+  });
+});
+
+describe("shortcutTokens", () => {
+  it("renders glyph modifiers on macOS, Command last", () => {
+    expect(shortcutTokens({ key: "n", mod: true }, true)).toEqual(["⌘", "N"]);
+    expect(shortcutTokens({ key: "p", mod: true, shift: true }, true)).toEqual(["⇧", "⌘", "P"]);
+  });
+
+  it("spells out modifiers on other platforms, Ctrl first", () => {
+    expect(shortcutTokens({ key: "n", mod: true }, false)).toEqual(["Ctrl", "N"]);
+    expect(shortcutTokens({ key: "p", mod: true, shift: true }, false)).toEqual(["Ctrl", "Shift", "P"]);
+  });
+
+  it("keeps punctuation keys and maps named keys", () => {
+    expect(shortcutTokens({ key: ",", mod: true }, true)).toEqual(["⌘", ","]);
+    expect(shortcutTokens({ key: "Escape" }, true)).toEqual(["Esc"]);
   });
 });

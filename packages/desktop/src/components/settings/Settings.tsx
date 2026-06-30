@@ -3,20 +3,22 @@
 // About are placeholders for where future pages slot in. Built on the shadcn
 // Dialog so it gets focus trapping and Esc-to-close for free.
 
-import { CpuIcon, PlugIcon, ShieldIcon } from "lucide-react";
+import { CpuIcon, KeyboardIcon, PlugIcon, ShieldIcon } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AnalyticsSettings } from "./AnalyticsSettings";
 import { ModelsSettings } from "./ModelsSettings";
 import { ProvidersSettings } from "./ProvidersSettings";
+import { ShortcutsSettings } from "./ShortcutsSettings";
 
-export type SettingsSection = "providers" | "models" | "privacy";
+export type SettingsSection = "providers" | "models" | "shortcuts" | "privacy";
 
 const NAV: { id: SettingsSection; label: string; icon: typeof CpuIcon }[] = [
   { id: "providers", label: "Providers", icon: PlugIcon },
   { id: "models", label: "Models", icon: CpuIcon },
   { id: "privacy", label: "Privacy", icon: ShieldIcon },
+  { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon },
 ];
 
 export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -54,6 +56,7 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
         <div className="min-w-0 flex-1 overflow-y-auto">
           {section === "providers" && <ProvidersSettings />}
           {section === "models" && <ModelsSettings />}
+          {section === "shortcuts" && <ShortcutsSettings />}
           {section === "privacy" && <AnalyticsSettings />}
         </div>
       </DialogContent>
