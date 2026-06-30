@@ -41,7 +41,9 @@ export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }
     <span
       data-directive-type={type}
       className={cn(
-        "mx-px inline-flex items-baseline gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 align-baseline text-[13px] font-medium leading-none [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:self-center [&_svg]:opacity-75",
+        // py-[3px] grows the chip ~2px taller than the text; -my-px cancels that
+        // in the line box so line height and surrounding text flow are unchanged.
+        "mx-px -my-px inline-flex items-baseline gap-1 whitespace-nowrap rounded-sm px-1.5 py-[3px] align-baseline text-[13px] font-medium leading-none [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:self-center [&_svg]:opacity-75",
         TYPE_COLORS[type] ?? TYPE_COLORS.account,
       )}
     >
