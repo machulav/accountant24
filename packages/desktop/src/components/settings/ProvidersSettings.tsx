@@ -136,7 +136,7 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   return (
     <>
       {connected.length > 0 && (
-        <Section title="Connected" description="Models from these providers are available in chats.">
+        <Section title="Connected" description="Models from these providers can be used in chats.">
           <div className="flex flex-col gap-1">{connected.map(renderRow)}</div>
         </Section>
       )}

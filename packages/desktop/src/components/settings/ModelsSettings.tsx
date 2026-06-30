@@ -52,9 +52,42 @@ function DefaultModelSection({
   );
 }
 
-// ---- Enabled models -------------------------------------------------------
+// ---- Enabled / Available models -------------------------------------------
 
-function EnabledModelsSection({
+const modelName = (m: ModelInfo) => m.name ?? m.id;
+
+function ModelRow({
+  model: m,
+  isDefault,
+  checked,
+  onToggle,
+}: {
+  model: ModelInfo;
+  isDefault: boolean;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  const switchId = `enabled-model-${idOf(m)}`;
+  return (
+    // The label must NOT wrap the Switch: a Radix Switch (a button + hidden
+    // form input) inside a wrapping label double-fires and cancels the
+    // toggle. Point at it with htmlFor instead.
+    <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
+      <label htmlFor={switchId} className="min-w-0 cursor-pointer">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm">{modelName(m)}</span>
+          {isDefault && (
+            <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-xs">Default</span>
+          )}
+        </span>
+        <span className="text-muted-foreground block truncate text-xs">{m.provider}</span>
+      </label>
+      <Switch id={switchId} checked={checked} disabled={isDefault} onCheckedChange={onToggle} />
+    </div>
+  );
+}
+
+function ModelToggleSections({
   models,
   settings,
   defaultId,
@@ -62,7 +95,7 @@ function EnabledModelsSection({
 }: {
   models: ModelInfo[];
   settings: AppSettings;
-  /** `provider/modelId` of the default model — always shown, can't be hidden. */
+  /** `provider/modelId` of the default model — always enabled, can't be hidden. */
   defaultId: string | undefined;
   onChange: (patch: Partial<AppSettings>) => void;
 }) {
@@ -84,42 +117,47 @@ function EnabledModelsSection({
   };
 
   if (models.length === 0) {
-    return <p className="text-muted-foreground text-sm">Connect a provider to choose which models appear.</p>;
+    return (
+      <Section title="Enabled" description="Shown in the chat model selector.">
+        <p className="text-muted-foreground text-sm">Connect a provider to choose which models appear.</p>
+      </Section>
+    );
   }
 
+  // Split into enabled vs available, each sorted A→Z by display name. The default
+  // is always counted as enabled.
+  const byName = (a: ModelInfo, b: ModelInfo) => modelName(a).localeCompare(modelName(b));
+  const isOn = (m: ModelInfo) => idOf(m) === defaultId || enabled.has(idOf(m));
+  const enabledModels = models.filter(isOn).sort(byName);
+  const availableModels = models.filter((m) => !isOn(m)).sort(byName);
+
+  const renderRow = (m: ModelInfo) => {
+    const id = idOf(m);
+    const isDefault = id === defaultId;
+    return (
+      <ModelRow
+        key={id}
+        model={m}
+        isDefault={isDefault}
+        checked={isDefault || enabled.has(id)}
+        onToggle={() => toggle(id)}
+      />
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-1">
-      {models.map((m) => {
-        const id = idOf(m);
-        const isDefault = id === defaultId;
-        const switchId = `enabled-model-${id}`;
-        return (
-          // The label must NOT wrap the Switch: a Radix Switch (a button + hidden
-          // form input) inside a wrapping label double-fires and cancels the
-          // toggle. Point at it with htmlFor instead.
-          <div
-            key={id}
-            className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5"
-          >
-            <label htmlFor={switchId} className="min-w-0 cursor-pointer">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm">{m.name ?? m.id}</span>
-                {isDefault && (
-                  <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-xs">Default</span>
-                )}
-              </span>
-              <span className="text-muted-foreground block truncate text-xs">{m.provider}</span>
-            </label>
-            <Switch
-              id={switchId}
-              checked={isDefault || enabled.has(id)}
-              disabled={isDefault}
-              onCheckedChange={() => toggle(id)}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <>
+      {enabledModels.length > 0 && (
+        <Section title="Enabled" description="Shown in the chat model selector.">
+          <div className="flex flex-col gap-1">{enabledModels.map(renderRow)}</div>
+        </Section>
+      )}
+      {availableModels.length > 0 && (
+        <Section title="Available" description="Enable to show in the chat model selector.">
+          <div className="flex flex-col gap-1">{availableModels.map(renderRow)}</div>
+        </Section>
+      )}
+    </>
   );
 }
 
@@ -173,9 +211,7 @@ export function ModelsSettings() {
       <Section title="Default model" description="The model new chats start with.">
         <DefaultModelSection models={models} value={settings.defaultModel} onSelect={setDefault} />
       </Section>
-      <Section title="Enabled models" description="Choose which models you can pick from in chat.">
-        <EnabledModelsSection models={models} settings={settings} defaultId={defaultId} onChange={patch} />
-      </Section>
+      <ModelToggleSections models={models} settings={settings} defaultId={defaultId} onChange={patch} />
     </div>
   );
 }
