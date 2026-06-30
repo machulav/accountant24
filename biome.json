@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "files": {
-    "includes": ["packages/pi-extension/**", "packages/evals/**", "*.json", "*.ts"]
+    "includes": ["packages/pi-extension/**", "packages/evals/**", "packages/desktop/**", "*.json", "*.ts", "!**/*.css"]
   },
   "vcs": {
     "enabled": true,
@@ -14,12 +14,25 @@
   },
   "linter": {
     "rules": {
+      "a11y": {
+        "useButtonType": "warn",
+        "useSemanticElements": "warn",
+        "useAriaPropsSupportedByRole": "warn",
+        "noStaticElementInteractions": "warn"
+      },
       "correctness": {
         "noUnusedImports": "warn",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noAssignInExpressions": "off",
+        "noArrayIndexKey": "warn",
+        "noDocumentCookie": "warn"
       }
     }
   },
