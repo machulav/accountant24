@@ -1,0 +1,115 @@
+# Builds the desktop app on release and attaches the macOS dmgs/zips to the
+# GitHub Release. Triggered by the tag that `npm run release` pushes (which also
+# opens the draft release with notes), or manually via workflow_dispatch against
+# an existing tag (for test runs).
+#
+# Flow: ensure a draft release exists → build arm64 (macos-14) and x64 (macos-13)
+# in parallel, each uploading via `electron-builder --publish always` → un-draft.
+#
+# Unsigned for now (CSC_IDENTITY_AUTO_DISCOVERY=false → ad-hoc signing only).
+# Adding Developer-ID signing + notarization later only needs the APPLE_*/CSC_*
+# secrets and `mac.notarize: true`; no changes to this workflow's shape.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v0.2.2-rc.1)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.tag }} # tag commit has the new CHANGELOG.md section
+
+      - name: Create draft release with notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — reusing it."
+            exit 0
+          fi
+          # Notes = the topmost (latest) section of CHANGELOG.md, written by
+          # `changelogen --release`, minus its heading line.
+          NOTES="$(awk '/^## /{n++} n==1{print} n==2{exit}' CHANGELOG.md | tail -n +2)"
+          CAVEAT=$'\n\n---\n> This build is not yet notarized. On first launch, right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Accountant24.app`).'
+          gh release create "$TAG" --draft --title "$TAG" --notes "${NOTES}${CAVEAT}"
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14 # Apple Silicon
+            arch: arm64
+          - runner: macos-13 # Intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Vendor CLI tools (hledger, pdftotext, tesseract)
+        run: npx tsx scripts/vendor-bin.ts
+
+      - name: Build renderer + main + extension bundle
+        run: npm run build
+
+      - name: Package + publish (${{ matrix.arch }})
+        working-directory: packages/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned: ad-hoc sign only, no Developer ID
+        run: |
+          npx electron-builder --mac --${{ matrix.arch }} \
+            -c.extraMetadata.version="${{ needs.create-release.outputs.version }}" \
+            --publish always
+
+  finalize:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "${{ needs.create-release.outputs.tag }}" --draft=false
