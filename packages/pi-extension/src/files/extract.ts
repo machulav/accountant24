@@ -103,12 +103,6 @@ async function runTesseract(imagePath: string): Promise<string> {
   return await runCli(["tesseract", imagePath, "stdout", "-l", "eng"], "tesseract");
 }
 
-const BREW_PACKAGE: Record<string, string> = {
-  tesseract: "tesseract",
-  pdftotext: "poppler",
-  pdftocairo: "poppler",
-};
-
 async function runCli(cmd: string[], name: string): Promise<string> {
   try {
     const { exitCode, stdout, stderr } = await spawnText(cmd);
@@ -120,8 +114,9 @@ async function runCli(cmd: string[], name: string): Promise<string> {
     return stdout.trim();
   } catch (err: any) {
     if (err?.code === "ENOENT") {
-      const pkg = BREW_PACKAGE[name] ?? name;
-      throw new Error(`${name} CLI not found. Install via: brew install ${pkg}`);
+      // The app bundles this tool and adds it to the agent's PATH, so a miss here
+      // means a packaging problem rather than something the user should install.
+      throw new Error(`${name} CLI not found on PATH.`);
     }
     throw err;
   }
