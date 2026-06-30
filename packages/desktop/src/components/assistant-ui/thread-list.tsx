@@ -1,9 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { sessionsApi } from "@/rpc/api";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -12,15 +8,11 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { MoreHorizontalIcon, PlusIcon, TrashIcon } from "lucide-react";
-import {
-  forwardRef,
-  Fragment,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentPropsWithoutRef,
-  type FC,
-} from "react";
+import { type ComponentPropsWithoutRef, type FC, Fragment, forwardRef, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { sessionsApi } from "@/rpc/api";
 
 export const ThreadList: FC = () => {
   return (
@@ -31,9 +23,10 @@ export const ThreadList: FC = () => {
   );
 };
 
-export const ThreadListRoot: FC<
-  ComponentPropsWithoutRef<typeof ThreadListPrimitive.Root>
-> = ({ className, ...props }) => {
+export const ThreadListRoot: FC<ComponentPropsWithoutRef<typeof ThreadListPrimitive.Root>> = ({
+  className,
+  ...props
+}) => {
   return (
     <ThreadListPrimitive.Root
       data-slot="aui_thread-list-root"
@@ -43,16 +36,9 @@ export const ThreadListRoot: FC<
   );
 };
 
-export const ThreadListItems: FC<ComponentPropsWithoutRef<"div">> = ({
-  className,
-  ...props
-}) => {
+export const ThreadListItems: FC<ComponentPropsWithoutRef<"div">> = ({ className, ...props }) => {
   return (
-    <div
-      data-slot="aui_thread-list-items"
-      className={cn("flex flex-col gap-0.5", className)}
-      {...props}
-    >
+    <div data-slot="aui_thread-list-items" className={cn("flex flex-col gap-0.5", className)} {...props}>
       <AuiIf condition={(s) => s.threads.isLoading}>
         <ThreadListSkeleton />
       </AuiIf>
@@ -109,17 +95,10 @@ const ThreadListItemGroups: FC = () => {
     if (times.size === 0) return null;
 
     const now = new Date();
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     // Unknown time (e.g. a brand-new, unsaved chat) sorts to the top / "Today".
-    const time = (index: number) =>
-      times.get(threadIds[index]!) ?? Number.MAX_SAFE_INTEGER;
-    const indices = threadIds
-      .map((_, index) => index)
-      .sort((a, b) => time(b) - time(a));
+    const time = (index: number) => times.get(threadIds[index]!) ?? Number.MAX_SAFE_INTEGER;
+    const indices = threadIds.map((_, index) => index).sort((a, b) => time(b) - time(a));
 
     const result: ThreadListGroup[] = [];
     for (const index of indices) {
@@ -135,11 +114,7 @@ const ThreadListItemGroups: FC = () => {
   }, [threadIds, times]);
 
   if (!groups) {
-    return (
-      <ThreadListPrimitive.Items>
-        {() => <ThreadListItem />}
-      </ThreadListPrimitive.Items>
-    );
+    return <ThreadListPrimitive.Items>{() => <ThreadListItem />}</ThreadListPrimitive.Items>;
   }
 
   return groups.map((group) => (
@@ -151,11 +126,7 @@ const ThreadListItemGroups: FC = () => {
         {group.label}
       </div>
       {group.indices.map((index) => (
-        <ThreadListPrimitive.ItemByIndex
-          key={threadIds[index]}
-          index={index}
-          components={{ ThreadListItem }}
-        />
+        <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
       ))}
     </Fragment>
   ));
@@ -179,14 +150,8 @@ export const ThreadListNew = forwardRef<
       >
         {children ?? (
           <>
-            <PlusIcon
-              data-slot="aui_thread-list-new-icon"
-              className="size-4 shrink-0"
-            />
-            <span
-              data-slot="aui_thread-list-new-label"
-              className={cn("whitespace-nowrap", labelClassName)}
-            >
+            <PlusIcon data-slot="aui_thread-list-new-icon" className="size-4 shrink-0" />
+            <span data-slot="aui_thread-list-new-label" className={cn("whitespace-nowrap", labelClassName)}>
               New Chat
             </span>
           </>
@@ -209,10 +174,7 @@ const ThreadListSkeleton: FC = () => {
           data-slot="aui_thread-list-skeleton-wrapper"
           className="flex h-8 items-center px-2.5"
         >
-          <Skeleton
-            data-slot="aui_thread-list-skeleton"
-            className="h-3.5 w-full"
-          />
+          <Skeleton data-slot="aui_thread-list-skeleton" className="h-3.5 w-full" />
         </div>
       ))}
     </div>
@@ -229,10 +191,7 @@ export const ThreadListItem: FC = () => {
         data-slot="aui_thread-list-item-trigger"
         className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/thread-list-item:pe-9 group-has-focus-visible/thread-list-item:pe-9 group-has-data-[state=open]/thread-list-item:pe-9 focus-visible:ring-[3px]"
       >
-        <span
-          data-slot="aui_thread-list-item-title"
-          className="min-w-0 flex-1 truncate"
-        >
+        <span data-slot="aui_thread-list-item-title" className="min-w-0 flex-1 truncate">
           <ThreadListItemPrimitive.Title fallback="New Chat" />
         </span>
       </ThreadListItemPrimitive.Trigger>

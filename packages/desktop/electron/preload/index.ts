@@ -2,7 +2,7 @@
 // (request/response via invoke, server→client push via on). No Node, no broad
 // ipcRenderer surface.
 
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import { contextBridge, type IpcRendererEvent, ipcRenderer } from "electron";
 
 const INVOKE_CHANNELS = new Set([
   "agent_start",

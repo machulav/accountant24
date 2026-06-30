@@ -3,11 +3,7 @@
 import { useAuiState, useScrollLock } from "@assistant-ui/react";
 import { ChevronDownIcon } from "lucide-react";
 import { createContext, type FC, type PropsWithChildren, useCallback, useContext, useRef, useState } from "react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
@@ -120,9 +116,7 @@ export const ChainOfThoughtStep: FC<PropsWithChildren<{ variant: "reasoning" | "
           active && "bg-foreground animate-pulse",
         )}
       />
-      <div className={cn("min-w-0 pb-3", variant === "reasoning" && "text-muted-foreground text-sm")}>
-        {children}
-      </div>
+      <div className={cn("min-w-0 pb-3", variant === "reasoning" && "text-muted-foreground text-sm")}>{children}</div>
     </li>
   );
 };

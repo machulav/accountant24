@@ -8,9 +8,7 @@
 
 export type MentionType = "account" | "payee" | "tag";
 
-export type MentionSegment =
-  | { kind: "text"; value: string }
-  | { kind: "mention"; type: MentionType; label: string };
+export type MentionSegment = { kind: "text"; value: string } | { kind: "mention"; type: MentionType; label: string };
 
 const PATTERN = String.raw`:(account|payee|tag)\[([^\]]+)\](?:\{name=[^}]+\})?`;
 

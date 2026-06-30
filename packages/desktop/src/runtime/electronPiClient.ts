@@ -145,7 +145,12 @@ export function createElectronPiClient(): PiClient {
       case "tool_execution_start":
         return { type: "tool_execution_start", toolCallId: e.toolCallId, toolName: e.toolName, args: e.args };
       case "tool_execution_update":
-        return { type: "tool_execution_update", toolCallId: e.toolCallId, toolName: e.toolName, partialResult: undefined };
+        return {
+          type: "tool_execution_update",
+          toolCallId: e.toolCallId,
+          toolName: e.toolName,
+          partialResult: undefined,
+        };
       case "tool_execution_end":
         return { type: "tool_execution_end", toolCallId: e.toolCallId, result: e.result, isError: Boolean(e.isError) };
       default:
@@ -261,9 +266,18 @@ export function createElectronPiClient(): PiClient {
       // Auto-approval in agentBridge means the runtime normally never calls this;
       // honor it anyway for completeness.
       if ("confirmed" in response) {
-        await agentBridge.send({ type: "extension_ui_response", id: response.requestId, confirmed: response.confirmed });
+        await agentBridge.send({
+          type: "extension_ui_response",
+          id: response.requestId,
+          confirmed: response.confirmed,
+        });
       } else if ("value" in response) {
-        await agentBridge.send({ type: "extension_ui_response", id: response.requestId, value: response.value, confirmed: true });
+        await agentBridge.send({
+          type: "extension_ui_response",
+          id: response.requestId,
+          value: response.value,
+          confirmed: true,
+        });
       } else {
         await agentBridge.send({ type: "extension_ui_response", id: response.requestId, confirmed: false });
       }

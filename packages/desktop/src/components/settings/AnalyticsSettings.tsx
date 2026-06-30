@@ -3,11 +3,11 @@
 // so this page is where a user turns it off. Same read/patch pattern as the
 // other settings pages.
 
-import { useCallback, useEffect, useState } from "react";
 import { CheckIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Switch } from "@/components/ui/switch";
 import { settingsApi } from "../../rpc/api";
 import type { AppSettings } from "../../rpc/types";
-import { Switch } from "@/components/ui/switch";
 import { ErrorBanner, Section } from "./parts";
 
 export function AnalyticsSettings() {
@@ -15,7 +15,10 @@ export function AnalyticsSettings() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    settingsApi.get().then(setSettings).catch(() => undefined);
+    settingsApi
+      .get()
+      .then(setSettings)
+      .catch(() => undefined);
   }, []);
 
   const patch = useCallback((p: Partial<AppSettings>) => {
@@ -35,10 +38,7 @@ export function AnalyticsSettings() {
           <ErrorBanner message={saveError} />
         </div>
       )}
-      <Section
-        title="Analytics"
-        description="Help improve Accountant24 by sharing anonymous analytics."
-      >
+      <Section title="Analytics" description="Help improve Accountant24 by sharing anonymous analytics.">
         {/* The label must NOT wrap the Switch (a Radix Switch double-fires inside a
             wrapping label); point at it with htmlFor instead. */}
         <div className="flex items-center justify-between gap-3">
@@ -57,11 +57,7 @@ export function AnalyticsSettings() {
               .
             </span>
           </label>
-          <Switch
-            id="analytics-enabled"
-            checked={enabled}
-            onCheckedChange={(v) => patch({ analyticsEnabled: v })}
-          />
+          <Switch id="analytics-enabled" checked={enabled} onCheckedChange={(v) => patch({ analyticsEnabled: v })} />
         </div>
 
         <div className="mt-6 grid gap-x-6 gap-y-5 sm:grid-cols-2">

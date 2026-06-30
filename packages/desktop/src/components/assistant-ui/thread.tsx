@@ -1,26 +1,8 @@
 "use client";
 
 import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageImage,
-  UserMessageText,
-} from "@/components/assistant-ui/attachment";
-import {
-  ChainOfThoughtRoot,
-  ChainOfThoughtStep,
-} from "@/components/assistant-ui/chain-of-thought";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ComposerMentions, MentionChip } from "@/components/assistant-ui/mentions";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { ComposerModelSelector } from "@/components/ComposerModelSelector";
-import { cn } from "@/lib/utils";
-import {
-  AuiIf,
   type AssistantState,
+  AuiIf,
   ComposerPrimitive,
   ErrorPrimitive,
   groupPartByType,
@@ -31,7 +13,22 @@ import {
 } from "@assistant-ui/react";
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import { ArrowDownIcon, ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
-import { createContext, useContext, type ComponentType, type FC } from "react";
+import { type ComponentType, createContext, type FC, useContext } from "react";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageImage,
+  UserMessageText,
+} from "@/components/assistant-ui/attachment";
+import { ChainOfThoughtRoot, ChainOfThoughtStep } from "@/components/assistant-ui/chain-of-thought";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ComposerMentions, MentionChip } from "@/components/assistant-ui/mentions";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { ComposerModelSelector } from "@/components/ComposerModelSelector";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -51,8 +48,7 @@ export type ThreadProps = {
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
 
-const ThreadComponentsContext =
-  createContext<ThreadComponents>(EMPTY_COMPONENTS);
+const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
 // Center the composer only for a genuinely new, empty chat. "New chat" is the
 // not-yet-created thread (its id is the runtime's `newThreadId`); switching to an
@@ -62,8 +58,7 @@ const ThreadComponentsContext =
 // flipped true yet, which made the welcome layout flash. `threads.isLoading`
 // covers the startup placeholder before the thread list resolves.
 const isNewChatView = (s: AssistantState) =>
-  s.thread.messages.length === 0 &&
-  (s.threads.mainThreadId === s.threads.newThreadId || s.threads.isLoading);
+  s.thread.messages.length === 0 && (s.threads.mainThreadId === s.threads.newThreadId || s.threads.isLoading);
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const isEmpty = useAuiState(isNewChatView);
@@ -83,8 +78,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col pt-10"
       style={{
         ["--thread-max-width" as string]: "44rem",
-        ["--composer-bg" as string]:
-          "color-mix(in oklab, var(--color-muted) 30%, var(--color-background))",
+        ["--composer-bg" as string]: "color-mix(in oklab, var(--color-muted) 30%, var(--color-background))",
         ["--composer-radius" as string]: "1.5rem",
         ["--composer-padding" as string]: "8px",
       }}
@@ -104,20 +98,14 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <Welcome />
           </AuiIf>
 
-          <div
-            data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden"
-          >
-            <ThreadPrimitive.Messages>
-              {() => <ThreadMessage />}
-            </ThreadPrimitive.Messages>
+          <div data-slot="aui_message-group" className="mb-14 flex flex-col gap-y-6 empty:hidden">
+            <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
           </div>
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
               "aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
-              !isEmpty &&
-                "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
+              !isEmpty && "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
             )}
           >
             <ThreadScrollToBottom />
@@ -130,8 +118,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
 };
 
 const ThreadMessage: FC = () => {
-  const { AssistantMessage: AssistantMessageComponent = AssistantMessage } =
-    useContext(ThreadComponentsContext);
+  const { AssistantMessage: AssistantMessageComponent = AssistantMessage } = useContext(ThreadComponentsContext);
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
 
@@ -300,10 +287,7 @@ const AssistantMessage: FC = () => {
             switch (part.type) {
               case "group-chainOfThought":
                 return (
-                  <ChainOfThoughtRoot
-                    count={part.indices.length}
-                    endIndex={part.indices[part.indices.length - 1] ?? 0}
-                  >
+                  <ChainOfThoughtRoot count={part.indices.length} endIndex={part.indices[part.indices.length - 1] ?? 0}>
                     {children}
                   </ChainOfThoughtRoot>
                 );
@@ -353,9 +337,7 @@ const UserMessage: FC = () => {
     >
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
-          <MessagePrimitive.Parts
-            components={{ Image: UserMessageImage, Text: UserMessageText }}
-          />
+          <MessagePrimitive.Parts components={{ Image: UserMessageImage, Text: UserMessageText }} />
         </div>
       </div>
     </MessagePrimitive.Root>
@@ -364,10 +346,7 @@ const UserMessage: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <MessagePrimitive.Root
-      data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2"
-    >
+    <MessagePrimitive.Root data-slot="aui_edit-composer-wrapper" className="flex flex-col px-2">
       <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border bg-(--composer-bg) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
@@ -375,11 +354,7 @@ const EditComposer: FC = () => {
         />
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 rounded-full px-3.5"
-            >
+            <Button variant="ghost" size="sm" className="h-8 rounded-full px-3.5">
               Cancel
             </Button>
           </ComposerPrimitive.Cancel>
@@ -393,4 +368,3 @@ const EditComposer: FC = () => {
     </MessagePrimitive.Root>
   );
 };
-

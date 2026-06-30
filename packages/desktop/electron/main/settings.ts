@@ -59,7 +59,8 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
     out.enabledModels = (raw.enabledModels as unknown[]).filter((x): x is string => typeof x === "string");
   }
   if (typeof raw.analyticsEnabled === "boolean") out.analyticsEnabled = raw.analyticsEnabled;
-  if (typeof raw.analyticsNoticeAcknowledged === "boolean") out.analyticsNoticeAcknowledged = raw.analyticsNoticeAcknowledged;
+  if (typeof raw.analyticsNoticeAcknowledged === "boolean")
+    out.analyticsNoticeAcknowledged = raw.analyticsNoticeAcknowledged;
   if (typeof raw.firstLaunchDone === "boolean") out.firstLaunchDone = raw.firstLaunchDone;
   return out;
 }

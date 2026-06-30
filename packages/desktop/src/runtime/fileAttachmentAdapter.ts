@@ -7,11 +7,7 @@
 //    the agent reads/extracts it from the workspace). pi carries only text +
 //    images to the model, so non-image files can only travel as a path.
 
-import type {
-  AttachmentAdapter,
-  CompleteAttachment,
-  PendingAttachment,
-} from "@assistant-ui/react";
+import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { encodeAttachmentRef } from "../lib/attachmentMarker";
 import { filesApi } from "../rpc/api";
 
@@ -25,8 +21,7 @@ function readDataUrl(file: File): Promise<string> {
   });
 }
 
-const base64Of = (dataUrl: string): string =>
-  dataUrl.slice(dataUrl.indexOf(",") + 1);
+const base64Of = (dataUrl: string): string => dataUrl.slice(dataUrl.indexOf(",") + 1);
 
 /** Shared base: archive the file into the workspace on send, then let the
  *  subclass decide how it reaches the agent (native content vs path marker). */
@@ -34,11 +29,7 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
   abstract accept: string;
   protected abstract type: PendingAttachment["type"];
   /** How the archived file is presented to the agent. */
-  protected abstract toContent(
-    name: string,
-    path: string,
-    dataUrl: string,
-  ): CompleteAttachment["content"];
+  protected abstract toContent(name: string, path: string, dataUrl: string): CompleteAttachment["content"];
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     return {
@@ -53,10 +44,7 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const dataUrl = await readDataUrl(attachment.file);
-    const path = await filesApi.archiveToWorkspace(
-      attachment.name,
-      base64Of(dataUrl),
-    );
+    const path = await filesApi.archiveToWorkspace(attachment.name, base64Of(dataUrl));
     return {
       ...attachment,
       status: { type: "complete" },

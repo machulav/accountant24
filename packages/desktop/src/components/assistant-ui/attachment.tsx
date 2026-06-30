@@ -6,10 +6,6 @@
 // the workspace path; here we strip that marker and render a file chip instead of
 // the raw text (see lib/attachmentMarker + runtime/fileAttachmentAdapter).
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { LedgerDirectiveText } from "@/components/assistant-ui/mentions";
-import { extractAttachmentRefs } from "@/lib/attachmentMarker";
-import { cn } from "@/lib/utils";
 import {
   type Attachment,
   AttachmentPrimitive,
@@ -19,7 +15,11 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { FileTextIcon, PaperclipIcon, XIcon } from "lucide-react";
-import { useEffect, useState, type FC } from "react";
+import { type FC, useEffect, useState } from "react";
+import { LedgerDirectiveText } from "@/components/assistant-ui/mentions";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { extractAttachmentRefs } from "@/lib/attachmentMarker";
+import { cn } from "@/lib/utils";
 
 /** Object-URL preview for a pending image File, revoked on unmount. */
 const useImagePreview = (file: File | undefined): string | undefined => {
@@ -38,15 +38,9 @@ const useImagePreview = (file: File | undefined): string | undefined => {
 
 /** Shared presentational file chip (icon + name), used both for pending
  *  composer attachments and sent ones in a message. */
-const FileChip: FC<{ name: string; className?: string }> = ({
-  name,
-  className,
-}) => (
+const FileChip: FC<{ name: string; className?: string }> = ({ name, className }) => (
   <div
-    className={cn(
-      "flex items-center gap-2 rounded-lg border border-border/60 bg-background/60 px-3 py-2",
-      className,
-    )}
+    className={cn("flex items-center gap-2 rounded-lg border border-border/60 bg-background/60 px-3 py-2", className)}
   >
     <FileTextIcon className="text-muted-foreground size-4 shrink-0" />
     <span className="truncate text-sm" title={name}>
@@ -68,11 +62,7 @@ const ComposerAttachmentTile: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       {isImage ? (
-        <img
-          src={preview}
-          alt={attachment.name}
-          className="size-16 rounded-lg border border-border/60 object-cover"
-        />
+        <img src={preview} alt={attachment.name} className="size-16 rounded-lg border border-border/60 object-cover" />
       ) : (
         <FileChip name={attachment.name} className="h-16 w-40" />
       )}
@@ -96,9 +86,7 @@ const ComposerAttachmentTile: FC = () => {
 /** Pending attachments shown above the composer input. Hidden when empty. */
 export const ComposerAttachments: FC = () => (
   <div className="flex flex-row flex-wrap gap-2 px-1 pt-1 empty:hidden">
-    <ComposerPrimitive.Attachments>
-      {() => <ComposerAttachmentTile />}
-    </ComposerPrimitive.Attachments>
+    <ComposerPrimitive.Attachments>{() => <ComposerAttachmentTile />}</ComposerPrimitive.Attachments>
   </div>
 );
 
@@ -123,16 +111,11 @@ export const ComposerAddAttachment: FC = () => (
 /** Renders a sent image inside a user message. react-pi projects sent images as
  *  `image` content parts, so this plugs into MessagePrimitive.Parts as the
  *  `Image` component (the built-in default renders nothing). */
-export const UserMessageImage: ImageMessagePartComponent = ({
-  image,
-  filename,
-}) => (
+export const UserMessageImage: ImageMessagePartComponent = ({ image, filename }) => (
   <img
     src={image}
     alt={filename ?? "attachment"}
-    className={cn(
-      "mb-2 max-h-80 max-w-full rounded-xl border border-border/60 object-contain",
-    )}
+    className={cn("mb-2 max-h-80 max-w-full rounded-xl border border-border/60 object-contain")}
   />
 );
 

@@ -1,14 +1,14 @@
 "use client";
 
-import { memo, useEffect, useRef, type ComponentPropsWithoutRef, type FC } from "react";
 import {
   ComposerPrimitive,
-  unstable_defaultDirectiveFormatter,
-  unstable_useTriggerPopoverScopeContext,
   type Unstable_DirectiveFormatter,
   type Unstable_TriggerItem,
+  unstable_defaultDirectiveFormatter,
+  unstable_useTriggerPopoverScopeContext,
 } from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
+import { type ComponentPropsWithoutRef, type FC, memo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 type IconComponent = FC<{ className?: string }>;
@@ -79,11 +79,7 @@ type CategoriesProps = {
   emptyLabel: string;
 };
 
-const Categories: FC<CategoriesProps> = ({
-  iconMap,
-  fallbackIcon,
-  emptyLabel,
-}) => (
+const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) => (
   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
     {(categories) => (
       <div
@@ -106,11 +102,7 @@ const Categories: FC<CategoriesProps> = ({
             </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
           );
         })}
-        {categories.length === 0 && (
-          <div className="text-muted-foreground px-3 py-2 text-sm">
-            {emptyLabel}
-          </div>
-        )}
+        {categories.length === 0 && <div className="text-muted-foreground px-3 py-2 text-sm">{emptyLabel}</div>}
       </div>
     )}
   </ComposerPrimitive.Unstable_TriggerPopoverCategories>
@@ -124,13 +116,7 @@ type ItemsProps = {
   loadingLabel: string;
 };
 
-const Items: FC<ItemsProps> = ({
-  iconMap,
-  fallbackIcon,
-  backLabel,
-  emptyLabel,
-  loadingLabel,
-}) => {
+const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, loadingLabel }) => {
   const { isLoading, highlightedIndex } = unstable_useTriggerPopoverScopeContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   // Keyboard nav moves the highlight but doesn't scroll; keep the highlighted
@@ -143,10 +129,7 @@ const Items: FC<ItemsProps> = ({
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
-        <div
-          data-slot="composer-trigger-popover-items"
-          className="flex flex-col"
-        >
+        <div data-slot="composer-trigger-popover-items" className="flex flex-col">
           <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase transition-colors">
             <ChevronLeftIcon className="size-3.5" />
             {backLabel}
@@ -157,10 +140,7 @@ const Items: FC<ItemsProps> = ({
                 they all share that width and their highlight extends to the end. */}
             <div className="flex w-max min-w-full flex-col">
               {items.map((item, index) => {
-                const iconKey =
-                  typeof item.metadata?.icon === "string"
-                    ? item.metadata.icon
-                    : undefined;
+                const iconKey = typeof item.metadata?.icon === "string" ? item.metadata.icon : undefined;
                 const Icon = resolveIcon(iconKey, iconMap, fallbackIcon);
                 return (
                   <ComposerPrimitive.Unstable_TriggerPopoverItem
@@ -174,17 +154,13 @@ const Items: FC<ItemsProps> = ({
                       {item.label}
                     </span>
                     {item.description && (
-                      <span className="text-muted-foreground ms-5.5 text-xs leading-tight">
-                        {item.description}
-                      </span>
+                      <span className="text-muted-foreground ms-5.5 text-xs leading-tight">{item.description}</span>
                     )}
                   </ComposerPrimitive.Unstable_TriggerPopoverItem>
                 );
               })}
               {items.length === 0 && (
-                <div className="text-muted-foreground px-3 py-2 text-sm">
-                  {isLoading ? loadingLabel : emptyLabel}
-                </div>
+                <div className="text-muted-foreground px-3 py-2 text-sm">{isLoading ? loadingLabel : emptyLabel}</div>
               )}
             </div>
           </div>
@@ -211,15 +187,9 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
   ...props
 }) => {
   const warnedRef = useRef(false);
-  if (
-    process.env.NODE_ENV !== "production" &&
-    !warnedRef.current &&
-    Boolean(directive) === Boolean(action)
-  ) {
+  if (process.env.NODE_ENV !== "production" && !warnedRef.current && Boolean(directive) === Boolean(action)) {
     warnedRef.current = true;
-    console.warn(
-      "[assistant-ui] ComposerTriggerPopover requires exactly one of `directive` or `action` props.",
-    );
+    console.warn("[assistant-ui] ComposerTriggerPopover requires exactly one of `directive` or `action` props.");
   }
 
   return (
@@ -243,11 +213,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
           removeOnExecute={action.removeOnExecute}
         />
       ) : null}
-      <Categories
-        iconMap={iconMap}
-        fallbackIcon={fallbackIcon}
-        emptyLabel={emptyCategoriesLabel}
-      />
+      <Categories iconMap={iconMap} fallbackIcon={fallbackIcon} emptyLabel={emptyCategoriesLabel} />
       <Items
         iconMap={iconMap}
         fallbackIcon={fallbackIcon}
@@ -260,6 +226,4 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
 };
 ComposerTriggerPopoverImpl.displayName = "ComposerTriggerPopover";
 
-export const ComposerTriggerPopover = memo(
-  ComposerTriggerPopoverImpl,
-) as FC<ComposerTriggerPopoverProps>;
+export const ComposerTriggerPopover = memo(ComposerTriggerPopoverImpl) as FC<ComposerTriggerPopoverProps>;

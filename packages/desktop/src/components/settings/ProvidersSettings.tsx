@@ -2,13 +2,13 @@
 // what's connected, disconnect, or add a local Ollama model. The app's analogue
 // of pi's /login and /logout.
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2Icon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { addEnabledModels, parseModelId } from "../../lib/enabledModels";
 import { agentApi, authApi, settingsApi } from "../../rpc/api";
 import type { AuthProviderRow, AuthStatus } from "../../rpc/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useOAuthLogin } from "../auth/useOAuthLogin";
 import { ErrorBanner, Section } from "./parts";
 
@@ -206,9 +206,7 @@ function ProviderRow({
       <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{p.displayName}</div>
-          {p.configured && p.connection && (
-            <div className="text-muted-foreground truncate text-xs">{p.connection}</div>
-          )}
+          {p.configured && p.connection && <div className="text-muted-foreground truncate text-xs">{p.connection}</div>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {p.configured ? (

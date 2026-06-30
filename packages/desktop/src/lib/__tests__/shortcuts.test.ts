@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  SHORTCUTS,
-  type Shortcut,
-  type ShortcutEvent,
-  matchShortcut,
-  matchesShortcut,
-} from "../shortcuts";
+import { matchesShortcut, matchShortcut, SHORTCUTS, type Shortcut, type ShortcutEvent } from "../shortcuts";
 
 /** Build a ShortcutEvent, defaulting every modifier to off. */
 function ev(key: string, mods: Partial<ShortcutEvent> = {}): ShortcutEvent {
@@ -44,35 +38,25 @@ describe("matchesShortcut", () => {
   });
 
   it("rejects extra modifiers that the shortcut does not require", () => {
-    expect(
-      matchesShortcut(ev(",", { metaKey: true, shiftKey: true }), modComma),
-    ).toBe(false);
-    expect(
-      matchesShortcut(ev(",", { metaKey: true, altKey: true }), modComma),
-    ).toBe(false);
+    expect(matchesShortcut(ev(",", { metaKey: true, shiftKey: true }), modComma)).toBe(false);
+    expect(matchesShortcut(ev(",", { metaKey: true, altKey: true }), modComma)).toBe(false);
   });
 
   it("requires shift/alt when the shortcut specifies them", () => {
     const combo: Shortcut = { key: "p", mod: true, shift: true };
-    expect(
-      matchesShortcut(ev("p", { metaKey: true, shiftKey: true }), combo),
-    ).toBe(true);
+    expect(matchesShortcut(ev("p", { metaKey: true, shiftKey: true }), combo)).toBe(true);
     expect(matchesShortcut(ev("p", { metaKey: true }), combo)).toBe(false);
   });
 
   it("matches a plain key with no modifiers", () => {
     expect(matchesShortcut(ev("Escape"), { key: "Escape" })).toBe(true);
-    expect(matchesShortcut(ev("Escape", { metaKey: true }), { key: "Escape" })).toBe(
-      false,
-    );
+    expect(matchesShortcut(ev("Escape", { metaKey: true }), { key: "Escape" })).toBe(false);
   });
 });
 
 describe("matchShortcut", () => {
   it("returns the matching shortcut name", () => {
-    expect(matchShortcut(ev(",", { metaKey: true }), ["openSettings"])).toBe(
-      "openSettings",
-    );
+    expect(matchShortcut(ev(",", { metaKey: true }), ["openSettings"])).toBe("openSettings");
   });
 
   it("returns undefined when nothing matches", () => {

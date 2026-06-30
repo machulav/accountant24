@@ -35,15 +35,15 @@ export function Login({ onDone }: { onDone: () => void }) {
 
         {mode === "menu" && (
           <div className="login-menu">
-            <button className="primary" onClick={() => setMode("oauth")}>
+            <button type="button" className="primary" onClick={() => setMode("oauth")}>
               Sign in with a subscription
               <span className="sub">Claude Pro/Max · ChatGPT</span>
             </button>
-            <button onClick={() => setMode("apikey")}>
+            <button type="button" onClick={() => setMode("apikey")}>
               Use an API key
               <span className="sub">Anthropic · OpenAI · Google · others</span>
             </button>
-            <button onClick={() => setMode("ollama")}>
+            <button type="button" onClick={() => setMode("ollama")}>
               Run locally with Ollama
               <span className="sub">Fully offline · no key</span>
             </button>
@@ -115,10 +115,10 @@ function ApiKeyForm({
       </label>
       {error && <div className="error-banner">{error}</div>}
       <div className="row-buttons">
-        <button onClick={onBack} disabled={busy}>
+        <button type="button" onClick={onBack} disabled={busy}>
           Back
         </button>
-        <button className="primary" onClick={submit} disabled={busy || !key.trim()}>
+        <button type="button" className="primary" onClick={submit} disabled={busy || !key.trim()}>
           {busy ? "Saving…" : "Connect"}
         </button>
       </div>
@@ -149,13 +149,15 @@ function OAuthForm({
     return (
       <div className="login-form">
         {providers.oauth.map((p) => (
-          <button key={p.id} className="primary" onClick={() => startLogin(p.id)}>
+          <button type="button" key={p.id} className="primary" onClick={() => startLogin(p.id)}>
             Sign in — {p.name}
           </button>
         ))}
         {error && <div className="error-banner">{error}</div>}
         <div className="row-buttons">
-          <button onClick={onBack}>Back</button>
+          <button type="button" onClick={onBack}>
+            Back
+          </button>
         </div>
       </div>
     );
@@ -171,7 +173,7 @@ function OAuthForm({
         <div className="oauth-request">
           <p>{request.message}</p>
           {request.options?.map((opt) => (
-            <button key={opt.id} onClick={() => answerRequest(opt.id)}>
+            <button type="button" key={opt.id} onClick={() => answerRequest(opt.id)}>
               {opt.label}
             </button>
           ))}
@@ -187,7 +189,7 @@ function OAuthForm({
             onChange={(e) => setAnswer(e.currentTarget.value)}
             onKeyDown={(e) => e.key === "Enter" && answerRequest(answer)}
           />
-          <button className="primary" onClick={() => answerRequest(answer)}>
+          <button type="button" className="primary" onClick={() => answerRequest(answer)}>
             Submit
           </button>
         </div>
@@ -195,7 +197,9 @@ function OAuthForm({
 
       {error && <div className="error-banner">{error}</div>}
       <div className="row-buttons">
-        <button onClick={cancel}>Cancel</button>
+        <button type="button" onClick={cancel}>
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -256,10 +260,10 @@ function OllamaForm({ onBack, onDone }: { onBack: () => void; onDone: () => void
       )}
       {error && <div className="error-banner">{error}</div>}
       <div className="row-buttons">
-        <button onClick={onBack} disabled={busy}>
+        <button type="button" onClick={onBack} disabled={busy}>
           Back
         </button>
-        <button className="primary" onClick={connect} disabled={busy || !selected}>
+        <button type="button" className="primary" onClick={connect} disabled={busy || !selected}>
           {busy ? "Connecting…" : "Connect"}
         </button>
       </div>

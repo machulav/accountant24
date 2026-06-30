@@ -41,7 +41,10 @@ body,
   color: var(--ink);
   border-radius: 10px;
   padding: 9px 14px;
-  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.12s ease;
 }
 .login button:hover {
   background: var(--surface-2);

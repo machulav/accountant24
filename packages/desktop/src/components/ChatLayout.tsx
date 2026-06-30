@@ -1,20 +1,14 @@
-import {
-  AssistantRuntimeProvider,
-  CompositeAttachmentAdapter,
-} from "@assistant-ui/react";
+import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
 import { SettingsIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { deriveChatTitle } from "../lib/chatTitle";
 import { agentBridge } from "../runtime/agentBridge";
 import { createElectronPiClient } from "../runtime/electronPiClient";
-import {
-  ArchivingImageAttachmentAdapter,
-  WorkspaceFileAttachmentAdapter,
-} from "../runtime/fileAttachmentAdapter";
+import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "../runtime/fileAttachmentAdapter";
 import { PiClientContext } from "../runtime/modelsContext";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { AnalyticsNotice } from "./AnalyticsNotice";
 import { Thread } from "./assistant-ui/thread";
 import { ThreadList } from "./assistant-ui/thread-list";
@@ -38,11 +32,7 @@ import {
 function SidebarToggle() {
   const { state, isMobile } = useSidebar();
   const offset = isMobile || state === "collapsed";
-  return (
-    <SidebarTrigger
-      className={cn("app-no-drag absolute top-[7px] z-30", offset ? "left-20" : "left-2")}
-    />
-  );
+  return <SidebarTrigger className={cn("app-no-drag absolute top-[7px] z-30", offset ? "left-20" : "left-2")} />;
 }
 
 export function ChatLayout() {

@@ -3,11 +3,11 @@
 // /scoped-models, driven entirely through the app.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ModelOption, ModelSelector } from "@/components/assistant-ui/model-selector";
+import { Switch } from "@/components/ui/switch";
 import { addEnabledModels } from "../../lib/enabledModels";
 import { authApi, settingsApi } from "../../rpc/api";
 import type { AppSettings, ModelInfo } from "../../rpc/types";
-import { Switch } from "@/components/ui/switch";
-import { ModelSelector, type ModelOption } from "@/components/assistant-ui/model-selector";
 import { ErrorBanner, Section } from "./parts";
 
 const idOf = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
@@ -37,12 +37,7 @@ function DefaultModelSection({
     // ModelSelector.Root (not the default-export ModelSelector) so we don't
     // register a model with assistant-ui's ModelContext — that belongs to the
     // composer, not to Settings.
-    <ModelSelector.Root
-      models={options}
-      modal
-      {...(value !== undefined ? { value } : {})}
-      onValueChange={onSelect}
-    >
+    <ModelSelector.Root models={options} modal {...(value !== undefined ? { value } : {})} onValueChange={onSelect}>
       <ModelSelector.Trigger variant="outline" className="w-72" />
       <ModelSelector.Content className="w-72">
         <ModelSelector.Search />
@@ -173,7 +168,10 @@ export function ModelsSettings() {
       .models()
       .then((m) => setModels(m.models))
       .catch(() => undefined);
-    settingsApi.get().then(setSettings).catch(() => undefined);
+    settingsApi
+      .get()
+      .then(setSettings)
+      .catch(() => undefined);
   }, []);
 
   const patch = useCallback((p: Partial<AppSettings>) => {

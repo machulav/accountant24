@@ -1,27 +1,21 @@
 "use client";
 
+import { useAui } from "@assistant-ui/react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import {
+  type ComponentPropsWithoutRef,
+  createContext,
+  type KeyboardEvent,
   memo,
+  type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
-  createContext,
-  useContext,
-  type ComponentPropsWithoutRef,
-  type KeyboardEvent,
-  type ReactNode,
 } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { useAui } from "@assistant-ui/react";
-import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -31,6 +25,8 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -59,9 +55,7 @@ export type ModelOption = {
   efforts?: boolean | readonly ModelSelectorEffortOption[];
 };
 
-function getModelEfforts(
-  model: ModelOption | undefined,
-): readonly ModelSelectorEffortOption[] | undefined {
+function getModelEfforts(model: ModelOption | undefined): readonly ModelSelectorEffortOption[] | undefined {
   if (!model?.efforts) return undefined;
   return model.efforts === true ? DEFAULT_EFFORT_OPTIONS : model.efforts;
 }
@@ -84,10 +78,7 @@ export function resolveModelEffort(
   modelId: string | undefined,
   effort: string | undefined,
 ): string | undefined {
-  return resolveEffort(
-    getModelEfforts(models.find((m) => m.id === modelId)),
-    effort,
-  );
+  return resolveEffort(getModelEfforts(models.find((m) => m.id === modelId)), effort);
 }
 
 function useControllableState<T>({
@@ -132,16 +123,12 @@ type ModelSelectorContextValue = {
   setOpen: (open: boolean) => void;
 };
 
-const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(
-  null,
-);
+const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(null);
 
 function useModelSelectorContext() {
   const ctx = useContext(ModelSelectorContext);
   if (!ctx) {
-    throw new Error(
-      "ModelSelector sub-components must be used within ModelSelector.Root",
-    );
+    throw new Error("ModelSelector sub-components must be used within ModelSelector.Root");
   }
   return ctx;
 }
@@ -225,16 +212,7 @@ function ModelSelectorRoot({
       setEffort,
       setOpen,
     }),
-    [
-      models,
-      value,
-      setValue,
-      selectedModel,
-      efforts,
-      activeEffort,
-      setEffort,
-      setOpen,
-    ],
+    [models, value, setValue, selectedModel, efforts, activeEffort, setEffort, setOpen],
   );
 
   return (
@@ -252,8 +230,7 @@ export const modelSelectorTriggerVariants = cva(
   {
     variants: {
       variant: {
-        outline:
-          "border-input hover:bg-accent hover:text-accent-foreground border bg-transparent",
+        outline: "border-input hover:bg-accent hover:text-accent-foreground border bg-transparent",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       },
@@ -270,18 +247,10 @@ export const modelSelectorTriggerVariants = cva(
   },
 );
 
-export type ModelSelectorTriggerProps = ComponentPropsWithoutRef<
-  typeof PopoverTrigger
-> &
+export type ModelSelectorTriggerProps = ComponentPropsWithoutRef<typeof PopoverTrigger> &
   VariantProps<typeof modelSelectorTriggerVariants>;
 
-function ModelSelectorTrigger({
-  className,
-  variant,
-  size,
-  children,
-  ...props
-}: ModelSelectorTriggerProps) {
+function ModelSelectorTrigger({ className, variant, size, children, ...props }: ModelSelectorTriggerProps) {
   return (
     <PopoverTrigger
       data-slot="model-selector-trigger"
@@ -305,53 +274,32 @@ export type ModelSelectorValueProps = {
 };
 
 function ModelIcon({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-      {children}
-    </span>
-  );
+  return <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">{children}</span>;
 }
 
-function ModelSelectorValue({
-  placeholder = "Select model",
-  showEffort = true,
-  className,
-}: ModelSelectorValueProps) {
+function ModelSelectorValue({ placeholder = "Select model", showEffort = true, className }: ModelSelectorValueProps) {
   const { selectedModel, efforts, effort } = useModelSelectorContext();
 
   if (!selectedModel) {
     return (
-      <span
-        data-slot="model-selector-value"
-        className={cn("text-muted-foreground", className)}
-      >
+      <span data-slot="model-selector-value" className={cn("text-muted-foreground", className)}>
         {placeholder}
       </span>
     );
   }
 
-  const effortName =
-    showEffort && effort !== undefined
-      ? efforts?.find((e) => e.id === effort)?.name
-      : undefined;
+  const effortName = showEffort && effort !== undefined ? efforts?.find((e) => e.id === effort)?.name : undefined;
 
   return (
-    <span
-      data-slot="model-selector-value"
-      className={cn("flex min-w-0 items-center gap-2", className)}
-    >
+    <span data-slot="model-selector-value" className={cn("flex min-w-0 items-center gap-2", className)}>
       {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
-      {effortName && (
-        <span className="text-muted-foreground truncate">{effortName}</span>
-      )}
+      {effortName && <span className="text-muted-foreground truncate">{effortName}</span>}
     </span>
   );
 }
 
-export type ModelSelectorContentProps = ComponentPropsWithoutRef<
-  typeof PopoverContent
->;
+export type ModelSelectorContentProps = ComponentPropsWithoutRef<typeof PopoverContent>;
 
 function ModelSelectorContent({
   className,
@@ -375,10 +323,7 @@ function ModelSelectorContent({
     >
       {/* Seeding cmdk with the selected id makes it the active item, which
           cmdk scrolls into view when the popover opens. */}
-      <Command
-        className="bg-transparent"
-        {...(value !== undefined ? { defaultValue: value } : {})}
-      >
+      <Command className="bg-transparent" {...(value !== undefined ? { defaultValue: value } : {})}>
         {children ?? (
           <>
             <ModelSelectorList />
@@ -390,41 +335,21 @@ function ModelSelectorContent({
   );
 }
 
-export type ModelSelectorSearchProps = ComponentPropsWithoutRef<
-  typeof CommandInput
->;
+export type ModelSelectorSearchProps = ComponentPropsWithoutRef<typeof CommandInput>;
 
-function ModelSelectorSearch({
-  placeholder = "Search models...",
-  ...props
-}: ModelSelectorSearchProps) {
-  return (
-    <CommandInput
-      data-slot="model-selector-search"
-      placeholder={placeholder}
-      {...props}
-    />
-  );
+function ModelSelectorSearch({ placeholder = "Search models...", ...props }: ModelSelectorSearchProps) {
+  return <CommandInput data-slot="model-selector-search" placeholder={placeholder} {...props} />;
 }
 
-export type ModelSelectorListProps = ComponentPropsWithoutRef<
-  typeof CommandList
->;
+export type ModelSelectorListProps = ComponentPropsWithoutRef<typeof CommandList>;
 
-function ModelSelectorList({
-  className,
-  children,
-  ...props
-}: ModelSelectorListProps) {
+function ModelSelectorList({ className, children, ...props }: ModelSelectorListProps) {
   const { models } = useModelSelectorContext();
 
   return (
     <CommandList
       data-slot="model-selector-list"
-      className={cn(
-        "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        className,
-      )}
+      className={cn("[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}
       {...props}
     >
       {children ?? (
@@ -441,9 +366,7 @@ function ModelSelectorList({
   );
 }
 
-export type ModelSelectorEmptyProps = ComponentPropsWithoutRef<
-  typeof CommandEmpty
->;
+export type ModelSelectorEmptyProps = ComponentPropsWithoutRef<typeof CommandEmpty>;
 
 function ModelSelectorEmpty({ children, ...props }: ModelSelectorEmptyProps) {
   return (
@@ -453,36 +376,23 @@ function ModelSelectorEmpty({ children, ...props }: ModelSelectorEmptyProps) {
   );
 }
 
-export type ModelSelectorGroupProps = ComponentPropsWithoutRef<
-  typeof CommandGroup
->;
+export type ModelSelectorGroupProps = ComponentPropsWithoutRef<typeof CommandGroup>;
 
 function ModelSelectorGroup(props: ModelSelectorGroupProps) {
   return <CommandGroup data-slot="model-selector-group" {...props} />;
 }
 
-export type ModelSelectorSeparatorProps = ComponentPropsWithoutRef<
-  typeof CommandSeparator
->;
+export type ModelSelectorSeparatorProps = ComponentPropsWithoutRef<typeof CommandSeparator>;
 
 function ModelSelectorSeparator(props: ModelSelectorSeparatorProps) {
   return <CommandSeparator data-slot="model-selector-separator" {...props} />;
 }
 
-export type ModelSelectorItemProps = Omit<
-  ComponentPropsWithoutRef<typeof CommandItem>,
-  "value"
-> & {
+export type ModelSelectorItemProps = Omit<ComponentPropsWithoutRef<typeof CommandItem>, "value"> & {
   model: ModelOption;
 };
 
-function ModelSelectorItem({
-  model,
-  className,
-  children,
-  onSelect,
-  ...props
-}: ModelSelectorItemProps) {
+function ModelSelectorItem({ model, className, children, onSelect, ...props }: ModelSelectorItemProps) {
   const { value, setValue, setOpen } = useModelSelectorContext();
   const isSelected = value === model.id;
 
@@ -505,11 +415,7 @@ function ModelSelectorItem({
           {model.icon && <ModelIcon>{model.icon}</ModelIcon>}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
-            {model.description && (
-              <span className="text-muted-foreground truncate text-xs">
-                {model.description}
-              </span>
-            )}
+            {model.description && <span className="text-muted-foreground truncate text-xs">{model.description}</span>}
           </span>
         </>
       )}
@@ -526,12 +432,7 @@ export type ModelSelectorEffortProps = ComponentPropsWithoutRef<"div"> & {
   label?: ReactNode;
 };
 
-function ModelSelectorEffort({
-  label = "Thinking",
-  className,
-  onKeyDown,
-  ...props
-}: ModelSelectorEffortProps) {
+function ModelSelectorEffort({ label = "Thinking", className, onKeyDown, ...props }: ModelSelectorEffortProps) {
   const { efforts, effort, setEffort } = useModelSelectorEfforts();
 
   if (!efforts?.length) return null;
@@ -539,10 +440,7 @@ function ModelSelectorEffort({
   return (
     <div
       data-slot="model-selector-effort"
-      className={cn(
-        "flex items-center justify-between gap-3 border-t px-3 py-2",
-        className,
-      )}
+      className={cn("flex items-center justify-between gap-3 border-t px-3 py-2", className)}
       onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
         // cmdk's root keydown handler claims Enter to select the highlighted
         // model; stop it from seeing Enter so the focused toggle activates.
@@ -623,11 +521,7 @@ const ModelSelectorImpl = ({
   return (
     <ModelSelectorRoot {...rootProps}>
       <ModelSelectorModelContext />
-      <ModelSelectorTrigger
-        variant={variant}
-        size={size}
-        className={className}
-      />
+      <ModelSelectorTrigger variant={variant} size={size} className={className} />
       <ModelSelectorContent className={contentClassName}>
         {searchable && <ModelSelectorSearch />}
         <ModelSelectorList />
@@ -652,9 +546,7 @@ type ModelSelectorComponent = typeof ModelSelectorImpl & {
   Effort: typeof ModelSelectorEffort;
 };
 
-const ModelSelector = memo(
-  ModelSelectorImpl,
-) as unknown as ModelSelectorComponent;
+const ModelSelector = memo(ModelSelectorImpl) as unknown as ModelSelectorComponent;
 
 ModelSelector.displayName = "ModelSelector";
 ModelSelector.Root = ModelSelectorRoot;
@@ -671,15 +563,15 @@ ModelSelector.Effort = ModelSelectorEffort;
 
 export {
   ModelSelector,
-  ModelSelectorRoot,
-  ModelSelectorTrigger,
-  ModelSelectorValue,
   ModelSelectorContent,
-  ModelSelectorSearch,
-  ModelSelectorList,
+  ModelSelectorEffort,
   ModelSelectorEmpty,
   ModelSelectorGroup,
-  ModelSelectorSeparator,
   ModelSelectorItem,
-  ModelSelectorEffort,
+  ModelSelectorList,
+  ModelSelectorRoot,
+  ModelSelectorSearch,
+  ModelSelectorSeparator,
+  ModelSelectorTrigger,
+  ModelSelectorValue,
 };

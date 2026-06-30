@@ -4,8 +4,8 @@
 // it and points to the opt-out, for GDPR transparency.
 
 import { useEffect, useState } from "react";
-import { settingsApi } from "../rpc/api";
 import { Button } from "@/components/ui/button";
+import { settingsApi } from "../rpc/api";
 
 export function AnalyticsNotice() {
   const [show, setShow] = useState(false);
@@ -32,8 +32,8 @@ export function AnalyticsNotice() {
       <div className="flex w-full max-w-[44rem] px-4">
         <div className="bg-popover text-popover-foreground pointer-events-auto flex w-full items-center gap-4 rounded-xl border px-4 py-3 shadow-lg">
           <p className="text-muted-foreground text-xs">
-            We collect anonymous analytics to improve Accountant24. Your personal or financial data is
-            never sent. You can turn this off any time in Settings → Privacy.
+            We collect anonymous analytics to improve Accountant24. Your personal or financial data is never sent. You
+            can turn this off any time in Settings → Privacy.
           </p>
           <Button variant="outline" size="sm" onClick={dismiss} className="shrink-0">
             Got it

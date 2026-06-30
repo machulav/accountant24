@@ -4,8 +4,8 @@
 // an ephemeral daily-rotated hash and never stored. Everything here is gated on
 // the user's opt-out (Settings → Privacy).
 
-import { ipcMain } from "electron";
 import { initialize, trackEvent } from "@aptabase/electron/main";
+import { ipcMain } from "electron";
 import { consumeFirstLaunch, isAnalyticsEnabled } from "./settings";
 
 // Not a secret — Aptabase app keys are embedded in the client, like a website
@@ -47,11 +47,8 @@ export function trackAnalyticsToggle(enabled: boolean): void {
  *  main is the single place that enforces the opt-out. Callers must pass only
  *  event names + string/number props — NEVER user content (message text, etc.). */
 export function registerAnalyticsIpc(): void {
-  ipcMain.handle(
-    "analytics_track",
-    (_e, payload: { event?: string; props?: Record<string, string | number> }) => {
-      if (!isAnalyticsEnabled()) return;
-      if (payload && typeof payload.event === "string") trackEvent(payload.event, payload.props);
-    },
-  );
+  ipcMain.handle("analytics_track", (_e, payload: { event?: string; props?: Record<string, string | number> }) => {
+    if (!isAnalyticsEnabled()) return;
+    if (payload && typeof payload.event === "string") trackEvent(payload.event, payload.props);
+  });
 }

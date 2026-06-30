@@ -108,15 +108,12 @@ export function useOAuthLogin(onDone?: () => void): OAuthLogin {
     [cleanup, onAuthEvent],
   );
 
-  const respond = useCallback(
-    (value: string | null) => {
-      setRequest((req) => {
-        if (req) authApi.loginRespond(req.id, value).catch(() => undefined);
-        return null;
-      });
-    },
-    [],
-  );
+  const respond = useCallback((value: string | null) => {
+    setRequest((req) => {
+      if (req) authApi.loginRespond(req.id, value).catch(() => undefined);
+      return null;
+    });
+  }, []);
 
   const cancel = useCallback(() => {
     authApi.loginCancel().catch(() => undefined);

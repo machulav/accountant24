@@ -43,9 +43,7 @@ function archiveToWorkspace(name: string, dataBase64: string): string {
 }
 
 export function registerFilesIpc(): void {
-  ipcMain.handle(
-    "files_archive_to_workspace",
-    (_e, payload: { name: string; dataBase64: string }) =>
-      archiveToWorkspace(payload.name, payload.dataBase64),
+  ipcMain.handle("files_archive_to_workspace", (_e, payload: { name: string; dataBase64: string }) =>
+    archiveToWorkspace(payload.name, payload.dataBase64),
   );
 }

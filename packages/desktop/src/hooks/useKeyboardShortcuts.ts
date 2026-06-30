@@ -1,9 +1,7 @@
 import { useEffect, useRef } from "react";
-import { type ShortcutName, matchShortcut } from "@/lib/shortcuts";
+import { matchShortcut, type ShortcutName } from "@/lib/shortcuts";
 
-export type ShortcutHandlers = Partial<
-  Record<ShortcutName, (e: KeyboardEvent) => void>
->;
+export type ShortcutHandlers = Partial<Record<ShortcutName, (e: KeyboardEvent) => void>>;
 
 /** Bind global keyboard shortcuts. Each handler maps to a combo in `SHORTCUTS`;
  *  matching and `preventDefault` are handled here. Handlers may change between

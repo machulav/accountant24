@@ -3,11 +3,7 @@ import { addEnabledModels, filterEnabledModels, modelId } from "../enabledModels
 
 const m = (provider: string, id: string) => ({ provider, modelId: id, name: `${provider}/${id}` });
 
-const models = [
-  m("anthropic", "claude-opus-4-8"),
-  m("openai", "gpt-5.5"),
-  m("ollama", "qwen3-vl:8b"),
-];
+const models = [m("anthropic", "claude-opus-4-8"), m("openai", "gpt-5.5"), m("ollama", "qwen3-vl:8b")];
 
 describe("modelId", () => {
   it("joins provider and modelId with a slash", () => {

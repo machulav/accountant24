@@ -18,10 +18,7 @@ export const SHORTCUTS = {
 export type ShortcutName = keyof typeof SHORTCUTS;
 
 /** The keyboard event fields a shortcut match depends on. */
-export type ShortcutEvent = Pick<
-  KeyboardEvent,
-  "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"
->;
+export type ShortcutEvent = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">;
 
 /** True when the keyboard event matches the shortcut's key + exact modifiers. */
 export function matchesShortcut(e: ShortcutEvent, s: Shortcut): boolean {
@@ -33,9 +30,6 @@ export function matchesShortcut(e: ShortcutEvent, s: Shortcut): boolean {
 }
 
 /** First shortcut name (among `names`) whose combo matches the event, if any. */
-export function matchShortcut(
-  e: ShortcutEvent,
-  names: readonly ShortcutName[],
-): ShortcutName | undefined {
+export function matchShortcut(e: ShortcutEvent, names: readonly ShortcutName[]): ShortcutName | undefined {
   return names.find((name) => matchesShortcut(e, SHORTCUTS[name]));
 }

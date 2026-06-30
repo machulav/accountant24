@@ -31,9 +31,7 @@ describe("deriveChatTitle", () => {
     });
 
     it("strips multiple mentions", () => {
-      expect(deriveChatTitle({ texts: ["from :payee[Rewe] to :tag[trip]"], imageNames: [] })).toBe(
-        "from Rewe to trip",
-      );
+      expect(deriveChatTitle({ texts: ["from :payee[Rewe] to :tag[trip]"], imageNames: [] })).toBe("from Rewe to trip");
     });
   });
 

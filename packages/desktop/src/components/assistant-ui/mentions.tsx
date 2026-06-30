@@ -8,18 +8,17 @@
 // Entity names come from the main process (hledger over IPC), refreshed whenever
 // the agent finishes a turn so newly-added payees/accounts/tags show up.
 
-import { ledgerApi } from "@/rpc/api";
-import { parseMentions } from "@/lib/mentions";
-import type { LedgerMentions } from "@/rpc/types";
-import { unstable_useMentionAdapter, useAuiState, type TextMessagePartComponent } from "@assistant-ui/react";
-import { cn } from "@/lib/utils";
+import { type TextMessagePartComponent, unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
 import type { DirectiveChipProps } from "@assistant-ui/react-lexical";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { parseMentions } from "@/lib/mentions";
+import { cn } from "@/lib/utils";
+import { ledgerApi } from "@/rpc/api";
+import type { LedgerMentions } from "@/rpc/types";
 import { ComposerTriggerPopover } from "./composer-trigger-popover";
 
-const iconFor = (type: string): FC<{ className?: string }> =>
-  ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
+const iconFor = (type: string): FC<{ className?: string }> => ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
 
 // Per-type colors (static strings so Tailwind keeps them). account=blue,
 // payee=green, tag=yellow. Muted/desaturated dusty tones rather than Tailwind's
