@@ -88,6 +88,10 @@ jobs:
 
       - run: npm ci
 
+      # Fail fast on type errors before the slow brew/vendor + package steps
+      # (electron-vite's build does no type-checking).
+      - run: npm run typecheck
+
       - name: Vendor CLI tools (hledger, pdftotext, tesseract)
         run: npx tsx scripts/vendor-bin.ts
 
