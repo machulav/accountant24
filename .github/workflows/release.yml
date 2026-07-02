@@ -3,9 +3,15 @@
 # opens the draft release with notes), or manually via workflow_dispatch against
 # an existing tag (for test runs).
 #
-# Flow: ensure a draft release exists → build arm64 (macos-14) and x64
-# (macos-15-intel) in parallel, each uploading via `electron-builder --publish
-# always` → un-draft.
+# Flow: ensure a draft release exists → build arm64 (macos-14), uploading via
+# `electron-builder --publish always` → un-draft.
+#
+# Intel (x64) builds are dropped for now: GitHub retired the macos-13 runners
+# (late 2025), and Homebrew ships x64 bottles only for macOS 14 — on the
+# remaining free Intel runner (macos-15-intel) `brew install hledger` would
+# build GHC from source for hours. To bring x64 back, either vendor the CLI
+# tools without Homebrew or build on an arm64 runner with an x86_64 Homebrew
+# under Rosetta, then re-add a matrix entry with arch: x64.
 #
 # Unsigned for now (CSC_IDENTITY_AUTO_DISCOVERY=false → ad-hoc signing only).
 # Adding Developer-ID signing + notarization later only needs the APPLE_*/CSC_*
@@ -81,9 +87,10 @@ jobs:
         include:
           - runner: macos-14 # Apple Silicon
             arch: arm64
-          - runner: macos-15-intel # Intel (macos-13 was retired by GitHub in late 2025)
-            arch: x64
     runs-on: ${{ matrix.runner }}
+    # A healthy build takes ~15 min; anything past this is a hang (e.g. a tool
+    # waiting for interactive input), not a slow build.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
