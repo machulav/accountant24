@@ -234,6 +234,9 @@ function ProviderRow({
       </div>
 
       {oauthActive && <OAuthInline oauth={oauth} />}
+      {/* A failed sign-in clears `active` (unmounting the panel above), so the
+          error must render here, keyed to the provider whose attempt failed. */}
+      {!oauthActive && oauth.error && oauth.errorProvider === p.provider && <ErrorBanner message={oauth.error} />}
       {apikeyOpen && <ApiKeyInline provider={p.provider} onCancel={onCancelApiKey} onSaved={onSavedApiKey} />}
     </div>
   );
