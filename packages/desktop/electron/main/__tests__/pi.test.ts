@@ -114,7 +114,9 @@ describe("auth_status", () => {
     h.modelRegistry.getProviderAuthStatus.mockImplementation((p: string) =>
       p === "anthropic" ? { configured: true, source: "stored" } : { configured: false, source: undefined },
     );
-    h.modelRegistry.getProviderDisplayName.mockImplementation((p: string) => (p === "anthropic" ? "Anthropic" : "OpenAI"));
+    h.modelRegistry.getProviderDisplayName.mockImplementation((p: string) =>
+      p === "anthropic" ? "Anthropic" : "OpenAI",
+    );
     h.authStorage.getOAuthProviders.mockReturnValue([{ id: "anthropic", name: "Anthropic", usesCallbackServer: true }]);
     h.authStorage.get.mockImplementation((p: string) => (p === "anthropic" ? { type: "oauth" } : undefined));
     h.modelRegistry.getAvailable.mockReturnValue([{}, {}, {}]);
@@ -256,7 +258,10 @@ describe("auth_detect_ollama", () => {
   });
 
   it("should report not running when the endpoint returns an error status", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, false)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({}, false)),
+    );
     await setup();
 
     await expect(invoke("auth_detect_ollama")).resolves.toEqual({ type: "ollama", running: false, models: [] });
@@ -460,7 +465,9 @@ describe("auth_remove_ollama", () => {
 
   it("should remove only the ollama provider and keep others", async () => {
     h.fs.existsSync.mockReturnValue(true);
-    h.fs.readFileSync.mockReturnValue(JSON.stringify({ providers: { ollama: { name: "Ollama" }, keep: { name: "K" } } }));
+    h.fs.readFileSync.mockReturnValue(
+      JSON.stringify({ providers: { ollama: { name: "Ollama" }, keep: { name: "K" } } }),
+    );
     await setup();
 
     expect(invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
