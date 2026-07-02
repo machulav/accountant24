@@ -1,27 +1,33 @@
 {
   "name": "accountant24",
   "version": "0.1.10",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "start": "bun run src/index.ts",
-    "build": "bun run scripts/build.ts",
-    "build:all": "bun run scripts/build.ts --all",
-    "test": "bun test",
-    "audit": "bun audit",
+    "start": "tsx scripts/bundle-extension.ts && cd packages/desktop && npm run dev",
+    "start:agent": "tsx scripts/bundle-extension.ts && node node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e packages/desktop/resources/accountant24-extension.js",
+    "build": "tsx scripts/bundle-extension.ts && cd packages/desktop && npm run build",
+    "dist": "npm run build && cd packages/desktop && electron-builder --mac -c.extraMetadata.version=$npm_package_version",
+    "dist:dir": "npm run build && cd packages/desktop && electron-builder --mac --dir -c.extraMetadata.version=$npm_package_version",
+    "test": "vitest run",
+    "audit": "npm audit --audit-level=moderate",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write .",
-    "verify": "bun run audit && biome check --write . && biome check . && tsc --noEmit && bun run test --coverage",
-    "eval": "bun run evals/run.ts",
+    "typecheck": "tsc --noEmit && npm run typecheck -w @accountant24/desktop",
+    "verify": "npm run audit && biome check --write . && biome check . && npm run typecheck && vitest run --coverage",
+    "eval": "node --import tsx --import ./scripts/text-import-register.mjs packages/evals/run.ts",
     "pre-commit": "biome check --write . && biome check .",
-    "release": "bun run scripts/release.ts",
-    "release:dry": "bun run scripts/release.ts --dry-run",
-    "commitlint": "commitlint --edit",
+    "release": "tsx scripts/release.ts",
+    "release:dry": "tsx scripts/release.ts --dry-run",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "commit-msg": "bun run commitlint $1",
-    "pre-commit": "bun run pre-commit"
+    "commit-msg": "npx --no-install commitlint --edit $1",
+    "pre-commit": "npm run pre-commit"
   },
   "commitlint": {
     "extends": [
@@ -37,16 +43,6 @@
         1,
         "always",
         100
-      ],
-      "scope-enum": [
-        2,
-        "always",
-        [
-          "tools",
-          "commands",
-          "skills",
-          "prompt"
-        ]
       ]
     }
   },
@@ -95,23 +91,23 @@
       }
     }
   },
-  "piConfig": {
-    "name": "accountant24",
-    "configDir": ".accountant24"
-  },
-  "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.79.8",
-    "file-type": "22.0.1",
-    "typebox": "1.1.38",
-    "zod": "3.25.76"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
-    "@types/bun": "1.3.13",
+    "@earendil-works/pi-coding-agent": "0.79.8",
+    "@types/node": "^26.0.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "changelogen": "0.6.2",
+    "esbuild": "^0.28.1",
     "simple-git-hooks": "2.13.1",
-    "typescript": "5.9.3"
+    "tsx": "^4.22.4",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "@earendil-works/pi-ai": "0.79.8",
+    "@earendil-works/pi-agent-core": "0.79.8",
+    "@earendil-works/pi-tui": "0.79.8"
   }
 }

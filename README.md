@@ -55,21 +55,22 @@ Every modification is auto-committed to a local git repo. Review your history an
 
 ### Install
 
-```bash
-brew install machulav/tap/accountant24
-```
+Download the latest build for your Mac from the [Releases page](https://github.com/machulav/accountant24/releases):
+
+- **Apple Silicon (M1 or newer):** `Accountant24-<version>-arm64.dmg`
+- **Intel:** `Accountant24-<version>-x64.dmg`
+
+Open the `.dmg` and drag **Accountant24** into your Applications folder.
+
+> The app isn't notarized yet, so on first launch right-click it and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Accountant24.app`).
 
 ### Run
 
-```bash
-a24
-```
-
-On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+Launch **Accountant24** from Applications. On first launch it creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
 
 ### Log in & pick a model
 
-Use `/login` to connect your LLM provider, then `/model` to pick a model — and you're ready to start chatting.
+Open **Settings** (⌘,) → **Providers** to connect your LLM provider, then **Models** to choose your default — and you're ready to start chatting.
 
 ### Go fully local (optional)
 
@@ -82,27 +83,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
    ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
-3. Create a `~/Accountant24/models.json` file to register the Ollama provider:
-
-   ```json
-   {
-     "providers": {
-       "ollama": {
-         "baseUrl": "http://localhost:11434/v1",
-         "api": "openai-completions",
-         "apiKey": "ollama",
-         "models": [
-           {
-             "id": "gemma4:31b",
-             "name": "Gemma 4 (31B)"
-           }
-         ]
-       }
-     }
-   }
-   ```
-
-4. Restart Accountant24, then use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+3. In **Settings → Providers**, connect **Ollama** (it's detected automatically once it's running), then pick your Gemma 4 model in **Models**. Nothing leaves your device.
 
 ## How it compares
 
@@ -116,7 +97,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
 | Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
-| Interface       | Chat                       | Web + mobile       | Web + desktop      | CLI                      |
+| Interface       | Desktop app                | Web + mobile       | Web + desktop      | CLI                      |
 | Price           | Free                       | $100–$180/yr       | Free               | Free                     |
 | Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
 

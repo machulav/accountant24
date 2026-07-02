@@ -1,0 +1,23 @@
+{
+  "name": "@accountant24/pi-extension",
+  "version": "0.1.9",
+  "type": "module",
+  "description": "Accountant24 customization for pi: ledger tools, commands, system prompt, scaffolding.",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/entry.ts"
+    ]
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./entry": "./src/entry.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.79.8",
+    "file-type": "22.0.1",
+    "typebox": "1.1.38"
+  }
+}

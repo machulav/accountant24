@@ -9,7 +9,7 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
 fi
 
 # Run verification; exit 2 blocks the stop and feeds stderr back to Claude
-OUTPUT=$(bun verify 2>&1)
+OUTPUT=$(npm run verify 2>&1)
 STATUS=$?
 
 if [ $STATUS -ne 0 ]; then

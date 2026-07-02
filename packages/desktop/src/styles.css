@@ -1,0 +1,181 @@
+/* Login-screen styles only. The chat UI uses Tailwind + assistant-ui (index.css).
+   Everything here is scoped under `.login` so it can't leak into / override the
+   shadcn theme (which owns --background, --muted, --accent, --radius, buttons,
+   inputs, etc.). */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.login {
+  /* Login's own palette — intentionally separate from the chat's shadcn theme. */
+  --surface: #ffffff;
+  --surface-2: #efede7;
+  --ink: #1c1b18;
+  --soft-muted: #76726a;
+  --line: #e3e0d8;
+  --brand: #1f6f54;
+  --brand-ink: #ffffff;
+  --danger: #b4452f;
+  --card-radius: 14px;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f6f5f1;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.login button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 9px 14px;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.12s ease;
+}
+.login button:hover {
+  background: var(--surface-2);
+}
+.login button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.login button.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.login button.primary:hover {
+  filter: brightness(1.05);
+}
+.login button.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.login input,
+.login select,
+.login textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+}
+.login input:focus,
+.login select:focus,
+.login textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+.login .muted {
+  color: var(--soft-muted);
+}
+.login .error-banner {
+  background: #fbeae6;
+  color: var(--danger);
+  border: 1px solid #f0cabf;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 28px;
+}
+.brand {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 28px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.brand h1 {
+  font-size: 22px;
+  margin: 0 0 2px;
+}
+.login-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.login-menu button {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+}
+.login-menu .sub {
+  font-size: 12px;
+  color: var(--soft-muted);
+  font-weight: 400;
+}
+.login-menu button.primary .sub {
+  color: rgba(255, 255, 255, 0.85);
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--soft-muted);
+}
+.row-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.oauth-log {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  max-height: 180px;
+  overflow: auto;
+}
+.oauth-log p {
+  margin: 0 0 6px;
+}
+.oauth-request {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

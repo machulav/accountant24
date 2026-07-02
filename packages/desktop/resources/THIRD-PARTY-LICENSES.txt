@@ -1,0 +1,6 @@
+Accountant24 — Third-Party Licenses
+
+Placeholder. Release builds regenerate this file via scripts/vendor-bin.ts with
+the bundled tools' versions, SPDX licenses, corresponding-source URLs, and the
+full license texts (hledger — GPL-3.0, poppler — GPL-2.0, tesseract — Apache-2.0,
+plus their bundled shared libraries). Local/dev builds keep this placeholder.
