@@ -46,14 +46,15 @@ extraResources:
     to: THIRD-PARTY-LICENSES.txt
 
 mac:
-  # Each CI runner builds its own architecture (arm64 on macos-14, x64 on
-  # macos-13) and passes --arm64 / --x64, so only the matching arch is produced
-  # per job; listing both here lets a local `electron-builder --mac` do both.
+  # arm64 only: the arch list here overrides CLI --arm64/--x64 flags, and the
+  # vendored CLI tools (resources/bin) are built for the host arch — an x64 app
+  # with arm64 tools inside would not work on Intel. See release.yml for why
+  # Intel builds are dropped and what re-adding them would take.
   target:
     - target: dmg
-      arch: [arm64, x64]
+      arch: [arm64]
     - target: zip
-      arch: [arm64, x64]
+      arch: [arm64]
   category: public.app-category.finance
   icon: build/icon.icns
   hardenedRuntime: true
