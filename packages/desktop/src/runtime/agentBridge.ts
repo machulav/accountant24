@@ -5,9 +5,12 @@
 // - `request()` sends a command and resolves with its matching `response`.
 // - `addEventListener()` fans out the live event stream (everything except
 //   `response`) to subscribers — this is what the PiClient's `subscribe()` taps.
-// - Auto-approves `extension_ui_request` (tool-permission prompts) so tools don't
-//   hang. A real approval UI is a follow-up; until then host-UI requests are not
-//   surfaced to the runtime.
+// - Auto-confirms `extension_ui_request` so the agent can never hang on a
+//   blocking host-UI call. NOTE this is a defensive guard, not a permission
+//   bypass: pi's RPC mode has no tool-permission prompts (only the interactive
+//   TUI does), and neither pi core nor our extension emits blocking
+//   confirm/input requests today. If a real approval flow is ever needed,
+//   surface these to the UI instead of confirming here.
 
 import { type AgentExit, agentApi } from "../rpc/api";
 import type { AgentEvent } from "../rpc/types";
@@ -60,7 +63,7 @@ class AgentBridge {
 
   private handle(e: AgentEvent): void {
     if (e.type === "extension_ui_request") {
-      // Auto-approve so the agent never blocks on a permission prompt (v1).
+      // Confirm so the agent can never block on a host-UI call (see header note).
       const response: Record<string, unknown> = { type: "extension_ui_response", id: e.id, confirmed: true };
       if (e.method === "input") response.value = "";
       agentApi.send(response).catch(() => undefined);
