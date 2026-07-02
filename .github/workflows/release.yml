@@ -3,8 +3,9 @@
 # opens the draft release with notes), or manually via workflow_dispatch against
 # an existing tag (for test runs).
 #
-# Flow: ensure a draft release exists → build arm64 (macos-14) and x64 (macos-13)
-# in parallel, each uploading via `electron-builder --publish always` → un-draft.
+# Flow: ensure a draft release exists → build arm64 (macos-14) and x64
+# (macos-15-intel) in parallel, each uploading via `electron-builder --publish
+# always` → un-draft.
 #
 # Unsigned for now (CSC_IDENTITY_AUTO_DISCOVERY=false → ad-hoc signing only).
 # Adding Developer-ID signing + notarization later only needs the APPLE_*/CSC_*
@@ -80,7 +81,7 @@ jobs:
         include:
           - runner: macos-14 # Apple Silicon
             arch: arm64
-          - runner: macos-13 # Intel
+          - runner: macos-15-intel # Intel (macos-13 was retired by GitHub in late 2025)
             arch: x64
     runs-on: ${{ matrix.runner }}
     steps:
