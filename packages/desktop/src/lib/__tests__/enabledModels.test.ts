@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addEnabledModels, filterEnabledModels, modelId } from "../enabledModels";
+import { addEnabledModels, filterEnabledModels, modelId, parseModelId } from "../enabledModels";
 
 const m = (provider: string, id: string) => ({ provider, modelId: id, name: `${provider}/${id}` });
 
@@ -8,6 +8,40 @@ const models = [m("anthropic", "claude-opus-4-8"), m("openai", "gpt-5.5"), m("ol
 describe("modelId", () => {
   it("joins provider and modelId with a slash", () => {
     expect(modelId({ provider: "anthropic", modelId: "claude-opus-4-8" })).toBe("anthropic/claude-opus-4-8");
+  });
+});
+
+describe("parseModelId", () => {
+  it("should split provider and modelId at the first slash", () => {
+    expect(parseModelId("anthropic/claude-opus-4-8")).toEqual({ provider: "anthropic", modelId: "claude-opus-4-8" });
+  });
+
+  it("should keep later slashes in the modelId", () => {
+    expect(parseModelId("openrouter/meta/llama-3")).toEqual({ provider: "openrouter", modelId: "meta/llama-3" });
+  });
+
+  it("should return undefined when the id has no slash", () => {
+    expect(parseModelId("claude")).toBeUndefined();
+  });
+
+  it("should return undefined when the provider is empty (leading slash)", () => {
+    expect(parseModelId("/model")).toBeUndefined();
+  });
+
+  it("should return undefined when the modelId is empty (trailing slash)", () => {
+    expect(parseModelId("provider/")).toBeUndefined();
+  });
+
+  it("should return undefined when the id is only a slash", () => {
+    expect(parseModelId("/")).toBeUndefined();
+  });
+
+  it("should return undefined when the id is empty", () => {
+    expect(parseModelId("")).toBeUndefined();
+  });
+
+  it("should parse the minimal valid id of one char on each side", () => {
+    expect(parseModelId("a/b")).toEqual({ provider: "a", modelId: "b" });
   });
 });
 
