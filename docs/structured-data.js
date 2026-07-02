@@ -27,7 +27,7 @@
     applicationCategory: "FinanceApplication",
     operatingSystem: "macOS, Linux",
     description:
-      "Free, local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
+      "Local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
     url: BASE,
     downloadUrl: "https://github.com/machulav/accountant24",
     softwareHelp: BASE + "/quickstart",

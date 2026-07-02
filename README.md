@@ -1,4 +1,4 @@
-# Accountant24 - Free, local-first AI agent for personal finance
+# Accountant24 - Local-first AI agent for personal finance
 
 Track spending in plain language, import bank statements and receipts, ask questions about your money. Your data stays as plain text files on your machine. Works with any LLM, including local ones. All changes are versioned with git.
 
