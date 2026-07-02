@@ -55,6 +55,13 @@ const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 const emit = (e: unknown) => {
   for (const cb of [...h.eventListeners]) cb(e);
 };
+/** The correlation id request() attached to the sent command of the given type
+ *  (pi echoes it back on the response — the fake mirrors that contract). */
+const sentId = (type: string): string | undefined =>
+  (h.sent.find((c) => (c as { type?: string }).type === type) as { id?: string } | undefined)?.id;
+/** Emit the response to the previously-sent command of the given type. */
+const respondTo = (type: string, over: Record<string, unknown>) =>
+  emit({ type: "response", id: sentId(type), command: type, ...over });
 const emitTerminated = (info: unknown) => {
   for (const cb of [...h.terminatedListeners]) cb(info);
 };
@@ -106,35 +113,48 @@ describe("agentBridge", () => {
   });
 
   describe("request()", () => {
-    it("should resolve with the response data when a matching response arrives", async () => {
+    it("should resolve with the response data when a response with the matching id arrives", async () => {
       const bridge = await loadBridge();
       const p = bridge.request({ type: "get_state" }, "get_state");
       await flush();
-      expect(h.sent).toContainEqual({ type: "get_state" });
+      expect(h.sent).toContainEqual(expect.objectContaining({ type: "get_state" }));
 
-      emit({ type: "response", command: "get_state", success: true, data: { model: "m1" } });
+      respondTo("get_state", { success: true, data: { model: "m1" } });
       await expect(p).resolves.toEqual({ model: "m1" });
+    });
+
+    it("should attach a unique correlation id when sending each command", async () => {
+      const bridge = await loadBridge();
+      const p1 = bridge.request({ type: "get_state" }, "get_state");
+      const p2 = bridge.request({ type: "get_messages" }, "get_messages");
+      [p1, p2].map((p) => p.catch(() => {}));
+      await flush();
+
+      const ids = h.sent.map((c) => (c as { id?: string }).id);
+      expect(ids[0]).toBeTruthy();
+      expect(ids[1]).toBeTruthy();
+      expect(ids[0]).not.toBe(ids[1]);
     });
 
     it("should reject with the response error when success is false", async () => {
       const bridge = await loadBridge();
-      const p = bridge.request({}, "do_x");
+      const p = bridge.request({ type: "do_x" }, "do_x");
       await flush();
-      emit({ type: "response", command: "do_x", success: false, error: "boom" });
+      respondTo("do_x", { success: false, error: "boom" });
       await expect(p).rejects.toThrow("boom");
     });
 
     it("should reject with a default message when a failed response carries no error", async () => {
       const bridge = await loadBridge();
-      const p = bridge.request({}, "do_x");
+      const p = bridge.request({ type: "do_x" }, "do_x");
       await flush();
-      emit({ type: "response", command: "do_x", success: false });
+      respondTo("do_x", { success: false });
       await expect(p).rejects.toThrow("do_x failed");
     });
 
-    it("should stay pending when a response for a different command arrives", async () => {
+    it("should stay pending when a response carries a different id", async () => {
       const bridge = await loadBridge();
-      const p = bridge.request({}, "get_state");
+      const p = bridge.request({ type: "get_state" }, "get_state");
       await flush();
 
       let state = "pending";
@@ -147,20 +167,37 @@ describe("agentBridge", () => {
         },
       );
 
-      emit({ type: "response", command: "other", success: true, data: 1 });
+      // Same command name, foreign id — must not settle this request.
+      emit({ type: "response", id: "someone-else", command: "get_state", success: true, data: 1 });
       await flush();
       expect(state).toBe("pending");
 
-      emit({ type: "response", command: "get_state", success: true, data: 2 });
+      respondTo("get_state", { success: true, data: 2 });
       await expect(p).resolves.toBe(2);
+    });
+
+    it("should resolve each request with its own data when two same-command requests overlap", async () => {
+      const bridge = await loadBridge();
+      const p1 = bridge.request({ type: "get_state" }, "get_state");
+      const p2 = bridge.request({ type: "get_state" }, "get_state");
+      await flush();
+
+      const [c1, c2] = h.sent.filter((c) => (c as { type?: string }).type === "get_state") as { id?: string }[];
+      // Answer the second request FIRST — out-of-order delivery must not
+      // cross-wire the results.
+      emit({ type: "response", id: c2.id, command: "get_state", success: true, data: "B" });
+      emit({ type: "response", id: c1.id, command: "get_state", success: true, data: "A" });
+
+      await expect(p1).resolves.toBe("A");
+      await expect(p2).resolves.toBe("B");
     });
 
     it("should resolve only once when two matching responses arrive", async () => {
       const bridge = await loadBridge();
-      const p = bridge.request({}, "get_state");
+      const p = bridge.request({ type: "get_state" }, "get_state");
       await flush();
-      emit({ type: "response", command: "get_state", success: true, data: 1 });
-      emit({ type: "response", command: "get_state", success: true, data: 2 });
+      respondTo("get_state", { success: true, data: 1 });
+      respondTo("get_state", { success: true, data: 2 });
       await expect(p).resolves.toBe(1);
     });
 
@@ -170,11 +207,11 @@ describe("agentBridge", () => {
       await flush();
       const base = h.eventListeners.size; // the single process-lifetime wire listener
 
-      const p = bridge.request({}, "get_state");
+      const p = bridge.request({ type: "get_state" }, "get_state");
       await flush();
       expect(h.eventListeners.size).toBe(base + 1);
 
-      emit({ type: "response", command: "get_state", success: true, data: 0 });
+      respondTo("get_state", { success: true, data: 0 });
       await p;
       expect(h.eventListeners.size).toBe(base);
     });
@@ -223,9 +260,9 @@ describe("agentBridge", () => {
 
     it("should keep an already-resolved request's outcome when a later crash occurs", async () => {
       const bridge = await loadBridge();
-      const p = bridge.request({}, "get_state");
+      const p = bridge.request({ type: "get_state" }, "get_state");
       await flush();
-      emit({ type: "response", command: "get_state", success: true, data: 42 });
+      respondTo("get_state", { success: true, data: 42 });
       await expect(p).resolves.toBe(42);
 
       // A crash after the request already settled must be a no-op for it.
@@ -267,10 +304,10 @@ describe("agentBridge", () => {
     it("should not reject after 30s when a response already arrived", async () => {
       vi.useFakeTimers();
       const bridge = await loadBridge();
-      const p = bridge.request({}, "x");
+      const p = bridge.request({ type: "x" }, "x");
       await vi.advanceTimersByTimeAsync(0);
 
-      emit({ type: "response", command: "x", success: true, data: 7 });
+      respondTo("x", { success: true, data: 7 });
       await expect(p).resolves.toBe(7);
 
       // Advancing well past the timeout must not turn the resolved request into a rejection.

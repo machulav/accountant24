@@ -108,11 +108,14 @@ class AgentBridge {
     await agentApi.send(command);
   }
 
-  /** Send a command and resolve with the `response` payload for `commandName`.
-   *  Rejects if the sidecar stops (via onStopped) or the request times out, so
-   *  the caller never hangs; the per-request event listener is always removed. */
+  /** Send a command and resolve with its `response` payload. Each request gets
+   *  a unique `id` that pi echoes back, so overlapping requests — even for the
+   *  same command — each receive their own response. Rejects if the sidecar
+   *  stops (via onStopped) or the request times out, so the caller never hangs;
+   *  the per-request event listener is always removed. */
   async request<T>(command: object, commandName: string): Promise<T> {
     await this.ensureStarted();
+    const requestId = crypto.randomUUID();
     return new Promise<T>((resolve, reject) => {
       let unlisten: (() => void) | undefined;
       let settled = false;
@@ -142,7 +145,7 @@ class AgentBridge {
 
       void agentApi
         .onEvent((e) => {
-          if (e.type === "response" && e.command === commandName) {
+          if (e.type === "response" && e.id === requestId) {
             if (e.success) succeed(e.data as T);
             else fail(new Error(e.error ?? `${commandName} failed`));
           }
@@ -152,7 +155,7 @@ class AgentBridge {
           // If we already settled (timeout/crash) before the listener resolved,
           // drop it immediately; otherwise it's live and we can send.
           if (settled) un();
-          else void agentApi.send(command);
+          else void agentApi.send({ ...command, id: requestId });
         });
     });
   }
