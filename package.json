@@ -22,6 +22,7 @@
     "eval": "node --import tsx --import ./scripts/text-import-register.mjs packages/evals/run.ts",
     "pre-commit": "biome check --write . && biome check .",
     "release": "tsx scripts/release.ts",
+    "release:rc": "tsx scripts/release.ts --rc",
     "release:dry": "tsx scripts/release.ts --dry-run",
     "prepare": "simple-git-hooks"
   },

@@ -59,11 +59,18 @@ jobs:
             echo "Release $TAG already exists — reusing it."
             exit 0
           fi
-          # Notes = the topmost (latest) section of CHANGELOG.md, written by
-          # `changelogen --release`, minus its heading line.
-          NOTES="$(awk '/^## /{n++} n==1{print} n==2{exit}' CHANGELOG.md | tail -n +2)"
           CAVEAT=$'\n\n---\n> This build is not yet notarized. On first launch, right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Accountant24.app`).'
-          gh release create "$TAG" --draft --title "$TAG" --notes "${NOTES}${CAVEAT}"
+          if [[ "$TAG" == *-rc.* ]]; then
+            # rc tags have no CHANGELOG.md section (the final release writes it);
+            # mark as prerelease so it never becomes "latest".
+            gh release create "$TAG" --draft --prerelease --title "$TAG" \
+              --notes "Release candidate for testing.${CAVEAT}"
+          else
+            # Notes = the topmost (latest) section of CHANGELOG.md, written by
+            # `changelogen --release`, minus its heading line.
+            NOTES="$(awk '/^## /{n++} n==1{print} n==2{exit}' CHANGELOG.md | tail -n +2)"
+            gh release create "$TAG" --draft --title "$TAG" --notes "${NOTES}${CAVEAT}"
+          fi
 
   build:
     needs: create-release
