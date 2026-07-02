@@ -94,8 +94,11 @@ function useLedgerMentions(): LedgerMentions {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const wasRunning = useRef(isRunning);
   useEffect(() => {
-    if (wasRunning.current && !isRunning) refresh();
+    const justFinished = wasRunning.current && !isRunning;
     wasRunning.current = isRunning;
+    // Return refresh()'s cancel like the mount effect does, so a fetch that
+    // resolves after unmount (or after the next turn starts) can't setData.
+    if (justFinished) return refresh();
   }, [isRunning, refresh]);
 
   return data;

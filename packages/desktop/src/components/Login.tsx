@@ -78,7 +78,9 @@ function ApiKeyForm({
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!key.trim()) return;
+    // The busy guard also covers Enter on the input, which (unlike the Connect
+    // button) isn't disabled while a save is in flight.
+    if (busy || !key.trim()) return;
     setBusy(true);
     setError(null);
     try {

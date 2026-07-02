@@ -14,9 +14,10 @@ import { type BrowserWindow, ipcMain } from "electron";
 import { agentEnv, extensionPath, piCliPath, workspaceDir } from "./env";
 
 let child: ChildProcess | null = null;
-// The child we deliberately killed (restart / app quit), so its `exit` isn't
-// reported to the renderer as a crash.
-let intentionalKill: ChildProcess | null = null;
+// Children we deliberately killed (restart / app quit), so their `exit` isn't
+// reported to the renderer as a crash. A set, not a single slot: two rapid
+// restarts can have several killed children still awaiting their exit event.
+const intentionalKills = new Set<ChildProcess>();
 
 function spawnAgent(getWin: () => BrowserWindow | null): void {
   const workspace = workspaceDir();
@@ -75,8 +76,7 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
   proc.on("exit", (code, signal) => {
     if (child === proc) child = null;
     // Kills we initiated (restart / app quit) aren't crashes — don't surface them.
-    if (intentionalKill === proc) {
-      intentionalKill = null;
+    if (intentionalKills.delete(proc)) {
       console.log("[agent] stopped (intentional)");
       return;
     }
@@ -93,7 +93,7 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
 /** Kill the agent child (app exit / explicit stop). */
 export function killAgent(): void {
   if (child) {
-    intentionalKill = child;
+    intentionalKills.add(child);
     child.kill();
     child = null;
   }
@@ -106,6 +106,9 @@ export function registerAgentIpc(getWin: () => BrowserWindow | null): void {
   });
   ipcMain.handle("agent_send", (_e, command: unknown) => {
     if (!child?.stdin) throw new Error("agent not running");
+    // JSON.stringify(undefined) is undefined, which would write the literal
+    // text "undefined" and corrupt the JSONL stream — commands must be objects.
+    if (typeof command !== "object" || command === null) throw new Error("invalid agent command");
     child.stdin.write(`${JSON.stringify(command)}\n`);
   });
   ipcMain.handle("agent_stop", () => killAgent());

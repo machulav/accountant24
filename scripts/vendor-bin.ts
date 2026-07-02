@@ -68,7 +68,7 @@ function licenseText(formula: string): string {
   const prefix = capture("brew", ["--prefix", formula]);
   const found = capture("bash", [
     "-c",
-    `find -L ${prefix} -maxdepth 4 -type f \\( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*' \\) 2>/dev/null | head -n1`,
+    `find -L "${prefix}" -maxdepth 4 -type f \\( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*' \\) 2>/dev/null | head -n1`,
   ]);
   return found ? readFileSync(found, "utf8").trim() : "";
 }
@@ -137,8 +137,10 @@ function main() {
     bins.push(dest);
     run("bash", [
       "-c",
+      // Quote the interpolated paths — a checkout under a directory with spaces
+      // would otherwise split them into multiple arguments.
       `yes | dylibbundler --bundle-deps --overwrite-files --create-dir ` +
-        `--dest-dir ${LIB} --install-path @executable_path/lib --fix-file ${dest}`,
+        `--dest-dir "${LIB}" --install-path @executable_path/lib --fix-file "${dest}"`,
     ]);
   }
 
