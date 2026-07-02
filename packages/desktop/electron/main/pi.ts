@@ -8,7 +8,7 @@
 // same files the agent child reads (PI_CODING_AGENT_DIR points there).
 
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type BrowserWindow, ipcMain, shell } from "electron";
 import { workspaceDir } from "./env";
@@ -294,33 +294,45 @@ async function sessionsList() {
 function sessionsDelete(path: string) {
   if (!path) return { type: "error", message: "session path is required" };
   const dir = resolve(sessionsDir());
-  if (!resolve(path).startsWith(dir)) {
+  const target = resolve(path);
+  // Strictly inside the sessions dir: the separator suffix stops both siblings
+  // that merely share the prefix (…/sessions-backup) and the dir itself.
+  if (!target.startsWith(dir + sep)) {
     return { type: "error", message: "refusing to delete a path outside the sessions directory" };
   }
-  rmSync(path, { force: true });
+  rmSync(target, { force: true });
   return { type: "done", path };
 }
 
 // ---- interactive OAuth login (streamed over "auth-event") ------------------
 
-let loginAbort: AbortController | null = null;
-let loginPending = new Map<string, (value: string) => void>();
-let loginCounter = 0;
+/** State for one sign-in attempt. Scoped per attempt (not module-wide) so a
+ *  superseded attempt settling late can't clobber the active one's abort
+ *  controller or pending prompts. */
+interface LoginAttempt {
+  abort: AbortController;
+  pending: Map<string, (value: string) => void>;
+  counter: number;
+}
+
+let activeLogin: LoginAttempt | null = null;
 
 function authLogin(getWin: () => BrowserWindow | null, provider: string): void {
-  loginAbort?.abort();
-  loginAbort = new AbortController();
-  loginPending = new Map();
-  loginCounter = 0;
+  activeLogin?.abort.abort();
+  const attempt: LoginAttempt = { abort: new AbortController(), pending: new Map(), counter: 0 };
+  activeLogin = attempt;
 
+  // Events from a superseded attempt are dropped, so a stale login (e.g. the
+  // rejection of the one we just aborted) can't talk over the active one.
   const send = (record: Record<string, unknown>) => {
+    if (activeLogin !== attempt) return;
     const win = getWin();
     if (win && !win.isDestroyed()) win.webContents.send("auth-event", record);
   };
   const ask = (request: Record<string, unknown>): Promise<string> => {
-    const id = `q${++loginCounter}`;
+    const id = `q${++attempt.counter}`;
     return new Promise<string>((res) => {
-      loginPending.set(id, res);
+      attempt.pending.set(id, res);
       send({ ...request, id });
     });
   };
@@ -339,7 +351,7 @@ function authLogin(getWin: () => BrowserWindow | null, provider: string): void {
       const value = await ask({ type: "select", message: prompt.message, options: prompt.options });
       return value === "" ? undefined : value;
     },
-    signal: loginAbort.signal,
+    signal: attempt.abort.signal,
   };
 
   const { authStorage } = createRegistry();
@@ -348,21 +360,23 @@ function authLogin(getWin: () => BrowserWindow | null, provider: string): void {
     .then(() => send({ type: "done", provider }))
     .catch((error) => send({ type: "error", message: error instanceof Error ? error.message : String(error) }))
     .finally(() => {
-      loginAbort = null;
-      loginPending = new Map();
+      // Only clear if we're still the active attempt — a newer login owns the
+      // slot now and must keep its own abort controller + pending prompts.
+      if (activeLogin === attempt) activeLogin = null;
     });
 }
 
 function authLoginRespond(id: string, value: string | null): void {
-  const res = loginPending.get(id);
-  if (res) {
-    loginPending.delete(id);
+  const attempt = activeLogin;
+  const res = attempt?.pending.get(id);
+  if (attempt && res) {
+    attempt.pending.delete(id);
     res(value ?? "");
   }
 }
 
 function authLoginCancel(): void {
-  loginAbort?.abort();
+  activeLogin?.abort.abort();
 }
 
 /** Register auth/sessions IPC handlers. */
