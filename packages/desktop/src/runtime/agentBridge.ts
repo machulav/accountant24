@@ -18,6 +18,11 @@ import type { AgentEvent } from "../rpc/types";
 type EventListener = (e: AgentEvent) => void;
 type ErrorListener = (message: string) => void;
 
+/** How long an unanswered `request()` waits before rejecting. Guards against a
+ *  sidecar that dies without emitting a terminate/error event, or a lost
+ *  response — without it the caller's promise would hang forever. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /** Human-readable crash message + a short stderr tail, and a hint that sending a
  *  message respawns the agent. */
 function describeExit(info: AgentExit): string {
@@ -31,6 +36,9 @@ class AgentBridge {
   private wired = false;
   private readonly listeners = new Set<EventListener>();
   private readonly errorListeners = new Set<ErrorListener>();
+  // Reject callbacks for in-flight request() promises, so a sidecar crash can
+  // fail them instead of leaving their callers hanging forever.
+  private readonly pendingRequests = new Set<(error: Error) => void>();
 
   /** Spawn the sidecar (idempotent). The process-lifetime subscriptions are
    *  attached once via wire(); a crash clears `startPromise` so the next
@@ -55,9 +63,12 @@ class AgentBridge {
     await agentApi.onError((m) => this.onStopped(m));
   }
 
-  /** Reset the start latch (so the next call respawns) and notify subscribers. */
+  /** Reset the start latch (so the next call respawns), reject any in-flight
+   *  requests, and notify subscribers. */
   private onStopped(message: string): void {
     this.startPromise = null;
+    const error = new Error(message);
+    for (const reject of [...this.pendingRequests]) reject(error);
     this.fail(message);
   }
 
@@ -97,22 +108,51 @@ class AgentBridge {
     await agentApi.send(command);
   }
 
-  /** Send a command and resolve with the `response` payload for `commandName`. */
+  /** Send a command and resolve with the `response` payload for `commandName`.
+   *  Rejects if the sidecar stops (via onStopped) or the request times out, so
+   *  the caller never hangs; the per-request event listener is always removed. */
   async request<T>(command: object, commandName: string): Promise<T> {
     await this.ensureStarted();
     return new Promise<T>((resolve, reject) => {
       let unlisten: (() => void) | undefined;
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout>;
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.pendingRequests.delete(fail);
+        unlisten?.();
+      };
+      const succeed = (data: T) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(data);
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+
+      timer = setTimeout(() => fail(new Error(`${commandName} timed out`)), REQUEST_TIMEOUT_MS);
+      // Registered so onStopped() can reject this request on a sidecar crash.
+      this.pendingRequests.add(fail);
+
       void agentApi
         .onEvent((e) => {
           if (e.type === "response" && e.command === commandName) {
-            unlisten?.();
-            if (e.success) resolve(e.data as T);
-            else reject(new Error(e.error ?? `${commandName} failed`));
+            if (e.success) succeed(e.data as T);
+            else fail(new Error(e.error ?? `${commandName} failed`));
           }
         })
         .then((un) => {
           unlisten = un;
-          void agentApi.send(command);
+          // If we already settled (timeout/crash) before the listener resolved,
+          // drop it immediately; otherwise it's live and we can send.
+          if (settled) un();
+          else void agentApi.send(command);
         });
     });
   }
