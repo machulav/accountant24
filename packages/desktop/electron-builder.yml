@@ -19,6 +19,10 @@ publish:
   provider: github
   owner: machulav
   repo: accountant24
+  # No auto-update (electron-updater) in the app, so skip uploading latest-mac.yml.
+  # Also avoids the classic race: both arch matrix jobs would otherwise upload the
+  # SAME-named latest-mac.yml to one release and can 422 each other.
+  publishAutoUpdate: false
 
 # out/ (electron-vite build) + the app manifest. electron-builder also bundles
 # the production dependencies (pi SDK, react, …) automatically.
