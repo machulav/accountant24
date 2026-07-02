@@ -77,6 +77,13 @@ export function createElectronPiClient(): PiClient {
     if (e.type === "agent_start") running.add(activeThreadId);
     else if (e.type === "agent_end") running.delete(activeThreadId);
   });
+  // If the agent crashes, a respawn starts with no active session. Forget the
+  // active thread + in-flight runs so the next ensureActive() re-issues
+  // switch_session against the fresh process instead of assuming it's loaded.
+  agentBridge.addErrorListener(() => {
+    activeThreadId = undefined;
+    running.clear();
+  });
 
   const nextSeq = (threadId: string): number => {
     const n = (seqs.get(threadId) ?? 0) + 1;

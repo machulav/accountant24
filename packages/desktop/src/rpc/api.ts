@@ -28,6 +28,10 @@ export function dlog(msg: string): void {
  *  agent was restarted), so the composer's picker re-fetches its model list. */
 const MODELS_CHANGED = "a24:models-changed";
 
+/** Payload for an unexpected agent exit (crash), carrying a stderr tail for
+ *  diagnostics. Deliberate stops (restart / app quit) are not reported. */
+export type AgentExit = { code: number | null; signal: string | null; stderr: string };
+
 export const agentApi = {
   start: () => api.invoke<void>("agent_start"),
   send: (command: object) => api.invoke<void>("agent_send", command),
@@ -50,8 +54,8 @@ export const agentApi = {
         dlog(`PARSE FAIL: ${String(payload).slice(0, 140)}`);
       }
     }),
-  onTerminated: async (cb: (code: number | null) => void): Promise<() => void> =>
-    api.on("agent-terminated", (payload) => cb(payload as number | null)),
+  onTerminated: async (cb: (info: AgentExit) => void): Promise<() => void> =>
+    api.on("agent-terminated", (payload) => cb(payload as AgentExit)),
   onError: async (cb: (message: string) => void): Promise<() => void> =>
     api.on("agent-error", (payload) => cb(payload as string)),
 };

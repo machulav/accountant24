@@ -14,6 +14,9 @@ import { type BrowserWindow, ipcMain } from "electron";
 import { agentEnv, extensionPath, piCliPath, workspaceDir } from "./env";
 
 let child: ChildProcess | null = null;
+// The child we deliberately killed (restart / app quit), so its `exit` isn't
+// reported to the renderer as a crash.
+let intentionalKill: ChildProcess | null = null;
 
 function spawnAgent(getWin: () => BrowserWindow | null): void {
   const workspace = workspaceDir();
@@ -43,6 +46,7 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
     },
   );
   child = proc;
+  console.log(`[agent] spawned (pid ${proc.pid})`);
 
   const emit = (channel: string, payload: unknown) => {
     const win = getWin();
@@ -61,18 +65,35 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
       if (line.length > 0) emit("agent-event", line);
     }
   });
-  proc.stderr?.setEncoding("utf8"); // drained so the pipe never blocks
-  proc.stderr?.resume();
-  proc.on("exit", (code) => {
-    if (child === proc) child = null;
-    emit("agent-terminated", code);
+  // Keep a rolling tail of stderr so a crash can report a diagnostic instead of
+  // just an exit code (and so the pipe never blocks).
+  let stderrTail = "";
+  proc.stderr?.setEncoding("utf8");
+  proc.stderr?.on("data", (chunk: string) => {
+    stderrTail = (stderrTail + chunk).slice(-4000);
   });
-  proc.on("error", (err) => emit("agent-error", err.message));
+  proc.on("exit", (code, signal) => {
+    if (child === proc) child = null;
+    // Kills we initiated (restart / app quit) aren't crashes — don't surface them.
+    if (intentionalKill === proc) {
+      intentionalKill = null;
+      console.log("[agent] stopped (intentional)");
+      return;
+    }
+    console.error(`[agent] crashed: code=${code} signal=${signal}`);
+    if (stderrTail.trim()) console.error(`[agent] stderr tail:\n${stderrTail.trim()}`);
+    emit("agent-terminated", { code, signal, stderr: stderrTail.trim() });
+  });
+  proc.on("error", (err) => {
+    console.error(`[agent] spawn error: ${err.message}`);
+    emit("agent-error", err.message);
+  });
 }
 
 /** Kill the agent child (app exit / explicit stop). */
 export function killAgent(): void {
   if (child) {
+    intentionalKill = child;
     child.kill();
     child = null;
   }

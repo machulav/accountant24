@@ -9,28 +9,53 @@
 //   hang. A real approval UI is a follow-up; until then host-UI requests are not
 //   surfaced to the runtime.
 
-import { agentApi } from "../rpc/api";
+import { type AgentExit, agentApi } from "../rpc/api";
 import type { AgentEvent } from "../rpc/types";
 
 type EventListener = (e: AgentEvent) => void;
 type ErrorListener = (message: string) => void;
 
+/** Human-readable crash message + a short stderr tail, and a hint that sending a
+ *  message respawns the agent. */
+function describeExit(info: AgentExit): string {
+  const how = info.signal ? ` (${info.signal})` : info.code != null ? ` (exit ${info.code})` : "";
+  const tail = info.stderr ? `\n\n${info.stderr.split("\n").slice(-8).join("\n")}` : "";
+  return `The agent stopped${how}. Send a message to restart it.${tail}`;
+}
+
 class AgentBridge {
   private startPromise: Promise<void> | null = null;
+  private wired = false;
   private readonly listeners = new Set<EventListener>();
   private readonly errorListeners = new Set<ErrorListener>();
 
-  /** Spawn the sidecar + attach the single event subscription (idempotent). */
+  /** Spawn the sidecar (idempotent). The process-lifetime subscriptions are
+   *  attached once via wire(); a crash clears `startPromise` so the next
+   *  send()/request() respawns the agent instead of leaving the session dead. */
   ensureStarted(): Promise<void> {
     if (!this.startPromise) {
       this.startPromise = (async () => {
+        await this.wire();
         await agentApi.start();
-        await agentApi.onEvent((e) => this.handle(e));
-        await agentApi.onTerminated(() => this.fail("The agent process stopped."));
-        await agentApi.onError((m) => this.fail(m));
       })();
     }
     return this.startPromise;
+  }
+
+  /** Attach the event/terminate/error subscriptions exactly once — they listen
+   *  on the IPC channel, not a specific child, so they survive respawns. */
+  private async wire(): Promise<void> {
+    if (this.wired) return;
+    this.wired = true;
+    await agentApi.onEvent((e) => this.handle(e));
+    await agentApi.onTerminated((info) => this.onStopped(describeExit(info)));
+    await agentApi.onError((m) => this.onStopped(m));
+  }
+
+  /** Reset the start latch (so the next call respawns) and notify subscribers. */
+  private onStopped(message: string): void {
+    this.startPromise = null;
+    this.fail(message);
   }
 
   private handle(e: AgentEvent): void {
