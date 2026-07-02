@@ -1,5 +1,6 @@
 import path from "node:path";
 import { BrowserWindow, shell } from "electron";
+import { isInternalNavigation, isOpenableExternalUrl, rendererCsp } from "./urls";
 
 /** Create the single app window. macOS chrome mirrors the old Tauri config:
  *  inset traffic lights, no native title bar; the renderer paints the top strip. */
@@ -24,15 +25,34 @@ export function createWindow(): BrowserWindow {
 
   win.once("ready-to-show", () => win.show());
 
-  // External links open in the system browser, never as new app windows.
+  // Links (target=_blank / window.open) never open as app windows. Only
+  // http/https/mailto reach the system browser; every other scheme (file:,
+  // javascript:, custom app schemes, …) is refused, so a link in untrusted
+  // agent/markdown output can't make the OS launch a local handler.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (isOpenableExternalUrl(url)) void shell.openExternal(url).catch(() => undefined);
     return { action: "deny" };
+  });
+
+  // The app frame must never navigate off its own origin (e.g. a link with
+  // target=_self). Same-origin navigations/reloads pass; an off-origin http(s)
+  // target is opened externally instead, anything else is simply blocked.
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isInternalNavigation(url, win.webContents.getURL())) return;
+    event.preventDefault();
+    if (isOpenableExternalUrl(url)) void shell.openExternal(url).catch(() => undefined);
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
+    // Packaged build serves static file:// content — lock the renderer down with
+    // a Content-Security-Policy (dev skips this to keep Vite HMR working).
+    win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: { ...details.responseHeaders, "Content-Security-Policy": [rendererCsp()] },
+      });
+    });
     void win.loadFile(path.join(import.meta.dirname, "../renderer/index.html"));
   }
 
