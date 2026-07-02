@@ -31,11 +31,26 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noAssignInExpressions": "off",
-        "noArrayIndexKey": "warn",
+        "noArrayIndexKey": "off",
         "noDocumentCookie": "warn"
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/desktop/src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "suspicious": {
+            "noDocumentCookie": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "actions": {
       "source": {

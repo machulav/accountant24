@@ -121,6 +121,7 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
   const scrollRef = useRef<HTMLDivElement>(null);
   // Keyboard nav moves the highlight but doesn't scroll; keep the highlighted
   // item in view. `nearest` does the minimum scroll (and no horizontal jump).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `highlightedIndex` is the deliberate re-run trigger; the DOM is queried, not the value
   useEffect(() => {
     scrollRef.current
       ?.querySelector<HTMLElement>("[data-highlighted]")

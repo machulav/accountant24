@@ -66,6 +66,7 @@ type ThreadListGroup = { label: string; indices: number[] };
 function useSessionTimes(threadIds: readonly string[]): Map<string, number> {
   const [times, setTimes] = useState<Map<string, number>>(new Map());
   const key = threadIds.join("\n");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is a deliberate refetch trigger (thread set changed), not read in the body
   useEffect(() => {
     let cancelled = false;
     sessionsApi
@@ -163,12 +164,14 @@ export const ThreadListNew = forwardRef<
 
 ThreadListNew.displayName = "ThreadListNew";
 
+const SKELETON_ROWS = ["s1", "s2", "s3", "s4", "s5"];
+
 const ThreadListSkeleton: FC = () => {
   return (
     <div className="flex flex-col gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
+      {SKELETON_ROWS.map((row) => (
         <div
-          key={i}
+          key={row}
           role="status"
           aria-label="Loading threads"
           data-slot="aui_thread-list-skeleton-wrapper"

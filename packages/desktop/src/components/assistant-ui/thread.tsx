@@ -310,6 +310,7 @@ const AssistantMessage: FC = () => {
               case "indicator":
                 return (
                   <span
+                    role="status"
                     data-slot="aui_assistant-message-indicator"
                     className="animate-pulse font-sans"
                     aria-label="Assistant is working"

@@ -438,6 +438,7 @@ function ModelSelectorEffort({ label = "Thinking", className, onKeyDown, ...prop
   if (!efforts?.length) return null;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the keydown only intercepts Enter for cmdk; the interactive elements are the buttons inside
     <div
       data-slot="model-selector-effort"
       className={cn("flex items-center justify-between gap-3 border-t px-3 py-2", className)}
@@ -450,6 +451,7 @@ function ModelSelectorEffort({ label = "Thinking", className, onKeyDown, ...prop
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
+      {/* biome-ignore lint/a11y/useSemanticElements: role="group" on a div is the standard ARIA pattern for a segmented toggle; fieldset styling doesn't fit here */}
       <div
         role="group"
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
