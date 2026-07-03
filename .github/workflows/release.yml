@@ -1,10 +1,22 @@
-# Builds the desktop app on release and attaches the macOS dmgs/zips to the
-# GitHub Release. Triggered by the tag that `npm run release` pushes (which also
-# opens the draft release with notes), or manually via workflow_dispatch against
-# an existing tag (for test runs).
+# Releases the desktop app. Dispatch-only: run it from the Actions tab, or via
+# `npm run release` / `npm run release:rc` (thin `gh workflow run` wrappers).
 #
-# Flow: ensure a draft release exists → build arm64 (macos-14), uploading via
-# `electron-builder --publish always` → un-draft.
+# type:
+#   stable  — cut a new release: scripts/release.ts bumps the version, writes
+#             the CHANGELOG.md section, commits, tags, and pushes
+#   rc      — same, but bumps to the next X.Y.Z-rc.N and skips CHANGELOG.md;
+#             published as a prerelease
+#   rebuild — re-run build+publish for an existing tag (requires the `tag`
+#             input); use to retry a failed build/notarization without
+#             cutting a new version
+#
+# Cutting the tag and building happen in ONE run, chained with `needs:` — a
+# tag pushed with GITHUB_TOKEN never triggers other workflows (GitHub's
+# recursion protection), so a separate tag-triggered build workflow would
+# silently never run. Flow: checks (quality gate `npm run verify`) →
+# create-release (cut tag if needed + draft release with notes) → build
+# (sign + notarize, upload dmg/zip) → verify (Gatekeeper checks on the
+# uploaded dmg from a clean machine) → finalize (un-draft).
 #
 # Intel (x64) builds are dropped for now: GitHub retired the macos-13 runners
 # (late 2025), and Homebrew ships x64 bottles only for macOS 14 — on the
@@ -26,35 +38,108 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
+      type:
+        description: "Release type"
+        type: choice
+        options: [stable, rc, rebuild]
+        default: stable
       tag:
-        description: "Existing tag to build (e.g. v0.2.2-rc.1)"
-        required: true
+        description: "Existing tag to rebuild (only for type: rebuild, e.g. v0.2.2-rc.1)"
+        required: false
 
 permissions:
   contents: write
 
+# A release run mutates main (version bump commit) and the tag namespace —
+# never let two run at once.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
+  # Quality gate before anything is mutated: audit, format/lint, types, tests
+  # with coverage (npm run verify). Failing here leaves no tag, no bump commit,
+  # no draft release behind. Skipped for rebuilds — the tag's code already
+  # passed when it was cut.
+  #
+  # Input validation costs no extra job: each path fail-fasts in the first
+  # step of the first job that runs for it — stable/rc here, rebuild in
+  # create-release (this job is skipped there).
+  checks:
+    if: inputs.type != 'rebuild'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate inputs
+        if: inputs.tag != ''
+        run: |
+          echo "::error::The tag input is only for type=rebuild (a ${{ inputs.type }} release computes its own tag)."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run verify
+
   create-release:
+    needs: checks
+    # Run when checks succeeded OR was skipped (rebuild); never after a failure.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - id: meta
+      - name: Validate inputs
+        if: inputs.type == 'rebuild' && inputs.tag == ''
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          echo "::error::type=rebuild requires the tag input (e.g. v0.2.2-rc.1)."
+          exit 1
+
+      # --- cut a new version (stable/rc only) --------------------------------
+      # Full history + tags: changelogen derives the semver bump and the notes
+      # from the commits since the last stable tag.
+      - uses: actions/checkout@v4
+        if: inputs.type != 'rebuild'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        if: inputs.type != 'rebuild'
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        if: inputs.type != 'rebuild'
+
+      - name: Bump version + changelog, tag, push
+        id: cut
+        if: inputs.type != 'rebuild'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npx tsx scripts/release.ts ${{ inputs.type == 'rc' && '--rc' || '' }}
+        # release.ts appends tag=vX.Y.Z to GITHUB_OUTPUT after pushing.
+
+      # -----------------------------------------------------------------------
+      - id: meta
+        env:
+          CUT_TAG: ${{ steps.cut.outputs.tag }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${CUT_TAG:-$INPUT_TAG}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
@@ -156,8 +241,49 @@ jobs:
             -c.extraMetadata.version="${{ needs.create-release.outputs.version }}" \
             --publish always
 
-  finalize:
+  # Validates the UPLOADED dmg from a clean machine — exactly what a user
+  # downloads — before the release goes public.
+  verify:
     needs: [create-release, build]
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Download dmg from the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: gh release download "$TAG" --pattern '*-arm64.dmg' --output app.dmg
+
+      - name: Gatekeeper checks (codesign, spctl, stapler, version)
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          MOUNT="$RUNNER_TEMP/dmg"
+          hdiutil attach app.dmg -mountpoint "$MOUNT" -nobrowse -readonly
+          trap 'hdiutil detach "$MOUNT" -quiet || true' EXIT
+          APP="$MOUNT/Accountant24.app"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+          SPCTL_OUT=$(spctl -a -vv "$APP" 2>&1) || { echo "$SPCTL_OUT"; exit 1; }
+          echo "$SPCTL_OUT"
+          echo "$SPCTL_OUT" | grep -q "Notarized Developer ID" || {
+            echo "::error::Gatekeeper did not report 'Notarized Developer ID'."
+            exit 1
+          }
+
+          xcrun stapler validate "$APP"
+
+          ACTUAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+          if [ "$ACTUAL" != "$VERSION" ]; then
+            echo "::error::Version mismatch: app reports $ACTUAL, release is $VERSION."
+            exit 1
+          fi
+          echo "OK: signed, notarized, stapled, version $ACTUAL."
+
+  finalize:
+    needs: [create-release, verify]
     runs-on: ubuntu-latest
     steps:
       - name: Publish the release

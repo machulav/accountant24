@@ -1,28 +1,32 @@
-// Release preparer. The actual build + publish happens in CI (GitHub Actions,
-// .github/workflows/release.yml), triggered by the tag this script pushes.
+// Release preparer, executed BY CI (the Release workflow,
+// .github/workflows/release.yml, dispatched from the Actions tab or via
+// `npm run release` / `npm run release:rc`, which are `gh workflow run`
+// wrappers). Locally only --dry-run is expected: a tag pushed from a laptop
+// no longer triggers anything — the workflow is dispatch-only, and it cuts
+// the tag itself before building.
 //   1. preflight: working tree clean, on main
 //   2. bump version + generate CHANGELOG.md + tag (changelogen --release)
 //      — or, with --rc, bump to the next X.Y.Z-rc.N without touching CHANGELOG.md
-//   3. push main + tag
+//   3. push main + tag; expose the tag via GITHUB_OUTPUT for downstream jobs
 //
-// The tag push triggers CI, which builds the arm64 + x64 dmgs, creates the
-// GitHub Release (notes sourced from the new CHANGELOG.md section; rc tags get
-// a generic note and are marked as prereleases), attaches the artifacts, and
-// publishes it. CI owns release creation so there's no race with this script.
+// The same workflow run then builds the dmg, creates the GitHub Release
+// (notes sourced from the new CHANGELOG.md section; rc tags get a generic
+// note and are marked as prereleases), attaches the artifacts, verifies them,
+// and publishes.
 //
 // Release candidates: --rc bumps to the next version with an -rc.N suffix
-// (rc.1, rc.2, ... while iterating). The final `npm run release` afterwards
+// (rc.1, rc.2, ... while iterating). The final stable release afterwards
 // drops the suffix and generates the CHANGELOG.md section from the last stable
 // tag, so rc iterations never fragment the release notes.
 //
 // Usage:
-//   npm run release            # bump, tag, push (CI builds + publishes)
-//   npm run release:rc         # same, but as a vX.Y.Z-rc.N prerelease
-//   npm run release:dry        # show what would happen, no state changes
+//   npm run release            # dispatch a stable release (CI runs this script)
+//   npm run release:rc         # dispatch a vX.Y.Z-rc.N prerelease
+//   npm run release:dry        # local preview: what would happen, no changes
 //   npm run release:dry -- --rc
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { determineSemverChange, getGitDiff, loadChangelogConfig, parseCommits } from "changelogen";
@@ -110,12 +114,17 @@ async function main() {
   const tag = `v${version}`;
   console.log(`[release] staged ${tag}`);
 
-  // 3. push main + tag. The tag push triggers the release workflow, which builds
-  //    the dmgs and creates + publishes the GitHub Release.
+  // 3. push main + tag. The rest of the workflow run builds the dmg and
+  //    creates + publishes the GitHub Release for this tag.
   sh(["git", "push", "origin", "main"]);
   sh(["git", "push", "origin", tag]);
 
-  console.log(`[release] ✓ pushed ${tag} — CI will build and publish the release`);
+  // Hand the tag to the next workflow jobs (no-op outside GitHub Actions).
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+  }
+
+  console.log(`[release] ✓ pushed ${tag} — the workflow will build and publish the release`);
 }
 
 main().catch((err) => {
