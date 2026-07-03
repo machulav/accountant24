@@ -126,11 +126,15 @@ function main() {
   run("brew", ["install", "hledger", "poppler", "tesseract", "dylibbundler"]);
 
   // 2. Copy each binary in, then relocate its non-system dylibs into bin/lib and
-  //    rewrite the load paths to @executable_path/lib. `yes` answers dylibbundler's
-  //    per-library copy prompts so it runs non-interactively in CI.
+  //    rewrite the load paths to @executable_path/lib. dylibbundler cannot resolve
+  //    @rpath/... install names (e.g. pdftotext → @rpath/libpoppler.NNN.dylib) by
+  //    itself, so point it at the formula's lib dir via --search-path. stdin is
+  //    /dev/null: on any unresolved dependency dylibbundler prompts interactively,
+  //    which in CI turns into an infinite retry loop — fail the step instead.
   const bins: string[] = [];
   for (const { formula, exe } of TOOLS) {
-    const src = join(capture("brew", ["--prefix", formula]), "bin", exe);
+    const prefix = capture("brew", ["--prefix", formula]);
+    const src = join(prefix, "bin", exe);
     if (!existsSync(src)) throw new Error(`Expected ${exe} at ${src} after brew install`);
     const dest = join(BIN, exe);
     copyFileSync(src, dest);
@@ -139,8 +143,9 @@ function main() {
       "-c",
       // Quote the interpolated paths — a checkout under a directory with spaces
       // would otherwise split them into multiple arguments.
-      `yes | dylibbundler --bundle-deps --overwrite-files --create-dir ` +
-        `--dest-dir "${LIB}" --install-path @executable_path/lib --fix-file "${dest}"`,
+      `dylibbundler --bundle-deps --overwrite-files --create-dir ` +
+        `--dest-dir "${LIB}" --install-path @executable_path/lib ` +
+        `--search-path "${join(prefix, "lib")}" --fix-file "${dest}" < /dev/null`,
     ]);
   }
 
