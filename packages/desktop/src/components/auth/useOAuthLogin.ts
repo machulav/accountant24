@@ -1,9 +1,9 @@
-// The interactive subscription (OAuth) sign-in flow, shared by the Login screen
-// and the Settings → Providers section. pi's AuthStorage.login streams progress,
-// prompts, and a browser-auth URL over the "auth-event" channel; this hook owns
-// that subscription, the pending-request handshake, and cleanup, and leaves the
-// markup to each caller (Login styles its own card; Settings uses the shadcn
-// theme). The state transitions live in the pure reducer (oauthLoginState.ts).
+// The interactive subscription (OAuth) sign-in flow, used by the Settings →
+// Providers section. pi's AuthStorage.login streams progress, prompts, and a
+// browser-auth URL over the "auth-event" channel; this hook owns that
+// subscription, the pending-request handshake, and cleanup, and leaves the
+// markup to the caller. The state transitions live in the pure reducer
+// (oauthLoginState.ts).
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { authApi } from "../../rpc/api";

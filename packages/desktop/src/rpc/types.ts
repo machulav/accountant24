@@ -37,8 +37,6 @@ export interface AppSettings {
   enabledModels?: string[];
   /** Anonymous usage analytics opt-out. Absent = on (the default). */
   analyticsEnabled?: boolean;
-  /** Whether the first-run analytics notice has been acknowledged/dismissed. */
-  analyticsNoticeAcknowledged?: boolean;
 }
 
 // ---- Auth helper records (`accountant24 auth ...`) ----------------------

@@ -19,8 +19,6 @@ export interface AppSettings {
   enabledModels?: string[];
   /** Anonymous usage analytics opt-out. Absent = on (the default). */
   analyticsEnabled?: boolean;
-  /** Whether the first-run analytics notice has been acknowledged/dismissed. */
-  analyticsNoticeAcknowledged?: boolean;
   /** Set true after the first launch; used to emit the one-time `app_installed`
    *  event exactly once. Main-process only. */
   firstLaunchDone?: boolean;
@@ -59,8 +57,6 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
     out.enabledModels = (raw.enabledModels as unknown[]).filter((x): x is string => typeof x === "string");
   }
   if (typeof raw.analyticsEnabled === "boolean") out.analyticsEnabled = raw.analyticsEnabled;
-  if (typeof raw.analyticsNoticeAcknowledged === "boolean")
-    out.analyticsNoticeAcknowledged = raw.analyticsNoticeAcknowledged;
   if (typeof raw.firstLaunchDone === "boolean") out.firstLaunchDone = raw.firstLaunchDone;
   return out;
 }

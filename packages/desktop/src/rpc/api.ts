@@ -1,7 +1,7 @@
 // Typed wrappers over the Electron IPC bridge (electron/main handlers).
 //
-// Same command/event names + shapes as the previous Tauri layer, so agentBridge,
-// electronPiClient, and Login are unchanged. Main returns parsed objects for
+// Same command/event names + shapes as the previous Tauri layer, so agentBridge
+// and electronPiClient are unchanged. Main returns parsed objects for
 // one-shot calls; the agent event stream still arrives as raw JSONL lines that we
 // parse here (one place).
 

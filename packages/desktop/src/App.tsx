@@ -1,25 +1,13 @@
-// Top-level router: decide between Login and Chat based on whether any provider
-// is already configured (auth.json), then hand off.
+// Top-level gate: onboarding while no model is available (fresh install, or
+// every provider removed), chat otherwise. `null` while the first check is in
+// flight — render neither to avoid a flash of the wrong screen.
 
-import { useEffect, useState } from "react";
 import { ChatLayout } from "./components/ChatLayout";
-import { Login } from "./components/Login";
-import { authApi } from "./rpc/api";
-
-type Phase = "loading" | "login" | "chat";
+import { Onboarding } from "./components/Onboarding";
+import { useHasModels } from "./hooks/useProviderStatus";
 
 export default function App() {
-  const [phase, setPhase] = useState<Phase>("loading");
-
-  useEffect(() => {
-    authApi
-      .status()
-      .then((status) => setPhase(status.anyConfigured ? "chat" : "login"))
-      .catch(() => setPhase("login"));
-  }, []);
-
-  if (phase === "loading")
-    return <div className="text-muted-foreground flex h-dvh items-center justify-center">Loading…</div>;
-  if (phase === "login") return <Login onDone={() => setPhase("chat")} />;
-  return <ChatLayout />;
+  const hasModels = useHasModels();
+  if (hasModels === null) return null;
+  return hasModels ? <ChatLayout /> : <Onboarding />;
 }
