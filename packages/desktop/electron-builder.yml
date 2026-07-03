@@ -60,6 +60,8 @@ mac:
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # Unsigned for now: CI sets CSC_IDENTITY_AUTO_DISCOVERY=false, so electron-builder
-  # skips Developer-ID signing and ad-hoc signs the app (needed for arm64 to launch).
-  # Notarization is a follow-up: add APPLE_* / API-key env + `notarize: true` here.
+  # Developer-ID signing + notarization run in CI only, driven by env:
+  # CSC_LINK / CSC_KEY_PASSWORD select the cert, and APPLE_API_KEY /
+  # APPLE_API_KEY_ID / APPLE_API_ISSUER feed notarytool (see release.yml).
+  # Local builds have none of these set → ad-hoc signed, notarization skipped.
+  notarize: true

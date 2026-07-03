@@ -13,9 +13,15 @@
 # tools without Homebrew or build on an arm64 runner with an x86_64 Homebrew
 # under Rosetta, then re-add a matrix entry with arch: x64.
 #
-# Unsigned for now (CSC_IDENTITY_AUTO_DISCOVERY=false → ad-hoc signing only).
-# Adding Developer-ID signing + notarization later only needs the APPLE_*/CSC_*
-# secrets and `mac.notarize: true`; no changes to this workflow's shape.
+# Builds are Developer-ID signed and notarized. Required repo secrets:
+#   CSC_LINK / CSC_KEY_PASSWORD          — base64 .p12 with the Developer ID
+#                                          Application cert + private key
+#   APPLE_API_KEY_P8 / APPLE_API_KEY_ID /
+#   APPLE_API_ISSUER                     — App Store Connect API key (.p8
+#                                          contents / key ID / issuer ID) for
+#                                          notarytool (electron-builder wants
+#                                          APPLE_API_KEY as a file path, so the
+#                                          .p8 is written to runner.temp first)
 
 name: Release
 
@@ -66,17 +72,16 @@ jobs:
             echo "Release $TAG already exists — reusing it."
             exit 0
           fi
-          CAVEAT=$'\n\n---\n> This build is not yet notarized. On first launch, right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Accountant24.app`).'
           if [[ "$TAG" == *-rc.* ]]; then
             # rc tags have no CHANGELOG.md section (the final release writes it);
             # mark as prerelease so it never becomes "latest".
             gh release create "$TAG" --draft --prerelease --title "$TAG" \
-              --notes "Release candidate for testing.${CAVEAT}"
+              --notes "Release candidate for testing."
           else
             # Notes = the topmost (latest) section of CHANGELOG.md, written by
             # `changelogen --release`, minus its heading line.
             NOTES="$(awk '/^## /{n++} n==1{print} n==2{exit}' CHANGELOG.md | tail -n +2)"
-            gh release create "$TAG" --draft --title "$TAG" --notes "${NOTES}${CAVEAT}"
+            gh release create "$TAG" --draft --title "$TAG" --notes "$NOTES"
           fi
 
   build:
@@ -88,9 +93,10 @@ jobs:
           - runner: macos-14 # Apple Silicon
             arch: arm64
     runs-on: ${{ matrix.runner }}
-    # A healthy build takes ~15 min; anything past this is a hang (e.g. a tool
+    # A healthy build takes ~15 min plus Apple's notarization wait (usually
+    # 2-10 min, occasionally longer); anything past this is a hang (e.g. a tool
     # waiting for interactive input), not a slow build.
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,11 +119,38 @@ jobs:
       - name: Build renderer + main + extension bundle
         run: npm run build
 
+      # Fail loudly (instead of shipping an unsigned build or dying with a
+      # cryptic electron-builder error) if the signing secrets are missing.
+      # electron-builder/notarytool need APPLE_API_KEY as a path to the .p8,
+      # so materialize the secret into a file outside the workspace.
+      - name: Write App Store Connect API key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          for s in APPLE_API_KEY_P8 CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Repo secret $s is not set (see the signing/notarization comment at the top of this workflow)."
+              exit 1
+            fi
+          done
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/apple_api_key.p8"
+
       - name: Package + publish (${{ matrix.arch }})
         working-directory: packages/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned: ad-hoc sign only, no Developer ID
+          # Developer ID Application cert; electron-builder imports it into a
+          # temporary keychain and signs with it.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Notarization credentials (App Store Connect API key).
+          APPLE_API_KEY: ${{ runner.temp }}/apple_api_key.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           npx electron-builder --mac --${{ matrix.arch }} \
             -c.extraMetadata.version="${{ needs.create-release.outputs.version }}" \
