@@ -78,14 +78,25 @@ jobs:
           echo "::error::The tag input is only for type=rebuild (a ${{ inputs.type }} release computes its own tag)."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
+
+      # The suite includes integration tests that run the real tools the app
+      # ships (hledger for briefings, pdftotext/tesseract for extraction) and
+      # a real `git commit` (scaffold) — install the tools and give the runner
+      # a git identity, or 13 tests fail with empty results.
+      - name: Install CLI tools used by integration tests
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends hledger poppler-utils tesseract-ocr
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - run: npm ci
 
@@ -109,13 +120,13 @@ jobs:
       # --- cut a new version (stable/rc only) --------------------------------
       # Full history + tags: changelogen derives the semver bump and the notes
       # from the commits since the last stable tag.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: inputs.type != 'rebuild'
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: inputs.type != 'rebuild'
         with:
           node-version: 22
@@ -143,7 +154,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ steps.meta.outputs.tag }} # tag commit has the new CHANGELOG.md section
 
@@ -183,11 +194,11 @@ jobs:
     # waiting for interactive input), not a slow build.
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.create-release.outputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
