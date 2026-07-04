@@ -213,6 +213,12 @@ jobs:
       # (electron-vite's build does no type-checking).
       - run: npm run typecheck
 
+      # The runner image ships with third-party taps (aws/tap) that newer
+      # Homebrew flags as untrusted, warning on every brew call — and the
+      # warning surfaces as a workflow annotation. We don't use them; untap.
+      - name: Untap untrusted Homebrew taps from the runner image
+        run: brew untap aws/tap || true
+
       - name: Vendor CLI tools (hledger, pdftotext, tesseract)
         run: npx tsx scripts/vendor-bin.ts
 
