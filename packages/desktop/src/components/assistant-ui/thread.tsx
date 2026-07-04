@@ -11,9 +11,9 @@ import {
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
-import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import { ArrowDownIcon, ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
 import { type ComponentType, createContext, type FC, useContext } from "react";
+import { RotatingPlaceholderInput } from "@/components/accountant24/rotating-placeholder";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
@@ -152,6 +152,7 @@ const ThreadWelcome: FC = () => {
 };
 
 const Composer: FC = () => {
+  const isNewChat = useAuiState(isNewChatView);
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
       <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
@@ -161,8 +162,8 @@ const Composer: FC = () => {
             className="border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:shadow-none"
           >
             <ComposerAttachments />
-            <LexicalComposerInput
-              placeholder="Send a message... (@ to mention)"
+            <RotatingPlaceholderInput
+              rotate={isNewChat}
               className="aui-composer-input max-h-32 w-full bg-transparent text-base"
               autoFocus
               directiveChip={MentionChip}

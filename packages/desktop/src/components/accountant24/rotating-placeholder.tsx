@@ -1,0 +1,56 @@
+// Rotating composer placeholder: plain prompt first, then cycle through short
+// feature hints so users discover mentions without a cluttered default.
+
+import { LexicalComposerInput } from "@assistant-ui/react-lexical";
+import { type ComponentProps, type FC, useEffect, useState } from "react";
+
+const COMPOSER_PLACEHOLDERS = ["Write a message...", "Type @ to mention accounts, payees, tags"];
+const PLACEHOLDER_ROTATE_MS = 10000;
+// Must match the .aui-lexical-placeholder transition duration in index.css.
+const PLACEHOLDER_SWAP_MS = 100;
+
+/** Two-phase swap so the placeholder animates: fade the current text out,
+ *  then swap it and let the CSS transition fade the new one back in.
+ *  When disabled (existing chats), stays on the plain prompt. */
+const useRotatingPlaceholder = (enabled: boolean): { placeholder: string; isSwapping: boolean } => {
+  const [index, setIndex] = useState(0);
+  const [isSwapping, setIsSwapping] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setIndex(0);
+      setIsSwapping(false);
+      return;
+    }
+    const id = setInterval(() => setIsSwapping(true), PLACEHOLDER_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!isSwapping) return;
+    const id = setTimeout(() => {
+      setIndex((i) => (i + 1) % COMPOSER_PLACEHOLDERS.length);
+      setIsSwapping(false);
+    }, PLACEHOLDER_SWAP_MS);
+    return () => clearTimeout(id);
+  }, [isSwapping]);
+
+  return { placeholder: COMPOSER_PLACEHOLDERS[index] ?? "Write a message...", isSwapping };
+};
+
+type RotatingPlaceholderInputProps = Omit<ComponentProps<typeof LexicalComposerInput>, "placeholder"> & {
+  /** Rotate through the tips only when true; otherwise show the plain prompt. */
+  rotate?: boolean;
+};
+
+/** LexicalComposerInput with the rotating placeholder. The `display: contents`
+ *  wrapper carries data-placeholder-swapping for the swap transition in
+ *  index.css without affecting the composer shell's flex layout. */
+export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = ({ rotate = false, ...rest }) => {
+  const { placeholder, isSwapping } = useRotatingPlaceholder(rotate);
+  return (
+    <div className="contents" data-placeholder-swapping={isSwapping || undefined}>
+      <LexicalComposerInput placeholder={placeholder} {...rest} />
+    </div>
+  );
+};

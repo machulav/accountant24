@@ -164,6 +164,19 @@
   text-overflow: ellipsis;
   color: var(--muted-foreground);
   opacity: 0.8;
+  transition:
+    opacity 100ms ease,
+    translate 100ms ease;
+}
+
+/* Rotating placeholder swap (see RotatingPlaceholderInput in
+   rotating-placeholder.tsx): while the input's wrapper carries
+   data-placeholder-swapping, the placeholder fades out; the text then swaps
+   and the new tip fades back in rising from below. The 100ms duration must
+   match PLACEHOLDER_SWAP_MS. */
+[data-placeholder-swapping] .aui-lexical-placeholder {
+  opacity: 0;
+  translate: 0 0.3rem;
 }
 
 /* Mention chip styling lives in the MentionPill component (Tailwind utilities,
