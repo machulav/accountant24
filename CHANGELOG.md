@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.2.0
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.1.10...v0.2.0)
+
+### 🚀 Features
+
+- **desktop:** ⚠️  Native macOS desktop app ([#12](https://github.com/machulav/accountant24/pull/12))
+- **ci:** Sign and notarize the desktop app release builds ([b23e849](https://github.com/machulav/accountant24/commit/b23e849))
+- **ci:** Cut releases from the Release workflow button ([dca86a7](https://github.com/machulav/accountant24/commit/dca86a7))
+- **desktop:** Replace first-run login screen with model onboarding ([670b7b4](https://github.com/machulav/accountant24/commit/670b7b4))
+
+### 🐞 Bug Fixes
+
+- Make release tap update idempotent + add --tap-only ([#13](https://github.com/machulav/accountant24/pull/13))
+- Run commit-msg hook via bun run commitlint ([#15](https://github.com/machulav/accountant24/pull/15))
+- **ci:** Repair desktop release build ([2a73408](https://github.com/machulav/accountant24/commit/2a73408))
+- **ci:** Provide CLI tools for integration tests in checks job ([eb549c5](https://github.com/machulav/accountant24/commit/eb549c5))
+- **ci:** Keep rebuild path from silently skipping build and publish ([5036f24](https://github.com/machulav/accountant24/commit/5036f24))
+
+### 📖 Documentation
+
+- Add FAQ page and refresh landing copy ([2bfbc93](https://github.com/machulav/accountant24/commit/2bfbc93))
+- Drop duplicate intro paragraph on landing page ([6eae518](https://github.com/machulav/accountant24/commit/6eae518))
+- Shorten landing page meta description ([0b28596](https://github.com/machulav/accountant24/commit/0b28596))
+- Add JSON-LD structured data for site, app, and FAQ ([858533b](https://github.com/machulav/accountant24/commit/858533b))
+- Optimize tagline across README, landing page, and JSON-LD ([92d922d](https://github.com/machulav/accountant24/commit/92d922d))
+- Restore pre-desktop README (brew install instead of dmg) ([7f84b74](https://github.com/machulav/accountant24/commit/7f84b74))
+- Adjust README and docs site to the desktop app release ([4545c5d](https://github.com/machulav/accountant24/commit/4545c5d))
+
+### 🏡 Chore
+
+- **release:** V0.2.0-rc.1 ([f3fd501](https://github.com/machulav/accountant24/commit/f3fd501))
+- **release:** V0.2.0-rc.2 ([8f5c667](https://github.com/machulav/accountant24/commit/8f5c667))
+
+### 🤖 CI
+
+- Add release-candidate flow (--rc) to release script ([194ffa6](https://github.com/machulav/accountant24/commit/194ffa6))
+
+#### ⚠️ Breaking Changes
+
+- **desktop:** ⚠️  Native macOS desktop app ([#12](https://github.com/machulav/accountant24/pull/12))
+
 ## v0.1.10
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.9...v0.1.10)
