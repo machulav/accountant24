@@ -47,7 +47,7 @@ Every modification is auto-committed to a local git repo. Review your history an
 
 ### Install
 
-Download the latest `.dmg` from the [Releases page](https://github.com/machulav/accountant24/releases) and install it. Requires macOS on Apple Silicon (M1 or newer).
+Download the `.dmg` from the [latest release](https://github.com/machulav/accountant24/releases/latest) and install it. Requires macOS on Apple Silicon (M1 or newer).
 
 ### Run
 
