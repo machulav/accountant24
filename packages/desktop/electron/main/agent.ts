@@ -11,6 +11,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
+import { trackAgentError } from "./analytics";
 import { agentEnv, extensionPath, piCliPath, workspaceDir } from "./env";
 
 let child: ChildProcess | null = null;
@@ -82,10 +83,12 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
     }
     console.error(`[agent] crashed: code=${code} signal=${signal}`);
     if (stderrTail.trim()) console.error(`[agent] stderr tail:\n${stderrTail.trim()}`);
+    trackAgentError("crash");
     emit("agent-terminated", { code, signal, stderr: stderrTail.trim() });
   });
   proc.on("error", (err) => {
     console.error(`[agent] spawn error: ${err.message}`);
+    trackAgentError("spawn");
     emit("agent-error", err.message);
   });
 }

@@ -19,9 +19,10 @@ export interface AppSettings {
   enabledModels?: string[];
   /** Anonymous usage analytics opt-out. Absent = on (the default). */
   analyticsEnabled?: boolean;
-  /** Set true after the first launch; used to emit the one-time `app_installed`
-   *  event exactly once. Main-process only. */
-  firstLaunchDone?: boolean;
+  /** One-time analytics milestones already consumed (e.g. "app_installed",
+   *  "first_user_message_sent"), so each is emitted at most once per install.
+   *  Main-process only. */
+  onceEvents?: string[];
 }
 
 function appSettingsPath(): string {
@@ -57,7 +58,9 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
     out.enabledModels = (raw.enabledModels as unknown[]).filter((x): x is string => typeof x === "string");
   }
   if (typeof raw.analyticsEnabled === "boolean") out.analyticsEnabled = raw.analyticsEnabled;
-  if (typeof raw.firstLaunchDone === "boolean") out.firstLaunchDone = raw.firstLaunchDone;
+  if (Array.isArray(raw.onceEvents)) {
+    out.onceEvents = (raw.onceEvents as unknown[]).filter((x): x is string => typeof x === "string");
+  }
   return out;
 }
 
@@ -116,10 +119,12 @@ export function isAnalyticsEnabled(): boolean {
   return readSettings().analyticsEnabled ?? true;
 }
 
-/** Returns true exactly once — on the first-ever launch — and persists a marker
- *  so subsequent launches return false. Used to emit a one-time install event. */
-export function consumeFirstLaunch(): boolean {
-  const first = !readSettings().firstLaunchDone;
-  if (first) writeSettings({ firstLaunchDone: true });
-  return first;
+/** Returns true exactly once per key and persists the consumed key, so one-time
+ *  analytics milestones (install, first message, first transaction, …) can't
+ *  repeat. */
+export function consumeOnce(key: string): boolean {
+  const done = readSettings().onceEvents ?? [];
+  if (done.includes(key)) return false;
+  writeSettings({ onceEvents: [...done, key] });
+  return true;
 }

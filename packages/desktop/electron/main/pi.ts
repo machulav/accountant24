@@ -11,6 +11,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type BrowserWindow, ipcMain, shell } from "electron";
+import { trackProviderConnected } from "./analytics";
 import { workspaceDir } from "./env";
 
 type LoginCallbacks = Parameters<AuthStorage["login"]>[1];
@@ -129,6 +130,7 @@ function authSetKey(provider: string, key: string) {
   if (!trimmed) return { type: "error", message: "empty API key" };
   const { authStorage } = createRegistry();
   authStorage.set(provider, { type: "api_key", key: trimmed });
+  trackProviderConnected(provider, "api_key");
   return { type: "done", provider };
 }
 
@@ -182,6 +184,7 @@ function writeOllamaModels(ids: string[]) {
   config.providers.ollama = ollama;
 
   writeFileSync(modelsPath, `${JSON.stringify(config, null, 2)}\n`);
+  trackProviderConnected("ollama", "ollama");
   return { type: "done", provider: "ollama", count: ids.length };
 }
 
@@ -357,7 +360,10 @@ function authLogin(getWin: () => BrowserWindow | null, provider: string): void {
   const { authStorage } = createRegistry();
   authStorage
     .login(provider, callbacks)
-    .then(() => send({ type: "done", provider }))
+    .then(() => {
+      trackProviderConnected(provider, "oauth");
+      send({ type: "done", provider });
+    })
     .catch((error) => send({ type: "error", message: error instanceof Error ? error.message : String(error) }))
     .finally(() => {
       // Only clear if we're still the active attempt — a newer login owns the

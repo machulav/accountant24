@@ -9,7 +9,15 @@
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { encodeAttachmentRef } from "../lib/attachmentMarker";
-import { filesApi } from "../rpc/api";
+import { analyticsApi, filesApi } from "../rpc/api";
+
+/** Coarse attachment category for analytics — never the filename or content. */
+export function attachmentKind(mime: string): "image" | "pdf" | "csv" | "other" {
+  if (mime.startsWith("image/")) return "image";
+  if (mime === "application/pdf") return "pdf";
+  if (mime === "text/csv") return "csv";
+  return "other";
+}
 
 /** Read a File as a data URL (`data:<mime>;base64,<data>`). */
 function readDataUrl(file: File): Promise<string> {
@@ -32,6 +40,7 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
   protected abstract toContent(name: string, path: string, dataUrl: string): CompleteAttachment["content"];
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
+    analyticsApi.track("attachment_added", { kind: attachmentKind(file.type) });
     return {
       id: `${file.name}:${file.size}:${file.lastModified}`,
       type: this.type,

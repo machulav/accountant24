@@ -32,6 +32,7 @@ const h = vi.hoisted(() => ({
   spawnCalls: [] as { cmd: string; args: string[]; opts: Record<string, unknown> }[],
   procs: [] as unknown[],
   mkdirSync: vi.fn(),
+  trackAgentError: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -43,6 +44,7 @@ vi.mock("electron", () => ({
 }));
 vi.mock("node:child_process", () => ({ spawn: h.spawn }));
 vi.mock("node:fs", () => ({ mkdirSync: h.mkdirSync }));
+vi.mock("../analytics", () => ({ trackAgentError: h.trackAgentError }));
 vi.mock("../env", () => ({
   workspaceDir: () => "/ws",
   agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" }),
@@ -225,6 +227,28 @@ describe("crash reporting", () => {
     invoke("agent_start");
     proc().emit("error", new Error("spawn ENOENT"));
     expect(sent("agent-error")).toEqual(["spawn ENOENT"]);
+  });
+
+  it("should record a crash for analytics with kind only", async () => {
+    await setup();
+    invoke("agent_start");
+    proc().emit("exit", 1, null);
+    expect(h.trackAgentError).toHaveBeenCalledWith("crash");
+  });
+
+  it("should record a spawn error for analytics with kind only", async () => {
+    await setup();
+    invoke("agent_start");
+    proc().emit("error", new Error("spawn ENOENT"));
+    expect(h.trackAgentError).toHaveBeenCalledWith("spawn");
+  });
+
+  it("should not record an intentional stop as an error", async () => {
+    await setup();
+    invoke("agent_start");
+    invoke("agent_stop");
+    proc().emit("exit", null, "SIGTERM");
+    expect(h.trackAgentError).not.toHaveBeenCalled();
   });
 });
 

@@ -89,16 +89,12 @@ export function AnalyticsSettings() {
   );
 }
 
-const WE_SEND = [
-  "App version",
-  "Operating system",
-  "Country, derived without storing your IP",
-  "Anonymous events (counts only): app_installed, app_opened, app_closed, chat_created, user_message_sent, agent_message_sent, analytics_enabled, analytics_disabled",
-];
+const WE_SEND = ["App version", "Operating system", "Country and region", "Anonymous events"];
 
 const WE_NEVER_SEND = [
   "Your personal data",
   "Your financial data",
   "Your messages, files, or journal entries",
+  "Your IP address",
   "Anything that identifies you",
 ];

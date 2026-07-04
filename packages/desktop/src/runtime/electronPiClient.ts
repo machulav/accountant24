@@ -61,6 +61,9 @@ const toModelInfo = (m: ModelInfo): PiModelInfo => ({
 export function createElectronPiClient(): PiClient {
   /** The session pi currently has loaded (its single active session). */
   let activeThreadId: string | undefined;
+  /** The active session's model as `provider/modelId` — an analytics prop only.
+   *  Kept from get_state snapshots and setModel; never sent back to pi. */
+  let currentModelId: string | undefined;
   /** Serializes switch_session so events route to the intended thread. */
   let switchChain: Promise<void> = Promise.resolve();
   const seqs = new Map<string, number>();
@@ -73,6 +76,13 @@ export function createElectronPiClient(): PiClient {
   // session). A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
   agentBridge.addEventListener((e) => {
+    // Tool analytics live on this singleton listener (not mapEvent, which runs
+    // once per active subscription) so each tool run is counted exactly once.
+    // Tool name + outcome only — args/results never leave the machine.
+    if (e.type === "tool_execution_end") {
+      analyticsApi.track("agent_tool_used", { tool: e.toolName, status: e.isError ? "error" : "ok" });
+      if (e.toolName === "add_transactions" && !e.isError) analyticsApi.trackOnce("first_transaction_added");
+    }
     if (!activeThreadId) return;
     if (e.type === "agent_start") running.add(activeThreadId);
     else if (e.type === "agent_end") running.delete(activeThreadId);
@@ -102,6 +112,7 @@ export function createElectronPiClient(): PiClient {
   };
 
   const buildSnapshot = (threadId: string, state: PiState, messages: unknown): PiThreadSnapshot => {
+    if (state.model) currentModelId = `${state.model.provider}/${state.model.id}`;
     const list = Array.isArray(messages) ? messages : [];
     return {
       metadata: {
@@ -216,7 +227,12 @@ export function createElectronPiClient(): PiClient {
 
     async sendMessage(threadId, input: PiSendMessageInput) {
       await ensureActive(threadId);
-      analyticsApi.track("user_message_sent"); // count only; never the message content
+      // Count + coarse props only; never the message content.
+      analyticsApi.track("user_message_sent", {
+        has_attachment: input.attachments?.length ? "true" : "false",
+        ...(currentModelId ? { model: currentModelId } : {}),
+      });
+      analyticsApi.trackOnce("first_user_message_sent");
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
       await agentBridge.send({
         type: "prompt",
@@ -245,6 +261,7 @@ export function createElectronPiClient(): PiClient {
 
     async setModel(threadId, input) {
       await ensureActive(threadId);
+      currentModelId = `${input.provider}/${input.modelId}`;
       await agentBridge.send({ type: "set_model", provider: input.provider, modelId: input.modelId });
     },
 

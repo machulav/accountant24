@@ -26,6 +26,7 @@ const h = vi.hoisted(() => ({
     getProviderDisplayName: vi.fn<(p: string) => string>((p) => p),
   },
   sessionList: vi.fn<(...args: unknown[]) => Promise<unknown[]>>(async () => []),
+  trackProviderConnected: vi.fn(),
   fs: {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("electron", () => ({
   shell: { openExternal: h.openExternal },
 }));
 vi.mock("../env", () => ({ workspaceDir: () => "/ws" }));
+vi.mock("../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   AuthStorage: { create: () => h.authStorage },
   ModelRegistry: { create: () => h.modelRegistry },
@@ -227,6 +229,19 @@ describe("auth_set_key", () => {
     expect(invoke("auth_set_key", { provider: "p", key: "  sk-1  " })).toEqual({ type: "done", provider: "p" });
     expect(h.authStorage.set).toHaveBeenCalledWith("p", { type: "api_key", key: "sk-1" });
   });
+
+  it("should record the provider connection for analytics when the key is stored", async () => {
+    await setup();
+    invoke("auth_set_key", { provider: "p", key: "sk-1" });
+    expect(h.trackProviderConnected).toHaveBeenCalledWith("p", "api_key");
+  });
+
+  it("should not record a provider connection when the key is rejected", async () => {
+    await setup();
+    invoke("auth_set_key", { provider: "", key: "k" });
+    invoke("auth_set_key", { provider: "p", key: "   " });
+    expect(h.trackProviderConnected).not.toHaveBeenCalled();
+  });
 });
 
 describe("auth_logout", () => {
@@ -348,6 +363,20 @@ describe("auth_add_ollama", () => {
       message: "models.json is not valid JSON; refusing to overwrite",
     });
     expect(h.fs.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it("should record the Ollama connection for analytics when the model is registered", async () => {
+    await setup();
+    await invoke("auth_add_ollama", { model: "llama3" });
+    expect(h.trackProviderConnected).toHaveBeenCalledWith("ollama", "ollama");
+  });
+
+  it("should not record a connection when models.json is invalid", async () => {
+    h.fs.existsSync.mockReturnValue(true);
+    h.fs.readFileSync.mockReturnValue("{oops");
+    await setup();
+    await invoke("auth_add_ollama", { model: "m" });
+    expect(h.trackProviderConnected).not.toHaveBeenCalled();
   });
 });
 
@@ -663,12 +692,28 @@ describe("auth_login flow", () => {
     expect(authEvents()).toContainEqual({ type: "done", provider: "github" });
   });
 
+  it("should record the provider connection for analytics when the login succeeds", async () => {
+    await setup();
+    const { settle } = startLogin("github");
+    settle.resolve();
+    await flush();
+    expect(h.trackProviderConnected).toHaveBeenCalledWith("github", "oauth");
+  });
+
   it("should send an error event with the message when the login fails", async () => {
     await setup();
     const { settle } = startLogin();
     settle.reject(new Error("denied"));
     await flush();
     expect(authEvents()).toContainEqual({ type: "error", message: "denied" });
+  });
+
+  it("should not record a provider connection when the login fails", async () => {
+    await setup();
+    const { settle } = startLogin();
+    settle.reject(new Error("denied"));
+    await flush();
+    expect(h.trackProviderConnected).not.toHaveBeenCalled();
   });
 
   it("should stringify a non-Error rejection", async () => {

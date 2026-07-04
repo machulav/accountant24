@@ -103,6 +103,11 @@ export const analyticsApi = {
   track(event: string, props?: Record<string, string | number>): void {
     api.invoke<void>("analytics_track", { event, props }).catch(() => undefined);
   },
+  /** Like track, but main persists a marker so the event is emitted at most
+   *  once per install (first-message / first-transaction milestones). */
+  trackOnce(event: string, props?: Record<string, string | number>): void {
+    api.invoke<void>("analytics_track", { event, props, once: true }).catch(() => undefined);
+  },
 };
 
 export const authApi = {
