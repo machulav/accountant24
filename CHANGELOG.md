@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.0...v0.2.1)
+
+### 🚀 Features
+
+- **ci:** Versionless release artifacts for a stable download link ([4387b58](https://github.com/machulav/accountant24/commit/4387b58))
+- **desktop:** Expand anonymous analytics with funnel and usage events ([f7341a0](https://github.com/machulav/accountant24/commit/f7341a0))
+- **desktop:** Rotate composer placeholder tips on new chats ([7c91685](https://github.com/machulav/accountant24/commit/7c91685))
+- **desktop:** Focus composer on chat switch and add placeholder tests ([f651d65](https://github.com/machulav/accountant24/commit/f651d65))
+- **desktop:** New a24 wordmark app icon ([345bdef](https://github.com/machulav/accountant24/commit/345bdef))
+
+### 🐞 Bug Fixes
+
+- **desktop:** Show app icon in dev mode dock ([37f5018](https://github.com/machulav/accountant24/commit/37f5018))
+
+### 📖 Documentation
+
+- Point download links at the latest release page ([014f41d](https://github.com/machulav/accountant24/commit/014f41d))
+- Streamline quick start and add a hero download link ([da5291c](https://github.com/machulav/accountant24/commit/da5291c))
+
 ## v0.2.0
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.1.10...v0.2.0)
