@@ -25,11 +25,11 @@
     "@id": BASE + "/#software",
     name: "Accountant24",
     applicationCategory: "FinanceApplication",
-    operatingSystem: "macOS, Linux",
+    operatingSystem: "macOS",
     description:
       "Local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
     url: BASE,
-    downloadUrl: "https://github.com/machulav/accountant24",
+    downloadUrl: "https://github.com/machulav/accountant24/releases",
     softwareHelp: BASE + "/quickstart",
     license: "https://opensource.org/licenses/MIT",
     isAccessibleForFree: true,
@@ -59,7 +59,7 @@
       ),
       qa(
         "Which LLMs can I use?",
-        "Any of them: OpenAI, Anthropic, or local models through Ollama. Switch providers whenever you like without changing your data."
+        "Any of them: sign in with your ChatGPT or Claude subscription, use an API key (Anthropic, OpenAI, Google, and more), or run local models through Ollama. Switch providers whenever you like without changing your data."
       ),
       qa(
         "Is it really free?",

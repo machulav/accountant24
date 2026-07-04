@@ -2,15 +2,7 @@
 
 Track spending in plain language, import bank statements and receipts, ask questions about your money. Your data stays as plain text files on your machine. Works with any LLM, including local ones. All changes are versioned with git.
 
-<https://github.com/user-attachments/assets/02a0f190-b560-4617-b1a8-8fc124417801>
-
-<p align="center">
-  <a href="https://pi.dev/session/#b49481d93d63c99880c0578c2047f12c">Session Snapshot #1</a>
-  &nbsp;·&nbsp;
-  <a href="https://pi.dev/session/#d8d6fcd754d85bcdde5515d2ea9d35b2">Session Snapshot #2</a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/machulav/accountant24-demo-ledger">Demo Ledger</a>
-</p>
+![Accountant24 — desktop app](docs/images/desktop-app.png)
 
 ## What you can do
 
@@ -20,13 +12,13 @@ Track spending in plain language, import bank statements and receipts, ask quest
 
 The agent figures out the details and adds it to your ledger as a proper double-entry transaction.
 
-### Import from files
+### Import bank statements and receipts
 
 > Here is my March bank statement, please add missing transactions: ~/Downloads/statement-march.pdf
 
 > Add transaction from this receipt: ~/Desktop/receipt.jpg
 
-Drop in a PDF bank statement, an invoice, or a photo of a paper receipt. The agent extracts the text, pulls out every transaction, and adds them to your ledger. The original file is archived in your workspace so you can refer back to it later.
+Drop a PDF bank statement, an invoice, or a photo of a paper receipt into the chat. The agent extracts the text, pulls out every transaction, and adds them to your ledger. The original file is archived in your workspace so you can refer back to it later.
 
 ### Ask questions about your money
 
@@ -36,7 +28,7 @@ Drop in a PDF bank statement, an invoice, or a photo of a paper receipt. The age
 
 > Show me all transactions from my last trip to Italy
 
-The agent checks your ledger and gives you a clear answer.
+The agent checks your ledger and gives you a clear answer. Type `@` to point it at a specific account, payee, or tag.
 
 ### Teach the agent as you go
 
@@ -55,21 +47,15 @@ Every modification is auto-committed to a local git repo. Review your history an
 
 ### Install
 
-```bash
-brew install machulav/tap/accountant24
-```
+Download the latest `.dmg` from the [Releases page](https://github.com/machulav/accountant24/releases) and install it. Requires macOS on Apple Silicon (M1 or newer).
 
 ### Run
 
-```bash
-a24
-```
+Launch **Accountant24**. On first launch it creates a `~/Accountant24/` workspace with a pre-configured set of accounts and initializes a git repo.
 
-On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+### Connect a provider
 
-### Log in & pick a model
-
-Use `/login` to connect your LLM provider, then `/model` to pick a model — and you're ready to start chatting.
+Connect your LLM provider — a ChatGPT or Claude subscription, an API key, or Ollama for local models — and start chatting. You can change providers and models anytime in **Settings**.
 
 ### Go fully local (optional)
 
@@ -82,27 +68,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
    ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
-3. Create a `~/Accountant24/models.json` file to register the Ollama provider:
-
-   ```json
-   {
-     "providers": {
-       "ollama": {
-         "baseUrl": "http://localhost:11434/v1",
-         "api": "openai-completions",
-         "apiKey": "ollama",
-         "models": [
-           {
-             "id": "gemma4:31b",
-             "name": "Gemma 4 (31B)"
-           }
-         ]
-       }
-     }
-   }
-   ```
-
-4. Restart Accountant24, then use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+3. In **Settings → Providers**, connect **Ollama** — the app detects all your local Ollama models and configures them automatically. Then pick your Gemma 4 model and start chatting. Nothing leaves your device.
 
 ## How it compares
 
@@ -116,7 +82,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
 | Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
-| Interface       | Chat                       | Web + mobile       | Web + desktop      | CLI                      |
+| Interface       | Desktop app                | Web + mobile       | Web + desktop      | CLI                      |
 | Price           | Free                       | $100–$180/yr       | Free               | Free                     |
 | Lock-in         | None (plain text)          | High               | Medium             | None (plain text)        |
 

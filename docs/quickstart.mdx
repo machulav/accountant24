@@ -1,25 +1,19 @@
 ---
 title: "Quickstart"
-description: "Install Accountant24, connect an LLM provider (OpenAI, Anthropic, or local Ollama), and log your first transaction in minutes."
+description: "Download the Accountant24 desktop app, connect an LLM (ChatGPT or Claude subscription, API key, or local Ollama), and log your first transaction in minutes."
 ---
 
 ## Install
 
-```bash
-brew install machulav/tap/accountant24
-```
+Download the latest `.dmg` from the [Releases page](https://github.com/machulav/accountant24/releases) and install it. Requires macOS on Apple Silicon (M1 or newer).
 
 ## Run
 
-```bash
-a24
-```
+Launch **Accountant24**. On first launch it creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
 
-On first launch, Accountant24 creates a `~/Accountant24/` workspace with a pre-configured set of accounts, initializes a git repo, and you're ready to go.
+## Connect a provider
 
-## Log in & pick a model
-
-Use `/login` to connect your LLM provider, then `/model` to pick a model — and you're ready to start chatting.
+Connect your LLM provider — a ChatGPT or Claude subscription, an API key, or Ollama for local models — and start chatting. You can change providers and models anytime in **Settings**.
 
 ## Go fully local (optional)
 
@@ -32,27 +26,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
    ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
-3. Create a `~/Accountant24/models.json` file to register the Ollama provider:
-
-   ```json
-   {
-     "providers": {
-       "ollama": {
-         "baseUrl": "http://localhost:11434/v1",
-         "api": "openai-completions",
-         "apiKey": "ollama",
-         "models": [
-           {
-             "id": "gemma4:31b",
-             "name": "Gemma 4 (31B)"
-           }
-         ]
-       }
-     }
-   }
-   ```
-
-4. Restart Accountant24, then use `/model` to select the Gemma 4 model — and start chatting. Nothing leaves your device.
+3. In **Settings → Providers**, connect **Ollama** — the app detects all your local Ollama models and configures them automatically. Then pick your Gemma 4 model and start chatting. Nothing leaves your device.
 
 ## What's next
 
