@@ -4,6 +4,10 @@ Track spending in plain language, import bank statements and receipts, ask quest
 
 ![Accountant24 — desktop app](docs/images/desktop-app.png)
 
+<p align="center">
+  <a href="https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg"><b>Download for macOS</b></a> (Apple Silicon)
+</p>
+
 ## What you can do
 
 ### Log spending in natural language
@@ -45,30 +49,24 @@ Every modification is auto-committed to a local git repo. Review your history an
 
 ## Quick start
 
-### Install
+1. Download [Accountant24](https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg) for Apple Silicon Macs and install it.
+2. Launch Accountant24.
+3. Connect your LLM provider.
+4. Pick your favorite model and start chatting.
 
-Download [Accountant24.dmg](https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg) and install it. Requires macOS on Apple Silicon (M1 or newer).
-
-### Run
-
-Launch **Accountant24**. On first launch it creates a `~/Accountant24/` workspace with a pre-configured set of accounts and initializes a git repo.
-
-### Connect a provider
-
-Connect your LLM provider — a ChatGPT or Claude subscription, an API key, or Ollama for local models — and start chatting. You can change providers and models anytime in **Settings**.
-
-### Go fully local (optional)
+## Go fully local
 
 Want your financial data to never leave your machine? Run a local model with Ollama.
 
 1. [Download and install Ollama](https://ollama.com/download).
-2. Pull a Gemma 4 model:
+2. Pull a Gemma 4 or any other model:
 
    ```bash
    ollama pull gemma4:31b  # requires ~24 GB+ RAM
    ```
 
-3. In **Settings → Providers**, connect **Ollama** — the app detects all your local Ollama models and configures them automatically. Then pick your Gemma 4 model and start chatting. Nothing leaves your device.
+3. In Settings → Providers, connect Ollama. The app detects all your local Ollama models and configures them automatically.
+4. Pick your Gemma 4 model and start chatting.
 
 ## How it compares
 
