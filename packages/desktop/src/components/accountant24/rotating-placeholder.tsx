@@ -1,8 +1,9 @@
 // Rotating composer placeholder: plain prompt first, then cycle through short
 // feature hints so users discover mentions without a cluttered default.
 
+import { useAuiState } from "@assistant-ui/react";
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
-import { type ComponentProps, type FC, useEffect, useState } from "react";
+import { type ComponentProps, type FC, useEffect, useRef, useState } from "react";
 
 const COMPOSER_PLACEHOLDERS = ["Write a message...", "Type @ to mention accounts, payees, tags"];
 const PLACEHOLDER_ROTATE_MS = 10000;
@@ -12,7 +13,7 @@ const PLACEHOLDER_SWAP_MS = 100;
 /** Two-phase swap so the placeholder animates: fade the current text out,
  *  then swap it and let the CSS transition fade the new one back in.
  *  When disabled (existing chats), stays on the plain prompt. */
-const useRotatingPlaceholder = (enabled: boolean): { placeholder: string; isSwapping: boolean } => {
+export const useRotatingPlaceholder = (enabled: boolean): { placeholder: string; isSwapping: boolean } => {
   const [index, setIndex] = useState(0);
   const [isSwapping, setIsSwapping] = useState(false);
 
@@ -48,9 +49,19 @@ type RotatingPlaceholderInputProps = Omit<ComponentProps<typeof LexicalComposerI
  *  index.css without affecting the composer shell's flex layout. */
 export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = ({ rotate = false, ...rest }) => {
   const { placeholder, isSwapping } = useRotatingPlaceholder(rotate);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
+
+  // Refocus the input when switching chats (new or existing) so the user can
+  // type immediately — the library's autoFocus only covers the initial mount.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(mainThreadId): thread switch is the trigger, not an input
+  useEffect(() => {
+    editorRef.current?.querySelector<HTMLElement>(".aui-lexical-input")?.focus();
+  }, [mainThreadId]);
+
   return (
     <div className="contents" data-placeholder-swapping={isSwapping || undefined}>
-      <LexicalComposerInput placeholder={placeholder} {...rest} />
+      <LexicalComposerInput ref={editorRef} placeholder={placeholder} {...rest} />
     </div>
   );
 };
