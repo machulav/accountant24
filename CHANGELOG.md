@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.2
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.1...v0.2.2)
+
+### 🚀 Features
+
+- **desktop:** Show app version in settings ([de73d88](https://github.com/machulav/accountant24/commit/de73d88))
+
+### 🐞 Bug Fixes
+
+- **ci:** Silence untrusted aws/tap annotation on macos runners ([5e878c3](https://github.com/machulav/accountant24/commit/5e878c3))
+- **desktop:** Full-bleed app icon artwork for macOS 26 dock rendering ([61ebaf9](https://github.com/machulav/accountant24/commit/61ebaf9))
+
 ## v0.2.1
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.0...v0.2.1)
