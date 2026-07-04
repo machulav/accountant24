@@ -1,7 +1,8 @@
 // Electron main entry. Owns the window + the pi agent child + the in-process
 // auth/sessions, all exposed to the renderer over IPC. Replaces src-tauri.
 
-import { app, BrowserWindow } from "electron";
+import { join } from "node:path";
+import { app, BrowserWindow, nativeImage } from "electron";
 import { killAgent, registerAgentIpc } from "./agent";
 import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
@@ -17,6 +18,13 @@ const getWin = (): BrowserWindow | null => mainWindow;
 initAnalytics();
 
 app.whenReady().then(() => {
+  // Dev only: packaged builds get the icon from build/icon.icns, but
+  // `electron-vite dev` runs the stock Electron binary with its default icon.
+  if (!app.isPackaged && process.platform === "darwin") {
+    const icon = nativeImage.createFromPath(join(app.getAppPath(), "build/icon.png"));
+    if (!icon.isEmpty()) app.dock?.setIcon(icon);
+  }
+
   // App-global IPC handlers (registered once); sends go to the current window.
   registerAgentIpc(getWin);
   registerPiIpc(getWin);
