@@ -60,6 +60,11 @@ export const agentApi = {
     api.on("agent-error", (payload) => cb(payload as string)),
 };
 
+export const appApi = {
+  /** The running app's version (packaged metadata; dev shows the repo version). */
+  version: () => api.invoke<string>("app_version"),
+};
+
 export const sessionsApi = {
   list: () => api.invoke<{ type: string; sessions: SessionSummary[] }>("sessions_list"),
   delete: (path: string) => api.invoke<{ type: string; path?: string; message?: string }>("sessions_delete", { path }),

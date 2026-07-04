@@ -4,9 +4,10 @@
 // Dialog so it gets focus trapping and Esc-to-close for free.
 
 import { CpuIcon, KeyboardIcon, PlugIcon, ShieldIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { appApi } from "@/rpc/api";
 import { AnalyticsSettings } from "./AnalyticsSettings";
 import { ModelsSettings } from "./ModelsSettings";
 import { ProvidersSettings } from "./ProvidersSettings";
@@ -23,6 +24,14 @@ const NAV: { id: SettingsSection; label: string; icon: typeof CpuIcon }[] = [
 
 export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [section, setSection] = useState<SettingsSection>("providers");
+  const [version, setVersion] = useState<string>();
+
+  useEffect(() => {
+    appApi
+      .version()
+      .then(setVersion)
+      .catch(() => undefined);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,6 +61,7 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
               </button>
             );
           })}
+          {version && <div className="text-muted-foreground/70 mt-auto px-2 pb-1 text-xs">v{version}</div>}
         </nav>
         <div className="min-w-0 flex-1 overflow-y-auto">
           {section === "providers" && <ProvidersSettings />}

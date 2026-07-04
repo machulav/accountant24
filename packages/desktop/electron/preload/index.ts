@@ -5,6 +5,7 @@
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from "electron";
 
 const INVOKE_CHANNELS = new Set([
+  "app_version",
   "agent_start",
   "agent_send",
   "agent_stop",
