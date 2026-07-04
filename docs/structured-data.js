@@ -29,7 +29,7 @@
     description:
       "Local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
     url: BASE,
-    downloadUrl: "https://github.com/machulav/accountant24/releases/latest",
+    downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
     softwareHelp: BASE + "/quickstart",
     license: "https://opensource.org/licenses/MIT",
     isAccessibleForFree: true,

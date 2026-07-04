@@ -269,7 +269,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.create-release.outputs.tag }}
-        run: gh release download "$TAG" --pattern '*-arm64.dmg' --output app.dmg
+        run: gh release download "$TAG" --pattern 'Accountant24.dmg' --output app.dmg
 
       - name: Gatekeeper checks (codesign, spctl, stapler, version)
         env:

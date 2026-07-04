@@ -9,9 +9,11 @@ directories:
   buildResources: build
   output: release
 
-# Per-arch artifact names so the arm64 and x64 dmgs/zips don't collide when both
-# matrix jobs upload to the same GitHub Release.
-artifactName: ${productName}-${version}-${arch}.${ext}
+# Versionless artifact name so /releases/latest/download/Accountant24.dmg is a
+# stable direct-download URL (the version lives in the release tag and the app's
+# Info.plist). Revisit if an x64 build is ever re-added — both arches would then
+# need distinct names to not collide in one GitHub Release.
+artifactName: ${productName}.${ext}
 
 # CI publishes the release artifacts via `electron-builder --publish always`,
 # which uploads to the GitHub Release for the current tag.
