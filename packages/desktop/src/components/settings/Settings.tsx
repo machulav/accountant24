@@ -61,7 +61,23 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
               </button>
             );
           })}
-          {version && <div className="text-muted-foreground/70 mt-auto px-2 pb-1 text-xs">v{version}</div>}
+          {/* Links to the full release history (each release carries its
+              changelog section as notes). Opens in the system browser via the
+              window-open handler. */}
+          {version && (
+            <div className="text-muted-foreground/70 mt-auto flex items-center justify-center gap-1.5 px-2 pb-1 text-xs">
+              <span>v{version}</span>
+              <span aria-hidden>·</span>
+              <a
+                href="https://github.com/machulav/accountant24/releases"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Changelog
+              </a>
+            </div>
+          )}
         </nav>
         <div className="min-w-0 flex-1 overflow-y-auto">
           {section === "providers" && <ProvidersSettings />}
