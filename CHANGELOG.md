@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.4
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.3...v0.2.4)
+
+### 🚀 Features
+
+- **desktop:** Track auto-update outcomes in anonymous analytics ([8993803](https://github.com/machulav/accountant24/commit/8993803))
+- **desktop:** Link to the release changelog from settings ([2ac7e29](https://github.com/machulav/accountant24/commit/2ac7e29))
+
+### 🐞 Bug Fixes
+
+- **desktop:** Stamp new chat's first message with its own model ([6981037](https://github.com/machulav/accountant24/commit/6981037))
+
+### ♻️ Refactors
+
+- **desktop:** Consistent analytics event names and typed wrappers ([ba6f6ff](https://github.com/machulav/accountant24/commit/ba6f6ff))
+
 ## v0.2.3
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.2...v0.2.3)
