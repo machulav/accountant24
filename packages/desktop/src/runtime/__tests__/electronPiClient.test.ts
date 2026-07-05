@@ -74,19 +74,19 @@ describe("createElectronPiClient() analytics", () => {
       expect(h.track).toHaveBeenCalledWith("agent_tool_used", { tool: "validate", status: "error" });
     });
 
-    it("should track the one-time first_transaction_added when add_transactions succeeds", () => {
+    it("should track the one-time transaction_first_added when add_transactions succeeds", () => {
       createElectronPiClient();
       emit(toolEnd("add_transactions"));
-      expect(h.trackOnce).toHaveBeenCalledWith("first_transaction_added");
+      expect(h.trackOnce).toHaveBeenCalledWith("transaction_first_added");
     });
 
-    it("should not track first_transaction_added when add_transactions fails", () => {
+    it("should not track transaction_first_added when add_transactions fails", () => {
       createElectronPiClient();
       emit(toolEnd("add_transactions", true));
       expect(h.trackOnce).not.toHaveBeenCalled();
     });
 
-    it("should not track first_transaction_added for other tools", () => {
+    it("should not track transaction_first_added for other tools", () => {
       createElectronPiClient();
       emit(toolEnd("query"));
       emit(toolEnd("commit_and_push"));
@@ -99,6 +99,23 @@ describe("createElectronPiClient() analytics", () => {
       client.subscribe("pending-2", () => {}, { includeSnapshot: false });
       emit(toolEnd("query"));
       expect(h.track.mock.calls.filter(([event]) => event === "agent_tool_used")).toHaveLength(1);
+    });
+  });
+
+  describe("agent replies", () => {
+    it("should track agent_message_sent when an agent turn ends", () => {
+      const client = createElectronPiClient();
+      client.subscribe("pending-1", () => {}, { includeSnapshot: false });
+      emit({ type: "agent_end" });
+      expect(h.track).toHaveBeenCalledWith("agent_message_sent");
+    });
+
+    it("should count an agent reply exactly once even with multiple thread subscriptions", () => {
+      const client = createElectronPiClient();
+      client.subscribe("pending-1", () => {}, { includeSnapshot: false });
+      client.subscribe("pending-2", () => {}, { includeSnapshot: false });
+      emit({ type: "agent_end" });
+      expect(h.track.mock.calls.filter(([event]) => event === "agent_message_sent")).toHaveLength(1);
     });
   });
 
@@ -123,11 +140,11 @@ describe("createElectronPiClient() analytics", () => {
       });
     });
 
-    it("should track the one-time first_user_message_sent on send", async () => {
+    it("should track the one-time user_first_message_sent on send", async () => {
       const client = createElectronPiClient();
       const snapshot = await client.createThread({});
       await client.sendMessage(snapshot.metadata.id, message("hi"));
-      expect(h.trackOnce).toHaveBeenCalledWith("first_user_message_sent");
+      expect(h.trackOnce).toHaveBeenCalledWith("user_first_message_sent");
     });
 
     it("should omit the model prop when no model is known yet", async () => {

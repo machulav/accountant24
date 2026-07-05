@@ -20,7 +20,7 @@ export interface AppSettings {
   /** Anonymous usage analytics opt-out. Absent = on (the default). */
   analyticsEnabled?: boolean;
   /** One-time analytics milestones already consumed (e.g. "app_installed",
-   *  "first_user_message_sent"), so each is emitted at most once per install.
+   *  "user_first_message_sent"), so each is emitted at most once per install.
    *  Main-process only. */
   onceEvents?: string[];
 }

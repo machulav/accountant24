@@ -52,9 +52,9 @@ beforeEach(() => {
 describe("consumeOnce()", () => {
   it("should return true on the first call for a key and false on every later call", async () => {
     const { consumeOnce } = await setup();
-    expect(consumeOnce("first_user_message_sent")).toBe(true);
-    expect(consumeOnce("first_user_message_sent")).toBe(false);
-    expect(consumeOnce("first_user_message_sent")).toBe(false);
+    expect(consumeOnce("user_first_message_sent")).toBe(true);
+    expect(consumeOnce("user_first_message_sent")).toBe(false);
+    expect(consumeOnce("user_first_message_sent")).toBe(false);
   });
 
   it("should track different keys independently", async () => {
@@ -66,11 +66,11 @@ describe("consumeOnce()", () => {
 
   it("should persist consumed keys so a fresh process still returns false", async () => {
     const first = await setup();
-    first.consumeOnce("first_user_message_sent");
+    first.consumeOnce("user_first_message_sent");
 
     vi.resetModules();
     const second = await setup();
-    expect(second.consumeOnce("first_user_message_sent")).toBe(false);
+    expect(second.consumeOnce("user_first_message_sent")).toBe(false);
   });
 
   it("should append to onceEvents in the settings file without touching other keys", async () => {
@@ -118,12 +118,12 @@ describe("settings_set IPC", () => {
   it("should merge a patch without dropping consumed one-time markers", async () => {
     const { consumeOnce, registerSettingsIpc } = await setup();
     registerSettingsIpc();
-    consumeOnce("first_user_message_sent");
+    consumeOnce("user_first_message_sent");
 
     h.handlers.get("settings_set")?.(null, { analyticsEnabled: false });
     expect(stored()).toMatchObject({
       analyticsEnabled: false,
-      onceEvents: ["first_user_message_sent"],
+      onceEvents: ["user_first_message_sent"],
     });
   });
 });

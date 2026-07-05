@@ -56,8 +56,8 @@ export function trackProviderConnected(provider: string, method: "oauth" | "api_
 
 /** Record the agent child failing (crash or spawn error). Coarse kind only —
  *  stderr/messages never leave the machine. */
-export function trackAgentError(kind: "crash" | "spawn"): void {
-  track("agent_error", { kind });
+export function trackAgentFailed(kind: "crash" | "spawn"): void {
+  track("agent_failed", { kind });
 }
 
 /** Record a finished update download (it installs on the next quit). The event
@@ -72,8 +72,8 @@ export function trackUpdateDownloaded(toVersion: string): void {
  *  contain URLs/paths and never leave the machine. "download" points at a
  *  broken release; "check" is mostly offline noise (the caller dedupes both
  *  to one event per session). */
-export function trackUpdateError(kind: "check" | "download"): void {
-  track("update_error", { kind });
+export function trackUpdateFailed(kind: "check" | "download"): void {
+  track("update_failed", { kind });
 }
 
 /** Record the user flipping the analytics opt-out. The one caller that bypasses

@@ -96,18 +96,18 @@ describe("trackLaunch()", () => {
 describe("trackOnce()", () => {
   it("should emit the event with its props exactly once", async () => {
     const { trackOnce } = await setup();
-    trackOnce("first_user_message_sent", { model: "anthropic/claude" });
-    trackOnce("first_user_message_sent", { model: "anthropic/claude" });
-    expect(events()).toEqual([["first_user_message_sent", { model: "anthropic/claude" }]]);
+    trackOnce("user_first_message_sent", { model: "anthropic/claude" });
+    trackOnce("user_first_message_sent", { model: "anthropic/claude" });
+    expect(events()).toEqual([["user_first_message_sent", { model: "anthropic/claude" }]]);
   });
 
   it("should consume the marker while opted out so a later opt-in never emits it", async () => {
     patchSettings({ analyticsEnabled: false });
     const { trackOnce } = await setup();
-    trackOnce("first_user_message_sent");
+    trackOnce("user_first_message_sent");
 
     patchSettings({ analyticsEnabled: true });
-    trackOnce("first_user_message_sent");
+    trackOnce("user_first_message_sent");
     expect(events()).toEqual([]);
   });
 });
@@ -127,17 +127,60 @@ describe("trackProviderConnected()", () => {
   });
 });
 
-describe("trackAgentError()", () => {
-  it("should emit agent_error with the coarse kind", async () => {
-    const { trackAgentError } = await setup();
-    trackAgentError("crash");
-    expect(events()).toEqual([["agent_error", { kind: "crash" }]]);
+describe("trackAgentFailed()", () => {
+  it("should emit agent_failed with the coarse kind", async () => {
+    const { trackAgentFailed } = await setup();
+    trackAgentFailed("crash");
+    expect(events()).toEqual([["agent_failed", { kind: "crash" }]]);
   });
 
   it("should emit nothing when analytics are opted out", async () => {
     patchSettings({ analyticsEnabled: false });
-    const { trackAgentError } = await setup();
-    trackAgentError("spawn");
+    const { trackAgentFailed } = await setup();
+    trackAgentFailed("spawn");
+    expect(events()).toEqual([]);
+  });
+});
+
+describe("initAnalytics()", () => {
+  it("should initialize the SDK without emitting any events", async () => {
+    const { initAnalytics } = await setup();
+    initAnalytics();
+    expect(h.initialize).toHaveBeenCalledTimes(1);
+    expect(events()).toEqual([]);
+  });
+});
+
+describe("trackUpdateDownloaded()", () => {
+  it("should emit update_downloaded with the target version", async () => {
+    const { trackUpdateDownloaded } = await setup();
+    trackUpdateDownloaded("1.2.3");
+    expect(events()).toEqual([["update_downloaded", { to_version: "1.2.3" }]]);
+  });
+
+  it("should emit nothing when analytics are opted out", async () => {
+    patchSettings({ analyticsEnabled: false });
+    const { trackUpdateDownloaded } = await setup();
+    trackUpdateDownloaded("1.2.3");
+    expect(events()).toEqual([]);
+  });
+});
+
+describe("trackUpdateFailed()", () => {
+  it("should emit update_failed with the coarse kind", async () => {
+    const { trackUpdateFailed } = await setup();
+    trackUpdateFailed("download");
+    trackUpdateFailed("check");
+    expect(events()).toEqual([
+      ["update_failed", { kind: "download" }],
+      ["update_failed", { kind: "check" }],
+    ]);
+  });
+
+  it("should emit nothing when analytics are opted out", async () => {
+    patchSettings({ analyticsEnabled: false });
+    const { trackUpdateFailed } = await setup();
+    trackUpdateFailed("check");
     expect(events()).toEqual([]);
   });
 });
@@ -191,19 +234,19 @@ describe("analytics_track IPC", () => {
   it("should emit a once event at most once across repeated requests", async () => {
     const { registerAnalyticsIpc } = await setup();
     registerAnalyticsIpc();
-    invoke({ event: "first_transaction_added", once: true });
-    invoke({ event: "first_transaction_added", once: true });
-    expect(events()).toEqual([["first_transaction_added"]]);
+    invoke({ event: "transaction_first_added", once: true });
+    invoke({ event: "transaction_first_added", once: true });
+    expect(events()).toEqual([["transaction_first_added"]]);
   });
 
   it("should consume an opted-out once event so it never emits after an opt-in", async () => {
     patchSettings({ analyticsEnabled: false });
     const { registerAnalyticsIpc } = await setup();
     registerAnalyticsIpc();
-    invoke({ event: "first_transaction_added", once: true });
+    invoke({ event: "transaction_first_added", once: true });
 
     patchSettings({ analyticsEnabled: true });
-    invoke({ event: "first_transaction_added", once: true });
+    invoke({ event: "transaction_first_added", once: true });
     expect(events()).toEqual([]);
   });
 

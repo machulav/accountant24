@@ -13,7 +13,7 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, Handler>(),
   checkForUpdates: vi.fn(() => Promise.resolve()),
   trackUpdateDownloaded: vi.fn(),
-  trackUpdateError: vi.fn(),
+  trackUpdateFailed: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -36,7 +36,7 @@ vi.mock("electron-updater", () => ({
 }));
 vi.mock("../analytics", () => ({
   trackUpdateDownloaded: h.trackUpdateDownloaded,
-  trackUpdateError: h.trackUpdateError,
+  trackUpdateFailed: h.trackUpdateFailed,
 }));
 
 import { initAutoUpdater, shouldAutoUpdate } from "../updater";
@@ -101,25 +101,34 @@ describe("initAutoUpdater()", () => {
     expect(h.checkForUpdates).toHaveBeenCalledTimes(2);
   });
 
+  it("should survive a rejected check and still check again next cycle", async () => {
+    h.checkForUpdates.mockRejectedValueOnce(new Error("offline"));
+    initAutoUpdater();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(h.checkForUpdates).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000);
+    expect(h.checkForUpdates).toHaveBeenCalledTimes(2);
+  });
+
   it("should track update_downloaded with the new version when a download completes", () => {
     initAutoUpdater();
     emit("update-available");
     emit("update-downloaded", { version: "1.1.0" });
     expect(h.trackUpdateDownloaded).toHaveBeenCalledExactlyOnceWith("1.1.0");
-    expect(h.trackUpdateError).not.toHaveBeenCalled();
+    expect(h.trackUpdateFailed).not.toHaveBeenCalled();
   });
 
   it("should track a check error when no update was being downloaded", () => {
     initAutoUpdater();
     emit("error", new Error("net::ERR_INTERNET_DISCONNECTED"));
-    expect(h.trackUpdateError).toHaveBeenCalledExactlyOnceWith("check");
+    expect(h.trackUpdateFailed).toHaveBeenCalledExactlyOnceWith("check");
   });
 
   it("should track a download error when the failure happens after update-available", () => {
     initAutoUpdater();
     emit("update-available");
     emit("error", new Error("sha512 checksum mismatch"));
-    expect(h.trackUpdateError).toHaveBeenCalledExactlyOnceWith("download");
+    expect(h.trackUpdateFailed).toHaveBeenCalledExactlyOnceWith("download");
   });
 
   it("should classify an error after a completed download as a check error", () => {
@@ -127,7 +136,7 @@ describe("initAutoUpdater()", () => {
     emit("update-available");
     emit("update-downloaded", { version: "1.1.0" });
     emit("error", new Error("offline"));
-    expect(h.trackUpdateError).toHaveBeenCalledExactlyOnceWith("check");
+    expect(h.trackUpdateFailed).toHaveBeenCalledExactlyOnceWith("check");
   });
 
   it("should track each error kind at most once per session", () => {
@@ -138,8 +147,8 @@ describe("initAutoUpdater()", () => {
     emit("error", new Error("download failed"));
     emit("update-available");
     emit("error", new Error("download failed again"));
-    expect(h.trackUpdateError).toHaveBeenCalledTimes(2);
-    expect(h.trackUpdateError).toHaveBeenNthCalledWith(1, "check");
-    expect(h.trackUpdateError).toHaveBeenNthCalledWith(2, "download");
+    expect(h.trackUpdateFailed).toHaveBeenCalledTimes(2);
+    expect(h.trackUpdateFailed).toHaveBeenNthCalledWith(1, "check");
+    expect(h.trackUpdateFailed).toHaveBeenNthCalledWith(2, "download");
   });
 });

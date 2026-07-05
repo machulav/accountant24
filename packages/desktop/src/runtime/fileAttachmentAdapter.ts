@@ -8,8 +8,9 @@
 //    images to the model, so non-image files can only travel as a path.
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
+import { trackAttachmentAdded } from "../lib/analyticsEvents";
 import { encodeAttachmentRef } from "../lib/attachmentMarker";
-import { analyticsApi, filesApi } from "../rpc/api";
+import { filesApi } from "../rpc/api";
 
 /** Coarse attachment category for analytics — never the filename or content. */
 export function attachmentKind(mime: string): "image" | "pdf" | "csv" | "other" {
@@ -40,7 +41,7 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
   protected abstract toContent(name: string, path: string, dataUrl: string): CompleteAttachment["content"];
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    analyticsApi.track("attachment_added", { kind: attachmentKind(file.type) });
+    trackAttachmentAdded(attachmentKind(file.type));
     return {
       id: `${file.name}:${file.size}:${file.lastModified}`,
       type: this.type,

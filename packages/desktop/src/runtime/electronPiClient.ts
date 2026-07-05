@@ -24,9 +24,17 @@ import type {
   PiThreadSnapshot,
   PiTranscriptMessage,
 } from "@assistant-ui/react-pi";
+import {
+  trackAgentMessageSent,
+  trackAgentToolUsed,
+  trackChatCreated,
+  trackTransactionFirstAdded,
+  trackUserFirstMessageSent,
+  trackUserMessageSent,
+} from "../lib/analyticsEvents";
 import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
-import { analyticsApi, sessionsApi, settingsApi } from "../rpc/api";
+import { sessionsApi, settingsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
@@ -76,13 +84,13 @@ export function createElectronPiClient(): PiClient {
   // session). A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
   agentBridge.addEventListener((e) => {
-    // Tool analytics live on this singleton listener (not mapEvent, which runs
-    // once per active subscription) so each tool run is counted exactly once.
-    // Tool name + outcome only — args/results never leave the machine.
+    // Tool + reply analytics live on this singleton listener (not mapEvent,
+    // which runs once per active subscription) so each is counted exactly once.
     if (e.type === "tool_execution_end") {
-      analyticsApi.track("agent_tool_used", { tool: e.toolName, status: e.isError ? "error" : "ok" });
-      if (e.toolName === "add_transactions" && !e.isError) analyticsApi.trackOnce("first_transaction_added");
+      trackAgentToolUsed(e.toolName, Boolean(e.isError));
+      if (e.toolName === "add_transactions" && !e.isError) trackTransactionFirstAdded();
     }
+    if (e.type === "agent_end") trackAgentMessageSent();
     if (!activeThreadId) return;
     if (e.type === "agent_start") running.add(activeThreadId);
     else if (e.type === "agent_end") running.delete(activeThreadId);
@@ -141,7 +149,6 @@ export function createElectronPiClient(): PiClient {
       case "agent_start":
         return { type: "agent_start" };
       case "agent_end":
-        analyticsApi.track("agent_message_sent"); // count only; never the response content
         return { type: "agent_end" };
       case "turn_start": {
         const t = (turns.get(threadId) ?? -1) + 1;
@@ -193,7 +200,7 @@ export function createElectronPiClient(): PiClient {
 
     async createThread(input) {
       await agentBridge.request({ type: "new_session" }, "new_session");
-      analyticsApi.track("chat_created");
+      trackChatCreated();
       // Pick the model for the fresh session: the model the user chose in the
       // composer for this new chat, else the configured default. Sent before
       // get_state so the snapshot reflects it (stdin commands run in order).
@@ -231,12 +238,8 @@ export function createElectronPiClient(): PiClient {
 
     async sendMessage(threadId, input: PiSendMessageInput) {
       await ensureActive(threadId);
-      // Count + coarse props only; never the message content.
-      analyticsApi.track("user_message_sent", {
-        has_attachment: input.attachments?.length ? "true" : "false",
-        ...(currentModelId ? { model: currentModelId } : {}),
-      });
-      analyticsApi.trackOnce("first_user_message_sent");
+      trackUserMessageSent(Boolean(input.attachments?.length), currentModelId);
+      trackUserFirstMessageSent();
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
       await agentBridge.send({
         type: "prompt",

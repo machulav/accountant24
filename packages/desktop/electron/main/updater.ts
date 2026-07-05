@@ -6,7 +6,7 @@
 
 import { app } from "electron";
 import electronUpdater from "electron-updater"; // CJS package: default-import, then destructure
-import { trackUpdateDownloaded, trackUpdateError } from "./analytics";
+import { trackUpdateDownloaded, trackUpdateFailed } from "./analytics";
 
 const { autoUpdater } = electronUpdater;
 
@@ -47,7 +47,7 @@ export function initAutoUpdater(): void {
     downloading = false;
     if (!errorTracked[kind]) {
       errorTracked[kind] = true;
-      trackUpdateError(kind);
+      trackUpdateFailed(kind);
     }
   });
 
