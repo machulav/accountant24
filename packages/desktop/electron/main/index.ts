@@ -9,6 +9,7 @@ import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerPiIpc } from "./pi";
 import { registerSettingsIpc } from "./settings";
+import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
 
 let mainWindow: BrowserWindow | null = null;
@@ -38,6 +39,9 @@ app.whenReady().then(() => {
 
   // Count this launch (and a one-time install), respecting the opt-out.
   trackLaunch();
+
+  // Silent auto-update (packaged stable builds only; no-op in dev and rc).
+  initAutoUpdater();
 
   mainWindow = createWindow();
   mainWindow.on("closed", () => {

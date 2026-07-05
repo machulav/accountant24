@@ -15,8 +15,10 @@
 # recursion protection), so a separate tag-triggered build workflow would
 # silently never run. Flow: checks (quality gate `npm run verify`) →
 # create-release (cut tag if needed + draft release with notes) → build
-# (sign + notarize, upload dmg/zip) → verify (Gatekeeper checks on the
-# uploaded dmg from a clean machine) → finalize (un-draft).
+# (sign + notarize, upload dmg/zip + latest-mac.yml, the electron-updater
+# feed) → verify (Gatekeeper checks on the uploaded dmg from a clean
+# machine) → finalize (un-draft — the moment installed apps start
+# auto-updating to this release).
 #
 # Intel (x64) builds are dropped for now: GitHub retired the macos-13 runners
 # (late 2025), and Homebrew ships x64 bottles only for macOS 14 — on the

@@ -11,20 +11,25 @@ directories:
 
 # Versionless artifact name so /releases/latest/download/Accountant24.dmg is a
 # stable direct-download URL (the version lives in the release tag and the app's
-# Info.plist). Revisit if an x64 build is ever re-added — both arches would then
-# need distinct names to not collide in one GitHub Release.
+# Info.plist). Safe for auto-update too: latest-mac.yml resolves Accountant24.zip
+# relative to its own release tag, not /latest. Revisit if an x64 build is ever
+# re-added — both arches would then need distinct names to not collide in one
+# GitHub Release.
 artifactName: ${productName}.${ext}
 
 # CI publishes the release artifacts via `electron-builder --publish always`,
-# which uploads to the GitHub Release for the current tag.
+# which uploads to the GitHub Release for the current tag. publishAutoUpdate
+# (default true) also uploads latest-mac.yml — the electron-updater feed — and
+# embeds app-update.yml in the app. Stable clients never see rc feeds: the
+# GitHub provider skips semver-prerelease tags, and release.yml marks rc
+# releases --prerelease. NOTE: if a second arch (x64) is ever re-added as a
+# separate matrix job, both jobs would upload the SAME-named latest-mac.yml to
+# one release and can 422 each other — build both arches in one job or use
+# per-arch channel files then.
 publish:
   provider: github
   owner: machulav
   repo: accountant24
-  # No auto-update (electron-updater) in the app, so skip uploading latest-mac.yml.
-  # Also avoids the classic race: both arch matrix jobs would otherwise upload the
-  # SAME-named latest-mac.yml to one release and can 422 each other.
-  publishAutoUpdate: false
 
 # out/ (electron-vite build) + the app manifest. electron-builder also bundles
 # the production dependencies (pi SDK, react, …) automatically.
