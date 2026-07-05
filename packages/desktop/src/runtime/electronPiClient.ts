@@ -212,6 +212,10 @@ export function createElectronPiClient(): PiClient {
       const id = state.sessionFile ?? state.sessionId ?? `pending-${(pendingCounter += 1)}`;
       activeThreadId = id;
       turns.delete(id);
+      // Record the new chat's model before the initial message is tracked —
+      // buildSnapshot below runs too late, and would leave user_message_sent
+      // stamped with the PREVIOUS session's model.
+      if (state.model) currentModelId = `${state.model.provider}/${state.model.id}`;
       if (input?.initialMessage) await client.sendMessage(id, input.initialMessage);
       return buildSnapshot(id, state, []);
     },

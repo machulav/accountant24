@@ -138,6 +138,17 @@ describe("createElectronPiClient() analytics", () => {
       expect(h.track).toHaveBeenCalledWith("user_message_sent", { has_attachment: "false" });
     });
 
+    it("should report the new chat's model for its initial message, not the previous session's", async () => {
+      const client = createElectronPiClient();
+      await client.getThread("/ws/sessions/old.jsonl"); // caches the previous session's model
+      h.state = { model: { provider: "openai-codex", id: "gpt-x" }, sessionFile: "/ws/sessions/s2.jsonl" };
+      await client.createThread({ initialMessage: message("hi") });
+      expect(h.track).toHaveBeenCalledWith("user_message_sent", {
+        has_attachment: "false",
+        model: "openai-codex/gpt-x",
+      });
+    });
+
     it("should report the new model after setModel", async () => {
       const client = createElectronPiClient();
       const snapshot = await client.createThread({});
