@@ -60,6 +60,22 @@ export function trackAgentError(kind: "crash" | "spawn"): void {
   track("agent_error", { kind });
 }
 
+/** Record a finished update download (it installs on the next quit). The event
+ *  itself carries the running (old) app version, so to_version measures both
+ *  that the silent pipeline works end-to-end and how fast a release reaches
+ *  the fleet. */
+export function trackUpdateDownloaded(toVersion: string): void {
+  track("update_downloaded", { to_version: toVersion });
+}
+
+/** Record the silent updater failing. Coarse phase only — error messages can
+ *  contain URLs/paths and never leave the machine. "download" points at a
+ *  broken release; "check" is mostly offline noise (the caller dedupes both
+ *  to one event per session). */
+export function trackUpdateError(kind: "check" | "download"): void {
+  track("update_error", { kind });
+}
+
 /** Record the user flipping the analytics opt-out. The one caller that bypasses
  *  the gate: "disabled" must be the last thing we send before going quiet (the
  *  setting has already flipped to off when this fires), and "enabled" is sent

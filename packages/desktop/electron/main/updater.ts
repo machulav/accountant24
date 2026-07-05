@@ -6,6 +6,7 @@
 
 import { app } from "electron";
 import electronUpdater from "electron-updater"; // CJS package: default-import, then destructure
+import { trackUpdateDownloaded, trackUpdateError } from "./analytics";
 
 const { autoUpdater } = electronUpdater;
 
@@ -27,11 +28,33 @@ export function initAutoUpdater(): void {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false; // default; explicit for the reader
 
+  // Errors are classified by phase: once update-available fires we're
+  // downloading — a failure there points at a broken release, while check
+  // failures are mostly offline noise. Both deduped to one event per kind per
+  // session so a laptop without network doesn't emit one per 4h cycle.
+  let downloading = false;
+  const errorTracked = { check: false, download: false };
+
+  autoUpdater.on("update-available", () => {
+    downloading = true;
+  });
+
   // An "error" handler is mandatory (unhandled EventEmitter errors throw);
   // network failures are routine — log and wait for the next cycle.
-  autoUpdater.on("error", (err) => console.error(`[updater] ${err.message}`));
+  autoUpdater.on("error", (err) => {
+    console.error(`[updater] ${err.message}`);
+    const kind = downloading ? "download" : "check";
+    downloading = false;
+    if (!errorTracked[kind]) {
+      errorTracked[kind] = true;
+      trackUpdateError(kind);
+    }
+  });
+
   autoUpdater.on("update-downloaded", (info) => {
+    downloading = false;
     console.log(`[updater] ${info.version} downloaded; installs on next quit`);
+    trackUpdateDownloaded(info.version);
   });
 
   const check = () => {
