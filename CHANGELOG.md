@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.3
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.2...v0.2.3)
+
+### 🚀 Features
+
+- **desktop:** Silent auto-update via electron-updater ([86967ca](https://github.com/machulav/accountant24/commit/86967ca))
+
 ## v0.2.2
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.1...v0.2.2)
