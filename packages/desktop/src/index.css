@@ -158,7 +158,10 @@
 .aui-lexical-input {
   box-sizing: border-box;
   min-height: 2.5rem;
-  padding: 0.25rem 0.625rem;
+  /* 16px top/sides (17px incl. border) = the text starts exactly on the
+     paperclip glyph's vertical line and keeps the same inset from the top;
+     small bottom because the action row provides the lower spacing. */
+  padding: 1rem 1rem 0.375rem;
   outline: none;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -167,7 +170,7 @@
   position: absolute;
   inset-block-start: 0;
   inset-inline: 0;
-  padding: 0.25rem 0.625rem;
+  padding: 1rem 1rem 0.375rem;
   pointer-events: none;
   user-select: none;
   overflow: hidden;

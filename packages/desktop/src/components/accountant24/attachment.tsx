@@ -1,14 +1,15 @@
 "use client";
 
-// File/attachment UI built on assistant-ui's standard attachment primitives.
-// Images go to the model as image content. PDFs (and other docs) are copied into
-// the workspace by the app and travel to the agent as a one-line marker carrying
-// the workspace path; here we strip that marker and render a file chip instead of
-// the raw text (see lib/attachmentMarker + runtime/fileAttachmentAdapter).
+// File/attachment UI: assistant-ui's attachment primitives wired to the stock
+// shadcn Attachment components. Images go to the model as image content. PDFs
+// (and other docs) are copied into the workspace by the app and travel to the
+// agent as a one-line marker carrying the workspace path; here we strip that
+// marker and render a file chip instead of the raw text (see
+// lib/attachmentMarker + runtime/fileAttachmentAdapter).
 
 import {
-  type Attachment,
   AttachmentPrimitive,
+  type Attachment as AuiAttachment,
   ComposerPrimitive,
   type ImageMessagePartComponent,
   type TextMessagePartComponent,
@@ -18,6 +19,15 @@ import { FileTextIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { LedgerDirectiveText } from "@/components/accountant24/mentions";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/shadcn/attachment";
+import { InputGroupAddon } from "@/components/shadcn/input-group";
 import { extractAttachmentRefs } from "@/lib/attachmentMarker";
 import { cn } from "@/lib/utils";
 
@@ -37,57 +47,78 @@ const useImagePreview = (file: File | undefined): string | undefined => {
 };
 
 /** Shared presentational file chip (icon + name), used both for pending
- *  composer attachments and sent ones in a message. */
-const FileChip: FC<{ name: string; className?: string }> = ({ name, className }) => (
-  <div
-    className={cn("flex items-center gap-2 rounded-lg border border-border/60 bg-background/60 px-3 py-2", className)}
-  >
-    <FileTextIcon className="text-muted-foreground size-4 shrink-0" />
-    <span className="truncate text-sm" title={name}>
-      {name}
-    </span>
-  </div>
+ *  composer attachments and sent ones in a message. Forwards rest props so it
+ *  can sit under an assistant-ui `asChild` primitive. */
+const FileChip: FC<React.ComponentProps<typeof Attachment> & { name: string }> = ({
+  name,
+  className,
+  children,
+  ...props
+}) => (
+  <Attachment size="sm" className={cn("bg-background", className)} {...props}>
+    <AttachmentMedia>
+      <FileTextIcon />
+    </AttachmentMedia>
+    <AttachmentContent>
+      <AttachmentTitle title={name}>{name}</AttachmentTitle>
+    </AttachmentContent>
+    {children}
+  </Attachment>
 );
 
 /** A single pending attachment in the composer: image thumbnail or a file chip,
  *  each with a remove button. Reads the current attachment from context, so it
  *  must render inside ComposerPrimitive.Attachments. */
 const ComposerAttachmentTile: FC = () => {
-  const attachment = useAuiState((s) => s.attachment) as Attachment | undefined;
+  const attachment = useAuiState((s) => s.attachment) as AuiAttachment | undefined;
   const preview = useImagePreview(attachment?.file);
   if (!attachment) return null;
 
   const isImage = attachment.type === "image" && preview;
 
-  return (
-    <AttachmentPrimitive.Root className="group/attachment relative">
-      {isImage ? (
-        <img src={preview} alt={attachment.name} className="size-16 rounded-lg border border-border/60 object-cover" />
-      ) : (
-        <FileChip name={attachment.name} className="h-16 w-40" />
-      )}
+  const removeButton = (
+    <AttachmentActions>
       <AttachmentPrimitive.Remove asChild>
-        <TooltipIconButton
-          tooltip="Remove attachment"
-          side="top"
-          type="button"
-          variant="default"
-          size="icon"
-          className="absolute -right-1.5 -top-1.5 size-5 rounded-full opacity-0 shadow transition-opacity group-hover/attachment:opacity-100 focus-visible:opacity-100"
-          aria-label="Remove attachment"
-        >
-          <XIcon className="size-3" />
-        </TooltipIconButton>
+        <AttachmentAction aria-label="Remove attachment">
+          <XIcon />
+        </AttachmentAction>
       </AttachmentPrimitive.Remove>
+    </AttachmentActions>
+  );
+
+  if (isImage) {
+    return (
+      <AttachmentPrimitive.Root asChild>
+        <Attachment size="sm" className="bg-background">
+          <AttachmentMedia variant="image">
+            <img src={preview} alt={attachment.name} />
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle title={attachment.name}>{attachment.name}</AttachmentTitle>
+          </AttachmentContent>
+          {removeButton}
+        </Attachment>
+      </AttachmentPrimitive.Root>
+    );
+  }
+
+  return (
+    <AttachmentPrimitive.Root asChild>
+      <FileChip name={attachment.name}>{removeButton}</FileChip>
     </AttachmentPrimitive.Root>
   );
 };
 
-/** Pending attachments shown above the composer input. Hidden when empty. */
+/** Pending attachments shown above the composer input, as a top row of the
+ *  composer's InputGroup. Hidden entirely while there are no attachments. */
 export const ComposerAttachments: FC = () => (
-  <div className="flex flex-row flex-wrap gap-2 px-1 pt-1 empty:hidden">
+  <InputGroupAddon
+    align="block-start"
+    data-slot="aui_composer-attachments"
+    className="hidden flex-wrap gap-2 has-data-[slot=attachment]:flex"
+  >
     <ComposerPrimitive.Attachments>{() => <ComposerAttachmentTile />}</ComposerPrimitive.Attachments>
-  </div>
+  </InputGroupAddon>
 );
 
 /** Paperclip button that opens the file picker. The primitive disables itself
@@ -100,7 +131,9 @@ export const ComposerAddAttachment: FC = () => (
       type="button"
       variant="ghost"
       size="icon"
-      className="size-7 rounded-full"
+      // No left compensation: the glyph keeps equal 17px insets to the left
+      // and bottom edges (a balanced corner beats aligning the icon with the
+      // text column above — both are impossible at once).
       aria-label="Attach files"
     >
       <PaperclipIcon className="size-4" />
@@ -115,7 +148,7 @@ export const UserMessageImage: ImageMessagePartComponent = ({ image, filename })
   <img
     src={image}
     alt={filename ?? "attachment"}
-    className={cn("mb-2 max-h-80 max-w-full rounded-xl border border-border/60 object-contain")}
+    className="border-border/60 mb-2 max-h-80 max-w-full rounded-xl border object-contain"
   />
 );
 

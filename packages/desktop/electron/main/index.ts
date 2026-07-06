@@ -12,6 +12,14 @@ import { registerSettingsIpc } from "./settings";
 import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
 
+// Dev only: expose a local CDP endpoint so tooling (visual-measurement and
+// driver scripts) can attach to the RUNNING dev app instead of launching a
+// second instance. Must be set before the app is ready; packaged builds never
+// get it.
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch("remote-debugging-port", "9223");
+}
+
 let mainWindow: BrowserWindow | null = null;
 const getWin = (): BrowserWindow | null => mainWindow;
 

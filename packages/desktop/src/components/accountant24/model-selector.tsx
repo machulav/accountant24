@@ -40,7 +40,7 @@ export type ModelSelectorProps = {
   /** Render a search input above the model list. */
   searchable?: boolean;
   variant?: "outline" | "ghost";
-  size?: "default" | "sm";
+  size?: "default" | "sm" | "xs";
   className?: string;
   contentClassName?: string;
   placeholder?: string;

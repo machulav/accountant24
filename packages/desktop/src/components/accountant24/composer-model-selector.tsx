@@ -109,7 +109,9 @@ export function ComposerModelSelector() {
       }}
       searchable
       variant="ghost"
-      size="sm"
+      // xs = h-6, same height as the attach/send buttons — a taller pill
+      // stretches the action row and pushes the buttons off the bottom line.
+      size="xs"
     />
   );
 }
