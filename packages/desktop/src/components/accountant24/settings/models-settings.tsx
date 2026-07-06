@@ -34,16 +34,13 @@ function DefaultModelSection({
   }
 
   return (
-    // ModelSelector.Root (not the default-export ModelSelector) so we don't
-    // register a model with assistant-ui's ModelContext — that belongs to the
-    // composer, not to Settings.
-    <ModelSelector.Root models={options} modal {...(value !== undefined ? { value } : {})} onValueChange={onSelect}>
-      <ModelSelector.Trigger variant="outline" className="w-72" />
-      <ModelSelector.Content className="w-72">
-        <ModelSelector.Search />
-        <ModelSelector.List />
-      </ModelSelector.Content>
-    </ModelSelector.Root>
+    <ModelSelector
+      models={options}
+      {...(value !== undefined ? { value } : {})}
+      onValueChange={onSelect}
+      searchable
+      className="w-72"
+    />
   );
 }
 

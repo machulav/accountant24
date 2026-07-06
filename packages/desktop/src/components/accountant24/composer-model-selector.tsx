@@ -1,3 +1,4 @@
+import { useAui } from "@assistant-ui/react";
 import { type PiModelInfo, usePiRuntimeExtras } from "@assistant-ui/react-pi";
 import { useEffect, useMemo, useState } from "react";
 import { filterEnabledModels } from "@/lib/enabledModels";
@@ -9,6 +10,17 @@ import { type ModelOption, ModelSelector } from "./model-selector";
 
 const refId = (m: ModelRef) => `${m.provider}/${m.modelId}`;
 const piId = (m: PiModelInfo) => `${m.provider}/${m.modelId}`;
+
+/** Registers the picked model with assistant-ui's ModelContext system so runs
+ *  are routed to it. Composer-only concern — Settings' picker must not do this. */
+function useRegisterModelContext(modelId: string | undefined) {
+  const api = useAui();
+  useEffect(() => {
+    if (modelId === undefined) return;
+    const config = { config: { modelName: modelId } };
+    return api.modelContext().register({ getModelContext: () => config });
+  }, [api, modelId]);
+}
 
 /** The model picker shown in the composer action row. Lists the agent's authed
  *  models (client.getAvailableModels), narrowed to the set chosen in Settings →
@@ -80,11 +92,13 @@ export function ComposerModelSelector() {
     return list.map((m) => ({ id: piId(m), name: m.name ?? m.modelId, description: m.provider }));
   }, [models, scoped, value, byId]);
 
+  useRegisterModelContext(value);
+
   if (models.length === 0) return null;
   return (
     <ModelSelector
       models={options}
-      value={value}
+      {...(value !== undefined ? { value } : {})}
       onValueChange={(v) => {
         const m = byId.get(v);
         if (!m) return;
