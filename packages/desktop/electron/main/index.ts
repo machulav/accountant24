@@ -21,9 +21,12 @@ initAnalytics();
 app.whenReady().then(() => {
   // Dev only: packaged builds get the icon from build/icon.icns, but
   // `electron-vite dev` runs the stock Electron binary with its default icon.
+  // The red "dev" badge marks the dev instance so it can't be confused with
+  // an installed build running side by side.
   if (!app.isPackaged && process.platform === "darwin") {
     const icon = nativeImage.createFromPath(join(app.getAppPath(), "build/icon.png"));
     if (!icon.isEmpty()) app.dock?.setIcon(icon);
+    app.dock?.setBadge("dev");
   }
 
   // App-global IPC handlers (registered once); sends go to the current window.
