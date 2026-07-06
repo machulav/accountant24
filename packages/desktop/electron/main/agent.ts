@@ -12,7 +12,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
 import { trackAgentFailed } from "./analytics";
-import { agentEnv, extensionPath, piCliPath, workspaceDir } from "./env";
+import { agentEnv, extensionPath, nodeRuntimePath, piCliPath, workspaceDir } from "./env";
 
 let child: ChildProcess | null = null;
 // Children we deliberately killed (restart / app quit), so their `exit` isn't
@@ -28,7 +28,7 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
   const sessionsDir = path.join(workspace, "sessions");
 
   const proc = spawn(
-    process.execPath,
+    nodeRuntimePath(),
     [
       piCliPath(),
       "--mode",

@@ -47,6 +47,30 @@ export function extensionPath(): string {
   return path.join(resourceDir(), "accountant24-extension.js");
 }
 
+/** Binary for running pi as Node (ELECTRON_RUN_AS_NODE). On macOS, use the
+ *  bundled Helper app's binary instead of the main app binary: pi touches
+ *  AppKit at startup, which makes LaunchServices register the child under its
+ *  bundle's Info.plist — for the main binary that's a regular app, i.e. a
+ *  second (generic "exec") Dock icon. The helper bundles are LSUIElement, so
+ *  the same process stays invisible. Falls back to the main binary if the
+ *  helper isn't at the expected path. */
+export function nodeRuntimePath(): string {
+  if (process.platform !== "darwin") return process.execPath;
+  // <App>.app/Contents/MacOS/<App> -> <App>.app (also matches dev's Electron.app)
+  const bundle = path.resolve(process.execPath, "..", "..", "..");
+  const name = path.basename(bundle, ".app");
+  const helper = path.join(
+    bundle,
+    "Contents",
+    "Frameworks",
+    `${name} Helper (Plugin).app`,
+    "Contents",
+    "MacOS",
+    `${name} Helper (Plugin)`,
+  );
+  return existsSync(helper) ? helper : process.execPath;
+}
+
 /** Env overrides for the pi child + in-process SDK: workspace + vendored tools. */
 export function agentEnv(): NodeJS.ProcessEnv {
   const workspace = workspaceDir();

@@ -50,6 +50,7 @@ vi.mock("../env", () => ({
   agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" }),
   piCliPath: () => "/pi/cli.js",
   extensionPath: () => "/res/ext.js",
+  nodeRuntimePath: () => "/node-runtime",
 }));
 
 const win = { isDestroyed: () => false, webContents: { send: h.sendToWindow } };
@@ -101,7 +102,7 @@ describe("agent_start", () => {
     expect(h.mkdirSync).toHaveBeenCalledWith("/ws", { recursive: true });
     expect(h.spawnCalls).toHaveLength(1);
     const { cmd, args, opts } = h.spawnCalls[0];
-    expect(cmd).toBe(process.execPath);
+    expect(cmd).toBe("/node-runtime");
     expect(args).toEqual([
       "/pi/cli.js",
       "--mode",
