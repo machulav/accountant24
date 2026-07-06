@@ -1,51 +1,50 @@
 "use client";
 
-import {
-  AuiIf,
-  ThreadListItemMorePrimitive,
-  ThreadListItemPrimitive,
-  ThreadListPrimitive,
-  useAuiState,
-} from "@assistant-ui/react";
+import { AuiIf, ThreadListItemPrimitive, ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 import { MoreHorizontalIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { type ComponentPropsWithoutRef, type FC, Fragment, forwardRef, useEffect, useMemo, useState } from "react";
+import { type FC, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/shadcn/button";
-import { Skeleton } from "@/components/shadcn/skeleton";
-import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/shadcn/dropdown-menu";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
+} from "@/components/shadcn/sidebar";
 import { sessionsApi } from "@/rpc/api";
+
+/** The sidebar's primary action — lives in the SidebarHeader, outside the nav
+ *  list, per the shadcn sidebar recipe (header = actions, content = nav). */
+export const ThreadListNew: FC = () => {
+  return (
+    <ThreadListPrimitive.New asChild>
+      <Button variant="outline" data-slot="aui_thread-list-new" className="w-full">
+        <PlusIcon data-icon="inline-start" />
+        New Chat
+      </Button>
+    </ThreadListPrimitive.New>
+  );
+};
 
 export const ThreadList: FC = () => {
   return (
-    <ThreadListRoot>
-      <ThreadListNew />
-      <ThreadListItems />
-    </ThreadListRoot>
-  );
-};
-
-export const ThreadListRoot: FC<ComponentPropsWithoutRef<typeof ThreadListPrimitive.Root>> = ({
-  className,
-  ...props
-}) => {
-  return (
-    <ThreadListPrimitive.Root
-      data-slot="aui_thread-list-root"
-      className={cn("flex flex-col gap-0.5", className)}
-      {...props}
-    />
-  );
-};
-
-export const ThreadListItems: FC<ComponentPropsWithoutRef<"div">> = ({ className, ...props }) => {
-  return (
-    <div data-slot="aui_thread-list-items" className={cn("flex flex-col gap-0.5", className)} {...props}>
+    <ThreadListPrimitive.Root data-slot="aui_thread-list-root" className="flex flex-col">
       <AuiIf condition={(s) => s.threads.isLoading}>
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
         <ThreadListItemGroups />
       </AuiIf>
-    </div>
+    </ThreadListPrimitive.Root>
   );
 };
 
@@ -115,125 +114,104 @@ const ThreadListItemGroups: FC = () => {
   }, [threadIds, times]);
 
   if (!groups) {
-    return <ThreadListPrimitive.Items>{() => <ThreadListItem />}</ThreadListPrimitive.Items>;
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <ThreadListPrimitive.Items>{() => <ThreadListItem />}</ThreadListPrimitive.Items>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
   }
 
   return groups.map((group) => (
-    <Fragment key={group.label}>
-      <div
-        data-slot="aui_thread-list-group-label"
-        className="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium"
-      >
-        {group.label}
-      </div>
-      {group.indices.map((index) => (
-        <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
-      ))}
-    </Fragment>
+    <SidebarGroup key={group.label}>
+      <SidebarGroupLabel data-slot="aui_thread-list-group-label">{group.label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {group.indices.map((index) => (
+            <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   ));
 };
-
-export const ThreadListNew = forwardRef<
-  HTMLButtonElement,
-  ComponentPropsWithoutRef<typeof Button> & { labelClassName?: string }
->(({ className, labelClassName, children, ...props }, ref) => {
-  return (
-    <ThreadListPrimitive.New asChild>
-      <Button
-        ref={ref}
-        variant="ghost"
-        data-slot="aui_thread-list-new"
-        className={cn(
-          "hover:bg-foreground/[0.06] data-active:bg-foreground/[0.06] mt-3 h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal",
-          className,
-        )}
-        {...props}
-      >
-        {children ?? (
-          <>
-            <PlusIcon data-slot="aui_thread-list-new-icon" className="size-4 shrink-0" />
-            <span data-slot="aui_thread-list-new-label" className={cn("whitespace-nowrap", labelClassName)}>
-              New Chat
-            </span>
-          </>
-        )}
-      </Button>
-    </ThreadListPrimitive.New>
-  );
-});
-
-ThreadListNew.displayName = "ThreadListNew";
 
 const SKELETON_ROWS = ["s1", "s2", "s3", "s4", "s5"];
 
 const ThreadListSkeleton: FC = () => {
   return (
-    <div className="flex flex-col gap-0.5">
-      {SKELETON_ROWS.map((row) => (
-        <div
-          key={row}
-          role="status"
-          aria-label="Loading threads"
-          data-slot="aui_thread-list-skeleton-wrapper"
-          className="flex h-8 items-center px-2.5"
-        >
-          <Skeleton data-slot="aui_thread-list-skeleton" className="h-3.5 w-full" />
-        </div>
-      ))}
-    </div>
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu role="status" aria-label="Loading threads">
+          {SKELETON_ROWS.map((row) => (
+            <SidebarMenuItem key={row}>
+              <SidebarMenuSkeleton data-slot="aui_thread-list-skeleton" />
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 };
 
 export const ThreadListItem: FC = () => {
   return (
-    <ThreadListItemPrimitive.Root
-      data-slot="aui_thread-list-item"
-      className="group/thread-list-item hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] data-active:bg-foreground/[0.06] data-active:font-medium has-focus-visible:bg-foreground/[0.06] has-data-[state=open]:bg-foreground/[0.06] relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none"
-    >
-      <ThreadListItemPrimitive.Trigger
-        data-slot="aui_thread-list-item-trigger"
-        className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/thread-list-item:pe-9 group-has-focus-visible/thread-list-item:pe-9 group-has-data-[state=open]/thread-list-item:pe-9 focus-visible:ring-[3px]"
-      >
-        <span data-slot="aui_thread-list-item-title" className="min-w-0 flex-1 truncate">
-          <ThreadListItemPrimitive.Title fallback="New Chat" />
-        </span>
-      </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemMore />
+    <ThreadListItemPrimitive.Root asChild>
+      <SidebarMenuItem data-slot="aui_thread-list-item" className="group/thread-list-item">
+        <ThreadListItemPrimitive.Trigger asChild>
+          {/* Active-thread highlight: aui marks the Root (the <li>) with
+              data-active, so mirror the button's own data-active styles off
+              the parent. Same for an open "more" menu keeping the row lit.
+              group-hover: the ••• action is a sibling overlaying the row, so
+              the button's own :hover drops while the pointer is on it — key
+              the hover highlight off the whole row instead. */}
+          <SidebarMenuButton
+            data-slot="aui_thread-list-item-trigger"
+            className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:bg-sidebar-accent group-data-active/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:font-medium group-has-data-popup-open/menu-item:bg-sidebar-accent"
+          >
+            <span data-slot="aui_thread-list-item-title" className="min-w-0 flex-1 truncate">
+              <ThreadListItemPrimitive.Title fallback="New Chat" />
+            </span>
+          </SidebarMenuButton>
+        </ThreadListItemPrimitive.Trigger>
+        <ThreadListItemMore />
+      </SidebarMenuItem>
     </ThreadListItemPrimitive.Root>
   );
 };
 
 const ThreadListItemMore: FC = () => {
   return (
-    <ThreadListItemMorePrimitive.Root>
-      <ThreadListItemMorePrimitive.Trigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          data-slot="aui_thread-list-item-more"
-          className="absolute end-1.5 top-1/2 size-6 -translate-y-1/2 bg-transparent p-0 opacity-0 hover:bg-transparent group-hover/thread-list-item:opacity-100 group-has-focus-visible/thread-list-item:opacity-100 data-[state=open]:opacity-100"
-        >
-          <MoreHorizontalIcon className="size-3.5" />
-          <span className="sr-only">More options</span>
-        </Button>
-      </ThreadListItemMorePrimitive.Trigger>
-      <ThreadListItemMorePrimitive.Content
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          /* right-2: match the button's px-3 text inset optically — the stock
+             right-1 leaves the icon glued to the pill's rounded corner. */
+          <SidebarMenuAction showOnHover data-slot="aui_thread-list-item-more" className="right-2">
+            <MoreHorizontalIcon />
+            <span className="sr-only">More options</span>
+          </SidebarMenuAction>
+        }
+      />
+      <DropdownMenuContent
         side="right"
         align="start"
         sideOffset={6}
-        data-slot="aui_thread-list-item-more-content"
-        className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-32 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm"
+        // Mouse dismissal must NOT return focus to the ••• trigger — restored
+        // focus reads as :focus-visible and pins the hover-only icon on screen.
+        // Keyboard dismissal keeps the standard focus return (a11y).
+        finalFocus={(closeType) => closeType === "keyboard"}
       >
         <ThreadListItemPrimitive.Delete asChild>
-          <ThreadListItemMorePrimitive.Item
-            data-slot="aui_thread-list-item-more-item"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
-          >
-            <TrashIcon className="size-4" />
+          <DropdownMenuItem variant="destructive" data-slot="aui_thread-list-item-more-item">
+            <TrashIcon />
             Delete
-          </ThreadListItemMorePrimitive.Item>
+          </DropdownMenuItem>
         </ThreadListItemPrimitive.Delete>
-      </ThreadListItemMorePrimitive.Content>
-    </ThreadListItemMorePrimitive.Root>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };

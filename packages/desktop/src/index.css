@@ -190,6 +190,12 @@
   translate: 0 0.3rem;
 }
 
+/* While the sidebar is being drag-resized (see sidebar-resize.tsx), suspend the
+   stock width transitions so the sidebar tracks the pointer 1:1. */
+[data-sidebar-resizing] :is([data-slot="sidebar-gap"], [data-slot="sidebar-container"]) {
+  transition: none;
+}
+
 /* Mention chip styling lives in the MentionPill component (Tailwind utilities,
    using assistant-ui's tested directive-chip alignment recipe: inline-flex +
    items-baseline + [&_svg]:self-center). Per-type colors are applied there too. */

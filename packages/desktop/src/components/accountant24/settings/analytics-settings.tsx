@@ -42,7 +42,7 @@ export function AnalyticsSettings() {
         {/* The label must NOT wrap the Switch (a Radix Switch double-fires inside a
             wrapping label); point at it with htmlFor instead. */}
         <div className="flex items-center justify-between gap-3">
-          <label htmlFor="analytics-enabled" className="min-w-0 cursor-pointer">
+          <label htmlFor="analytics-enabled" className="min-w-0">
             <span className="block text-sm">Share anonymous analytics</span>
             <span className="text-muted-foreground block text-xs">
               Your personal or financial data is never sent.{" "}

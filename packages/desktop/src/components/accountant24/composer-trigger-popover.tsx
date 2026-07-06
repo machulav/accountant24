@@ -92,7 +92,7 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
             <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
               categoryId={cat.id}
-              className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
+              className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
             >
               <span className="flex items-center gap-2">
                 <Icon className="text-muted-foreground size-4" />
@@ -131,7 +131,7 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
         <div data-slot="composer-trigger-popover-items" className="flex flex-col">
-          <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase transition-colors">
+          <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent flex items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase transition-colors">
             <ChevronLeftIcon className="size-3.5" />
             {backLabel}
           </ComposerPrimitive.Unstable_TriggerPopoverBack>
@@ -148,7 +148,7 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
                     key={item.id}
                     item={item}
                     index={index}
-                    className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
+                    className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
                   >
                     <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium">
                       <Icon className="text-primary size-3.5 shrink-0" />

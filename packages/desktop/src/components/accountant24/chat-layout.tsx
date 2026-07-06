@@ -23,8 +23,9 @@ import { createElectronPiClient } from "@/runtime/electronPiClient";
 import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "@/runtime/fileAttachmentAdapter";
 import { PiClientContext } from "@/runtime/modelsContext";
 import { Settings } from "./settings/settings";
+import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
-import { ThreadList } from "./thread-list";
+import { ThreadList, ThreadListNew } from "./thread-list";
 
 /** Hide/show toggle. Offset clear of the macOS traffic lights whenever the
  *  sidebar isn't occupying the left edge (collapsed, or mobile drawer mode). */
@@ -58,6 +59,8 @@ export function ChatLayout() {
   );
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Read once on mount; afterwards SidebarResizeHandle mutates the CSS var live.
+  const [sidebarWidth] = useState(loadSidebarWidth);
 
   useKeyboardShortcuts({
     newChat: () => void runtime.threads.switchToNewThread(),
@@ -99,14 +102,17 @@ export function ChatLayout() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PiClientContext.Provider value={client}>
-        <SidebarProvider className="h-dvh">
+        <SidebarProvider className="h-dvh" style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
           <Sidebar>
-            {/* spacer + drag region so the list clears the overlaid traffic lights */}
-            <SidebarHeader className="app-drag-region h-7" />
-            <SidebarContent className="px-2">
+            <SidebarHeader>
+              {/* spacer + drag region so the header clears the overlaid traffic lights */}
+              <div className="app-drag-region h-7" />
+              <ThreadListNew />
+            </SidebarHeader>
+            <SidebarContent>
               <ThreadList />
             </SidebarContent>
-            <SidebarFooter className="px-2">
+            <SidebarFooter>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
@@ -116,6 +122,7 @@ export function ChatLayout() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>
+            <SidebarResizeHandle />
           </Sidebar>
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />

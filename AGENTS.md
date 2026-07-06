@@ -37,6 +37,7 @@ The desktop app uses the **wrapper pattern**: library components stay untouched;
 - Build UI/UX from stock `shadcn/` components with their default look wherever possible; customize only when absolutely necessary.
 - When customization is necessary, wrap the library component with a new component in `accountant24/` — don't edit the original.
 - Style with theme tokens from `src/index.css`; no hardcoded colors.
+- **No speculative style overrides.** Never add custom classes/styles to work around a behavior before finding its root cause — fix the cause instead. Add an override only when verified necessary (reproduce the problem, confirm the override is the minimal fix), and comment why it exists.
 - Dark theme follows the OS: `src/lib/systemTheme.ts` toggles the `.dark` class globally — no per-component theme handling.
 
 # Testing

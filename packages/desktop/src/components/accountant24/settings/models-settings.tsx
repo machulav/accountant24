@@ -68,7 +68,7 @@ function ModelRow({
     // form input) inside a wrapping label double-fires and cancels the
     // toggle. Point at it with htmlFor instead.
     <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-      <label htmlFor={switchId} className="min-w-0 cursor-pointer">
+      <label htmlFor={switchId} className="min-w-0">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm">{modelName(m)}</span>
           {isDefault && (
