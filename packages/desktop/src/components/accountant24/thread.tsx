@@ -85,7 +85,12 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+        // scroll-fade-t-6: fade older messages at the top edge (24px). The
+        // sticky composer lives inside this container, so no bottom fade. The
+        // size is paired with pt-6 on the user-message root: turnAnchor="top"
+        // pins that element's box to the edge, so its padding keeps the just
+        // sent bubble below the fade zone.
+        className="scroll-fade-t scroll-fade-t-6 relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
           className={cn(
@@ -333,7 +338,10 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      // pt-6 matches the viewport's scroll-fade-t-6: the top anchor pins this
+      // element's box to the viewport edge, so the padding keeps the bubble
+      // out of the fade zone right after sending.
+      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 pt-6 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
