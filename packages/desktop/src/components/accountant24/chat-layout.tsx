@@ -32,7 +32,11 @@ import { ThreadList, ThreadListNew } from "./thread-list";
 function SidebarToggle() {
   const { state, isMobile } = useSidebar();
   const offset = isMobile || state === "collapsed";
-  return <SidebarTrigger className={cn("app-no-drag absolute top-[7px] z-30", offset ? "left-20" : "left-2")} />;
+  // top-[5px]: centers the 32px button at 21px — visually on the traffic
+  // lights' center line. Tuned by eye: the nominal math (12px circles at
+  // trafficLightPosition y=14 → center 20px) renders slightly higher than
+  // where macOS actually draws the lights.
+  return <SidebarTrigger className={cn("app-no-drag absolute top-[5px] z-30", offset ? "left-20" : "left-2")} />;
 }
 
 export function ChatLayout() {
