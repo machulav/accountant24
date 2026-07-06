@@ -189,8 +189,11 @@ const ThreadListItemMore: FC = () => {
       <DropdownMenuTrigger
         render={
           /* right-2: match the button's px-3 text inset optically — the stock
-             right-1 leaves the icon glued to the pill's rounded corner. */
-          <SidebarMenuAction showOnHover data-slot="aui_thread-list-item-more" className="right-2">
+             right-1 leaves the icon glued to the pill's rounded corner.
+             opacity-0: stock showOnHover only hides actions at md+ (it assumes
+             narrow = touch with no hover) — this desktop app always has a
+             mouse, so hide-until-hover applies in the narrow drawer mode too. */
+          <SidebarMenuAction showOnHover data-slot="aui_thread-list-item-more" className="right-2 opacity-0">
             <MoreHorizontalIcon />
             <span className="sr-only">More options</span>
           </SidebarMenuAction>

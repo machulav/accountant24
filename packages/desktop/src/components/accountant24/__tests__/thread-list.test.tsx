@@ -136,4 +136,14 @@ describe("ThreadList row hover highlight", () => {
     // background off the row group's hover, not only its own.
     expect(rowButton!.className).toContain("group-hover/menu-item:bg-sidebar-accent");
   });
+
+  it("should hide the ••• action until hover at every window width (drawer mode included)", async () => {
+    renderList();
+    const trigger = await screen.findByRole("button", { name: "More options" });
+
+    // Stock showOnHover only hides at md+ (`md:opacity-0`), leaving the action
+    // permanently visible in the narrow drawer. The desktop app always has a
+    // mouse, so the unprefixed opacity-0 must be present too.
+    expect(trigger.className).toMatch(/(?:^|\s)opacity-0(?:\s|$)/);
+  });
 });
