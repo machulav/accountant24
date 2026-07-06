@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.5
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.4...v0.2.5)
+
+### 🐞 Bug Fixes
+
+- **desktop:** Hide the pi sidecar's Dock icon ([c83faea](https://github.com/machulav/accountant24/commit/c83faea))
+
 ## v0.2.4
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.3...v0.2.4)
