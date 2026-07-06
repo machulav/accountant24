@@ -109,7 +109,7 @@ export function ChatLayout() {
               <div className="app-drag-region h-7" />
               <ThreadListNew />
             </SidebarHeader>
-            <SidebarContent>
+            <SidebarContent className="scroll-fade">
               <ThreadList />
             </SidebarContent>
             <SidebarFooter>
