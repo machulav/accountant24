@@ -38,9 +38,13 @@
   },
   "overrides": [
     {
-      "includes": ["packages/desktop/src/components/ui/**"],
+      "includes": ["packages/desktop/src/components/shadcn/**"],
       "linter": {
         "rules": {
+          "a11y": {
+            "useKeyWithClickEvents": "off",
+            "noLabelWithoutControl": "off"
+          },
           "correctness": {
             "useExhaustiveDependencies": "off"
           },
