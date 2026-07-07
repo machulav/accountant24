@@ -12,6 +12,7 @@ import { type TextMessagePartComponent, unstable_useMentionAdapter, useAuiState 
 import type { DirectiveChipProps } from "@assistant-ui/react-lexical";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/shadcn/badge";
 import { parseMentions } from "@/lib/mentions";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
@@ -32,24 +33,25 @@ const TYPE_COLORS: Record<string, string> = {
 
 /** The single inline chip used for a mention — in the composer (Lexical
  *  directive chip), in sent user messages, and in assistant replies — so they
- *  all look identical. Uses assistant-ui's tested directive-chip alignment
- *  recipe (inline-flex + items-baseline + [&_svg]:self-center) so it sits on the
- *  surrounding text baseline, plus a per-type color. */
+ *  all look identical. Renders the stock shadcn Badge so shape/sizing (rounded
+ *  pill, text-xs, gap-1, size-3 icon) stays in sync with the rest of the app,
+ *  with a per-type color layered on top of the secondary variant. */
 export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }) => {
   const Icon = iconFor(type);
   return (
-    <span
+    <Badge
+      variant="secondary"
       data-directive-type={type}
-      className={cn(
-        // py-[3px] grows the chip ~2px taller than the text; -my-px cancels that
-        // in the line box so line height and surrounding text flow are unchanged.
-        "mx-px -my-px inline-flex items-baseline gap-1 whitespace-nowrap rounded-sm px-1.5 py-[3px] align-baseline text-[13px] font-medium leading-none [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:self-center [&_svg]:opacity-75",
-        TYPE_COLORS[type] ?? TYPE_COLORS.account,
-      )}
+      // align-middle seats the standalone pill on the text line (composer input,
+      // sent messages, assistant replies); mx-px keeps it off adjacent words.
+      // text-[0.9em] + size-[1.1em] icon size the chip relative to the surrounding
+      // text (16px) instead of Badge's fixed text-xs, which read too small against
+      // it. Per-type color wins over the secondary variant via tailwind-merge.
+      className={cn("mx-px align-middle text-[0.9em] [&>svg]:size-[1.1em]!", TYPE_COLORS[type] ?? TYPE_COLORS.account)}
     >
       <Icon />
       {label}
-    </span>
+    </Badge>
   );
 };
 
