@@ -11,6 +11,16 @@ import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { type ComponentPropsWithoutRef, type FC, memo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
+// Styling note: shadcn's menu-row components (DropdownMenuItem, ComboboxItem)
+// are bound to their Base UI/cmdk engines and can't render inside an
+// assistant-ui popover, so — like shadcn itself does across its own menu
+// components — the popup/row/label RECIPES below are copied verbatim from the
+// stock files. When the stock recipes change, resync these:
+//   container  ← shadcn/dropdown-menu.tsx DropdownMenuContent
+//   rows       ← shadcn/dropdown-menu.tsx DropdownMenuItem
+//   lists      ← shadcn/combobox.tsx ComboboxList (padding, no-scrollbar)
+//   empty rows ← shadcn Command empty-state convention (py-6 centered)
+
 type IconComponent = FC<{ className?: string }>;
 
 type DirectiveBehaviorProps = {
@@ -84,7 +94,8 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
     {(categories) => (
       <div
         data-slot="composer-trigger-popover-categories"
-        className="flex max-h-[22.5rem] flex-col overflow-y-auto py-1"
+        // max-h matches the stock ComboboxList cap used by the model selector.
+        className="scroll-fade no-scrollbar flex max-h-[15.75rem] flex-col overflow-y-auto p-1.5"
       >
         {categories.map((cat) => {
           const Icon = resolveIcon(cat.id, iconMap, fallbackIcon);
@@ -92,7 +103,7 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
             <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
               categoryId={cat.id}
-              className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
+              className="hover:bg-accent hover:text-accent-foreground focus:bg-accent data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex items-center justify-between gap-2 rounded-2xl px-3 py-2 text-sm font-medium outline-none"
             >
               <span className="flex items-center gap-2">
                 <Icon className="text-muted-foreground size-4" />
@@ -102,7 +113,9 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
             </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
           );
         })}
-        {categories.length === 0 && <div className="text-muted-foreground px-3 py-2 text-sm">{emptyLabel}</div>}
+        {categories.length === 0 && (
+          <div className="text-muted-foreground w-full py-6 text-center text-sm">{emptyLabel}</div>
+        )}
       </div>
     )}
   </ComposerPrimitive.Unstable_TriggerPopoverCategories>
@@ -131,15 +144,23 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
         <div data-slot="composer-trigger-popover-items" className="flex flex-col">
-          <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent flex items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase transition-colors">
-            <ChevronLeftIcon className="size-3.5" />
-            {backLabel}
-          </ComposerPrimitive.Unstable_TriggerPopoverBack>
+          {/* Back renders null in direct-search mode; hide the whole header
+              (row + separator) with it so no stray hairline remains. */}
+          <div className="hidden has-[button]:block">
+            <div className="p-1.5 pb-0">
+              <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm outline-none">
+                <ChevronLeftIcon className="size-4" />
+                {backLabel}
+              </ComposerPrimitive.Unstable_TriggerPopoverBack>
+            </div>
+            <div className="bg-border mt-1 h-px" />
+          </div>
 
-          <div ref={scrollRef} className="max-h-[22.5rem] overflow-auto py-1">
-            {/* w-max sizes this column to the widest item; each item is w-full so
-                they all share that width and their highlight extends to the end. */}
-            <div className="flex w-max min-w-full flex-col">
+          {/* max-h matches the stock ComboboxList cap used by the model selector.
+              Long names truncate (full name in the title tooltip) instead of
+              horizontal scrolling, so the highlight never clips. */}
+          <div ref={scrollRef} className="scroll-fade no-scrollbar max-h-[15.75rem] overflow-y-auto p-1.5">
+            <div className="flex flex-col">
               {items.map((item, index) => {
                 const iconKey = typeof item.metadata?.icon === "string" ? item.metadata.icon : undefined;
                 const Icon = resolveIcon(iconKey, iconMap, fallbackIcon);
@@ -148,20 +169,26 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
                     key={item.id}
                     item={item}
                     index={index}
-                    className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
+                    className="hover:bg-accent hover:text-accent-foreground focus:bg-accent data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full flex-col items-start gap-0.5 rounded-2xl px-3 py-2 text-start outline-none"
                   >
-                    <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium">
-                      <Icon className="text-primary size-3.5 shrink-0" />
-                      {item.label}
+                    <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
+                      <Icon className="text-muted-foreground size-4 shrink-0" />
+                      <span className="truncate" title={item.label}>
+                        {item.label}
+                      </span>
                     </span>
                     {item.description && (
-                      <span className="text-muted-foreground ms-5.5 text-xs leading-tight">{item.description}</span>
+                      <span className="text-muted-foreground ms-6 w-full min-w-0 truncate text-xs leading-tight">
+                        {item.description}
+                      </span>
                     )}
                   </ComposerPrimitive.Unstable_TriggerPopoverItem>
                 );
               })}
               {items.length === 0 && (
-                <div className="text-muted-foreground px-3 py-2 text-sm">{isLoading ? loadingLabel : emptyLabel}</div>
+                <div className="text-muted-foreground w-full py-6 text-center text-sm">
+                  {isLoading ? loadingLabel : emptyLabel}
+                </div>
               )}
             </div>
           </div>
@@ -197,7 +224,9 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
     <ComposerPrimitive.Unstable_TriggerPopover
       data-slot="composer-trigger-popover"
       className={cn(
-        "aui-composer-trigger-popover bg-popover text-popover-foreground absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-xl border shadow-lg",
+        // Chrome copied from the stock dropdown-menu/combobox popup so all popups
+        // in the app share one look: rounded-3xl, ring instead of border, fade/zoom in.
+        "aui-composer-trigger-popover bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 animate-in fade-in-0 zoom-in-95 absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-3xl shadow-lg ring-1 duration-100",
         className,
       )}
       {...props}

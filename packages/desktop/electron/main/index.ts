@@ -16,7 +16,7 @@ import { createWindow } from "./window";
 // driver scripts) can attach to the RUNNING dev app instead of launching a
 // second instance. Must be set before the app is ready; packaged builds never
 // get it.
-if (!app.isPackaged) {
+if (!app.isPackaged && !app.commandLine.hasSwitch("remote-debugging-port")) {
   app.commandLine.appendSwitch("remote-debugging-port", "9223");
 }
 
