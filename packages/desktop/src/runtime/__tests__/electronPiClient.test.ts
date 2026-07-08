@@ -1,5 +1,6 @@
 import type { PiSendMessageInput } from "@assistant-ui/react-pi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { encodeAttachmentRef } from "../../lib/attachmentMarker";
 import { createElectronPiClient } from "../electronPiClient";
 
 // electronPiClient bridges the pi RPC stream to the runtime and reports the
@@ -136,6 +137,27 @@ describe("createElectronPiClient() analytics", () => {
       await client.sendMessage(snapshot.metadata.id, message("receipt", ["data:image/png;base64,x"]));
       expect(h.track).toHaveBeenCalledWith("user_message_sent", {
         has_attachment: "true",
+        model: "anthropic/claude-x",
+      });
+    });
+
+    it("should track has_attachment true when the message carries a document marker in its content", async () => {
+      const client = createElectronPiClient();
+      const snapshot = await client.createThread({});
+      const marker = encodeAttachmentRef({ name: "statement.pdf", path: "/ws/files/statement.pdf" });
+      await client.sendMessage(snapshot.metadata.id, message(`process this\n${marker}`));
+      expect(h.track).toHaveBeenCalledWith("user_message_sent", {
+        has_attachment: "true",
+        model: "anthropic/claude-x",
+      });
+    });
+
+    it("should track has_attachment false when the content contains a malformed marker only", async () => {
+      const client = createElectronPiClient();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message("[[attachment]]not-json"));
+      expect(h.track).toHaveBeenCalledWith("user_message_sent", {
+        has_attachment: "false",
         model: "anthropic/claude-x",
       });
     });

@@ -32,6 +32,7 @@ import {
   trackUserFirstMessageSent,
   trackUserMessageSent,
 } from "../lib/analyticsEvents";
+import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
 import { sessionsApi, settingsApi } from "../rpc/api";
@@ -238,7 +239,10 @@ export function createElectronPiClient(): PiClient {
 
     async sendMessage(threadId, input: PiSendMessageInput) {
       await ensureActive(threadId);
-      trackUserMessageSent(Boolean(input.attachments?.length), currentModelId);
+      // `input.attachments` carries images only; documents (PDF, CSV, …) travel
+      // as marker lines inside `content` — count both as attachments.
+      const hasAttachment = Boolean(input.attachments?.length) || extractAttachmentRefs(input.content).refs.length > 0;
+      trackUserMessageSent(hasAttachment, currentModelId);
       trackUserFirstMessageSent();
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
       await agentBridge.send({
