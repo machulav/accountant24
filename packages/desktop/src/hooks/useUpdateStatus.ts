@@ -12,10 +12,13 @@ export function useUpdateStatus(): string | null {
 
   useEffect(() => {
     let disposed = false;
+    // The push is the fresher source: if it lands while pending() is still in
+    // flight, don't let the (older) pending() result overwrite it. So seed only
+    // when nothing is set yet, and always let a push win outright.
     updateApi
       .pending()
       .then((v) => {
-        if (!disposed) setVersion(v);
+        if (!disposed) setVersion((cur) => cur ?? v);
       })
       .catch(() => undefined);
     const unsubscribe = updateApi.onDownloaded((v) => setVersion(v));

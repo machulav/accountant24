@@ -183,35 +183,29 @@ describe("initAutoUpdater()", () => {
     expect(h.quitAndInstall).not.toHaveBeenCalled();
   });
 
+  // A24_FAKE_UPDATE is read when initAutoUpdater runs (not at import), so the
+  // beforeEach-provided module is fine — just set the env before calling.
   describe("dev preview (A24_FAKE_UPDATE)", () => {
-    const importFresh = async () => {
-      vi.resetModules();
-      return (await import("../updater")).initAutoUpdater;
-    };
-
-    it("should stage the fake version and report it via update_pending", async () => {
+    it("should stage the fake version and report it via update_pending", () => {
       h.isPackaged = false;
       process.env.A24_FAKE_UPDATE = "9.9.9";
-      const init = await importFresh();
-      init(getWin);
+      initAutoUpdater(getWin);
       expect(invoke("update_pending")).toBe("9.9.9");
     });
 
-    it("should push update-downloaded to the renderer after a short delay", async () => {
+    it("should push update-downloaded to the renderer after a short delay", () => {
       h.isPackaged = false;
       process.env.A24_FAKE_UPDATE = "9.9.9";
-      const init = await importFresh();
-      init(getWin);
+      initAutoUpdater(getWin);
       expect(h.send).not.toHaveBeenCalled();
       vi.advanceTimersByTime(2_000);
       expect(h.send).toHaveBeenCalledExactlyOnceWith("update-downloaded", "9.9.9");
     });
 
-    it("should relaunch (not quitAndInstall) when installing a dev preview update", async () => {
+    it("should relaunch (not quitAndInstall) when installing a dev preview update", () => {
       h.isPackaged = false;
       process.env.A24_FAKE_UPDATE = "9.9.9";
-      const init = await importFresh();
-      init(getWin);
+      initAutoUpdater(getWin);
       invoke("update_install");
       expect(h.relaunch).toHaveBeenCalledOnce();
       expect(h.quit).toHaveBeenCalledOnce();
@@ -220,10 +214,9 @@ describe("initAutoUpdater()", () => {
       expect(h.trackUpdateInstallClicked).not.toHaveBeenCalled();
     });
 
-    it("should stage nothing when the env var is absent in dev", async () => {
+    it("should stage nothing when the env var is absent in dev", () => {
       h.isPackaged = false;
-      const init = await importFresh();
-      init(getWin);
+      initAutoUpdater(getWin);
       expect(invoke("update_pending")).toBeNull();
       vi.advanceTimersByTime(2_000);
       expect(h.send).not.toHaveBeenCalled();
