@@ -51,8 +51,9 @@ app.whenReady().then(() => {
   // Count this launch (and a one-time install), respecting the opt-out.
   trackLaunch();
 
-  // Silent auto-update (packaged stable builds only; no-op in dev and rc).
-  initAutoUpdater();
+  // Auto-update (packaged stable builds only; no-op in dev and rc). Surfaces a
+  // "Relaunch to update" banner in the sidebar once a build is staged.
+  initAutoUpdater(getWin);
 
   mainWindow = createWindow();
   mainWindow.on("closed", () => {

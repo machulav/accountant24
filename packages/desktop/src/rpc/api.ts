@@ -65,6 +65,18 @@ export const appApi = {
   version: () => api.invoke<string>("app_version"),
 };
 
+export const updateApi = {
+  /** The version staged and ready to install, or null if none is pending. Read
+   *  on mount since the download may have completed before we subscribed. */
+  pending: () => api.invoke<string | null>("update_pending"),
+  /** Quit, apply the staged update, and relaunch immediately. */
+  install: () => api.invoke<void>("update_install"),
+  /** Subscribe to update-downloaded pushes (payload = new version); returns an
+   *  unsubscribe function. */
+  onDownloaded: (cb: (version: string) => void): (() => void) =>
+    api.on("update-downloaded", (payload) => cb(payload as string)),
+};
+
 export const sessionsApi = {
   list: () => api.invoke<{ type: string; sessions: SessionSummary[] }>("sessions_list"),
   delete: (path: string) => api.invoke<{ type: string; path?: string; message?: string }>("sessions_delete", { path }),

@@ -16,6 +16,7 @@ import {
   useSidebar,
 } from "@/components/shadcn/sidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useUpdateStatus } from "@/hooks/useUpdateStatus";
 import { deriveChatTitle } from "@/lib/chatTitle";
 import { cn } from "@/lib/utils";
 import { agentBridge } from "@/runtime/agentBridge";
@@ -26,6 +27,7 @@ import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
 import { ThreadList, ThreadListNew } from "./thread-list";
+import { UpdateBanner } from "./update-banner";
 
 /** Hide/show toggle. Offset clear of the macOS traffic lights whenever the
  *  sidebar isn't occupying the left edge (collapsed, or mobile drawer mode). */
@@ -63,6 +65,8 @@ export function ChatLayout() {
   );
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Non-null once an update is downloaded and staged; drives the footer banner.
+  const updateVersion = useUpdateStatus();
   // Read once on mount; afterwards SidebarResizeHandle mutates the CSS var live.
   const [sidebarWidth] = useState(loadSidebarWidth);
 
@@ -117,6 +121,7 @@ export function ChatLayout() {
               <ThreadList />
             </SidebarContent>
             <SidebarFooter>
+              {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
