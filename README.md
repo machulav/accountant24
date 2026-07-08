@@ -2,7 +2,7 @@
 
 Track spending in plain language, import bank statements and receipts, ask questions about your money. Your data stays as plain text files on your machine. Works with any LLM, including local ones. All changes are versioned with git.
 
-![Accountant24 — desktop app](docs/images/desktop-app.png)
+![Accountant24 — desktop app](docs/images/desktop-app-2.png)
 
 <p align="center">
   <a href="https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg"><b>Download for macOS</b></a> (Apple Silicon)
