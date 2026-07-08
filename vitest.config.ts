@@ -22,8 +22,13 @@ function textImports(): Plugin {
 
 export default defineConfig({
   plugins: [textImports()],
+  resolve: {
+    // Mirror the desktop app's `@` alias so component tests can load sources
+    // that import via "@/...".
+    alias: { "@": new URL("./packages/desktop/src", import.meta.url).pathname },
+  },
   test: {
-    include: ["packages/**/*.test.ts"],
+    include: ["packages/**/*.test.{ts,tsx}"],
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
     // bun:test reset mocks per test (the old tests reassigned Bun.spawn each time);

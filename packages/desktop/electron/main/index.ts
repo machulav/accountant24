@@ -12,6 +12,14 @@ import { registerSettingsIpc } from "./settings";
 import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
 
+// Dev only: expose a local CDP endpoint so tooling (visual-measurement and
+// driver scripts) can attach to the RUNNING dev app instead of launching a
+// second instance. Must be set before the app is ready; packaged builds never
+// get it.
+if (!app.isPackaged && !app.commandLine.hasSwitch("remote-debugging-port")) {
+  app.commandLine.appendSwitch("remote-debugging-port", "9223");
+}
+
 let mainWindow: BrowserWindow | null = null;
 const getWin = (): BrowserWindow | null => mainWindow;
 
@@ -21,9 +29,12 @@ initAnalytics();
 app.whenReady().then(() => {
   // Dev only: packaged builds get the icon from build/icon.icns, but
   // `electron-vite dev` runs the stock Electron binary with its default icon.
+  // The red "dev" badge marks the dev instance so it can't be confused with
+  // an installed build running side by side.
   if (!app.isPackaged && process.platform === "darwin") {
     const icon = nativeImage.createFromPath(join(app.getAppPath(), "build/icon.png"));
     if (!icon.isEmpty()) app.dock?.setIcon(icon);
+    app.dock?.setBadge("dev");
   }
 
   // App-global IPC handlers (registered once); sends go to the current window.

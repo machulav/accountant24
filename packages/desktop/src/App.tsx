@@ -2,8 +2,8 @@
 // every provider removed), chat otherwise. `null` while the first check is in
 // flight — render neither to avoid a flash of the wrong screen.
 
-import { ChatLayout } from "./components/ChatLayout";
-import { Onboarding } from "./components/Onboarding";
+import { ChatLayout } from "./components/accountant24/chat-layout";
+import { Onboarding } from "./components/accountant24/onboarding";
 import { useHasModels } from "./hooks/useProviderStatus";
 
 export default function App() {
