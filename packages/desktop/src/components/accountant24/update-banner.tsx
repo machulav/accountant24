@@ -1,25 +1,28 @@
 import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 import type { FC } from "react";
+import { Button } from "@/components/shadcn/button";
 import { updateApi } from "@/rpc/api";
 
 /** Shown in the sidebar footer once an update is downloaded and staged. Clicking
- *  it quits, applies the update, and relaunches (see `updateApi.install`). Mirrors
- *  the Claude desktop "Relaunch to update" banner: brand mark, label, version. */
+ *  it quits, applies the update, and relaunches (see `updateApi.install`). Built
+ *  on the same outline Button as New Chat so both sidebar actions share one look,
+ *  incl. the border staying visible on hover. The overrides only relax the fixed
+ *  button metrics (height, centering) to fit the two-line content. */
 export const UpdateBanner: FC<{ version: string }> = ({ version }) => {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       onClick={() => void updateApi.install()}
-      className="app-no-drag flex w-full items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/40 px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent"
+      className="h-auto w-full justify-start gap-2 px-3 py-2.5 text-left"
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <SparklesIcon className="size-4" />
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+        <SparklesIcon />
       </span>
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate font-medium text-sidebar-foreground text-sm">Relaunch to update</span>
-        <span className="block truncate text-muted-foreground text-xs">v{version}</span>
+      <span className="grid min-w-0 flex-1 leading-tight">
+        <span className="truncate">Relaunch to update</span>
+        <span className="truncate font-normal text-muted-foreground text-xs">v{version}</span>
       </span>
-      <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
-    </button>
+      <ArrowRightIcon className="text-muted-foreground" />
+    </Button>
   );
 };
