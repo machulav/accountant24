@@ -3,7 +3,7 @@
 // device codes, mid-flow prompts). Extracted from providers-settings.tsx so
 // the provider list stays focused on data flow.
 
-import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import type { OAuthLogin } from "@/components/auth/useOAuthLogin";
 import { Button } from "@/components/shadcn/button";
@@ -20,6 +20,7 @@ import {
 import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/shadcn/input-group";
+import { Spinner } from "@/components/shadcn/spinner";
 import { authApi } from "@/rpc/api";
 import type { AuthProviderRow } from "@/rpc/types";
 import { ErrorBanner } from "./parts";
@@ -137,7 +138,7 @@ function ApiKeyForm({
           Cancel
         </Button>
         <Button onClick={submit} disabled={busy || !key.trim()}>
-          {busy && <Loader2Icon className="animate-spin" />}
+          {busy && <Spinner />}
           {busy ? "Connecting…" : "Connect"}
         </Button>
       </DialogFooter>
@@ -216,7 +217,7 @@ function OAuthSignInBody({
               return (
                 <div key={i} className="flex items-start gap-2 text-sm">
                   {current ? (
-                    <Loader2Icon className="text-muted-foreground mt-0.5 size-4 shrink-0 animate-spin" />
+                    <Spinner className="text-muted-foreground mt-0.5 shrink-0" />
                   ) : (
                     <CheckIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                   )}

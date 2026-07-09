@@ -3,15 +3,16 @@
 // of pi's /login and /logout. The connect flows themselves live in the dialogs
 // in provider-dialogs.tsx.
 
-import { Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOAuthLogin } from "@/components/auth/useOAuthLogin";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
+import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
+import { Spinner } from "@/components/shadcn/spinner";
 import { addEnabledModels, parseModelId } from "@/lib/enabledModels";
 import { agentApi, authApi, settingsApi } from "@/rpc/api";
 import type { AuthProviderRow, AuthStatus } from "@/rpc/types";
-import { ErrorBanner, Section } from "./parts";
+import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
 import { ApiKeyDialog, OAuthSignInDialog } from "./provider-dialogs";
 
 function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: () => Promise<void> }) {
@@ -84,7 +85,7 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   if (!status) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2Icon className="size-4 animate-spin" /> Loading providers…
+        <Spinner /> Loading providers…
       </div>
     );
   }
@@ -132,11 +133,11 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
     <>
       {connected.length > 0 && (
         <Section title="Connected" description="Models from these providers can be used in chats.">
-          <div className="flex flex-col gap-1">{connected.map(renderRow)}</div>
+          <SettingsRows>{connected.map(renderRow)}</SettingsRows>
         </Section>
       )}
       <Section title="Available" description="Connect a provider to use its models.">
-        <div className="flex flex-col gap-1">{availableItems.map((it) => it.node)}</div>
+        <SettingsRows>{availableItems.map((it) => it.node)}</SettingsRows>
       </Section>
 
       <OAuthSignInDialog provider={oauthProvider} oauth={oauth} />
@@ -173,15 +174,19 @@ function OllamaRow({ onConnected }: { onConnected: () => void | Promise<void> })
 
   return (
     <div>
-      <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium">Ollama</span>
-          <Badge variant="secondary">Local</Badge>
-        </div>
-        <Button size="sm" variant="outline" className="w-28" onClick={connect} disabled={busy}>
-          {busy ? "Connecting…" : "Connect"}
-        </Button>
-      </div>
+      <SettingsRow>
+        <ItemContent>
+          <ItemTitle>
+            Ollama
+            <Badge variant="secondary">Local</Badge>
+          </ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          <Button size="sm" variant="outline" className="w-28" onClick={connect} disabled={busy}>
+            {busy ? "Connecting…" : "Connect"}
+          </Button>
+        </ItemActions>
+      </SettingsRow>
       {error && <ErrorBanner message={error} />}
     </div>
   );
@@ -199,12 +204,16 @@ function ProviderRow({
   onDisconnect: () => void;
 }) {
   return (
-    <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-sm font-medium">{p.displayName}</span>
-        {p.configured && p.connection && <Badge variant="secondary">{p.connection}</Badge>}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
+    <SettingsRow>
+      <ItemContent>
+        {/* The name truncates (as pre-Item) — letting it wrap pushes the badge
+            away from the name into the row's dead space on narrow widths. */}
+        <ItemTitle className="max-w-full">
+          <span className="truncate">{p.displayName}</span>
+          {p.configured && p.connection && <Badge variant="secondary">{p.connection}</Badge>}
+        </ItemTitle>
+      </ItemContent>
+      <ItemActions>
         {p.configured ? (
           // auth.json-backed providers can be logged out; Ollama can be removed
           // (the app added it to models.json). Other models.json / env-var
@@ -226,8 +235,8 @@ function ProviderRow({
             </Button>
           </>
         )}
-      </div>
-    </div>
+      </ItemActions>
+    </SettingsRow>
   );
 }
 
