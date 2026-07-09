@@ -10,6 +10,8 @@ export interface OAuthPendingRequest {
   kind: "prompt" | "select" | "manual_code";
   message: string;
   placeholder?: string;
+  /** Whether a blank answer is a valid response (e.g. "blank for the default"). */
+  allowEmpty?: boolean;
   options?: { id: string; label: string }[];
 }
 
@@ -20,6 +22,10 @@ export interface OAuthLoginState {
   log: string[];
   /** A question awaiting the user's answer, or null. */
   request: OAuthPendingRequest | null;
+  /** The sign-in URL opened in the browser, kept as a manual fallback link. */
+  authUrl: string | null;
+  /** A device code the user must enter in the browser, shown prominently. */
+  deviceCode: { userCode: string; verificationUri: string } | null;
   /** The last error, if the flow failed. */
   error: string | null;
   /** The provider whose sign-in produced `error`. Survives `active` going null,
@@ -32,6 +38,8 @@ export const initialOAuthLoginState: OAuthLoginState = {
   active: null,
   log: [],
   request: null,
+  authUrl: null,
+  deviceCode: null,
   error: null,
   errorProvider: null,
 };
@@ -41,6 +49,7 @@ export type OAuthLoginAction =
   | { type: "event"; event: AuthEvent }
   | { type: "respond" }
   | { type: "cancel" }
+  | { type: "dismissError" }
   | { type: "terminated"; code: number | null };
 
 export function reduceOAuthLogin(state: OAuthLoginState, action: OAuthLoginAction): OAuthLoginState {
@@ -51,6 +60,8 @@ export function reduceOAuthLogin(state: OAuthLoginState, action: OAuthLoginActio
       return { ...state, request: null };
     case "cancel":
       return { ...state, active: null, request: null };
+    case "dismissError":
+      return { ...state, error: null, errorProvider: null };
     case "terminated":
       if (action.code == null || action.code === 0) return state;
       return { ...state, error: "Login process exited unexpectedly.", errorProvider: state.active };
@@ -62,15 +73,27 @@ export function reduceOAuthLogin(state: OAuthLoginState, action: OAuthLoginActio
 function applyEvent(state: OAuthLoginState, event: AuthEvent): OAuthLoginState {
   switch (event.type) {
     case "auth":
-      return { ...state, log: [...state.log, "Opened your browser to authorize. Complete sign-in there…"] };
+      return {
+        ...state,
+        authUrl: event.url,
+        log: [...state.log, "Opened your browser to authorize. Complete sign-in there…"],
+      };
     case "device_code":
-      return { ...state, log: [...state.log, `Enter code ${event.userCode} at ${event.verificationUri}`] };
+      // Kept out of the log: the UI renders the code as its own prominent
+      // block (with a copy button) rather than as a progress line.
+      return { ...state, deviceCode: { userCode: event.userCode, verificationUri: event.verificationUri } };
     case "progress":
       return { ...state, log: [...state.log, event.message] };
     case "prompt":
       return {
         ...state,
-        request: { id: event.id, kind: "prompt", message: event.message, placeholder: event.placeholder },
+        request: {
+          id: event.id,
+          kind: "prompt",
+          message: event.message,
+          placeholder: event.placeholder,
+          allowEmpty: event.allowEmpty,
+        },
       };
     case "select":
       return { ...state, request: { id: event.id, kind: "select", message: event.message, options: event.options } };

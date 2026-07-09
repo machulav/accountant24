@@ -19,6 +19,8 @@ export interface OAuthLogin extends OAuthLoginState {
   respond: (value: string | null) => void;
   /** Abort an in-progress sign-in. */
   cancel: () => void;
+  /** Clear the error left behind by a failed sign-in. */
+  dismissError: () => void;
 }
 
 /** `onDone` fires once a sign-in completes successfully. */
@@ -78,5 +80,7 @@ export function useOAuthLogin(onDone?: () => void): OAuthLogin {
     dispatch({ type: "cancel" });
   }, [cleanup]);
 
-  return { ...state, start, respond, cancel };
+  const dismissError = useCallback(() => dispatch({ type: "dismissError" }), []);
+
+  return { ...state, start, respond, cancel, dismissError };
 }

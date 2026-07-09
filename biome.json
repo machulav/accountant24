@@ -43,13 +43,15 @@
         "rules": {
           "a11y": {
             "useKeyWithClickEvents": "off",
-            "noLabelWithoutControl": "off"
+            "noLabelWithoutControl": "off",
+            "useSemanticElements": "off"
           },
           "correctness": {
             "useExhaustiveDependencies": "off"
           },
           "suspicious": {
-            "noDocumentCookie": "off"
+            "noDocumentCookie": "off",
+            "noDoubleEquals": "off"
           }
         }
       }

@@ -11,6 +11,8 @@ describe("reduceOAuthLogin", () => {
         active: "github",
         log: [],
         request: null,
+        authUrl: null,
+        deviceCode: null,
         error: null,
         errorProvider: null,
       });
@@ -25,27 +27,44 @@ describe("reduceOAuthLogin", () => {
         active: "b",
         log: [],
         request: null,
+        authUrl: null,
+        deviceCode: null,
         error: null,
         errorProvider: null,
       });
     });
+
+    it("should clear a previous attempt's auth url and device code when a new sign-in starts", () => {
+      let state = start("a");
+      state = reduceOAuthLogin(state, { type: "event", event: { type: "auth", url: "https://x" } });
+      state = reduceOAuthLogin(state, {
+        type: "event",
+        event: { type: "device_code", userCode: "AB-12", verificationUri: "https://v" },
+      });
+
+      const next = reduceOAuthLogin(state, { type: "start", provider: "b" });
+      expect(next.authUrl).toBeNull();
+      expect(next.deviceCode).toBeNull();
+    });
   });
 
   describe("progress events", () => {
-    it("should append a browser hint when the auth url arrives", () => {
+    it("should append a browser hint and keep the url when the auth url arrives", () => {
       const state = reduceOAuthLogin(start(), {
         type: "event",
         event: { type: "auth", url: "https://x" },
       });
       expect(state.log).toEqual(["Opened your browser to authorize. Complete sign-in there…"]);
+      expect(state.authUrl).toBe("https://x");
     });
 
-    it("should append the device code instructions when a device_code arrives", () => {
+    it("should expose the device code without logging it when a device_code arrives", () => {
       const state = reduceOAuthLogin(start(), {
         type: "event",
         event: { type: "device_code", userCode: "AB-12", verificationUri: "https://v" },
       });
-      expect(state.log).toEqual(["Enter code AB-12 at https://v"]);
+      expect(state.deviceCode).toEqual({ userCode: "AB-12", verificationUri: "https://v" });
+      expect(state.log).toEqual([]);
     });
 
     it("should append progress messages in order", () => {
@@ -63,6 +82,14 @@ describe("reduceOAuthLogin", () => {
         event: { type: "prompt", id: "q1", message: "Code?", placeholder: "code" },
       });
       expect(state.request).toEqual({ id: "q1", kind: "prompt", message: "Code?", placeholder: "code" });
+    });
+
+    it("should keep allowEmpty when a prompt accepts a blank answer", () => {
+      const state = reduceOAuthLogin(start(), {
+        type: "event",
+        event: { type: "prompt", id: "q1", message: "URL (blank for default)", allowEmpty: true },
+      });
+      expect(state.request?.allowEmpty).toBe(true);
     });
 
     it("should expose a select request with its options when a select event arrives", () => {
@@ -109,6 +136,15 @@ describe("reduceOAuthLogin", () => {
       let state = reduceOAuthLogin(start(), { type: "event", event: { type: "progress", message: "step" } });
       state = reduceOAuthLogin(state, { type: "event", event: { type: "error", message: "denied" } });
       expect(state.log).toEqual(["step"]);
+    });
+  });
+
+  describe("dismissError", () => {
+    it("should clear the error and its provider when the user dismisses it", () => {
+      let state = reduceOAuthLogin(start("anthropic"), { type: "event", event: { type: "error", message: "denied" } });
+      state = reduceOAuthLogin(state, { type: "dismissError" });
+      expect(state.error).toBeNull();
+      expect(state.errorProvider).toBeNull();
     });
   });
 
