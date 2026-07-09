@@ -11,14 +11,16 @@ import type { AppSettings } from "@/rpc/types";
 import { ErrorBanner, Section } from "./parts";
 
 export function AnalyticsSettings() {
-  const [settings, setSettings] = useState<AppSettings>({});
+  // null = not loaded yet. The switch defaults to ON, so rendering it before the
+  // stored value arrives flashes enabled→disabled for opted-out users.
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     settingsApi
       .get()
       .then(setSettings)
-      .catch(() => undefined);
+      .catch(() => setSettings({}));
   }, []);
 
   const patch = useCallback((p: Partial<AppSettings>) => {
@@ -29,7 +31,7 @@ export function AnalyticsSettings() {
       .catch((e) => setSaveError(`Couldn’t save settings: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
 
-  const enabled = settings.analyticsEnabled ?? true;
+  const enabled = settings === null ? null : (settings.analyticsEnabled ?? true);
 
   return (
     <div>
@@ -57,7 +59,9 @@ export function AnalyticsSettings() {
               .
             </span>
           </label>
-          <Switch id="analytics-enabled" checked={enabled} onCheckedChange={(v) => patch({ analyticsEnabled: v })} />
+          {enabled !== null && (
+            <Switch id="analytics-enabled" checked={enabled} onCheckedChange={(v) => patch({ analyticsEnabled: v })} />
+          )}
         </div>
 
         <div className="mt-6 grid gap-x-6 gap-y-5 sm:grid-cols-2">
