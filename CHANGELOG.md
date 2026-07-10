@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.7
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.6...v0.2.7)
+
+### 🚀 Features
+
+- **desktop:** Improve provider connection flow ([81d0bd7](https://github.com/machulav/accountant24/commit/81d0bd7))
+- **desktop:** Update the settings UI ([e132e53](https://github.com/machulav/accountant24/commit/e132e53))
+- **desktop:** Update the chat UI ([024de89](https://github.com/machulav/accountant24/commit/024de89))
+- **desktop:** Add 'Relaunch to update' sidebar banner ([#17](https://github.com/machulav/accountant24/pull/17))
+
+### 🐞 Bug Fixes
+
+- **desktop:** Stop the analytics toggle flashing on the Privacy page ([fb654ab](https://github.com/machulav/accountant24/commit/fb654ab))
+
 ## v0.2.6
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.5...v0.2.6)
