@@ -68,6 +68,15 @@ export function trackUpdateDownloaded(toVersion: string): void {
   track("update_downloaded", { to_version: toVersion });
 }
 
+/** Record the user clicking the "Relaunch to update" banner to apply an
+ *  already-downloaded update on demand (rather than waiting for the next quit).
+ *  to_version is the staged version, mirroring update_downloaded, so the two
+ *  form a funnel: downloaded → install_clicked. Best-effort — the app quits
+ *  right after, so the send races the teardown (like app_closed). */
+export function trackUpdateInstallClicked(toVersion: string): void {
+  track("update_install_clicked", { to_version: toVersion });
+}
+
 /** Record the silent updater failing. Coarse phase only — error messages can
  *  contain URLs/paths and never leave the machine. "download" points at a
  *  broken release; "check" is mostly offline noise (the caller dedupes both

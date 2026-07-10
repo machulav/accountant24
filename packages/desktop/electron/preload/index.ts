@@ -29,9 +29,18 @@ const INVOKE_CHANNELS = new Set([
   "files_archive_to_workspace",
   "ledger_mentions",
   "analytics_track",
+  "update_pending",
+  "update_install",
 ]);
 
-const EVENT_CHANNELS = new Set(["agent-event", "agent-terminated", "agent-error", "auth-event", "auth-terminated"]);
+const EVENT_CHANNELS = new Set([
+  "agent-event",
+  "agent-terminated",
+  "agent-error",
+  "auth-event",
+  "auth-terminated",
+  "update-downloaded",
+]);
 
 contextBridge.exposeInMainWorld("api", {
   invoke(channel: string, payload?: unknown): Promise<unknown> {
