@@ -2,23 +2,27 @@
 
 import {
   AuiIf,
-  ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
+  type ReasoningMessagePartComponent,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
-import { type ComponentType, createContext, type FC, useContext } from "react";
+import { type ComponentType, createContext, type FC, memo, useContext } from "react";
 import { UserMessageImage, UserMessageText } from "@/components/accountant24/attachment";
 import { ChainOfThoughtRoot, ChainOfThoughtStep } from "@/components/accountant24/chain-of-thought";
 import { Composer, EditComposer, isNewChatView } from "@/components/accountant24/composer";
 import { MarkdownText } from "@/components/accountant24/markdown-text";
-import { Reasoning } from "@/components/accountant24/reasoning";
+import { MessageError } from "@/components/accountant24/message-error";
 import { ToolFallback } from "@/components/accountant24/tool-fallback";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
+import { Bubble, BubbleContent } from "@/components/shadcn/bubble";
+import { Message, MessageContent, MessageGroup } from "@/components/shadcn/message";
 import { cn } from "@/lib/utils";
+
+const Reasoning: ReasoningMessagePartComponent = memo(() => <MarkdownText />);
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -78,9 +82,9 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <Welcome />
           </AuiIf>
 
-          <div data-slot="aui_message-group" className="mb-14 flex flex-col gap-y-6 empty:hidden">
+          <MessageGroup className="mb-14 gap-6 empty:hidden">
             <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
-          </div>
+          </MessageGroup>
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
@@ -128,16 +132,6 @@ const ThreadWelcome: FC = () => {
         How can I help you today?
       </h1>
     </div>
-  );
-};
-
-const MessageError: FC = () => {
-  return (
-    <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-      </ErrorPrimitive.Root>
-    </MessagePrimitive.Error>
   );
 };
 
@@ -217,14 +211,23 @@ const UserMessage: FC = () => {
       // pt-6 matches the viewport's scroll-fade-t-6: the top anchor pins this
       // element's box to the viewport edge, so the padding keeps the bubble
       // out of the fade zone right after sending.
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 pt-6 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 animate-in px-2 pt-6 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto]"
       data-role="user"
     >
-      <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
-          <MessagePrimitive.Parts components={{ Image: UserMessageImage, Text: UserMessageText }} />
-        </div>
-      </div>
+      <Message align="end">
+        <MessageContent>
+          {/* bg-input/50 (same child-selector pattern as the variant, so it wins
+              via tailwind-merge): exactly the composer's surface color, per the
+              "user input surfaces look identical" rule. */}
+          <Bubble variant="secondary" align="end" className="*:data-[slot=bubble-content]:bg-input/50">
+            {/* text-base: conversation content is 16px (composer, assistant
+                replies); the stock 14px would shrink the text after sending. */}
+            <BubbleContent className="text-base empty:hidden">
+              <MessagePrimitive.Parts components={{ Image: UserMessageImage, Text: UserMessageText }} />
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
     </MessagePrimitive.Root>
   );
 };

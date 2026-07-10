@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type ExtractFileResult, extractFile, resolveWorkspacePath } from "../files";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({
   file_path: Type.String({
@@ -9,11 +10,9 @@ const Params = Type.Object({
   }),
 });
 
-const LABEL = "Extract Text";
-
 export const extractTextTool: ToolDefinition<typeof Params, ExtractFileResult> = {
   name: "extract_text",
-  label: LABEL,
+  label: TOOL_LABELS.extract_text,
   description:
     "Extract text content from a file (PDF, PNG, JPEG). For PDFs, extracts text directly; for scanned PDFs and images, uses OCR.",
   promptSnippet: "Extract text from PDF/image files via OCR",

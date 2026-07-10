@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type QueryLedgerResult, queryLedger } from "../ledger";
+import { TOOL_LABELS } from "../tool-labels";
 
 const REPORT_TYPES =
   "bal (balances/spending), reg (posting list), aregister (single account with running balance), " +
@@ -59,11 +60,9 @@ const Params = Type.Object({
   ),
 });
 
-const LABEL = "Query Ledger";
-
 export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   name: "query",
-  label: LABEL,
+  label: TOOL_LABELS.query,
   description:
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
   promptSnippet: "Run hledger reports (balance, register, income statement, etc.)",

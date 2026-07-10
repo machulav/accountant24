@@ -1,16 +1,53 @@
 "use client";
 
-import { useAuiState, useScrollLock } from "@assistant-ui/react";
-import { ChevronDownIcon } from "lucide-react";
-import { createContext, type FC, type PropsWithChildren, useCallback, useContext, useRef, useState } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/shadcn/collapsible";
+import { useAuiState } from "@assistant-ui/react";
+import { createContext, type FC, type PropsWithChildren, useContext, useState } from "react";
+import {
+  Disclosure,
+  DisclosureChevron,
+  DisclosureContent,
+  DisclosureTrigger,
+  ShimmerLabel,
+} from "@/components/accountant24/disclosure";
+import { formatDuration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
-
-const ANIMATION_DURATION = 200;
 
 // True only for steps actually rendered inside the timeline box, so a
 // standalone tool call (rendered outside the chain) doesn't draw an orphan rail.
 const InChainContext = createContext(false);
+
+/**
+ * Wall-clock duration of the turn that produced `message`: from the preceding
+ * user message's timestamp to the message's own. react-pi projects pi's
+ * per-message `timestamp` into `createdAt` (an assistant group gets the
+ * timestamp of its LAST pi message ≈ turn end) and replays original
+ * timestamps on session reload, so this works for historical threads too.
+ * Returns null when timestamps are missing or inconsistent.
+ */
+export const turnDurationMs = (
+  message: { id: string; createdAt?: Date },
+  messages: readonly { id: string; role: string; createdAt?: Date }[],
+): number | null => {
+  const end = message.createdAt?.getTime();
+  if (!end) return null;
+  const idx = messages.findIndex((m) => m.id === message.id);
+  for (let i = idx - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m?.role === "user") {
+      const start = m.createdAt?.getTime();
+      return start && end >= start ? end - start : null;
+    }
+  }
+  return null;
+};
+
+/** Trigger label: live shimmer while working, duration when known, step count fallback. */
+export const chainLabel = (active: boolean, durationMs: number | null, count: number) =>
+  active
+    ? "Working"
+    : durationMs !== null
+      ? `Worked for ${formatDuration(durationMs)}`
+      : `Worked through ${count} ${count === 1 ? "step" : "steps"}`;
 
 /**
  * Boxed timeline that renders an assistant turn's interleaved reasoning + tool
@@ -25,9 +62,7 @@ export function ChainOfThoughtRoot({
   endIndex,
   children,
 }: PropsWithChildren<{ count: number; endIndex: number }>) {
-  const ref = useRef<HTMLDivElement>(null);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
-  const lockScroll = useScrollLock(ref, ANIMATION_DURATION);
 
   // "Still thinking" = the run is active AND nothing has streamed past this chain
   // yet (no answer text after it). This stays true through every reasoning/tool
@@ -38,67 +73,39 @@ export function ChainOfThoughtRoot({
     return s.message.parts.length - 1 <= endIndex;
   });
 
-  const open = userOpen ?? active;
-  const onOpenChange = useCallback(
-    (next: boolean) => {
-      lockScroll();
-      setUserOpen(next);
-    },
-    [lockScroll],
-  );
-
-  const label = active ? "Working" : `Worked through ${count} ${count === 1 ? "step" : "steps"}`;
+  const durationMs = useAuiState((s) => turnDurationMs(s.message, s.thread.messages));
+  const label = chainLabel(active, durationMs, count);
 
   return (
-    <Collapsible
-      ref={ref}
-      open={open}
-      onOpenChange={onOpenChange}
+    <Disclosure
       data-slot="aui_chain-of-thought"
-      className="mb-3"
-      style={{ "--animation-duration": `${ANIMATION_DURATION}ms` } as React.CSSProperties}
+      open={userOpen ?? active}
+      onOpenChange={setUserOpen}
+      // my-3 mirrors the markdown paragraph rhythm (p is my-3), so the chain
+      // sits with the same gap whether it precedes or follows answer text;
+      // first:mt-0 keeps a chain at the top of a message flush, like p.
+      className="my-3 first:mt-0"
     >
-      <CollapsibleTrigger
-        data-slot="aui_cot-trigger"
-        className="group/cot text-muted-foreground hover:text-foreground flex w-full items-center gap-2 py-1.5 text-sm transition-colors"
-      >
-        <span className="relative inline-block leading-none font-medium">
+      <DisclosureTrigger data-slot="aui_cot-trigger" className="w-full">
+        <ShimmerLabel active={active} className="font-medium">
           {label}
-          {active && (
-            <span aria-hidden className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none">
-              {label}
-            </span>
-          )}
-        </span>
-        <ChevronDownIcon
-          className={cn(
-            "size-3.5 shrink-0 transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-            "group-data-[state=closed]/cot:-rotate-90 group-data-[state=open]/cot:rotate-0",
-          )}
-        />
-      </CollapsibleTrigger>
+        </ShimmerLabel>
+        <DisclosureChevron />
+      </DisclosureTrigger>
 
-      <CollapsibleContent
-        data-slot="aui_cot-content"
-        className={cn(
-          "overflow-hidden outline-none",
-          "ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
-          "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
-          "data-[state=closed]:pointer-events-none data-[state=closed]:fill-mode-forwards",
-          "data-[state=open]:duration-(--animation-duration) data-[state=closed]:duration-(--animation-duration)",
-        )}
-      >
-        {/* The vertical rail: a left border the step dots sit on. */}
+      <DisclosureContent data-slot="aui_cot-content">
+        {/* The vertical rail: a left border the step dots sit on. py-1.5 gives
+            the rail equal short stubs before the first and after the last dot. */}
         <InChainContext.Provider value={true}>
-          <ol className="border-border/70 my-1 ml-5 mr-3 flex flex-col border-l pb-1">{children}</ol>
+          <ol className="border-border/70 my-1 ml-5 mr-3 flex flex-col border-l py-1.5">{children}</ol>
         </InChainContext.Provider>
-      </CollapsibleContent>
-    </Collapsible>
+      </DisclosureContent>
+    </Disclosure>
   );
 }
 
-/** One timeline step. `reasoning` → hollow dot + muted text; `tool` → filled dot
- *  + the tool card. The dot sits on the parent's rail. */
+/** One timeline step: a filled dot on the parent's rail. `reasoning` steps get
+ *  muted text; `tool` steps render the tool card as-is. */
 export const ChainOfThoughtStep: FC<PropsWithChildren<{ variant: "reasoning" | "tool"; active?: boolean }>> = ({
   variant,
   active = false,
@@ -107,16 +114,20 @@ export const ChainOfThoughtStep: FC<PropsWithChildren<{ variant: "reasoning" | "
   // Rendered outside a chain (standalone tool call): no rail/dot, just the content.
   if (!useContext(InChainContext)) return <>{children}</>;
   return (
-    <li className="relative min-w-0 pl-4">
+    // pb-3 spaces steps 12px apart (the chat's spacing rhythm); last:pb-0 so
+    // the rail ends flush with the final step instead of trailing past it.
+    <li className="relative min-w-0 pb-3 pl-4 last:pb-0">
       <span
         aria-hidden
         className={cn(
-          "border-background absolute top-1.5 -left-[5px] size-2.5 rounded-full border-2 ring-0",
-          variant === "tool" ? "bg-muted-foreground/70" : "bg-background border-border/80 ring-1",
+          "border-background bg-muted-foreground/70 absolute -left-[5px] size-2.5 rounded-full border-2",
+          // Center the dot on the step's first text line: tool triggers add
+          // py-1.5 above the line, reasoning text starts at the top.
+          variant === "tool" ? "top-[9px]" : "top-[5px]",
           active && "bg-foreground animate-pulse",
         )}
       />
-      <div className={cn("min-w-0 pb-3", variant === "reasoning" && "text-muted-foreground text-sm")}>{children}</div>
+      <div className={cn("min-w-0", variant === "reasoning" && "text-muted-foreground text-sm")}>{children}</div>
     </li>
   );
 };

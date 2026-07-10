@@ -4,11 +4,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { type ModelOption, ModelSelector } from "@/components/accountant24/model-selector";
+import { Badge } from "@/components/shadcn/badge";
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/shadcn/item";
+import { Label } from "@/components/shadcn/label";
 import { Switch } from "@/components/shadcn/switch";
 import { addEnabledModels } from "@/lib/enabledModels";
 import { authApi, settingsApi } from "@/rpc/api";
 import type { AppSettings, ModelInfo } from "@/rpc/types";
-import { ErrorBanner, Section } from "./parts";
+import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
 
 const idOf = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
 
@@ -64,18 +67,26 @@ function ModelRow({
     // The label must NOT wrap the Switch: a Radix Switch (a button + hidden
     // form input) inside a wrapping label double-fires and cancels the
     // toggle. Point at it with htmlFor instead.
-    <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-      <label htmlFor={switchId} className="min-w-0">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm">{modelName(m)}</span>
-          {isDefault && (
-            <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-xs">Default</span>
-          )}
-        </span>
-        <span className="text-muted-foreground block truncate text-xs">{m.provider}</span>
-      </label>
-      <Switch id={switchId} checked={checked} disabled={isDefault} onCheckedChange={onToggle} />
-    </div>
+    <SettingsRow>
+      <ItemContent className="gap-0.5">
+        <ItemTitle className="max-w-full">
+          {/* font-normal: Label carries its own medium, so SettingsRow's
+              plain-title rule doesn't reach it. block+truncate: long model ids
+              ellipsize (as pre-Item) instead of wrapping and displacing the
+              Default badge. */}
+          <Label htmlFor={switchId} className="block truncate font-normal">
+            {modelName(m)}
+          </Label>
+          {isDefault && <Badge variant="secondary">Default</Badge>}
+        </ItemTitle>
+        {/* text-xs: the provider line is secondary metadata; at the stock
+            text-sm it competes with the model name in these dense rows. */}
+        <ItemDescription className="text-xs">{m.provider}</ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Switch id={switchId} checked={checked} disabled={isDefault} onCheckedChange={onToggle} />
+      </ItemActions>
+    </SettingsRow>
   );
 }
 
@@ -141,12 +152,12 @@ function ModelToggleSections({
     <>
       {enabledModels.length > 0 && (
         <Section title="Enabled" description="Shown in the chat model selector.">
-          <div className="flex flex-col gap-1">{enabledModels.map(renderRow)}</div>
+          <SettingsRows>{enabledModels.map(renderRow)}</SettingsRows>
         </Section>
       )}
       {availableModels.length > 0 && (
         <Section title="Available" description="Enable to show in the chat model selector.">
-          <div className="flex flex-col gap-1">{availableModels.map(renderRow)}</div>
+          <SettingsRows>{availableModels.map(renderRow)}</SettingsRows>
         </Section>
       )}
     </>

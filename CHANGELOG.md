@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.6
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.5...v0.2.6)
+
+### 🚀 Features
+
+- **desktop:** Restyle the UI ([#16](https://github.com/machulav/accountant24/pull/16))
+
+### 🐞 Bug Fixes
+
+- **desktop:** Count document attachments in user_message_sent analytics ([b383b9d](https://github.com/machulav/accountant24/commit/b383b9d))
+
+### 📖 Documentation
+
+- Update desktop app screenshot ([b0c9dce](https://github.com/machulav/accountant24/commit/b0c9dce))
+
 ## v0.2.5
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.4...v0.2.5)

@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type SaveMemoryResult, saveMemory } from "../memory";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({
   content: Type.String({
@@ -11,11 +12,9 @@ const Params = Type.Object({
   }),
 });
 
-const LABEL = "Update Memory";
-
 export const updateMemoryTool: ToolDefinition<typeof Params, SaveMemoryResult> = {
   name: "update_memory",
-  label: LABEL,
+  label: TOOL_LABELS.update_memory,
   description:
     "Rewrite memory.md with updated user preferences, rules, and knowledge. " +
     "Always include ALL existing facts (merged with new ones). " +

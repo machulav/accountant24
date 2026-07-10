@@ -42,12 +42,19 @@ export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }
     <Badge
       variant="secondary"
       data-directive-type={type}
-      // align-middle seats the standalone pill on the text line (composer input,
-      // sent messages, assistant replies); mx-px keeps it off adjacent words.
-      // text-[0.9em] + size-[1.1em] icon size the chip relative to the surrounding
-      // text (16px) instead of Badge's fixed text-xs, which read too small against
-      // it. Per-type color wins over the secondary variant via tailwind-merge.
-      className={cn("mx-px align-middle text-[0.9em] [&>svg]:size-[1.1em]!", TYPE_COLORS[type] ?? TYPE_COLORS.account)}
+      // Baseline-locked inline chip: the pill is a true inline element
+      // (`inline align-baseline` overrides Badge's inline-flex + fixed h-5),
+      // so its text sits exactly on the surrounding line's baseline — measured
+      // ±0.1px vs align-middle's ~1.3px-low box. All dimensions are em-based
+      // (text-[0.9em], padding, icon) so the chip scales with any context.
+      // The icon uses the standard -0.125em inline-icon alignment; mr replaces
+      // flex gap. mx-px keeps the pill off adjacent words. Per-type color wins
+      // over the secondary variant via tailwind-merge.
+      className={cn(
+        "mx-px inline h-auto px-[0.55em] py-[0.15em] align-baseline text-[0.9em] leading-[1.3]",
+        "[&>svg]:mr-[0.25em] [&>svg]:inline-block [&>svg]:size-[1.1em]! [&>svg]:align-[-0.125em]",
+        TYPE_COLORS[type] ?? TYPE_COLORS.account,
+      )}
     >
       <Icon />
       {label}

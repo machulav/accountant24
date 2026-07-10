@@ -1,22 +1,22 @@
 // Providers — connect a model provider via subscription (OAuth) or API key, see
 // what's connected, disconnect, or add a local Ollama model. The app's analogue
-// of pi's /login and /logout.
+// of pi's /login and /logout. The connect flows themselves live in the dialogs
+// in provider-dialogs.tsx.
 
-import { Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOAuthLogin } from "@/components/auth/useOAuthLogin";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
-import { Input } from "@/components/shadcn/input";
+import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
+import { Spinner } from "@/components/shadcn/spinner";
 import { addEnabledModels, parseModelId } from "@/lib/enabledModels";
 import { agentApi, authApi, settingsApi } from "@/rpc/api";
 import type { AuthProviderRow, AuthStatus } from "@/rpc/types";
-import { ErrorBanner, Section } from "./parts";
-
-type ActionState = { kind: "apikey"; provider: string } | null;
+import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
+import { ApiKeyDialog, OAuthSignInDialog } from "./provider-dialogs";
 
 function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: () => Promise<void> }) {
-  const [action, setAction] = useState<ActionState>(null);
+  const [apiKeyProvider, setApiKeyProvider] = useState<AuthProviderRow | null>(null);
   // Only offer Ollama when it's actually installed and running locally with at
   // least one model — otherwise the row advertises a provider you don't have.
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
@@ -64,8 +64,6 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
       .catch(() => undefined);
   }, []);
 
-  const close = useCallback(() => setAction(null), []);
-
   const disconnect = useCallback(
     async (provider: string) => {
       // Ollama lives in models.json (the app put it there), so it's removed via
@@ -87,7 +85,7 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   if (!status) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2Icon className="size-4 animate-spin" /> Loading providers…
+        <Spinner /> Loading providers…
       </div>
     );
   }
@@ -97,29 +95,26 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   const connected = status.providers.filter((p) => p.configured).sort(byName);
   const available = status.providers.filter((p) => !p.configured).sort(byName);
 
+  // The sign-in dialog stays open for the provider whose flow is running — or,
+  // after a failure, the one whose flow produced the error, so the error is
+  // read (and dismissed) in context.
+  const oauthProviderId = oauth.active ?? (oauth.error ? oauth.errorProvider : null);
+  const oauthProvider = status.providers.find((p) => p.provider === oauthProviderId) ?? null;
+
   const renderRow = (p: AuthProviderRow) => (
     <ProviderRow
       key={p.provider}
       provider={p}
-      oauth={oauth}
-      apikeyOpen={action?.kind === "apikey" && action.provider === p.provider}
       onSignIn={() => {
-        close();
+        setApiKeyProvider(null);
         signingProvider.current = p.provider;
         void oauth.start(p.provider);
       }}
-      onToggleApiKey={() => {
+      onApiKey={() => {
         oauth.cancel();
-        setAction((prev) =>
-          prev?.kind === "apikey" && prev.provider === p.provider ? null : { kind: "apikey", provider: p.provider },
-        );
+        setApiKeyProvider(p);
       }}
       onDisconnect={() => disconnect(p.provider)}
-      onCancelApiKey={close}
-      onSavedApiKey={async () => {
-        close();
-        await afterAdd(p.provider);
-      }}
     />
   );
 
@@ -138,12 +133,23 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
     <>
       {connected.length > 0 && (
         <Section title="Connected" description="Models from these providers can be used in chats.">
-          <div className="flex flex-col gap-1">{connected.map(renderRow)}</div>
+          <SettingsRows>{connected.map(renderRow)}</SettingsRows>
         </Section>
       )}
       <Section title="Available" description="Connect a provider to use its models.">
-        <div className="flex flex-col gap-1">{availableItems.map((it) => it.node)}</div>
+        <SettingsRows>{availableItems.map((it) => it.node)}</SettingsRows>
       </Section>
+
+      <OAuthSignInDialog provider={oauthProvider} oauth={oauth} />
+      <ApiKeyDialog
+        provider={apiKeyProvider}
+        onClose={() => setApiKeyProvider(null)}
+        onSaved={async () => {
+          const provider = apiKeyProvider;
+          setApiKeyProvider(null);
+          if (provider) await afterAdd(provider.provider);
+        }}
+      />
     </>
   );
 }
@@ -168,15 +174,19 @@ function OllamaRow({ onConnected }: { onConnected: () => void | Promise<void> })
 
   return (
     <div>
-      <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium">Ollama</span>
-          <Badge variant="secondary">Local</Badge>
-        </div>
-        <Button size="sm" variant="outline" className="w-28" onClick={connect} disabled={busy}>
-          {busy ? "Connecting…" : "Connect"}
-        </Button>
-      </div>
+      <SettingsRow>
+        <ItemContent>
+          <ItemTitle>
+            Ollama
+            <Badge variant="secondary">Local</Badge>
+          </ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          <Button size="sm" variant="outline" className="w-28" onClick={connect} disabled={busy}>
+            {busy ? "Connecting…" : "Connect"}
+          </Button>
+        </ItemActions>
+      </SettingsRow>
       {error && <ErrorBanner message={error} />}
     </div>
   );
@@ -184,171 +194,49 @@ function OllamaRow({ onConnected }: { onConnected: () => void | Promise<void> })
 
 function ProviderRow({
   provider: p,
-  oauth,
-  apikeyOpen,
   onSignIn,
-  onToggleApiKey,
+  onApiKey,
   onDisconnect,
-  onCancelApiKey,
-  onSavedApiKey,
 }: {
   provider: AuthProviderRow;
-  oauth: ReturnType<typeof useOAuthLogin>;
-  apikeyOpen: boolean;
   onSignIn: () => void;
-  onToggleApiKey: () => void;
+  onApiKey: () => void;
   onDisconnect: () => void;
-  onCancelApiKey: () => void;
-  onSavedApiKey: () => void | Promise<void>;
 }) {
-  const oauthActive = oauth.active === p.provider;
   return (
-    <div>
-      <div className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{p.displayName}</div>
-          {p.configured && p.connection && <div className="text-muted-foreground truncate text-xs">{p.connection}</div>}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {p.configured ? (
-            // auth.json-backed providers can be logged out; Ollama can be removed
-            // (the app added it to models.json). Other models.json / env-var
-            // providers are hand-authored, so there's no remove action.
-            (p.removable || p.provider === "ollama") && (
-              <Button size="sm" variant="outline" className="w-28" onClick={onDisconnect}>
-                Disconnect
-              </Button>
-            )
-          ) : (
-            <>
-              {p.oauth && (
-                <Button size="sm" variant="outline" className="w-28" onClick={onSignIn}>
-                  Sign In
-                </Button>
-              )}
-              <Button size="sm" variant="outline" className="w-28" onClick={onToggleApiKey}>
-                API Key
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {oauthActive && <OAuthInline oauth={oauth} />}
-      {/* A failed sign-in clears `active` (unmounting the panel above), so the
-          error must render here, keyed to the provider whose attempt failed. */}
-      {!oauthActive && oauth.error && oauth.errorProvider === p.provider && <ErrorBanner message={oauth.error} />}
-      {apikeyOpen && <ApiKeyInline provider={p.provider} onCancel={onCancelApiKey} onSaved={onSavedApiKey} />}
-    </div>
-  );
-}
-
-function OAuthInline({ oauth }: { oauth: ReturnType<typeof useOAuthLogin> }) {
-  const [answer, setAnswer] = useState("");
-  const submit = (value: string | null) => {
-    oauth.respond(value);
-    setAnswer("");
-  };
-
-  return (
-    <div className="mt-3 flex flex-col gap-3 border-t pt-3">
-      <div className="bg-muted/50 max-h-44 overflow-auto rounded-md p-3 text-xs">
-        {oauth.log.length === 0 ? (
-          <p className="text-muted-foreground">Starting sign-in…</p>
-        ) : (
-          oauth.log.map((line, i) => <p key={i}>{line}</p>)
-        )}
-      </div>
-
-      {oauth.request?.kind === "select" && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">{oauth.request.message}</p>
-          <div className="flex flex-wrap gap-2">
-            {oauth.request.options?.map((opt) => (
-              <Button key={opt.id} size="sm" variant="outline" onClick={() => submit(opt.id)}>
-                {opt.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(oauth.request?.kind === "prompt" || oauth.request?.kind === "manual_code") && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">{oauth.request.message}</p>
-          <div className="flex gap-2">
-            <Input
-              value={answer}
-              placeholder={oauth.request.placeholder}
-              onChange={(e) => setAnswer(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit(answer)}
-            />
-            <Button size="sm" variant="outline" onClick={() => submit(answer)}>
-              Submit
+    <SettingsRow>
+      <ItemContent>
+        {/* The name truncates (as pre-Item) — letting it wrap pushes the badge
+            away from the name into the row's dead space on narrow widths. */}
+        <ItemTitle className="max-w-full">
+          <span className="truncate">{p.displayName}</span>
+          {p.configured && p.connection && <Badge variant="secondary">{p.connection}</Badge>}
+        </ItemTitle>
+      </ItemContent>
+      <ItemActions>
+        {p.configured ? (
+          // auth.json-backed providers can be logged out; Ollama can be removed
+          // (the app added it to models.json). Other models.json / env-var
+          // providers are hand-authored, so there's no remove action.
+          (p.removable || p.provider === "ollama") && (
+            <Button size="sm" variant="outline" className="w-28" onClick={onDisconnect}>
+              Disconnect
             </Button>
-          </div>
-        </div>
-      )}
-
-      {oauth.error && <ErrorBanner message={oauth.error} />}
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" onClick={oauth.cancel}>
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function ApiKeyInline({
-  provider,
-  onCancel,
-  onSaved,
-}: {
-  provider: string;
-  onCancel: () => void;
-  onSaved: () => void | Promise<void>;
-}) {
-  const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async () => {
-    // The busy guard also covers Enter on the input, which (unlike the Save
-    // button) isn't disabled while a save is in flight.
-    if (busy || !key.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await authApi.setKey(provider, key.trim());
-      if (result.type === "error") throw new Error(result.message ?? "Failed to save key");
-      await onSaved();
-    } catch (e) {
-      setError(String(e));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="mt-3 flex flex-col gap-2 border-t pt-3">
-      <div className="flex gap-2">
-        <Input
-          type="password"
-          value={key}
-          placeholder="Paste API key (sk-…)"
-          autoFocus
-          onChange={(e) => setKey(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        <Button size="sm" variant="outline" onClick={submit} disabled={busy || !key.trim()}>
-          {busy ? "Saving…" : "Save"}
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-      </div>
-      {error && <ErrorBanner message={error} />}
-    </div>
+          )
+        ) : (
+          <>
+            {p.oauth && (
+              <Button size="sm" variant="outline" className="w-28" onClick={onSignIn}>
+                Sign In
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="w-28" onClick={onApiKey}>
+              API Key
+            </Button>
+          </>
+        )}
+      </ItemActions>
+    </SettingsRow>
   );
 }
 
