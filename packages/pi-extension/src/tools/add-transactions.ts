@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type AddTransactionsResult, addTransactions } from "../ledger";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Posting = Type.Object({
   account: Type.String({ description: "Account name, e.g. Expenses:Food:Groceries" }),
@@ -41,11 +42,9 @@ const Params = Type.Object({
   }),
 });
 
-const LABEL = "Add Transactions";
-
 export const addTransactionsTool: ToolDefinition<typeof Params, AddTransactionsResult> = {
   name: "add_transactions",
-  label: LABEL,
+  label: TOOL_LABELS.add_transactions,
   description: "Add one or more transactions. Auto-routes to the correct monthly files and validates.",
   promptSnippet: "Record transactions (auto-routes to monthly files, validates)",
   parameters: Params,

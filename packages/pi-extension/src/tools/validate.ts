@@ -1,14 +1,13 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type ValidateLedgerResult, validateLedger } from "../ledger";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({});
 
-const LABEL = "Validate Ledger";
-
 export const validateTool: ToolDefinition<typeof Params, ValidateLedgerResult> = {
   name: "validate",
-  label: LABEL,
+  label: TOOL_LABELS.validate,
   description: "Check the ledger for errors",
   promptSnippet: "Check the ledger for errors",
   parameters: Params,

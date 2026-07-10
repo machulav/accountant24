@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type CommitAndPushResult, commitAndPush } from "../git";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({
   message: Type.String({
@@ -8,11 +9,9 @@ const Params = Type.Object({
   }),
 });
 
-const LABEL = "Commit & Push";
-
 export const commitAndPushTool: ToolDefinition<typeof Params, CommitAndPushResult> = {
   name: "commit_and_push",
-  label: LABEL,
+  label: TOOL_LABELS.commit_and_push,
   description:
     "Stage all changes, commit with the provided message, and push to the remote if one is configured. " +
     "Returns the list of committed files and whether a push occurred.",
