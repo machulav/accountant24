@@ -83,11 +83,36 @@ describe("ensureScaffolded()", () => {
   test("should write accounts.journal with all five account types", async () => {
     await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
-    expect(content).toContain("account assets:");
-    expect(content).toContain("account liabilities:");
-    expect(content).toContain("account equity:");
-    expect(content).toContain("account income:");
-    expect(content).toContain("account expenses:");
+    expect(content).toContain("account Assets:");
+    expect(content).toContain("account Liabilities:");
+    expect(content).toContain("account Equity:");
+    expect(content).toContain("account Income:");
+    expect(content).toContain("account Expenses:");
+  });
+
+  test("should write accounts.journal with capitalized account names only", async () => {
+    await ensureScaffolded();
+    const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
+    const names = content.match(/^account (\S+)/gm) ?? [];
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(name).toMatch(/^account [A-Z]/);
+    }
+  });
+
+  test("should keep expense accounts one level deep (high-level categories only)", async () => {
+    await ensureScaffolded();
+    const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
+    const expenseLines = content.split("\n").filter((l) => l.startsWith("account Expenses:"));
+    expect(expenseLines.length).toBeGreaterThan(0);
+    for (const line of expenseLines) {
+      // Strip the inline comment, then require exactly one colon (Expenses:Category)
+      const name = line
+        .replace(/^account /, "")
+        .split(";")[0]
+        .trim();
+      expect(name.match(/:/g)).toHaveLength(1);
+    }
   });
 
   test("should write .gitignore with auth exclusion", async () => {

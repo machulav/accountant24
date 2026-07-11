@@ -11,131 +11,57 @@
 ; ASSETS — things you own (bank accounts, cash, investments)
 ; ====================================================================
 
-account assets:cash
+account Assets:Cash
 
 ; ====================================================================
 ; LIABILITIES — things you owe (credit cards, loans, mortgages)
 ; ====================================================================
 
-account liabilities:credit-card
-account liabilities:mortgage
-account liabilities:car-loan
-account liabilities:student-loan
-account liabilities:loan
+account Liabilities:Credit Card
+account Liabilities:Mortgage
+account Liabilities:Car Loan
+account Liabilities:Student Loan
+account Liabilities:Loan
 
 ; ====================================================================
 ; EQUITY — owner's investment, balances assets and liabilities
 ; ====================================================================
 
-account equity:opening-balances
+account Equity:Opening Balances
 
 ; ====================================================================
 ; INCOME — inflows of money (salary, business, interest)
 ; ====================================================================
 
-account income:salary
-account income:business
-account income:investment
-account income:interest
-account income:rental
-account income:gifts-received
-account income:government-benefits
-account income:tax-refund
-account income:other
+account Income:Salary
+account Income:Business
+account Income:Investment
+account Income:Interest
+account Income:Rental
+account Income:Gifts Received
+account Income:Government Benefits
+account Income:Tax Refund
+account Income:Other
 
 ; ====================================================================
 ; EXPENSES — outflows of money (rent, groceries, subscriptions)
 ; ====================================================================
 
-account expenses:housing:rent
-account expenses:housing:insurance
-account expenses:housing:maintenance-and-repairs
-account expenses:housing:other
-
-account expenses:utilities:electricity
-account expenses:utilities:gas
-account expenses:utilities:water
-account expenses:utilities:internet
-account expenses:utilities:phone
-account expenses:utilities:sewage-and-waste
-account expenses:utilities:other
-
-account expenses:food:groceries
-account expenses:food:dining-out
-account expenses:food:delivery
-account expenses:food:coffee-shops
-account expenses:food:other
-
-account expenses:transport:fuel
-account expenses:transport:public-transit
-account expenses:transport:taxi-and-rideshare
-account expenses:transport:carsharing
-account expenses:transport:parking
-account expenses:transport:car-insurance
-account expenses:transport:car-maintenance
-account expenses:transport:bike-and-scooter
-account expenses:transport:other
-
-account expenses:shopping:clothing-and-accessories
-account expenses:shopping:electronics
-account expenses:shopping:home-goods-and-furniture
-account expenses:shopping:other
-
-account expenses:entertainment:events-and-activities
-account expenses:entertainment:video-games
-account expenses:entertainment:hobbies
-account expenses:entertainment:other
-
-account expenses:travel:transportation
-account expenses:travel:accommodation
-account expenses:travel:food
-account expenses:travel:other
-
-account expenses:health:insurance
-account expenses:health:doctor-and-hospital
-account expenses:health:pharmacy-and-medications
-account expenses:health:other
-
-account expenses:personal-care:hair-and-beauty
-account expenses:personal-care:gym-and-fitness
-account expenses:personal-care:other
-
-account expenses:education:tuition-and-courses
-account expenses:education:books
-account expenses:education:other
-
-account expenses:children:childcare
-account expenses:children:activities
-account expenses:children:other
-
-account expenses:pets:food-and-supplies
-account expenses:pets:vet-and-health
-account expenses:pets:other
-
-account expenses:financial:bank-fees
-account expenses:financial:credit-card-interest
-account expenses:financial:mortgage-interest
-account expenses:financial:car-loan-interest
-account expenses:financial:student-loan-interest
-account expenses:financial:loan-interest
-account expenses:financial:other
-
-account expenses:taxes:income-tax
-account expenses:taxes:property-tax
-account expenses:taxes:other
-
-account expenses:professional-services:legal
-account expenses:professional-services:tax-and-accounting
-account expenses:professional-services:consulting
-account expenses:professional-services:other
-
-account expenses:gifts-and-donations:gifts
-account expenses:gifts-and-donations:charity
-account expenses:gifts-and-donations:other
-
-account expenses:subscriptions:streaming
-account expenses:subscriptions:software-and-apps
-account expenses:subscriptions:memberships
-account expenses:subscriptions:other
-
-account expenses:uncategorized
+account Expenses:Housing                ; rent, home insurance, maintenance and repairs
+account Expenses:Utilities              ; electricity, gas, water, internet, phone, sewage and waste
+account Expenses:Food                   ; groceries, dining out, delivery, coffee shops
+account Expenses:Transport              ; fuel, public transit, taxi, parking, car insurance and maintenance
+account Expenses:Shopping               ; clothing, electronics, home goods and furniture
+account Expenses:Entertainment          ; events, activities, video games, hobbies
+account Expenses:Travel                 ; transportation, accommodation, food while traveling
+account Expenses:Health                 ; health insurance, doctors, hospitals, pharmacy, medications
+account Expenses:Personal Care          ; hair, beauty, gym and fitness
+account Expenses:Education              ; tuition, courses, books
+account Expenses:Children               ; childcare, kids' activities
+account Expenses:Pets                   ; pet food, supplies, vet
+account Expenses:Financial              ; bank fees, credit card and loan interest
+account Expenses:Taxes                  ; income tax, property tax
+account Expenses:Professional Services  ; legal, tax and accounting, consulting
+account Expenses:Gifts & Donations      ; gifts, charity
+account Expenses:Subscriptions          ; streaming, software and apps, memberships
+account Expenses:Uncategorized          ; transactions pending categorization
