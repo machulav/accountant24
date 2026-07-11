@@ -34,6 +34,41 @@ export default defineConfig({
     // bun:test reset mocks per test (the old tests reassigned Bun.spawn each time);
     // clear call history before each test so toHaveBeenCalledTimes() stays per-test.
     clearMocks: true,
-    coverage: { provider: "v8" },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      // Measure our own source only. `all: true` counts files with zero tests
+      // too, so coverage reflects the real surface — not just what tests touched.
+      all: true,
+      include: ["packages/*/src/**", "packages/desktop/electron/**"],
+      // Excluded = not worth testing: tests/fixtures, barrels, entry/glue, stock
+      // third-party UI (shadcn — never edited per AGENTS.md), type-only files,
+      // and generated/template assets.
+      exclude: [
+        "**/__tests__/**",
+        "**/*.test.{ts,tsx}",
+        "**/*.d.ts",
+        "**/index.ts",
+        "**/components/shadcn/**",
+        "packages/pi-extension/src/entry.ts",
+        "packages/pi-extension/src/spawn.ts",
+        "packages/pi-extension/src/tool-labels.ts",
+        "packages/desktop/src/main.tsx",
+        "packages/desktop/src/test/**",
+        "packages/desktop/electron/main/index.ts",
+        "packages/desktop/electron/preload/index.ts",
+        "packages/desktop/src/rpc/types.ts",
+        "packages/pi-extension/src/scaffold/template/**",
+      ],
+      // Enforced floor — ratchets up toward 100 as gaps close; never lowered.
+      // Kept just under the current effective baseline so the gate is honest
+      // (green today) and each new test suite raises it.
+      thresholds: {
+        statements: 84,
+        branches: 78,
+        functions: 77,
+        lines: 86,
+      },
+    },
   },
 });

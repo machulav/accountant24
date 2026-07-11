@@ -1,0 +1,57 @@
+# PR/push quality gate: lint + typecheck + tests + coverage on every change.
+#
+# Complements release.yml's `checks` job (which only runs at release time) so
+# regressions are caught on the PR, not at the cut. Same CLI-tool setup: the
+# suite includes integration tests that run the real shipped tools (hledger,
+# pdftotext/tesseract) and a real `git commit` (scaffold), so the runner needs
+# those tools and a git identity or those tests fail with empty results.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs for the same ref (e.g. a new push to a PR).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install CLI tools used by integration tests
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends hledger poppler-utils tesseract-ocr
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test + coverage (threshold-enforced)
+        run: npm run coverage
+
+      - name: Upload coverage (lcov)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
