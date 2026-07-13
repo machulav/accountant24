@@ -1,6 +1,6 @@
 {
   "name": "accountant24",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -51,43 +51,43 @@
     "noAuthors": true,
     "types": {
       "feat": {
-        "title": "\ud83d\ude80 Features",
+        "title": "🚀 Features",
         "semver": "minor"
       },
       "fix": {
-        "title": "\ud83d\udc1e Bug Fixes",
+        "title": "🐞 Bug Fixes",
         "semver": "patch"
       },
       "perf": {
-        "title": "\u26a1 Performance",
+        "title": "⚡ Performance",
         "semver": "patch"
       },
       "refactor": {
-        "title": "\u267b\ufe0f Refactors",
+        "title": "♻️ Refactors",
         "semver": "patch"
       },
       "revert": {
-        "title": "\u23ea Reverts",
+        "title": "⏪ Reverts",
         "semver": "patch"
       },
       "build": {
-        "title": "\ud83d\udce6 Build",
+        "title": "📦 Build",
         "semver": "patch"
       },
       "docs": {
-        "title": "\ud83d\udcd6 Documentation"
+        "title": "📖 Documentation"
       },
       "chore": {
-        "title": "\ud83c\udfe1 Chore"
+        "title": "🏡 Chore"
       },
       "test": {
-        "title": "\u2705 Tests"
+        "title": "✅ Tests"
       },
       "style": {
-        "title": "\ud83c\udfa8 Styles"
+        "title": "🎨 Styles"
       },
       "ci": {
-        "title": "\ud83e\udd16 CI"
+        "title": "🤖 CI"
       }
     }
   },

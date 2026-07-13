@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.8
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.7...v0.2.8)
+
+### 🚀 Features
+
+- **desktop:** Add Skills support ([edbe35e](https://github.com/machulav/accountant24/commit/edbe35e))
+
 ## v0.2.7
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.6...v0.2.7)
