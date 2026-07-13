@@ -12,7 +12,7 @@ import { join, resolve, sep } from "node:path";
 import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type BrowserWindow, ipcMain, shell } from "electron";
 import { trackProviderConnected } from "./analytics";
-import { workspaceDir } from "./env";
+import { sessionsDir, workspaceDir } from "./env";
 
 type LoginCallbacks = Parameters<AuthStorage["login"]>[1];
 
@@ -34,10 +34,6 @@ function uniqueProviders(modelRegistry: ModelRegistry): string[] {
   const seen = new Set<string>();
   for (const model of modelRegistry.getAll()) seen.add(model.provider);
   return [...seen].sort();
-}
-
-function sessionsDir(): string {
-  return join(workspaceDir(), "sessions");
 }
 
 // ---- one-shot queries (return the record the renderer expects) -------------

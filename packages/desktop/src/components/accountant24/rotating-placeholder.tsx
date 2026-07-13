@@ -4,8 +4,13 @@
 import { useAuiState } from "@assistant-ui/react";
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import { type ComponentProps, type FC, useEffect, useRef, useState } from "react";
+import { useDeleteLineWithChips } from "./use-delete-line-with-chips";
 
-const COMPOSER_PLACEHOLDERS = ["Write a message...", "Type @ to mention accounts, payees, tags"];
+const COMPOSER_PLACEHOLDERS = [
+  "Write a message...",
+  "Type @ to mention accounts, payees, tags",
+  "Type / to use a skill",
+];
 const PLACEHOLDER_ROTATE_MS = 10000;
 // Must match the .aui-lexical-placeholder transition duration in index.css.
 const PLACEHOLDER_SWAP_MS = 100;
@@ -51,6 +56,7 @@ export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = ({ ro
   const { placeholder, isSwapping } = useRotatingPlaceholder(rotate);
   const editorRef = useRef<HTMLDivElement>(null);
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
+  useDeleteLineWithChips(editorRef);
 
   // Refocus the input when switching chats (new or existing) so the user can
   // type immediately — the library's autoFocus only covers the initial mount.

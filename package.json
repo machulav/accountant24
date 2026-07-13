@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "start": "tsx scripts/bundle-extension.ts && cd packages/desktop && npm run dev",
-    "start:agent": "tsx scripts/bundle-extension.ts && node node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates -e packages/desktop/resources/accountant24-extension.js",
+    "start:agent": "tsx scripts/bundle-extension.ts && node node_modules/@earendil-works/pi-coding-agent/dist/cli.js --offline --no-extensions --no-skills --no-prompt-templates --system-prompt packages/desktop/resources/system.md --skill packages/desktop/resources/skills -e packages/desktop/resources/accountant24-extension.js",
     "build": "tsx scripts/bundle-extension.ts && cd packages/desktop && npm run build",
     "dist": "npm run build && cd packages/desktop && electron-builder --mac -c.extraMetadata.version=$npm_package_version",
     "dist:dir": "npm run build && cd packages/desktop && electron-builder --mac --dir -c.extraMetadata.version=$npm_package_version",
@@ -19,7 +19,6 @@
     "check": "biome check --write .",
     "typecheck": "tsc --noEmit && npm run typecheck -w @accountant24/desktop",
     "verify": "npm run audit && biome check --write . && biome check . && npm run typecheck && vitest run --coverage",
-    "eval": "node --import tsx --import ./scripts/text-import-register.mjs packages/evals/run.ts",
     "pre-commit": "biome check --write . && biome check .",
     "release": "gh workflow run release.yml -f type=stable",
     "release:rc": "gh workflow run release.yml -f type=rc",
@@ -52,43 +51,43 @@
     "noAuthors": true,
     "types": {
       "feat": {
-        "title": "🚀 Features",
+        "title": "\ud83d\ude80 Features",
         "semver": "minor"
       },
       "fix": {
-        "title": "🐞 Bug Fixes",
+        "title": "\ud83d\udc1e Bug Fixes",
         "semver": "patch"
       },
       "perf": {
-        "title": "⚡ Performance",
+        "title": "\u26a1 Performance",
         "semver": "patch"
       },
       "refactor": {
-        "title": "♻️ Refactors",
+        "title": "\u267b\ufe0f Refactors",
         "semver": "patch"
       },
       "revert": {
-        "title": "⏪ Reverts",
+        "title": "\u23ea Reverts",
         "semver": "patch"
       },
       "build": {
-        "title": "📦 Build",
+        "title": "\ud83d\udce6 Build",
         "semver": "patch"
       },
       "docs": {
-        "title": "📖 Documentation"
+        "title": "\ud83d\udcd6 Documentation"
       },
       "chore": {
-        "title": "🏡 Chore"
+        "title": "\ud83c\udfe1 Chore"
       },
       "test": {
-        "title": "✅ Tests"
+        "title": "\u2705 Tests"
       },
       "style": {
-        "title": "🎨 Styles"
+        "title": "\ud83c\udfa8 Styles"
       },
       "ci": {
-        "title": "🤖 CI"
+        "title": "\ud83e\udd16 CI"
       }
     }
   },

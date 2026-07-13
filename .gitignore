@@ -8,6 +8,5 @@ packages/desktop/resources/bin/*
 *.traineddata
 .DS_Store
 .env
-evals/.workspaces/
 .claude/worktrees/
 coverage/

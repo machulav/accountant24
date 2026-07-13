@@ -15,6 +15,10 @@ import type {
   LedgerMentions,
   OllamaInfo,
   SessionSummary,
+  SkillAddRequest,
+  SkillAddResult,
+  SkillsEvent,
+  SkillsList,
 } from "./types";
 
 const api = window.api;
@@ -112,6 +116,21 @@ export const settingsApi = {
 export const ledgerApi = {
   /** Fetch accounts/payees/tags for the @-mention picker. */
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
+};
+
+export const skillsApi = {
+  /** Native (built-in) + custom skills from the workspace store. */
+  list: () => api.invoke<SkillsList>("skills_list"),
+  /** Add skills from a public GitHub repo URL. Progress lines stream via
+   *  onEvent; callers restart the agent afterwards. */
+  add: (req: SkillAddRequest) => api.invoke<SkillAddResult>("skills_add", req),
+  /** Delete a custom skill folder. */
+  remove: (name: string) => api.invoke<{ type: string; message?: string }>("skills_remove", { name }),
+  /** Flip a custom skill's approval in the store registry. */
+  setEnabled: (name: string, enabled: boolean) => api.invoke<{ type: string }>("skills_set_enabled", { name, enabled }),
+  /** Subscribe to add-progress pushes; returns an unsubscribe function. */
+  onEvent: async (cb: (event: SkillsEvent) => void): Promise<() => void> =>
+    api.on("skills-event", (payload) => cb(payload as SkillsEvent)),
 };
 
 export const analyticsApi = {

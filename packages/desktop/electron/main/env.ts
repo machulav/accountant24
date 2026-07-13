@@ -18,6 +18,36 @@ export function workspaceDir(): string {
   return env && env.length > 0 ? env : path.join(homedir(), "Accountant24");
 }
 
+/** ~/Accountant24/skills — one self-contained folder per installed skill
+ *  (Agent Skills standard: a dir with SKILL.md). Each enabled skill is passed
+ *  to the agent child via a `--skill` flag. */
+export function skillsDir(): string {
+  return path.join(workspaceDir(), "skills");
+}
+
+/** ~/Accountant24/sessions — pi's session files, one JSONL per chat thread.
+ *  Passed to the agent child via `--session-dir`. */
+export function sessionsDir(): string {
+  return path.join(workspaceDir(), "sessions");
+}
+
+/** ~/Accountant24/ledger/main.journal — the ledger's entry point (includes the
+ *  other journal files). */
+export function mainJournalPath(): string {
+  return path.join(workspaceDir(), "ledger", "main.journal");
+}
+
+/** ~/Accountant24/app-settings.json — app-owned settings (distinct from pi's). */
+export function appSettingsPath(): string {
+  return path.join(workspaceDir(), "app-settings.json");
+}
+
+/** ~/Accountant24/settings.json — pi's settings file, which earlier app
+ *  versions shared; read once as a migration source. */
+export function legacySettingsPath(): string {
+  return path.join(workspaceDir(), "settings.json");
+}
+
 /** Dir holding vendored bin/ + tessdata/ + the extension bundle.
  *  Dev: packages/desktop/resources. Packaged: the app's resources dir
  *  (electron-builder extraResources land directly under it). */
@@ -45,6 +75,23 @@ export function binDir(): string {
  *  scripts/bundle-extension.ts. */
 export function extensionPath(): string {
   return path.join(resourceDir(), "accountant24-extension.js");
+}
+
+/** The static system prompt passed to `pi --system-prompt`. pi replaces its
+ *  coding-agent preamble with this file's contents but still assembles its
+ *  native sections (the <available_skills> block, date/cwd) around it; the
+ *  extension then appends the dynamic tools/context sections per turn. Copied
+ *  next to the extension bundle by scripts/bundle-extension.ts. */
+export function systemPromptPath(): string {
+  return path.join(resourceDir(), "system.md");
+}
+
+/** Native (built-in) skills embedded in the app bundle — one folder per skill,
+ *  committed under packages/desktop/resources/skills. Always loaded (a single
+ *  `--skill` flag; pi recurses the directory), never present in the workspace
+ *  skills folder, so users can't remove or disable them. */
+export function nativeSkillsDir(): string {
+  return path.join(resourceDir(), "skills");
 }
 
 /** Binary for running pi as Node (ELECTRON_RUN_AS_NODE). On macOS, use the

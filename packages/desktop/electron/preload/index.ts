@@ -26,6 +26,10 @@ const INVOKE_CHANNELS = new Set([
   "sessions_delete",
   "settings_get",
   "settings_set",
+  "skills_list",
+  "skills_add",
+  "skills_remove",
+  "skills_set_enabled",
   "files_archive_to_workspace",
   "ledger_mentions",
   "analytics_track",
@@ -39,6 +43,7 @@ const EVENT_CHANNELS = new Set([
   "agent-error",
   "auth-event",
   "auth-terminated",
+  "skills-event",
   "update-downloaded",
 ]);
 

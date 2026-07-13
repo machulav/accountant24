@@ -39,6 +39,50 @@ export interface AppSettings {
   analyticsEnabled?: boolean;
 }
 
+// ---- Skills (Settings → Skills) ------------------------------------------
+
+/** A skill the agent can use: native (embedded in the app bundle) or
+ *  third-party (a folder in ~/Accountant24/skills). */
+export interface SkillInfo {
+  /** Skill identity: the store folder name for third-party skills, the
+   *  frontmatter name for native ones. */
+  name: string;
+  description: string;
+  enabled: boolean;
+  /** Built into the app bundle: always enabled, cannot be removed/disabled. */
+  native?: boolean;
+  /** GitHub `owner/repo` it was added from; absent = dropped in manually. */
+  source?: string;
+  /** Present when the folder's SKILL.md fails validation. */
+  error?: string;
+}
+
+export interface SkillsList {
+  skills: SkillInfo[];
+}
+
+export interface SkillAddRequest {
+  /** `owner/repo` or a github.com URL (optionally /tree/<ref>/<subpath>). */
+  source: string;
+  ref?: string;
+  subpath?: string;
+  /** Frontmatter names to add; absent = every skill found. */
+  skills?: string[];
+}
+
+export interface SkillAddResult {
+  type: "done" | "error";
+  message?: string;
+  added?: string[];
+  skipped?: { name: string; message: string }[];
+}
+
+/** Progress line streamed over `skills-event` while an add runs. */
+export interface SkillsEvent {
+  type: "progress";
+  message: string;
+}
+
 // ---- Auth helper records (`accountant24 auth ...`) ----------------------
 
 export interface AuthProviderRow {

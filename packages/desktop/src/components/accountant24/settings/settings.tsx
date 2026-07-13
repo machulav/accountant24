@@ -3,7 +3,7 @@
 // stock Sidebar components rendered inline (collapsible="none") for the nav —
 // the same shadcn pattern as its settings-dialog example.
 
-import { CpuIcon, KeyboardIcon, PlugIcon, ShieldIcon } from "lucide-react";
+import { CpuIcon, KeyboardIcon, PlugIcon, ShieldIcon, ZapIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/shadcn/dialog";
 import {
@@ -23,12 +23,14 @@ import { AnalyticsSettings } from "./analytics-settings";
 import { ModelsSettings } from "./models-settings";
 import { ProvidersSettings } from "./providers-settings";
 import { ShortcutsSettings } from "./shortcuts-settings";
+import { SkillsSettings } from "./skills-settings";
 
-export type SettingsSection = "providers" | "models" | "shortcuts" | "privacy";
+export type SettingsSection = "providers" | "models" | "skills" | "shortcuts" | "privacy";
 
 const NAV: { id: SettingsSection; label: string; icon: typeof CpuIcon }[] = [
   { id: "providers", label: "Providers", icon: PlugIcon },
   { id: "models", label: "Models", icon: CpuIcon },
+  { id: "skills", label: "Skills", icon: ZapIcon },
   { id: "privacy", label: "Privacy", icon: ShieldIcon },
   { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon },
 ];
@@ -99,6 +101,7 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <main className="min-w-0 flex-1 overflow-y-auto">
             {section === "providers" && <ProvidersSettings />}
             {section === "models" && <ModelsSettings />}
+            {section === "skills" && <SkillsSettings />}
             {section === "shortcuts" && <ShortcutsSettings />}
             {section === "privacy" && <AnalyticsSettings />}
           </main>

@@ -28,6 +28,7 @@ import {
   trackAgentMessageSent,
   trackAgentToolUsed,
   trackChatCreated,
+  trackSkillUsed,
   trackTransactionFirstAdded,
   trackUserFirstMessageSent,
   trackUserMessageSent,
@@ -35,7 +36,8 @@ import {
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
-import { sessionsApi, settingsApi } from "../rpc/api";
+import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
+import { agentApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
@@ -84,12 +86,40 @@ export function createElectronPiClient(): PiClient {
   // manual refetch. Set on send, cleared on agent_end (runs are on the active
   // session). A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
+  // skill_used analytics: resolve a skill to native-or-custom without leaking
+  // custom identities. The lookup refreshes on the same signal as the composer
+  // picker (every skills mutation restarts the agent). A use landing before
+  // the first fetch resolves reports "custom" — acceptable for analytics.
+  let nativeSkills = new Set<string>();
+  const refreshNativeSkills = () => {
+    skillsApi
+      .list()
+      .then((r) => {
+        nativeSkills = new Set(r.skills.filter((s) => s.native).map((s) => s.name));
+      })
+      .catch(() => undefined);
+  };
+  refreshNativeSkills();
+  agentApi.onModelsChanged(refreshNativeSkills);
+  const trackSkillByName = (name: string, method: "manual" | "auto") => {
+    const native = nativeSkills.has(name);
+    trackSkillUsed(native ? name : "custom", native ? "native" : "custom", method);
+  };
   agentBridge.addEventListener((e) => {
     // Tool + reply analytics live on this singleton listener (not mapEvent,
     // which runs once per active subscription) so each is counted exactly once.
     if (e.type === "tool_execution_end") {
       trackAgentToolUsed(e.toolName, Boolean(e.isError));
       if (e.toolName === "add_transactions" && !e.isError) trackTransactionFirstAdded();
+    }
+    if (e.type === "tool_execution_start" && e.toolName === "read") {
+      // The model activates a skill by reading its SKILL.md (pi's lazy-loading
+      // contract) — that read IS the auto usage signal. The path is inspected
+      // here only; it never leaves the machine.
+      const args = e.args as { path?: unknown; file_path?: unknown } | undefined;
+      const raw = args?.path ?? args?.file_path;
+      const segments = typeof raw === "string" ? raw.split(/[\\/]/) : [];
+      if (segments.at(-1) === "SKILL.md") trackSkillByName(segments.at(-2) ?? "", "auto");
     }
     if (e.type === "agent_end") trackAgentMessageSent();
     if (!activeThreadId) return;
@@ -120,9 +150,30 @@ export function createElectronPiClient(): PiClient {
     return switchChain;
   };
 
+  /** Collapse pi's expanded skill block in a transcript USER message back to
+   *  the compact `:skill[name]` directive the composer sent. The round-trip
+   *  must be text-identical: the runtime reconciles its optimistic copy of a
+   *  sent message against the transcript by exact text, so pi's rewrite would
+   *  otherwise leave a stray duplicate bubble. The collapsed form is also what
+   *  the thread renders (skill chip + the user's words, not the instructions). */
+  const collapseUserMessage = <T>(message: T): T => {
+    const m = message as { role?: string; content?: unknown };
+    if (m?.role !== "user" || !Array.isArray(m.content)) return message;
+    let changed = false;
+    const content = m.content.map((part) => {
+      const p = part as { type?: string; text?: string };
+      if (p?.type !== "text" || typeof p.text !== "string") return part;
+      const collapsed = collapseSkillText(p.text);
+      if (collapsed === p.text) return part;
+      changed = true;
+      return { ...p, text: collapsed };
+    });
+    return changed ? ({ ...m, content } as T) : message;
+  };
+
   const buildSnapshot = (threadId: string, state: PiState, messages: unknown): PiThreadSnapshot => {
     if (state.model) currentModelId = `${state.model.provider}/${state.model.id}`;
-    const list = Array.isArray(messages) ? messages : [];
+    const list = Array.isArray(messages) ? messages.map(collapseUserMessage) : [];
     return {
       metadata: {
         id: threadId,
@@ -159,15 +210,15 @@ export function createElectronPiClient(): PiClient {
       case "turn_end":
         return { type: "turn_end", turnIndex: turns.get(threadId) ?? 0 };
       case "message_start":
-        return { type: "message_start", message: e.message } as unknown as PiClientEventBody;
+        return { type: "message_start", message: collapseUserMessage(e.message) } as unknown as PiClientEventBody;
       case "message_update":
         return {
           type: "message_update",
-          message: e.message,
+          message: collapseUserMessage(e.message),
           assistantMessageEvent: e.assistantMessageEvent,
         } as unknown as PiClientEventBody;
       case "message_end":
-        return { type: "message_end", message: e.message } as unknown as PiClientEventBody;
+        return { type: "message_end", message: collapseUserMessage(e.message) } as unknown as PiClientEventBody;
       case "tool_execution_start":
         return { type: "tool_execution_start", toolCallId: e.toolCallId, toolName: e.toolName, args: e.args };
       case "tool_execution_update":
@@ -191,7 +242,9 @@ export function createElectronPiClient(): PiClient {
         (s: SessionSummary): PiThreadMetadata => ({
           id: s.path,
           status: "idle",
-          title: mentionsToPlainText(s.name || s.firstMessage || baseName(s.path)),
+          // Unnamed sessions fall back to their first message, which for a
+          // skill invocation is pi's expanded block — collapse it first.
+          title: mentionsToPlainText(collapseSkillText(s.name || s.firstMessage || baseName(s.path))),
           sessionFile: s.path,
           messageCount: s.messageCount,
           updatedAt: s.modified,
@@ -244,10 +297,15 @@ export function createElectronPiClient(): PiClient {
       const hasAttachment = Boolean(input.attachments?.length) || extractAttachmentRefs(input.content).refs.length > 0;
       trackUserMessageSent(hasAttachment, currentModelId);
       trackUserFirstMessageSent();
+      // A picked skill rides in the composer as a `:skill[name]` chip; pi
+      // expects a leading `/skill:name` token instead — rewrite on the way out.
+      const message = hoistSkillDirective(input.content);
+      const skillToken = /^\/skill:(\S+)/.exec(message)?.[1];
+      if (skillToken) trackSkillByName(skillToken, "manual");
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
       await agentBridge.send({
         type: "prompt",
-        message: input.content,
+        message,
         ...(input.attachments?.length ? { images: input.attachments } : {}),
         ...(input.streamingBehavior ? { streamingBehavior: input.streamingBehavior } : {}),
       });

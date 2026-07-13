@@ -4,8 +4,11 @@
 // sent (images are dropped from the transcript, so the caller tracks them).
 //
 // Rules, in order:
-//   1. Human-written text wins — `[[attachment]]` markers stripped out, mention
-//      directives shown as their plain label, whitespace collapsed.
+//   1. Human-written text wins — `[[attachment]]` markers stripped out,
+//      directives (@-mentions, picked skills) shown as their plain label,
+//      whitespace collapsed. Skill invocations reach this module already
+//      collapsed to their `:skill[name]` directive (electronPiClient rewrites
+//      pi's expanded block on the way in).
 //   2. Otherwise (attachment-only message) fall back to the attached file and
 //      image names, comma-joined (files first, then images).
 //   3. Nothing to title from → null (the caller keeps the placeholder name).

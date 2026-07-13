@@ -43,7 +43,7 @@ vi.mock("electron", () => ({
   },
   shell: { openExternal: h.openExternal },
 }));
-vi.mock("../env", () => ({ workspaceDir: () => "/ws" }));
+vi.mock("../env", () => ({ workspaceDir: () => "/ws", sessionsDir: () => "/ws/sessions" }));
 vi.mock("../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   AuthStorage: { create: () => h.authStorage },
