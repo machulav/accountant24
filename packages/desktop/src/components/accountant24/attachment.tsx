@@ -17,7 +17,7 @@ import {
 } from "@assistant-ui/react";
 import { FileTextIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
-import { LedgerDirectiveText } from "@/components/accountant24/mentions";
+import { DirectiveText } from "@/components/accountant24/directive-chips";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import {
   Attachment,
@@ -154,7 +154,10 @@ export const UserMessageImage: ImageMessagePartComponent = ({ image, filename })
 
 /** Renders a sent user-message text part. Non-image attachments arrive inlined
  *  as `[[attachment]]{…}` markers; we lift them out as file chips and show only
- *  the human-written text, with any @-mention directives rendered as chips. */
+ *  the human-written text, with any directives (@-mentions, picked skills)
+ *  rendered as inline chips. A manual skill invocation reaches this component
+ *  already collapsed to its `:skill[name]` directive (electronPiClient rewrites
+ *  pi's expanded block on the way in), so no skill-specific handling lives here. */
 export const UserMessageText: TextMessagePartComponent = (props) => {
   const { text: visible, refs } = extractAttachmentRefs(props.text);
   return (
@@ -166,7 +169,7 @@ export const UserMessageText: TextMessagePartComponent = (props) => {
           ))}
         </div>
       )}
-      {visible && <LedgerDirectiveText {...props} text={visible} />}
+      {visible && <DirectiveText {...props} text={visible} />}
     </>
   );
 };

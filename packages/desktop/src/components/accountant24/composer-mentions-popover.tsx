@@ -1,5 +1,10 @@
 "use client";
 
+// The `@` mentions popover: categories (accounts/payees/tags) with drill-in and
+// back navigation; selecting an item inserts a directive chip into the composer.
+// The `/` skills picker has its own sibling (composer-skills-popover.tsx) —
+// the two popovers carry different business logic and evolve independently.
+
 import {
   ComposerPrimitive,
   type Unstable_DirectiveFormatter,
@@ -23,26 +28,17 @@ import { cn } from "@/lib/utils";
 
 type IconComponent = FC<{ className?: string }>;
 
-type DirectiveBehaviorProps = {
-  /** Formatter used to serialize the selected item into composer text. */
-  formatter?: Unstable_DirectiveFormatter | undefined;
-  /** Called after the directive text has been inserted into the composer. */
-  onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
-};
-
-type ActionBehaviorProps = {
-  /** Formatter used to serialize the audit-trail chip (when `removeOnExecute` is false). */
-  formatter?: Unstable_DirectiveFormatter | undefined;
-  /** Invoked with the selected item at the moment of selection. */
-  onExecute: (item: Unstable_TriggerItem) => void;
-  /** If `true`, strip the trigger text from the composer after executing. @default false */
-  removeOnExecute?: boolean | undefined;
-};
-
-type ComposerTriggerPopoverBaseProps = Omit<
+type ComposerMentionsPopoverProps = Omit<
   ComponentPropsWithoutRef<typeof ComposerPrimitive.Unstable_TriggerPopover>,
-  "children"
+  "children" | "char"
 > & {
+  /** Insert-directive behavior: how a picked mention lands in the composer. */
+  directive: {
+    /** Formatter used to serialize the selected item into composer text. */
+    formatter?: Unstable_DirectiveFormatter | undefined;
+    /** Called after the directive text has been inserted into the composer. */
+    onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+  };
   /**
    * Maps icon keys to components. Items look up via `item.metadata?.icon`
    * (string); categories look up via their `id`.
@@ -59,20 +55,6 @@ type ComposerTriggerPopoverBaseProps = Omit<
   /** Label shown while an async adapter is resolving items. @default "Loading…" */
   loadingLabel?: string;
 };
-
-type ComposerTriggerPopoverProps = ComposerTriggerPopoverBaseProps &
-  (
-    | {
-        /** Insert-directive behavior. */
-        directive: DirectiveBehaviorProps;
-        action?: never;
-      }
-    | {
-        /** Action behavior. */
-        action: ActionBehaviorProps;
-        directive?: never;
-      }
-  );
 
 function resolveIcon(
   iconKey: string | undefined,
@@ -93,7 +75,7 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
     {(categories) => (
       <div
-        data-slot="composer-trigger-popover-categories"
+        data-slot="composer-mentions-popover-categories"
         // max-h matches the stock ComboboxList cap used by the model selector.
         className="scroll-fade no-scrollbar flex max-h-[15.75rem] flex-col overflow-y-auto p-1.5"
       >
@@ -143,7 +125,7 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
-        <div data-slot="composer-trigger-popover-items" className="flex flex-col">
+        <div data-slot="composer-mentions-popover-items" className="flex flex-col">
           {/* Back renders null in direct-search mode; hide the whole header
               (row + separator) with it so no stray hairline remains. */}
           <div className="hidden has-[button]:block">
@@ -178,7 +160,10 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
                       </span>
                     </span>
                     {item.description && (
-                      <span className="text-muted-foreground ms-6 w-full min-w-0 truncate text-xs leading-tight">
+                      // ps-6 (not ms-6): the icon-width indent must live INSIDE
+                      // the w-full box — margin + w-full overflows the row by
+                      // the margin (same fix as the skills popover).
+                      <span className="text-muted-foreground w-full min-w-0 truncate ps-6 text-xs leading-tight">
                         {item.description}
                       </span>
                     )}
@@ -198,11 +183,9 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
   );
 };
 
-/**
- * Pre-built popover UI for a trigger-driven picker (mentions, slash commands, etc).
- * Pass exactly one of `directive` (inserts a chip) or `action` (fires a handler).
- */
-const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
+/** The mentions popover: category drill-in + directive insertion. Render inside
+ *  the composer's `Unstable_TriggerPopoverRoot`. */
+const ComposerMentionsPopoverImpl: FC<ComposerMentionsPopoverProps> = ({
   iconMap,
   fallbackIcon = SparklesIcon,
   backLabel = "Back",
@@ -211,38 +194,24 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
   loadingLabel = "Loading…",
   className,
   directive,
-  action,
   ...props
 }) => {
-  const warnedRef = useRef(false);
-  if (process.env.NODE_ENV !== "production" && !warnedRef.current && Boolean(directive) === Boolean(action)) {
-    warnedRef.current = true;
-    console.warn("[assistant-ui] ComposerTriggerPopover requires exactly one of `directive` or `action` props.");
-  }
-
   return (
     <ComposerPrimitive.Unstable_TriggerPopover
-      data-slot="composer-trigger-popover"
+      char="@"
+      data-slot="composer-mentions-popover"
       className={cn(
         // Chrome copied from the stock dropdown-menu/combobox popup so all popups
         // in the app share one look: rounded-3xl, ring instead of border, fade/zoom in.
-        "aui-composer-trigger-popover bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 animate-in fade-in-0 zoom-in-95 absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-3xl shadow-lg ring-1 duration-100",
+        "aui-composer-mentions-popover bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 animate-in fade-in-0 zoom-in-95 absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-3xl shadow-lg ring-1 duration-100",
         className,
       )}
       {...props}
     >
-      {directive ? (
-        <ComposerPrimitive.Unstable_TriggerPopover.Directive
-          formatter={directive.formatter ?? unstable_defaultDirectiveFormatter}
-          onInserted={directive.onInserted}
-        />
-      ) : action ? (
-        <ComposerPrimitive.Unstable_TriggerPopover.Action
-          formatter={action.formatter ?? unstable_defaultDirectiveFormatter}
-          onExecute={action.onExecute}
-          removeOnExecute={action.removeOnExecute}
-        />
-      ) : null}
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive
+        formatter={directive.formatter ?? unstable_defaultDirectiveFormatter}
+        onInserted={directive.onInserted}
+      />
       <Categories iconMap={iconMap} fallbackIcon={fallbackIcon} emptyLabel={emptyCategoriesLabel} />
       <Items
         iconMap={iconMap}
@@ -254,6 +223,6 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
     </ComposerPrimitive.Unstable_TriggerPopover>
   );
 };
-ComposerTriggerPopoverImpl.displayName = "ComposerTriggerPopover";
+ComposerMentionsPopoverImpl.displayName = "ComposerMentionsPopover";
 
-export const ComposerTriggerPopover = memo(ComposerTriggerPopoverImpl) as FC<ComposerTriggerPopoverProps>;
+export const ComposerMentionsPopover = memo(ComposerMentionsPopoverImpl) as FC<ComposerMentionsPopoverProps>;

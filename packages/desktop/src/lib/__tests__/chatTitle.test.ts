@@ -93,6 +93,18 @@ describe("deriveChatTitle", () => {
     });
   });
 
+  describe("skill invocations (arrive collapsed to their :skill[…] directive)", () => {
+    it("shows the skill as its plain name alongside the user's words", () => {
+      expect(deriveChatTitle({ texts: [":skill[pdf] summarize this receipt"], imageNames: [] })).toBe(
+        "pdf summarize this receipt",
+      );
+    });
+
+    it("titles an argument-less invocation as the skill name", () => {
+      expect(deriveChatTitle({ texts: [":skill[pdf]"], imageNames: [] })).toBe("pdf");
+    });
+  });
+
   describe("truncation (max 60 chars)", () => {
     it("leaves a title of exactly 60 chars untouched", () => {
       const sixty = "a".repeat(60);

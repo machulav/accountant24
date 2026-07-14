@@ -182,6 +182,16 @@
     opacity 100ms ease,
     translate 100ms ease;
 }
+/* Chip decorator nodes must be ATOMIC inline boxes: with display:inline, the
+   caret placed after a chip paints at the last content edge — visually inside
+   the pill's trailing padding. inline-block gives the caret the full padded
+   box as its stop, and its baseline is the pill text's baseline, so the chip's
+   baseline lock is unaffected. !important is required: the library hardcodes
+   `span.style.display = "inline"` on the node with no configuration knob
+   (@assistant-ui/react-lexical DirectiveNode.createDOM). */
+.aui-lexical-input [data-lexical-decorator] {
+  display: inline-block !important;
+}
 
 /* Rotating placeholder swap (see RotatingPlaceholderInput in
    rotating-placeholder.tsx): while the input's wrapper carries

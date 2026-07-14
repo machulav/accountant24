@@ -11,8 +11,12 @@ import { createElectronPiClient } from "../electronPiClient";
 const h = vi.hoisted(() => ({
   listeners: [] as Array<(e: unknown) => void>,
   sent: [] as Record<string, unknown>[],
+  /** get_messages response — per-test override for transcript contents. */
+  messages: [] as unknown[],
   /** get_state response — per-test override for the model under test. */
   state: {} as Record<string, unknown>,
+  /** skills_list response — feeds the skill_used native/custom lookup. */
+  skills: [] as { name: string; description: string; enabled: boolean; native?: boolean }[],
   track: vi.fn(),
   trackOnce: vi.fn(),
 }));
@@ -29,7 +33,7 @@ vi.mock("../agentBridge", () => ({
     },
     request: async (command: { type: string }) => {
       if (command.type === "get_state") return h.state;
-      if (command.type === "get_messages") return { messages: [] };
+      if (command.type === "get_messages") return { messages: h.messages };
       return {};
     },
   },
@@ -38,6 +42,8 @@ vi.mock("../../rpc/api", () => ({
   analyticsApi: { track: h.track, trackOnce: h.trackOnce },
   sessionsApi: { list: async () => ({ type: "sessions", sessions: [] }), delete: async () => ({}) },
   settingsApi: { get: async () => ({}) },
+  skillsApi: { list: async () => ({ skills: h.skills }) },
+  agentApi: { onModelsChanged: () => () => {} },
 }));
 
 /** Deliver a sidecar event to every persistent listener the client registered. */
@@ -58,8 +64,15 @@ const message = (text: string, attachments?: string[]) =>
 beforeEach(() => {
   h.listeners.length = 0;
   h.sent.length = 0;
+  h.messages = [];
   h.state = { model: { provider: "anthropic", id: "claude-x" }, sessionFile: "/ws/sessions/s1.jsonl" };
+  h.skills = [{ name: "subscription-audit", description: "Audit.", enabled: true, native: true }];
 });
+
+/** Let the client's async skills-lookup fetch settle. */
+const flushLookup = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const skillUsedCalls = () => h.track.mock.calls.filter(([event]) => event === "skill_used");
 
 describe("createElectronPiClient() analytics", () => {
   describe("tool usage", () => {
@@ -100,6 +113,72 @@ describe("createElectronPiClient() analytics", () => {
       client.subscribe("pending-2", () => {}, { includeSnapshot: false });
       emit(toolEnd("query"));
       expect(h.track.mock.calls.filter(([event]) => event === "agent_tool_used")).toHaveLength(1);
+    });
+  });
+
+  describe("skill usage", () => {
+    it("should track a manual native invocation by name", async () => {
+      const client = createElectronPiClient();
+      await flushLookup();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message(":skill[subscription-audit] check my subs"));
+      expect(h.track).toHaveBeenCalledWith("skill_used", {
+        skill: "subscription-audit",
+        kind: "native",
+        method: "manual",
+      });
+    });
+
+    it("should track a manual custom invocation anonymously", async () => {
+      const client = createElectronPiClient();
+      await flushLookup();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message(":skill[nutrition-coach] log lunch"));
+      expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "manual" });
+    });
+
+    it("should not track skill_used for a plain message", async () => {
+      const client = createElectronPiClient();
+      await flushLookup();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message("what is my net worth?"));
+      expect(skillUsedCalls()).toHaveLength(0);
+    });
+
+    it("should track the model reading a native SKILL.md as auto usage by name", async () => {
+      createElectronPiClient();
+      await flushLookup();
+      emit({
+        type: "tool_execution_start",
+        toolCallId: "t2",
+        toolName: "read",
+        args: { path: "/app/resources/skills/subscription-audit/SKILL.md" },
+      });
+      expect(h.track).toHaveBeenCalledWith("skill_used", {
+        skill: "subscription-audit",
+        kind: "native",
+        method: "auto",
+      });
+    });
+
+    it("should track the model reading a custom SKILL.md anonymously (file_path arg variant)", async () => {
+      createElectronPiClient();
+      await flushLookup();
+      emit({
+        type: "tool_execution_start",
+        toolCallId: "t3",
+        toolName: "read",
+        args: { file_path: "/ws/skills/nutrition-coach/SKILL.md" },
+      });
+      expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "auto" });
+    });
+
+    it("should not track reads of ordinary files", async () => {
+      createElectronPiClient();
+      await flushLookup();
+      emit({ type: "tool_execution_start", toolCallId: "t4", toolName: "read", args: { path: "/ws/memory.md" } });
+      emit({ type: "tool_execution_start", toolCallId: "t5", toolName: "bash", args: { command: "ls" } });
+      expect(skillUsedCalls()).toHaveLength(0);
     });
   });
 
@@ -167,6 +246,45 @@ describe("createElectronPiClient() analytics", () => {
       const snapshot = await client.createThread({});
       await client.sendMessage(snapshot.metadata.id, message("hi"));
       expect(h.trackOnce).toHaveBeenCalledWith("user_first_message_sent");
+    });
+
+    it("should send plain text verbatim as the prompt message", async () => {
+      const client = createElectronPiClient();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message("add 12 EUR for coffee"));
+      expect(h.sent.at(-1)).toMatchObject({ type: "prompt", message: "add 12 EUR for coffee" });
+    });
+
+    it("should hoist a skill chip into pi's leading /skill: token on send", async () => {
+      const client = createElectronPiClient();
+      const snapshot = await client.createThread({});
+      await client.sendMessage(snapshot.metadata.id, message(":skill[pdf] summarize this receipt"));
+      expect(h.sent.at(-1)).toMatchObject({ type: "prompt", message: "/skill:pdf summarize this receipt" });
+    });
+
+    it("should collapse pi's expanded skill block back to the directive in transcript snapshots", async () => {
+      const client = createElectronPiClient();
+      const snapshot = await client.createThread({});
+      h.messages = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: '<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninjected instructions\n</skill>\n\nsummarize this receipt',
+            },
+          ],
+          timestamp: 1,
+        },
+        { role: "assistant", content: [{ type: "text", text: "Done." }], timestamp: 2 },
+      ];
+      const thread = await client.getThread(snapshot.metadata.id);
+      const user = thread.messages[0] as { content: Array<{ text: string }> };
+      // Must equal the composer's original text exactly — the runtime dedupes
+      // its optimistic message copy against the transcript by text equality.
+      expect(user.content[0].text).toBe(":skill[pdf] summarize this receipt");
+      const assistant = thread.messages[1] as { content: Array<{ text: string }> };
+      expect(assistant.content[0].text).toBe("Done.");
     });
 
     it("should omit the model prop when no model is known yet", async () => {

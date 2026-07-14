@@ -65,6 +65,11 @@ function createTestFile(name: string, content: Buffer): string {
   return path;
 }
 
+// Tests below run the real vendored tesseract: plain CPU work that can lose
+// the race against a busy dev machine (e.g. a local LLM running), so they
+// get a generous budget instead of the 5s default.
+const OCR_TIMEOUT_MS = 30_000;
+
 describe("extractFile()", () => {
   describe("file not found", () => {
     test("should throw when file does not exist", async () => {
@@ -85,29 +90,41 @@ describe("extractFile()", () => {
   });
 
   describe("image extraction", () => {
-    test("should return text field for PNG file", async () => {
-      const path = createTestFile("screenshot.png", MINIMAL_PNG);
-      const result = await extractFile(path);
+    test(
+      "should return text field for PNG file",
+      async () => {
+        const path = createTestFile("screenshot.png", MINIMAL_PNG);
+        const result = await extractFile(path);
 
-      expect(result.mimeType).toBe("image/png");
-      expect(typeof result.text).toBe("string");
-      expect(result.pageCount).toBeUndefined();
-    });
+        expect(result.mimeType).toBe("image/png");
+        expect(typeof result.text).toBe("string");
+        expect(result.pageCount).toBeUndefined();
+      },
+      OCR_TIMEOUT_MS,
+    );
 
-    test("should return text field for JPEG file", async () => {
-      const path = createTestFile("receipt.jpg", MINIMAL_JPEG);
-      const result = await extractFile(path);
+    test(
+      "should return text field for JPEG file",
+      async () => {
+        const path = createTestFile("receipt.jpg", MINIMAL_JPEG);
+        const result = await extractFile(path);
 
-      expect(result.mimeType).toBe("image/jpeg");
-      expect(typeof result.text).toBe("string");
-    });
+        expect(result.mimeType).toBe("image/jpeg");
+        expect(typeof result.text).toBe("string");
+      },
+      OCR_TIMEOUT_MS,
+    );
 
-    test("should return empty string when OCR finds no text", async () => {
-      const path = createTestFile("blank.png", MINIMAL_PNG);
-      const result = await extractFile(path);
+    test(
+      "should return empty string when OCR finds no text",
+      async () => {
+        const path = createTestFile("blank.png", MINIMAL_PNG);
+        const result = await extractFile(path);
 
-      expect(result.text).toBe("");
-    });
+        expect(result.text).toBe("");
+      },
+      OCR_TIMEOUT_MS,
+    );
   });
 
   describe("PDF extraction", () => {
@@ -127,11 +144,13 @@ describe("extractFile()", () => {
       expect(result.text).toContain("--- Page 1 ---");
     });
 
-    test("should fall back to OCR for sparse-text PDFs", async () => {
-      // PDF with "Hi" (2 chars) is below the 50 chars/page threshold
-      const shortStream = "BT /F1 10 Tf 50 700 Td (Hi) Tj ET";
-      const sparsePdf = Buffer.from(
-        `%PDF-1.0
+    test(
+      "should fall back to OCR for sparse-text PDFs",
+      async () => {
+        // PDF with "Hi" (2 chars) is below the 50 chars/page threshold
+        const shortStream = "BT /F1 10 Tf 50 700 Td (Hi) Tj ET";
+        const sparsePdf = Buffer.from(
+          `%PDF-1.0
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
@@ -153,15 +172,17 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 470
 %%EOF`,
-      );
+        );
 
-      const path = createTestFile("scanned.pdf", sparsePdf);
-      const result = await extractFile(path);
+        const path = createTestFile("scanned.pdf", sparsePdf);
+        const result = await extractFile(path);
 
-      expect(result.mimeType).toBe("application/pdf");
-      expect(result.pageCount).toBe(1);
-      expect(result.text).toContain("(OCR)");
-    });
+        expect(result.mimeType).toBe("application/pdf");
+        expect(result.pageCount).toBe(1);
+        expect(result.text).toContain("(OCR)");
+      },
+      OCR_TIMEOUT_MS,
+    );
 
     test("should not use OCR for text-based PDFs", async () => {
       const path = createTestFile("textonly.pdf", MINIMAL_PDF);
@@ -224,17 +245,21 @@ startxref
       return relativePath;
     }
 
-    test("should return extracted text in content for image", async () => {
-      const { extractTextTool } = await import("../../tools/extract-text.js");
-      const relPath = createWorkspaceFile("files/tool-img.png", MINIMAL_PNG);
+    test(
+      "should return extracted text in content for image",
+      async () => {
+        const { extractTextTool } = await import("../../tools/extract-text.js");
+        const relPath = createWorkspaceFile("files/tool-img.png", MINIMAL_PNG);
 
-      const result = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
+        const result = await extractTextTool.execute("id", { file_path: relPath }, undefined, undefined, {} as any);
 
-      expect(result.content).toHaveLength(1);
-      const text = (result.content[0] as { type: "text"; text: string }).text;
-      expect(text).toContain("--- Extracted content ---");
-      expect(text).not.toContain("Stored:");
-    });
+        expect(result.content).toHaveLength(1);
+        const text = (result.content[0] as { type: "text"; text: string }).text;
+        expect(text).toContain("--- Extracted content ---");
+        expect(text).not.toContain("Stored:");
+      },
+      OCR_TIMEOUT_MS,
+    );
 
     test("should include page count and text for PDF", async () => {
       const { extractTextTool } = await import("../../tools/extract-text.js");

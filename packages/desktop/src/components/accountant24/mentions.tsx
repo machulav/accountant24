@@ -4,20 +4,20 @@
 // payees, accounts, and tags. Built on assistant-ui's trigger-popover + mention
 // adapter (the recommended path) — the picker inserts a directive
 // (`:payee[Acme]`, `:account[Expenses:Food]`, `:tag[trip]`) into the message,
-// which `LedgerDirectiveText` renders back as an inline chip in the sent message.
-// Entity names come from the main process (hledger over IPC), refreshed whenever
-// the agent finishes a turn so newly-added payees/accounts/tags show up.
+// rendered back as an inline chip wherever the message shows (see
+// directive-chips.tsx for the routing; skills have their own chip in
+// skill-pill.tsx). Entity names come from the main process (hledger over IPC),
+// refreshed whenever the agent finishes a turn so newly-added
+// payees/accounts/tags show up.
 
-import { type TextMessagePartComponent, unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
-import type { DirectiveChipProps } from "@assistant-ui/react-lexical";
+import { unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
-import { parseMentions } from "@/lib/mentions";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
 import type { LedgerMentions } from "@/rpc/types";
-import { ComposerTriggerPopover } from "./composer-trigger-popover";
+import { ComposerMentionsPopover } from "./composer-mentions-popover";
 
 const iconFor = (type: string): FC<{ className?: string }> => ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
 
@@ -135,33 +135,5 @@ export const ComposerMentions: FC = () => {
     fallbackIcon: AtSignIcon,
   });
 
-  return <ComposerTriggerPopover char="@" {...mention} />;
-};
-
-/** Inline chip rendered inside the Lexical composer input for an inserted
- *  mention. */
-export const MentionChip: FC<DirectiveChipProps> = ({ directiveType, label }) => (
-  <MentionPill type={directiveType} label={label} />
-);
-
-/** Renders a sent user-message text part, turning mention directives into the
- *  same inline chips the composer shows (plain text passes through untouched). */
-export const LedgerDirectiveText: TextMessagePartComponent = ({ text }) => {
-  const segments = parseMentions(text);
-  if (segments.length === 1 && segments[0]?.kind === "text") {
-    return <span className="whitespace-pre-wrap">{text}</span>;
-  }
-  return (
-    <>
-      {segments.map((seg, i) =>
-        seg.kind === "text" ? (
-          <span key={i} className="whitespace-pre-wrap">
-            {seg.value}
-          </span>
-        ) : (
-          <MentionPill key={i} type={seg.type} label={seg.label} />
-        ),
-      )}
-    </>
-  );
+  return <ComposerMentionsPopover {...mention} />;
 };

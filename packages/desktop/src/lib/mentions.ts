@@ -1,16 +1,17 @@
 // Mention-directive parsing — the single source of truth shared by the markdown
 // remark plugin (assistant replies), the user-message renderer, and chat-title
 // display. A mention directive is `:type[label]` with an optional `{name=id}`
-// suffix, where type is one of account/payee/tag — the exact shape assistant-ui's
-// default directive formatter emits from the composer. The pattern is strict (a
-// known type AND bracketed content) so ordinary prose colons (`key:value`,
-// `10:30`, `http://…`) and unknown directives (`:foo[bar]`) are never matched.
+// suffix, where type is one of account/payee/tag/skill — the exact shape
+// assistant-ui's default directive formatter emits from the composer (`skill`
+// is a picked skill; see composer-skills.tsx). The pattern is strict (a known
+// type AND bracketed content) so ordinary prose colons (`key:value`, `10:30`,
+// `http://…`) and unknown directives (`:foo[bar]`) are never matched.
 
-export type MentionType = "account" | "payee" | "tag";
+export type MentionType = "account" | "payee" | "tag" | "skill";
 
 export type MentionSegment = { kind: "text"; value: string } | { kind: "mention"; type: MentionType; label: string };
 
-const PATTERN = String.raw`:(account|payee|tag)\[([^\]]+)\](?:\{name=[^}]+\})?`;
+const PATTERN = String.raw`:(account|payee|tag|skill)\[([^\]]+)\](?:\{name=[^}]+\})?`;
 
 /** Fresh regex per call — avoids shared `lastIndex` state across helpers. */
 const matcher = (): RegExp => new RegExp(PATTERN, "g");

@@ -13,7 +13,7 @@ import { LandmarkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
-import { ComposerTriggerPopover } from "../composer-trigger-popover";
+import { ComposerMentionsPopover } from "../composer-mentions-popover";
 
 beforeAll(() => {
   installJsdomPolyfills();
@@ -41,9 +41,10 @@ const CATEGORIES = [
 
 let runtime: AssistantRuntime;
 
-/** A composer that hosts the `@` trigger popover, fed the given categories. The
+/** A composer that hosts the `@` mentions popover, fed the given categories. The
  *  popover only opens when the trigger char is active at the cursor in a real
- *  composer input, so we render a live ComposerPrimitive.Input to type into. */
+ *  composer input, so we render a live ComposerPrimitive.Input to type into. The
+ *  mention adapter carries the `@` trigger char (no explicit `char` prop). */
 function Picker({ categories, emptyLabel }: { categories: typeof CATEGORIES; emptyLabel: string }) {
   const mention = unstable_useMentionAdapter({
     categories,
@@ -54,7 +55,7 @@ function Picker({ categories, emptyLabel }: { categories: typeof CATEGORIES; emp
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input />
-        <ComposerTriggerPopover char="@" {...mention} emptyItemsLabel={emptyLabel} />
+        <ComposerMentionsPopover {...mention} emptyItemsLabel={emptyLabel} />
       </ComposerPrimitive.Root>
     </ComposerPrimitive.Unstable_TriggerPopoverRoot>
   );
@@ -83,7 +84,7 @@ const type = (input: HTMLTextAreaElement, value: string) => {
   fireEvent.select(input);
 };
 
-describe("ComposerTriggerPopover", () => {
+describe("ComposerMentionsPopover", () => {
   it("should stay closed until the trigger char is typed", () => {
     renderPicker();
     expect(screen.queryByRole("listbox")).toBeNull();

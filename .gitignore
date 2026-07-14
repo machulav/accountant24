@@ -8,7 +8,6 @@ packages/desktop/resources/bin/*
 *.traineddata
 .DS_Store
 .env
-evals/.workspaces/
 .claude/worktrees/
 coverage/
 # Playwright E2E artifacts

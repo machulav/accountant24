@@ -37,7 +37,11 @@ vi.mock("electron", () => ({
     },
   },
 }));
-vi.mock("../env", () => ({ workspaceDir: () => "/ws" }));
+vi.mock("../env", () => ({
+  workspaceDir: () => "/ws",
+  appSettingsPath: () => "/ws/app-settings.json",
+  legacySettingsPath: () => "/ws/settings.json",
+}));
 
 const SETTINGS_PATH = "/ws/app-settings.json";
 
@@ -210,6 +214,37 @@ describe("trackAnalyticsToggle()", () => {
     const { trackAnalyticsToggle } = await setup();
     trackAnalyticsToggle(true);
     expect(events()).toEqual([["analytics_enabled"]]);
+  });
+});
+
+describe("skill events", () => {
+  it("should emit skill_added with numeric counts", async () => {
+    const { trackSkillAdded } = await setup();
+    trackSkillAdded(2, 1);
+    expect(events()).toEqual([["skill_added", { added_count: 2, skipped_count: 1 }]]);
+  });
+
+  it("should emit skill_add_failed with the structural reason", async () => {
+    const { trackSkillAddFailed } = await setup();
+    trackSkillAddFailed("not_found");
+    expect(events()).toEqual([["skill_add_failed", { reason: "not_found" }]]);
+  });
+
+  it("should emit skill_removed, skill_enabled, and skill_disabled without props", async () => {
+    const { trackSkillRemoved, trackSkillEnabled, trackSkillDisabled } = await setup();
+    trackSkillRemoved();
+    trackSkillEnabled();
+    trackSkillDisabled();
+    expect(events()).toEqual([["skill_removed"], ["skill_enabled"], ["skill_disabled"]]);
+  });
+
+  it("should emit nothing when analytics are opted out", async () => {
+    patchSettings({ analyticsEnabled: false });
+    const { trackSkillAdded, trackSkillAddFailed, trackSkillRemoved } = await setup();
+    trackSkillAdded(1, 0);
+    trackSkillAddFailed("other");
+    trackSkillRemoved();
+    expect(events()).toEqual([]);
   });
 });
 

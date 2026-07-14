@@ -93,6 +93,35 @@ export function trackAnalyticsToggle(enabled: boolean): void {
   trackEvent(enabled ? "analytics_enabled" : "analytics_disabled");
 }
 
+/** Record a skill add from a repository landing in the store. Counts only —
+ *  custom skill names and repos never leave the machine. */
+export function trackSkillAdded(addedCount: number, skippedCount: number): void {
+  track("skill_added", { added_count: addedCount, skipped_count: skippedCount });
+}
+
+export type SkillAddFailReason = "invalid_source" | "not_found" | "no_skills" | "fetch_failed" | "other";
+
+/** Record a failed skill add. Structural reason only — error text can carry
+ *  repo names and paths, so it never leaves the machine. */
+export function trackSkillAddFailed(reason: SkillAddFailReason): void {
+  track("skill_add_failed", { reason });
+}
+
+/** Record a custom skill being removed (built-ins can't be). */
+export function trackSkillRemoved(): void {
+  track("skill_removed");
+}
+
+/** Record a custom skill being switched on. */
+export function trackSkillEnabled(): void {
+  track("skill_enabled");
+}
+
+/** Record a custom skill being switched off. */
+export function trackSkillDisabled(): void {
+  track("skill_disabled");
+}
+
 /** Register the renderer→main analytics channel. The renderer fires
  *  unconditionally; main's gate decides. Callers must pass only event names +
  *  string/number props — NEVER user content (message text, etc.). */

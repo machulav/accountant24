@@ -9,6 +9,7 @@ import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerPiIpc } from "./pi";
 import { registerSettingsIpc } from "./settings";
+import { registerSkillsIpc } from "./skills";
 import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
 
@@ -43,6 +44,7 @@ app.whenReady().then(() => {
   ipcMain.handle("app_version", () => app.getVersion());
   registerAgentIpc(getWin);
   registerPiIpc(getWin);
+  registerSkillsIpc(getWin);
   registerSettingsIpc({ onAnalyticsToggled: trackAnalyticsToggle });
   registerFilesIpc();
   registerLedgerIpc();

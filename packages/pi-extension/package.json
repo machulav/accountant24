@@ -1,6 +1,6 @@
 {
   "name": "@accountant24/pi-extension",
-  "version": "0.1.9",
+  "private": true,
   "type": "module",
   "description": "Accountant24 customization for pi: ledger tools, commands, system prompt, scaffolding.",
   "keywords": [

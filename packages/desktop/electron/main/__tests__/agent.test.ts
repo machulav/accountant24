@@ -47,10 +47,17 @@ vi.mock("node:fs", () => ({ mkdirSync: h.mkdirSync }));
 vi.mock("../analytics", () => ({ trackAgentFailed: h.trackAgentFailed }));
 vi.mock("../env", () => ({
   workspaceDir: () => "/ws",
+  sessionsDir: () => "/ws/sessions",
+  skillsDir: () => "/ws/skills",
+  nativeSkillsDir: () => "/res/skills",
   agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" }),
   piCliPath: () => "/pi/cli.js",
   extensionPath: () => "/res/ext.js",
+  systemPromptPath: () => "/res/system.md",
   nodeRuntimePath: () => "/node-runtime",
+}));
+vi.mock("../skills-store", () => ({
+  buildSkillArgs: (root: string) => (root === "/ws/skills" ? ["--skill", "/ws/skills/pdf"] : ["WRONG-ARGS"]),
 }));
 
 const win = { isDestroyed: () => false, webContents: { send: h.sendToWindow } };
@@ -95,7 +102,7 @@ afterEach(() => {
 });
 
 describe("agent_start", () => {
-  it("should spawn pi in rpc mode with the bundled extension and workspace env", async () => {
+  it("should spawn pi in rpc mode with the system prompt, enabled skills, and bundled extension", async () => {
     await setup();
     invoke("agent_start");
 
@@ -110,6 +117,12 @@ describe("agent_start", () => {
       "--no-extensions",
       "--no-skills",
       "--no-prompt-templates",
+      "--system-prompt",
+      "/res/system.md",
+      "--skill",
+      "/res/skills",
+      "--skill",
+      "/ws/skills/pdf",
       "--session-dir",
       "/ws/sessions",
       "-e",

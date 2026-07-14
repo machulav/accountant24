@@ -5,12 +5,15 @@
 // inlined by the text loaders below. This is the lightweight dev/prelaunch step;
 // the release build calls the same bundling.
 
+import { copyFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "packages", "desktop", "resources", "accountant24-extension.js");
+const SYSTEM_MD_SRC = join(ROOT, "packages", "pi-extension", "src", "system-prompt", "system.md");
+const SYSTEM_MD_OUT = join(ROOT, "packages", "desktop", "resources", "system.md");
 
 const VIRTUAL_MODULES = [
   "@earendil-works/pi-coding-agent",
@@ -35,4 +38,9 @@ await build({
   logLevel: "info",
 });
 
+// system.md ships as its own resource: the app passes it to pi via
+// --system-prompt, so pi natively appends the skills block around it.
+copyFileSync(SYSTEM_MD_SRC, SYSTEM_MD_OUT);
+
 console.log(`[bundle-extension] → ${OUT}`);
+console.log(`[bundle-extension] → ${SYSTEM_MD_OUT}`);

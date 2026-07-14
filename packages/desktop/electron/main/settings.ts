@@ -7,9 +7,8 @@
 // and only ever persist our own keys.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { ipcMain } from "electron";
-import { workspaceDir } from "./env";
+import { appSettingsPath, legacySettingsPath, workspaceDir } from "./env";
 
 /** The app settings schema (app-owned keys, distinct from pi's). */
 export interface AppSettings {
@@ -23,15 +22,6 @@ export interface AppSettings {
    *  "user_first_message_sent"), so each is emitted at most once per install.
    *  Main-process only. */
   onceEvents?: string[];
-}
-
-function appSettingsPath(): string {
-  return join(workspaceDir(), "app-settings.json");
-}
-
-/** pi's settings file, which earlier versions of the app shared. */
-function legacyPath(): string {
-  return join(workspaceDir(), "settings.json");
 }
 
 function parseFile(path: string): Record<string, unknown> | undefined {
@@ -67,7 +57,7 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
 /** One-time move of app keys out of the shared settings.json into app-settings.json,
  *  leaving pi's own keys behind in settings.json. Best-effort. */
 function migrateFromLegacy(): AppSettings {
-  const legacy = parseFile(legacyPath());
+  const legacy = parseFile(legacySettingsPath());
   if (!legacy) return {};
   const app = pickAppKeys(legacy);
   try {
@@ -77,7 +67,7 @@ function migrateFromLegacy(): AppSettings {
     const cleaned = { ...legacy };
     delete cleaned.defaultModel;
     delete cleaned.enabledModels;
-    if (Object.keys(cleaned).length > 0) writeFileSync(legacyPath(), `${JSON.stringify(cleaned, null, 2)}\n`);
+    if (Object.keys(cleaned).length > 0) writeFileSync(legacySettingsPath(), `${JSON.stringify(cleaned, null, 2)}\n`);
   } catch {
     // Best-effort; the in-memory `app` is still correct for this session.
   }

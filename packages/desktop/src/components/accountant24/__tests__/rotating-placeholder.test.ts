@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRotatingPlaceholder } from "../rotating-placeholder";
 
 // Spec: the placeholder starts as the plain prompt, and every 10s fades out
-// for 100ms, then shows the next tip. Disabled (existing chats) = plain prompt.
+// for 100ms, then shows the next tip (mentions, then skills, then wraps).
+// Disabled (existing chats) = plain prompt.
 const PLAIN_PROMPT = "Write a message...";
 const MENTION_TIP = "Type @ to mention accounts, payees, tags";
+const SKILL_TIP = "Type / to use a skill";
 const ROTATE_MS = 10_000;
 const SWAP_MS = 100;
 
@@ -67,8 +69,17 @@ describe("useRotatingPlaceholder()", () => {
       expect(result.current.isSwapping).toBe(false);
     });
 
+    it("should show the skill tip after the mention tip", () => {
+      const { result } = renderRotating(true);
+      rotateOnce();
+      rotateOnce();
+      expect(result.current.placeholder).toBe(SKILL_TIP);
+      expect(result.current.isSwapping).toBe(false);
+    });
+
     it("should wrap back to the plain prompt after the last tip", () => {
       const { result } = renderRotating(true);
+      rotateOnce();
       rotateOnce();
       rotateOnce();
       expect(result.current.placeholder).toBe(PLAIN_PROMPT);
@@ -77,6 +88,7 @@ describe("useRotatingPlaceholder()", () => {
 
     it("should cycle through the tips again after wrapping", () => {
       const { result } = renderRotating(true);
+      rotateOnce();
       rotateOnce();
       rotateOnce();
       rotateOnce();

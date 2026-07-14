@@ -3,7 +3,7 @@ import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./co
 import { listAccounts, listPayees, listTags } from "./ledger";
 import { getMemory } from "./memory";
 import { ensureScaffolded } from "./scaffold/scaffold";
-import { getSystemPrompt } from "./system-prompt";
+import { buildContextSection, buildToolsSection, patchBakedDate } from "./system-prompt";
 import {
   addTransactionsTool,
   commitAndPushTool,
@@ -37,10 +37,14 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
     await ensureScaffolded();
   });
 
-  // Inject dynamic context into the system prompt before each agent turn. The tool
-  // snippets + guidelines come from pi's own systemPromptOptions, which reflects the
-  // *enabled* tools (built-in + custom) — so toggling tools via pi flags is honored
-  // here without hardcoding any tool list.
+  // Extend pi's assembled base prompt before each agent turn. The base
+  // (event.systemPrompt) already carries our system.md (loaded via
+  // --system-prompt), pi's native <available_skills> block, and date/cwd lines —
+  // so only the app-specific sections are appended here. The tool snippets +
+  // guidelines come from pi's own systemPromptOptions, which reflects the
+  // *enabled* tools (built-in + custom) — so toggling tools via pi flags is
+  // honored here without hardcoding any tool list. pi bakes the date at session
+  // setup and a desktop session can span days, so re-stamp it each turn.
   pi.on("before_agent_start", async (event) => {
     const today = new Date().toISOString().split("T")[0];
     const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
@@ -51,7 +55,10 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
       .map((name) => ({ name, snippet: toolSnippets[name] }));
 
     return {
-      systemPrompt: getSystemPrompt({ today, memory, accounts, payees, tags, tools, guidelines: promptGuidelines }),
+      systemPrompt:
+        patchBakedDate(event.systemPrompt, today) +
+        buildToolsSection(tools, promptGuidelines) +
+        buildContextSection({ today, memory, accounts, payees, tags }),
     };
   });
 }

@@ -10,6 +10,8 @@ import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 // mounts without a real main process.
 vi.mock("@/rpc/api", () => ({
   ledgerApi: { mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }) },
+  // The composer's `/` skills picker lists skills over IPC.
+  skillsApi: { list: vi.fn().mockResolvedValue({ skills: [] }) },
   settingsApi: {
     get: vi.fn().mockResolvedValue({ enabledModels: [], defaultModel: undefined }),
     onChange: () => () => {},

@@ -62,9 +62,18 @@ describe("ensureScaffolded (via session_start)", () => {
 });
 
 describe("before_agent_start handler", () => {
-  // Tool snippets + guidelines come from pi's systemPromptOptions (computed from the
-  // enabled tools); the extension forwards them into the system prompt.
+  // pi hands the hook its fully assembled base prompt (our system.md via
+  // --system-prompt + the <available_skills> block + date/cwd lines); the
+  // extension extends that base. Tool snippets + guidelines come from pi's
+  // systemPromptOptions (computed from the enabled tools).
+  const basePrompt =
+    "<soul>\nAccountant24 base from system.md\n</soul>\n" +
+    "<available_skills>\n<skill>\n<name>pdf</name>\n</skill>\n</available_skills>\n" +
+    "Current date: 2020-01-01\n" +
+    "Current working directory: /workspace";
+
   const beforeEvent = {
+    systemPrompt: basePrompt,
     systemPromptOptions: {
       selectedTools: ["read", "bash", "edit", "query", "commit_and_push"],
       toolSnippets: {
@@ -109,6 +118,7 @@ describe("before_agent_start handler", () => {
     await pi.handlers.session_start();
 
     const event = {
+      systemPrompt: basePrompt,
       systemPromptOptions: {
         selectedTools: ["read", "secret"],
         toolSnippets: { read: "Read file contents" },
@@ -145,5 +155,43 @@ describe("before_agent_start handler", () => {
     const prompt = result.systemPrompt as string;
     expect(prompt).toContain("Guidelines:");
     expect(prompt).toContain("commit_and_push after completing a batch");
+  });
+
+  test("should preserve pi's assembled base prompt (system.md + skills block) at the start", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start();
+
+    const result = await pi.handlers.before_agent_start(beforeEvent);
+    const prompt = result.systemPrompt as string;
+    expect(prompt.startsWith("<soul>\nAccountant24 base from system.md\n</soul>")).toBe(true);
+    expect(prompt).toContain("<available_skills>");
+    expect(prompt).toContain("Current working directory: /workspace");
+  });
+
+  test("should re-stamp pi's baked date line with today's date", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start();
+
+    const result = await pi.handlers.before_agent_start(beforeEvent);
+    const prompt = result.systemPrompt as string;
+    const today = new Date().toISOString().split("T")[0];
+    expect(prompt).toContain(`Current date: ${today}`);
+    expect(prompt).not.toContain("Current date: 2020-01-01");
+  });
+
+  test("should append tools and context after the base prompt", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start();
+
+    const result = await pi.handlers.before_agent_start(beforeEvent);
+    const prompt = result.systemPrompt as string;
+    const cwdPos = prompt.indexOf("Current working directory:");
+    const toolsPos = prompt.indexOf("<tools>");
+    const contextPos = prompt.indexOf("<context>");
+    expect(cwdPos).toBeLessThan(toolsPos);
+    expect(toolsPos).toBeLessThan(contextPos);
   });
 });

@@ -40,7 +40,9 @@ export default defineConfig({
       // Measure our own source only. `all: true` counts files with zero tests
       // too, so coverage reflects the real surface — not just what tests touched.
       all: true,
-      include: ["packages/*/src/**", "packages/desktop/electron/**"],
+      // Only instrument TS/TSX — text assets imported as strings (.md/.journal/
+      // .gitignore) would otherwise make v8's coverage parser choke on them.
+      include: ["packages/*/src/**/*.{ts,tsx}", "packages/desktop/electron/**/*.{ts,tsx}"],
       // Excluded = not worth testing: tests/fixtures, barrels, entry/glue, stock
       // third-party UI (shadcn — never edited per AGENTS.md), type-only files,
       // and generated/template assets.

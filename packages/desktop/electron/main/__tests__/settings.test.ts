@@ -30,7 +30,11 @@ vi.mock("electron", () => ({
     },
   },
 }));
-vi.mock("../env", () => ({ workspaceDir: () => "/ws" }));
+vi.mock("../env", () => ({
+  workspaceDir: () => "/ws",
+  appSettingsPath: () => "/ws/app-settings.json",
+  legacySettingsPath: () => "/ws/settings.json",
+}));
 
 const SETTINGS_PATH = "/ws/app-settings.json";
 

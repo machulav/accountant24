@@ -26,6 +26,7 @@ vi.mock("electron", () => ({
 vi.mock("../env", () => ({
   workspaceDir: () => "/ws",
   binDir: () => "/vendored/bin",
+  mainJournalPath: () => "/ws/ledger/main.journal",
   agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" }),
 }));
 

@@ -17,7 +17,9 @@ import { ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
 import type { ClipboardEvent, FC } from "react";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/accountant24/attachment";
 import { ComposerModelSelector } from "@/components/accountant24/composer-model-selector";
-import { ComposerMentions, MentionChip } from "@/components/accountant24/mentions";
+import { ComposerSkills } from "@/components/accountant24/composer-skills";
+import { DirectiveChip } from "@/components/accountant24/directive-chips";
+import { ComposerMentions } from "@/components/accountant24/mentions";
 import { RotatingPlaceholderInput } from "@/components/accountant24/rotating-placeholder";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import { Button } from "@/components/shadcn/button";
@@ -74,10 +76,11 @@ export const Composer: FC = () => {
               rotate={isNewChat}
               className="aui-composer-input max-h-32 w-full bg-transparent text-base"
               autoFocus
-              directiveChip={MentionChip}
+              directiveChip={DirectiveChip}
               aria-label="Message input"
             />
             <ComposerMentions />
+            <ComposerSkills />
             <ComposerAction />
           </InputGroup>
         </ComposerPrimitive.AttachmentDropzone>

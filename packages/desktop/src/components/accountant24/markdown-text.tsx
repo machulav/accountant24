@@ -12,7 +12,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo } from "react";
 import remarkGfm from "remark-gfm";
 
-import { MentionPill } from "@/components/accountant24/mentions";
+import { DirectivePill } from "@/components/accountant24/directive-chips";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { remarkMentions } from "@/lib/remark-mentions";
@@ -168,7 +168,7 @@ const defaultComponents = memoizeMarkdownComponents({
     const type = (props as Record<string, unknown>)["data-mention-type"];
     const label = (props as Record<string, unknown>)["data-mention-label"];
     if (typeof type === "string" && typeof label === "string") {
-      return <MentionPill type={type} label={label} />;
+      return <DirectivePill type={type} label={label} />;
     }
     return <span className={className} {...props} />;
   },

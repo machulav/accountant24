@@ -11,7 +11,7 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
-import { agentEnv, binDir, workspaceDir } from "./env";
+import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
 
 export type LedgerMentions = { accounts: string[]; payees: string[]; tags: string[] };
 
@@ -46,7 +46,7 @@ function hledger(args: string[]): Promise<string[]> {
 }
 
 async function ledgerMentions(): Promise<LedgerMentions> {
-  const journal = path.join(workspaceDir(), "ledger", "main.journal");
+  const journal = mainJournalPath();
   const [accounts, payees, tags] = await Promise.all([
     hledger(["accounts", "-f", journal]),
     hledger(["payees", "-f", journal]),

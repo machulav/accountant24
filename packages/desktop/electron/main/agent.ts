@@ -9,10 +9,20 @@
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import path from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
 import { trackAgentFailed } from "./analytics";
-import { agentEnv, extensionPath, nodeRuntimePath, piCliPath, workspaceDir } from "./env";
+import {
+  agentEnv,
+  extensionPath,
+  nativeSkillsDir,
+  nodeRuntimePath,
+  piCliPath,
+  sessionsDir,
+  skillsDir,
+  systemPromptPath,
+  workspaceDir,
+} from "./env";
+import { buildSkillArgs } from "./skills-store";
 
 let child: ChildProcess | null = null;
 // Children we deliberately killed (restart / app quit), so their `exit` isn't
@@ -25,7 +35,6 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
   // current_dir requires the dir to exist at spawn time (the extension scaffolds
   // its contents later, on session_start).
   mkdirSync(workspace, { recursive: true });
-  const sessionsDir = path.join(workspace, "sessions");
 
   const proc = spawn(
     nodeRuntimePath(),
@@ -34,10 +43,26 @@ function spawnAgent(getWin: () => BrowserWindow | null): void {
       "--mode",
       "rpc",
       "--no-extensions",
+      // Skills load from EXACTLY two places: the native dir embedded in the
+      // app bundle and the workspace skills folder (third-party installs).
+      // --no-skills removes every other channel — default discovery
+      // (agentDir/skills, .pi/skills), settings.json skills[]/packages[] —
+      // leaving only the explicit --skill flags below; skills bundled inside
+      // `-e` extension *sources* would also load, but our only -e is a plain
+      // local .js file (pi resource-loader.js:277, verified for 0.79.8).
       "--no-skills",
       "--no-prompt-templates",
+      // pi replaces its coding-agent preamble with system.md but still
+      // assembles its native sections (<available_skills>, date/cwd) around
+      // it; the extension appends the dynamic tools/context per turn.
+      "--system-prompt",
+      systemPromptPath(),
+      // Native (built-in) skills: always on, one flag for the whole dir.
+      "--skill",
+      nativeSkillsDir(),
+      ...buildSkillArgs(skillsDir()),
       "--session-dir",
-      sessionsDir,
+      sessionsDir(),
       "-e",
       extensionPath(),
     ],
