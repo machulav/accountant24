@@ -1,3 +1,5 @@
+> Keep entries in this file brief and high-level: principles and conventions, not implementation detail.
+
 # Tech Stack
 
 ## Shared
@@ -37,6 +39,7 @@ The desktop app uses the **wrapper pattern**: library components stay untouched;
 - Build UI/UX from stock `shadcn/` components with their default look wherever possible; customize only when absolutely necessary.
 - When customization is necessary, wrap the library component with a new component in `accountant24/` — don't edit the original.
 - Style with theme tokens from `src/index.css`; no hardcoded colors.
+- **Match existing shadcn idioms by default.** When building custom UI, reuse the closest existing `shadcn/` component's token pattern rather than hand-rolling ad-hoc styles.
 - **No speculative style overrides.** Never add custom classes/styles to work around a behavior before finding its root cause — fix the cause instead. Add an override only when verified necessary (reproduce the problem, confirm the override is the minimal fix), and comment why it exists.
 - Dark theme follows the OS: `src/lib/systemTheme.ts` toggles the `.dark` class globally — no per-component theme handling.
 

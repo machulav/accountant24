@@ -5,6 +5,7 @@
 
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
 import type { OAuthLogin } from "@/components/auth/useOAuthLogin";
 import { Button } from "@/components/shadcn/button";
 import {
@@ -12,10 +13,8 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogOverlay,
   DialogPortal,
-  DialogTitle,
 } from "@/components/shadcn/dialog";
 import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
@@ -99,41 +98,41 @@ function ApiKeyForm({
   };
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Connect {provider.displayName}</DialogTitle>
+    <DialogContent showCloseButton={false} className="flex flex-col gap-0 overflow-hidden p-0">
+      <AppDialogHeader title={`Connect ${provider.displayName}`} />
+      <div className="flex flex-col gap-6 p-6">
         <DialogDescription>
           Paste an API key from your {provider.displayName} account. It will be stored locally on this device.
         </DialogDescription>
-      </DialogHeader>
-      <Field>
-        <FieldLabel htmlFor="provider-api-key">API Key</FieldLabel>
-        <InputGroup>
-          <InputGroupInput
-            id="provider-api-key"
-            type={show ? "text" : "password"}
-            value={key}
-            placeholder="Paste your API key"
-            autoFocus
-            autoComplete="off"
-            spellCheck={false}
-            disabled={busy}
-            onChange={(e) => setKey(e.currentTarget.value)}
-            onKeyDown={(e) => e.key === "Enter" && void submit()}
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-xs"
-              aria-label={show ? "Hide API key" : "Show API key"}
-              onClick={() => setShow((s) => !s)}
-            >
-              {show ? <EyeOffIcon /> : <EyeIcon />}
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-        {error && <ErrorBanner message={error} />}
-      </Field>
-      <DialogFooter>
+        <Field>
+          <FieldLabel htmlFor="provider-api-key">API Key</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="provider-api-key"
+              type={show ? "text" : "password"}
+              value={key}
+              placeholder="Paste your API key"
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+              onChange={(e) => setKey(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && void submit()}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                aria-label={show ? "Hide API key" : "Show API key"}
+                onClick={() => setShow((s) => !s)}
+              >
+                {show ? <EyeOffIcon /> : <EyeIcon />}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+          {error && <ErrorBanner message={error} />}
+        </Field>
+      </div>
+      <DialogFooter className="border-t px-6 py-4">
         <Button variant="outline" onClick={onClose} disabled={busy}>
           Cancel
         </Button>
@@ -203,13 +202,11 @@ function OAuthSignInBody({
   const label = isCopilotDomainPrompt ? "GitHub Enterprise domain (optional)" : textRequest?.message;
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Sign in to {provider.displayName}</DialogTitle>
-        <DialogDescription>Follow the steps to connect your {provider.displayName} account.</DialogDescription>
-      </DialogHeader>
+    <DialogContent showCloseButton={false} className="flex flex-col gap-0 overflow-hidden p-0">
+      <AppDialogHeader title={`Sign in to ${provider.displayName}`} />
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-6">
+        <DialogDescription>Follow the steps to connect your {provider.displayName} account.</DialogDescription>
         {lines.length > 0 && (
           <div className="flex flex-col gap-2">
             {lines.map((line, i) => {
@@ -294,7 +291,7 @@ function OAuthSignInBody({
         {oauth.error && <ErrorBanner message={oauth.error} />}
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="border-t px-6 py-4">
         <Button variant="outline" onClick={onClose}>
           {oauth.error ? "Close" : "Cancel"}
         </Button>
