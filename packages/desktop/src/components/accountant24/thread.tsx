@@ -4,7 +4,7 @@ import {
   AuiIf,
   groupPartByType,
   MessagePrimitive,
-  type ReasoningMessagePartComponent,
+  TextMessagePartProvider,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
@@ -12,7 +12,11 @@ import {
 import { ArrowDownIcon } from "lucide-react";
 import { type ComponentType, createContext, type FC, memo, useContext } from "react";
 import { UserMessageImage, UserMessageText } from "@/components/accountant24/attachment";
-import { ChainOfThoughtRoot, ChainOfThoughtStep } from "@/components/accountant24/chain-of-thought";
+import {
+  ChainOfThoughtRoot,
+  ChainOfThoughtStep,
+  splitReasoningSections,
+} from "@/components/accountant24/chain-of-thought";
 import { Composer, EditComposer, isNewChatView } from "@/components/accountant24/composer";
 import { MarkdownText } from "@/components/accountant24/markdown-text";
 import { MessageError } from "@/components/accountant24/message-error";
@@ -22,7 +26,14 @@ import { Bubble, BubbleContent } from "@/components/shadcn/bubble";
 import { Message, MessageContent, MessageGroup } from "@/components/shadcn/message";
 import { cn } from "@/lib/utils";
 
-const Reasoning: ReasoningMessagePartComponent = memo(() => <MarkdownText />);
+/** One reasoning timeline section as standalone markdown. The provider scopes
+ *  MarkdownText to the section's slice of the part; `isRunning` keeps the
+ *  streaming affordances (smooth reveal, trailing dot) on the last section. */
+const ReasoningSection = memo(({ text, isRunning }: { text: string; isRunning: boolean }) => (
+  <TextMessagePartProvider text={text} isRunning={isRunning}>
+    <MarkdownText />
+  </TextMessagePartProvider>
+));
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -168,12 +179,20 @@ const AssistantMessage: FC = () => {
                 );
               case "text":
                 return <MarkdownText />;
-              case "reasoning":
-                return (
-                  <ChainOfThoughtStep variant="reasoning">
-                    <Reasoning {...part} />
+              case "reasoning": {
+                // One step (= one rail dot) per summary section. GroupedParts
+                // re-renders on every parts update, so a part skipped while
+                // empty appears as soon as its text streams in.
+                const sections = splitReasoningSections(part.text);
+                const running = part.status?.type === "running";
+                return sections.map((text, i) => (
+                  // Index keys are stable here: sections only grow at the end
+                  // while streaming, and never reorder.
+                  <ChainOfThoughtStep key={i} variant="reasoning">
+                    <ReasoningSection text={text} isRunning={running && i === sections.length - 1} />
                   </ChainOfThoughtStep>
-                );
+                ));
+              }
               case "tool-call":
                 return (
                   <ChainOfThoughtStep variant="tool">

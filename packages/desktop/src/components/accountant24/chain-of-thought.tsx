@@ -41,6 +41,17 @@ export const turnDurationMs = (
   return null;
 };
 
+/**
+ * Split a reasoning part's markdown into timeline sections: pi joins a turn's
+ * summary sections into ONE thinking part (`**Title**` blocks separated by
+ * blank lines), which as a single step would put a rail dot next to the first
+ * title only. A new section starts at each blank line followed by a
+ * standalone bold-title line; text without such titles stays one section.
+ * Blank text yields none (Codex can send encrypted CoT with no summary).
+ */
+export const splitReasoningSections = (text: string): string[] =>
+  text.split(/\n{2,}(?=\*\*[^\n]+\*\*(?:\n|$))/).filter((section) => section.trim().length > 0);
+
 /** Trigger label: live shimmer while working, duration when known, step count fallback. */
 export const chainLabel = (active: boolean, durationMs: number | null, count: number) =>
   active
