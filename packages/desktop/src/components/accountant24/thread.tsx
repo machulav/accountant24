@@ -206,7 +206,11 @@ const AssistantMessage: FC = () => {
                   <span
                     role="status"
                     data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
+                    // Pinned system-font stack, not font-sans: Inter draws U+25CF
+                    // smaller than the system font, which shrank the dot when the
+                    // theme set --font-sans to Inter. Same stack as the in-text
+                    // streaming dot (react-markdown dot.css), so the two match.
+                    className="animate-pulse [font-family:ui-sans-serif,system-ui,sans-serif]"
                     aria-label="Assistant is working"
                   >
                     {"●"}
