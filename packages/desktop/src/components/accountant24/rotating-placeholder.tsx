@@ -11,26 +11,20 @@ const COMPOSER_PLACEHOLDERS = [
   "Type @ to mention accounts, payees, tags",
   "Type / to use a skill",
 ];
-const PLACEHOLDER_ROTATE_MS = 10000;
+const PLACEHOLDER_ROTATE_MS = 5000;
 // Must match the .aui-lexical-placeholder transition duration in index.css.
 const PLACEHOLDER_SWAP_MS = 100;
 
 /** Two-phase swap so the placeholder animates: fade the current text out,
- *  then swap it and let the CSS transition fade the new one back in.
- *  When disabled (existing chats), stays on the plain prompt. */
-export const useRotatingPlaceholder = (enabled: boolean): { placeholder: string; isSwapping: boolean } => {
+ *  then swap it and let the CSS transition fade the new one back in. */
+export const useRotatingPlaceholder = (): { placeholder: string; isSwapping: boolean } => {
   const [index, setIndex] = useState(0);
   const [isSwapping, setIsSwapping] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {
-      setIndex(0);
-      setIsSwapping(false);
-      return;
-    }
     const id = setInterval(() => setIsSwapping(true), PLACEHOLDER_ROTATE_MS);
     return () => clearInterval(id);
-  }, [enabled]);
+  }, []);
 
   useEffect(() => {
     if (!isSwapping) return;
@@ -44,16 +38,13 @@ export const useRotatingPlaceholder = (enabled: boolean): { placeholder: string;
   return { placeholder: COMPOSER_PLACEHOLDERS[index] ?? "Write a message...", isSwapping };
 };
 
-type RotatingPlaceholderInputProps = Omit<ComponentProps<typeof LexicalComposerInput>, "placeholder"> & {
-  /** Rotate through the tips only when true; otherwise show the plain prompt. */
-  rotate?: boolean;
-};
+type RotatingPlaceholderInputProps = Omit<ComponentProps<typeof LexicalComposerInput>, "placeholder">;
 
 /** LexicalComposerInput with the rotating placeholder. The `display: contents`
  *  wrapper carries data-placeholder-swapping for the swap transition in
  *  index.css without affecting the composer shell's flex layout. */
-export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = ({ rotate = false, ...rest }) => {
-  const { placeholder, isSwapping } = useRotatingPlaceholder(rotate);
+export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = (props) => {
+  const { placeholder, isSwapping } = useRotatingPlaceholder();
   const editorRef = useRef<HTMLDivElement>(null);
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
   useDeleteLineWithChips(editorRef);
@@ -67,7 +58,7 @@ export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = ({ ro
 
   return (
     <div className="contents" data-placeholder-swapping={isSwapping || undefined}>
-      <LexicalComposerInput ref={editorRef} placeholder={placeholder} {...rest} />
+      <LexicalComposerInput ref={editorRef} placeholder={placeholder} {...props} />
     </div>
   );
 };

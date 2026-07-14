@@ -5,14 +5,7 @@
 // picker, dictation, send) below. EditComposer is the in-place variant shown
 // when editing an already sent user message.
 
-import {
-  type AssistantState,
-  AuiIf,
-  ComposerPrimitive,
-  MessagePrimitive,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react";
+import { type AssistantState, AuiIf, ComposerPrimitive, MessagePrimitive, useAui } from "@assistant-ui/react";
 import { ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
 import type { ClipboardEvent, FC } from "react";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/accountant24/attachment";
@@ -56,7 +49,6 @@ export const handleComposerFilePaste = (
 };
 
 export const Composer: FC = () => {
-  const isNewChat = useAuiState(isNewChatView);
   const aui = useAui();
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -73,7 +65,6 @@ export const Composer: FC = () => {
           >
             <ComposerAttachments />
             <RotatingPlaceholderInput
-              rotate={isNewChat}
               className="aui-composer-input max-h-32 w-full bg-transparent text-base"
               autoFocus
               directiveChip={DirectiveChip}
