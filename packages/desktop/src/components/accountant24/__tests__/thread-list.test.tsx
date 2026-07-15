@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // IPC boundary: the thread list reads session mtimes over the Electron bridge.
 vi.mock("@/rpc/api", () => ({
@@ -11,7 +11,49 @@ vi.mock("@/rpc/api", () => ({
 
 import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRuntime } from "@assistant-ui/react";
 import { SidebarProvider } from "@/components/shadcn/sidebar";
+import { sessionsApi } from "@/rpc/api";
+import type { SessionSummary } from "@/rpc/types";
 import { ThreadList } from "../thread-list";
+
+const listMock = vi.mocked(sessionsApi.list);
+
+beforeEach(() => {
+  listMock.mockReset();
+  listMock.mockResolvedValue({ type: "sessions", sessions: [] });
+});
+
+type ThreadFixture = { id: string; title: string };
+
+/** Build a Chrome around a caller-supplied set of threads + thread-list state. */
+function makeChrome(opts: {
+  threads: ThreadFixture[];
+  threadId?: string;
+  isLoading?: boolean;
+  onDelete?: (threadId: string) => void | Promise<void>;
+}) {
+  return function CustomChrome({ children }: { children: ReactNode }) {
+    const store: ExternalStoreAdapter = {
+      messages: [],
+      onNew: async () => {},
+      adapters: {
+        threadList: {
+          threadId: opts.threadId ?? opts.threads[0]?.id,
+          isLoading: opts.isLoading,
+          threads: opts.threads.map((t) => ({ id: t.id, status: "regular", title: t.title })),
+          onSwitchToThread: () => {},
+          onSwitchToNewThread: () => {},
+          onDelete: opts.onDelete ?? (async () => {}),
+        },
+      },
+    };
+    const runtime = useExternalStoreRuntime(store);
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <SidebarProvider>{children}</SidebarProvider>
+      </AssistantRuntimeProvider>
+    );
+  };
+}
 
 beforeAll(() => {
   // jsdom lacks the layout/observer APIs the menu machinery touches.
@@ -145,5 +187,151 @@ describe("ThreadList row hover highlight", () => {
     // permanently visible in the narrow drawer. The desktop app always has a
     // mouse, so the unprefixed opacity-0 must be present too.
     expect(trigger.className).toMatch(/(?:^|\s)opacity-0(?:\s|$)/);
+  });
+});
+
+const DAY = 86_400_000;
+
+describe("ThreadList date grouping", () => {
+  // Fixture times are pinned relative to the current clock: a time from `now`
+  // is always in Today, `now - 1 day` in Yesterday, `now - 3 days` in Earlier —
+  // regardless of when the test runs (the component reads midnight-today from
+  // the same clock).
+  const seedTimes = (entries: { path: string; modified: string }[]) =>
+    listMock.mockResolvedValue({ type: "sessions", sessions: entries as unknown as SessionSummary[] });
+
+  const groupFor = (label: string) => screen.getByText(label).closest('[data-slot="sidebar-group"]') as HTMLElement;
+
+  it("should label a session modified today as Today", async () => {
+    seedTimes([{ path: "t-today", modified: new Date().toISOString() }]);
+    const Chrome = makeChrome({ threads: [{ id: "t-today", title: "today chat" }] });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+    await screen.findByText("Today");
+    expect(within(groupFor("Today")).getByText("today chat")).toBeInTheDocument();
+  });
+
+  it("should sort sessions into Today, Yesterday, and Earlier groups by modified time", async () => {
+    const now = Date.now();
+    seedTimes([
+      { path: "t-old", modified: new Date(now - 3 * DAY).toISOString() },
+      { path: "t-new", modified: new Date(now).toISOString() },
+      { path: "t-mid", modified: new Date(now - DAY).toISOString() },
+    ]);
+    const Chrome = makeChrome({
+      threads: [
+        { id: "t-old", title: "old chat" },
+        { id: "t-new", title: "new chat" },
+        { id: "t-mid", title: "mid chat" },
+      ],
+    });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    await screen.findByText("Earlier");
+
+    // Each session lands in the group its modified time dictates…
+    expect(within(groupFor("Today")).getByText("new chat")).toBeInTheDocument();
+    expect(within(groupFor("Yesterday")).getByText("mid chat")).toBeInTheDocument();
+    expect(within(groupFor("Earlier")).getByText("old chat")).toBeInTheDocument();
+
+    // …and the groups are ordered newest-first regardless of thread order.
+    const labels = screen.getAllByText(/^(Today|Yesterday|Earlier)$/).map((el) => el.textContent);
+    expect(labels).toEqual(["Today", "Yesterday", "Earlier"]);
+  });
+
+  it("should render a single ungrouped list when no session times are known", async () => {
+    // sessionsApi.list resolves empty (default) → times map stays empty.
+    const Chrome = makeChrome({ threads: [{ id: "t1", title: "test chat" }] });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    await screen.findByText("test chat");
+    // No date headers when times are unknown.
+    expect(screen.queryByText("Today")).toBeNull();
+    expect(screen.queryByText("Yesterday")).toBeNull();
+    expect(screen.queryByText("Earlier")).toBeNull();
+  });
+});
+
+describe("ThreadList empty state", () => {
+  it("should render no thread rows and no ••• actions when there are no threads", async () => {
+    const Chrome = makeChrome({ threads: [] });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "More options" })).toBeNull();
+    expect(screen.queryByText("test chat")).toBeNull();
+  });
+});
+
+describe("ThreadList loading state", () => {
+  it("should show the loading skeleton and no thread rows while threads are loading", async () => {
+    const Chrome = makeChrome({ threads: [{ id: "t1", title: "test chat" }], isLoading: true });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    expect(screen.getByRole("status", { name: "Loading threads" })).toBeInTheDocument();
+    expect(screen.queryByText("test chat")).toBeNull();
+  });
+});
+
+describe("ThreadList delete", () => {
+  it("should delete the row's thread when Delete is chosen from the ••• menu", async () => {
+    const onDelete = vi.fn();
+    const Chrome = makeChrome({ threads: [{ id: "t1", title: "test chat" }], onDelete });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    const trigger = await screen.findByRole("button", { name: "More options" });
+    press(trigger);
+    const del = await screen.findByText("Delete");
+    press(del);
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith("t1"));
+  });
+});
+
+describe("ThreadList active session", () => {
+  it("should mark only the active thread's row as active", async () => {
+    listMock.mockResolvedValue({ type: "sessions", sessions: [] });
+    const Chrome = makeChrome({
+      threads: [
+        { id: "t1", title: "first chat" },
+        { id: "t2", title: "second chat" },
+      ],
+      threadId: "t2",
+    });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    await screen.findByText("second chat");
+    const rowOf = (title: string) =>
+      screen.getByText(title).closest('[data-slot="aui_thread-list-item"]') as HTMLElement;
+
+    expect(rowOf("second chat")).toHaveAttribute("data-active");
+    expect(rowOf("first chat")).not.toHaveAttribute("data-active");
   });
 });

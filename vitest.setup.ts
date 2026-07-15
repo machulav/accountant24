@@ -1,5 +1,12 @@
 import { expect } from "vitest";
 
+// jest-dom DOM matchers (toBeInTheDocument, toBeDisabled, …) for component tests.
+// Only load in a DOM environment — this setup file also runs for node-env tests,
+// where document is undefined and the matchers would be meaningless.
+if (typeof document !== "undefined") {
+  await import("@testing-library/jest-dom/vitest");
+}
+
 // bun:test shipped toStartWith/toEndWith; vitest doesn't. Re-add them so the
 // migrated tests keep working unchanged.
 expect.extend({

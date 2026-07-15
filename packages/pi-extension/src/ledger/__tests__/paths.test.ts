@@ -53,5 +53,22 @@ describe("resolveSafePath()", () => {
     test("should include the offending path in error message", () => {
       expect(() => resolveSafePath("../../secret", baseDir)).toThrow("../../secret");
     });
+
+    test("should throw when an absolute path points outside the base", () => {
+      expect(() => resolveSafePath("/etc/passwd", baseDir)).toThrow("Path escapes base directory");
+    });
+
+    test("should throw for a sibling dir that shares the base name as a prefix", () => {
+      // "/home/user/workspace-evil" starts with "/home/user/workspace" as a
+      // string but is NOT inside it — the separator check must reject it.
+      expect(() => resolveSafePath("../workspace-evil/x", baseDir)).toThrow("Path escapes base directory");
+    });
+  });
+
+  describe("boundary", () => {
+    test("should allow a path that resolves to exactly the base directory", () => {
+      expect(resolveSafePath("", baseDir)).toBe(baseDir);
+      expect(resolveSafePath(".", baseDir)).toBe(baseDir);
+    });
   });
 });

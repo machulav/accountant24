@@ -180,6 +180,88 @@ describe("<SidebarResizeHandle />", () => {
     expect(window.localStorage.getItem("accountant24.sidebar-width")).toBe("256");
   });
 
+  it("should ignore a pointer move when no drag is in progress", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    // A stray move with no preceding pointerDown must not resize anything.
+    fireEvent.pointerMove(handle, { clientX: 400, pointerId: 1 });
+    expect(widthVar(wrapper)).toBe("256px");
+  });
+
+  it("should ignore a pointer up when no drag is in progress", () => {
+    renderHandle();
+    const handle = getHandle();
+    fireEvent.pointerUp(handle, { clientX: 400, pointerId: 1 });
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
+  it("should ignore keys other than the arrows", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    fireEvent.keyDown(handle, { key: "Enter" });
+    fireEvent.keyDown(handle, { key: "a" });
+    expect(widthVar(wrapper)).toBe("256px");
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
+  it("should start from the default width when the wrapper has no width variable", () => {
+    const { wrapper } = renderHandle();
+    // No --sidebar-width set: getWidth() must fall back to the 256px default, so a
+    // +50px drag lands at 306, not NaN.
+    wrapper.style.removeProperty("--sidebar-width");
+    const handle = getHandle();
+    fireEvent.pointerDown(handle, { clientX: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 50, pointerId: 1 });
+    expect(widthVar(wrapper)).toBe("306px");
+  });
+
+  it("should do nothing on pointer down when the wrapper cannot be found", () => {
+    const { wrapper } = renderHandle();
+    // Detach the wrapper marker so getWrapper() returns null on the next event.
+    wrapper.removeAttribute("data-slot");
+    const handle = getHandle();
+    fireEvent.pointerDown(handle, { clientX: 256, pointerId: 1 });
+    // No drag begins: the resizing flag is never set.
+    expect(wrapper.getAttribute("data-sidebar-resizing")).toBeNull();
+  });
+
+  it("should abort the move when the wrapper disappears mid-drag", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    fireEvent.pointerDown(handle, { clientX: 256, pointerId: 1 });
+    wrapper.removeAttribute("data-slot");
+    fireEvent.pointerMove(handle, { clientX: 400, pointerId: 1 });
+    // The width would have grown to 400 had the wrapper still been reachable.
+    expect(widthVar(wrapper)).toBe("256px");
+  });
+
+  it("should skip persistence when the wrapper disappears before pointer up", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    fireEvent.pointerDown(handle, { clientX: 256, pointerId: 1 });
+    wrapper.removeAttribute("data-slot");
+    fireEvent.pointerUp(handle, { clientX: 300, pointerId: 1 });
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
+  it("should ignore an arrow key when the wrapper cannot be found", () => {
+    const { wrapper } = renderHandle();
+    wrapper.removeAttribute("data-slot");
+    const handle = getHandle();
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(widthVar(wrapper)).toBe("256px");
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
+  it("should do nothing on double-click when the wrapper cannot be found", () => {
+    const { wrapper } = renderHandle();
+    wrapper.removeAttribute("data-slot");
+    const handle = getHandle();
+    fireEvent.doubleClick(handle);
+    expect(widthVar(wrapper)).toBe("256px");
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
   it("should not render a handle when the sidebar is collapsed", () => {
     renderHandle(false);
     expect(screen.queryByRole("separator", { name: "Resize sidebar" })).toBeNull();

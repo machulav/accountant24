@@ -10,3 +10,6 @@ packages/desktop/resources/bin/*
 .env
 .claude/worktrees/
 coverage/
+# Playwright E2E artifacts
+test-results/
+playwright-report/

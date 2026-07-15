@@ -72,3 +72,30 @@ Tests are **specifications**, not verifications of current code. Write tests tha
     });
   });
   ```
+
+## Test types
+
+Four tiers, all on Vitest (`npm test`); the first three run in CI on every PR.
+
+- **Unit** (`node` env) — pure logic: formatters, parsers, validators, arg-builders, reducers. The default and largest tier. Reach for it for any pure function.
+- **Component** (`jsdom` + Testing Library) — a single React component in isolation. Mock the IPC layer with `vi.mock("@/rpc/api", …)`. Use for render/interaction behavior of one component.
+- **Integration** (`*.integration.test.ts(x)`) — a flow across modules. Two shapes: main-process handlers over a real temp workspace (`electron/main/__tests__/tmpWorkspace.ts`), or renderer flows over a fake `window.api` bridge (`src/test/fakeApi.ts`). Use for user flows and cross-boundary wiring.
+- **E2E smoke** (Playwright-Electron, `packages/desktop/e2e/`, `npm run e2e`) — the real app on a few critical happy paths, with the pi agent stubbed. Guards wiring (preload allowlist, IPC, build), not logic. Keep it tiny.
+
+## Best practices per tier
+
+- **Unit** — mock only at fs/child_process; keep functions small and pure.
+- **Component** — assert on roles/text, not classes or DOM structure; use the shared `src/test/jsdomPolyfills.ts` preamble; drive interaction with `@testing-library/user-event`.
+- **Integration** — assert **both** the resulting UI/state **and** the exact IPC calls (`fakeApi.calls` / invoked main handlers). Use a temp `ACCOUNTANT24_HOME`, never a global `node:fs` mock.
+- **E2E** — deterministic and small; stub the agent (no real LLM/network); leave logic coverage to the lower tiers.
+
+## Coverage
+
+- **Target: pragmatic 100%.** Thresholds are enforced in `vitest.config.ts` and **only ratchet up, never down**.
+- **Excluded** (not worth testing): stock `shadcn/` components (never edited), barrel `index.ts` files, entry/glue, generated/template assets, type-only files. Everything else — business logic and our own components — is expected to be covered.
+
+## Covering new work
+
+- Every new feature or module ships **in the same PR** with tests at **all applicable tiers**: pure logic → unit; new/changed component → component; new user flow → integration; new critical happy path → an E2E line.
+- A change must not drop coverage below the gate.
+- A bug fix ships with a regression test that **fails before** the fix and passes after.

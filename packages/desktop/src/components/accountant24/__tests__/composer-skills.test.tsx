@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SkillsList } from "@/rpc/types";
+import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
 // IPC boundary: skills come from skillsApi, refresh signal from agentApi.
 const h = vi.hoisted(() => ({
@@ -22,9 +23,23 @@ vi.mock("@/rpc/api", () => ({
   },
 }));
 
-import type { Unstable_TriggerItem } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  ComposerPrimitive,
+  type ExternalStoreAdapter,
+  type Unstable_TriggerItem,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
+import type { ReactNode } from "react";
 import { createSkillsAdapter, useEnabledSkills } from "../composer-skills";
-import { groupSkillRows } from "../composer-skills-popover";
+import { ComposerSkillsPopover, groupSkillRows } from "../composer-skills-popover";
+
+beforeAll(() => {
+  installJsdomPolyfills();
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= () => {};
+  Element.prototype.releasePointerCapture ??= () => {};
+});
 
 /** Minimal trigger item for grouping specs. */
 function triggerItem(id: string, native: boolean): Unstable_TriggerItem {
@@ -192,5 +207,90 @@ describe("groupSkillRows()", () => {
 
   it("should return an empty list for no items", () => {
     expect(groupSkillRows([])).toEqual([]);
+  });
+});
+
+describe("<ComposerSkillsPopover />", () => {
+  const SKILLS = [
+    { name: "pdf", description: "Read and split PDFs.", enabled: true, native: true },
+    { name: "budget", description: "Plan a monthly budget.", enabled: true },
+  ];
+
+  /** A live composer hosting the `/` skills popover, fed the given skills. */
+  function Picker({ skills, emptyLabel }: { skills: typeof SKILLS; emptyLabel: string }) {
+    const adapter = createSkillsAdapter(skills);
+    return (
+      <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+        <ComposerPrimitive.Root>
+          <ComposerPrimitive.Input />
+          <ComposerSkillsPopover adapter={adapter} emptyLabel={emptyLabel} />
+        </ComposerPrimitive.Root>
+      </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    );
+  }
+
+  function renderPicker(skills = SKILLS, emptyLabel = "No skills found") {
+    function Chrome({ children }: { children: ReactNode }) {
+      const store: ExternalStoreAdapter = { messages: [], onNew: async () => {} };
+      const runtime = useExternalStoreRuntime(store);
+      return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+    }
+    render(
+      <Chrome>
+        <Picker skills={skills} emptyLabel={emptyLabel} />
+      </Chrome>,
+    );
+    return screen.getByRole("textbox") as HTMLTextAreaElement;
+  }
+
+  /** Type `value` and place the cursor at its end — the trigger detector reads both. */
+  const type = (input: HTMLTextAreaElement, value: string) => {
+    fireEvent.change(input, { target: { value } });
+    input.selectionStart = value.length;
+    input.selectionEnd = value.length;
+    fireEvent.select(input);
+  };
+
+  it("should stay closed until a leading slash is typed", () => {
+    renderPicker();
+    expect(screen.queryByText("pdf")).toBeNull();
+  });
+
+  it("should open on a leading slash and list every enabled skill with its description", async () => {
+    const input = renderPicker();
+    type(input, "/");
+    await waitFor(() => expect(screen.getByText("pdf")).toBeInTheDocument());
+    expect(screen.getByText("budget")).toBeInTheDocument();
+    expect(screen.getByText("Read and split PDFs.")).toBeInTheDocument();
+  });
+
+  it("should show inline Built-in and Custom section headers when both groups are present", async () => {
+    const input = renderPicker();
+    type(input, "/");
+    await waitFor(() => expect(screen.getByText("pdf")).toBeInTheDocument());
+    expect(screen.getByText("Built-in")).toBeInTheDocument();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
+  });
+
+  it("should narrow the list to the matching skill as the query is typed", async () => {
+    const input = renderPicker();
+    type(input, "/budget");
+    await waitFor(() => expect(screen.getByText("budget")).toBeInTheDocument());
+    expect(screen.queryByText("pdf")).toBeNull();
+  });
+
+  it("should show the empty label when no skill matches the query", async () => {
+    const input = renderPicker(SKILLS, "No skills found");
+    type(input, "/zzz");
+    await waitFor(() => expect(screen.getByText("No skills found")).toBeInTheDocument());
+  });
+
+  it("should close the popover once a skill is selected", async () => {
+    const input = renderPicker();
+    type(input, "/");
+    await waitFor(() => expect(screen.getByText("budget")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("budget"));
+    // Selecting inserts the directive chip and deactivates the trigger.
+    await waitFor(() => expect(screen.queryByText("Read and split PDFs.")).toBeNull());
   });
 });
