@@ -36,11 +36,3 @@ test("opens Settings on the Providers section when a connect option is clicked",
   // The Settings dialog opens; its Providers section lists the "Available" group.
   await expect(window.getByText("Available")).toBeVisible();
 });
-
-// E2 (send a message -> assistant reply renders) and E3 (change a setting ->
-// persists across relaunch) require a STUBBED pi agent so the run is
-// deterministic and offline. That needs a small env-gated hook in
-// electron/main/agent.ts to spawn a canned-reply fake instead of the real pi
-// child. Tracked as follow-up; skipped here so the tier stays green and honest.
-test.skip("E2: streams an assistant reply for a sent message (needs agent stub)", async () => {});
-test.skip("E3: persists a settings change across relaunch (needs agent stub)", async () => {});

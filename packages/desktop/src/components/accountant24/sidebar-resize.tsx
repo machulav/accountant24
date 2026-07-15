@@ -101,6 +101,7 @@ export const SidebarResizeHandle: FC = () => {
   };
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: focusable separator widget (aria-valuenow + tabIndex + handlers); <hr> is a non-interactive thematic break and cannot represent it.
     <div
       role="separator"
       aria-label="Resize sidebar"
