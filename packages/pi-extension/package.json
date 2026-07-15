@@ -14,7 +14,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./entry": "./src/entry.ts",
-    "./tool-labels": "./src/tool-labels.ts"
+    "./tool-labels": "./src/tool-labels.ts",
+    "./ledger/dashboard": "./src/ledger/dashboard.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.79.8",

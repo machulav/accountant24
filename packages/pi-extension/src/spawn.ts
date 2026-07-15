@@ -7,9 +7,12 @@ import { spawn } from "node:child_process";
 
 export type SpawnResult = { exitCode: number; stdout: string; stderr: string };
 
-export function spawnText(cmd: string[], opts?: { cwd?: string; signal?: AbortSignal }): Promise<SpawnResult> {
+export function spawnText(
+  cmd: string[],
+  opts?: { cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal },
+): Promise<SpawnResult> {
   return new Promise<SpawnResult>((resolve, reject) => {
-    const proc = spawn(cmd[0], cmd.slice(1), { cwd: opts?.cwd });
+    const proc = spawn(cmd[0], cmd.slice(1), { cwd: opts?.cwd, env: opts?.env });
     let stdout = "";
     let stderr = "";
     proc.stdout?.on("data", (d) => {

@@ -1,5 +1,6 @@
 export { listAccounts } from "./accounts";
 export { type BriefingData, fetchBriefingData } from "./briefing";
+export { type DashboardData, fetchDashboardData } from "./dashboard";
 export { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger, tryRunHledger } from "./hledger";
 export { resolveSafePath } from "./paths";
 export { listPayees } from "./payees";

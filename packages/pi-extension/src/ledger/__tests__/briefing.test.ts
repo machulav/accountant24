@@ -360,6 +360,27 @@ describe("fetchBriefingData()", () => {
       expect(cat.name).not.toContain("Expenses:");
     }
   });
+
+  test("should strip lowercase expenses: prefix from category names", async () => {
+    const cats = `"account","balance"\n"expenses:food","500.00 EUR"\n"expenses:transport","300.00 EUR"\n"Total:","800.00 EUR"`;
+    setAllQueries(null, null, null, null, cats);
+    const data = await fetchBriefingData("/fake/main.journal");
+    expect(data.topCategories).toEqual([
+      { name: "food", amount: 500, currency: "EUR" },
+      { name: "transport", amount: 300, currency: "EUR" },
+    ]);
+  });
+
+  test("should forward env and cwd opts to spawnText for every query", async () => {
+    setAllQueries(null, null, null, null, null);
+    const env = { PATH: "/vendored/bin" };
+    await fetchBriefingData("/fake/main.journal", { env, cwd: "/workspace" });
+    const calls = vi.mocked(spawnText).mock.calls;
+    expect(calls).toHaveLength(5);
+    for (const call of calls) {
+      expect(call[1]).toMatchObject({ env, cwd: "/workspace" });
+    }
+  });
 });
 
 // ── Integration: future-dated transactions ─────────────────────────
