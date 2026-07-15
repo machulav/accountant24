@@ -180,6 +180,30 @@ describe("<SidebarResizeHandle />", () => {
     expect(window.localStorage.getItem("accountant24.sidebar-width")).toBe("256");
   });
 
+  it("should ignore a pointer move when no drag is in progress", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    // A stray move with no preceding pointerDown must not resize anything.
+    fireEvent.pointerMove(handle, { clientX: 400, pointerId: 1 });
+    expect(widthVar(wrapper)).toBe("256px");
+  });
+
+  it("should ignore a pointer up when no drag is in progress", () => {
+    renderHandle();
+    const handle = getHandle();
+    fireEvent.pointerUp(handle, { clientX: 400, pointerId: 1 });
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
+  it("should ignore keys other than the arrows", () => {
+    const { wrapper } = renderHandle();
+    const handle = getHandle();
+    fireEvent.keyDown(handle, { key: "Enter" });
+    fireEvent.keyDown(handle, { key: "a" });
+    expect(widthVar(wrapper)).toBe("256px");
+    expect(window.localStorage.getItem("accountant24.sidebar-width")).toBeNull();
+  });
+
   it("should not render a handle when the sidebar is collapsed", () => {
     renderHandle(false);
     expect(screen.queryByRole("separator", { name: "Resize sidebar" })).toBeNull();

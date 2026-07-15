@@ -126,6 +126,29 @@ describe("ApiKeyDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("should close via onOpenChange when Escape is pressed", () => {
+    const onClose = vi.fn();
+    render(<ApiKeyDialog provider={provider()} onClose={onClose} onSaved={vi.fn()} />);
+    fireEvent.keyDown(screen.getByLabelText("API Key"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("should ignore Enter while the key is empty (no save)", () => {
+    const onSaved = vi.fn();
+    render(<ApiKeyDialog provider={provider()} onClose={vi.fn()} onSaved={onSaved} />);
+    fireEvent.keyDown(screen.getByLabelText("API Key"), { key: "Enter" });
+    expect(authApi.setKey).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("should fall back to a generic message when an error result carries none", async () => {
+    vi.mocked(authApi.setKey).mockResolvedValue({ type: "error" });
+    render(<ApiKeyDialog provider={provider()} onClose={vi.fn()} onSaved={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-bad" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Failed to save key"));
+  });
 });
 
 // ---- OAuthSignInDialog --------------------------------------------------
@@ -293,5 +316,47 @@ describe("OAuthSignInDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(oauth.cancel).toHaveBeenCalledTimes(1);
     expect(oauth.dismissError).not.toHaveBeenCalled();
+  });
+
+  it("should cancel an in-progress sign-in when Escape closes the dialog", () => {
+    const oauth = makeOAuth({ active: "anthropic", log: ["Starting"] });
+    render(<OAuthSignInDialog provider={oauthProvider()} oauth={oauth} />);
+    fireEvent.keyDown(screen.getByText("Starting"), { key: "Escape" });
+    expect(oauth.cancel).toHaveBeenCalledTimes(1);
+    expect(oauth.dismissError).not.toHaveBeenCalled();
+  });
+
+  it("should submit the typed answer when Enter is pressed in the prompt field", () => {
+    const oauth = makeOAuth({
+      active: "anthropic",
+      request: { id: "r1", kind: "prompt", message: "Enter your org", allowEmpty: false },
+    });
+    render(<OAuthSignInDialog provider={oauthProvider()} oauth={oauth} />);
+    const input = screen.getByLabelText("Enter your org");
+    fireEvent.change(input, { target: { value: "acme" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(oauth.respond).toHaveBeenCalledWith("acme");
+  });
+
+  it("should not submit on Enter while the answer is still empty", () => {
+    const oauth = makeOAuth({
+      active: "anthropic",
+      request: { id: "r1", kind: "prompt", message: "Enter your org", allowEmpty: false },
+    });
+    render(<OAuthSignInDialog provider={oauthProvider()} oauth={oauth} />);
+    fireEvent.keyDown(screen.getByLabelText("Enter your org"), { key: "Enter" });
+    expect(oauth.respond).not.toHaveBeenCalled();
+  });
+
+  it("should copy the device code to the clipboard and confirm with a check", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const oauth = makeOAuth({
+      active: "anthropic",
+      deviceCode: { userCode: "WDJB-MJHT", verificationUri: "https://github.com/device" },
+    });
+    render(<OAuthSignInDialog provider={oauthProvider()} oauth={oauth} />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("WDJB-MJHT"));
   });
 });

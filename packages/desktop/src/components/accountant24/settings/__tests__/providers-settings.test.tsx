@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // IPC boundary: the providers list reads auth/settings and drives the agent
@@ -30,13 +30,20 @@ const { oauthMock } = vi.hoisted(() => ({
     deviceCode: null,
     error: null as string | null,
     errorProvider: null as string | null,
+    // Captured from the render so tests can fire the "sign-in finished" callback.
+    onDone: null as (() => void) | null,
     start: vi.fn(),
     respond: vi.fn(),
     cancel: vi.fn(),
     dismissError: vi.fn(),
   },
 }));
-vi.mock("@/components/auth/useOAuthLogin", () => ({ useOAuthLogin: () => oauthMock }));
+vi.mock("@/components/auth/useOAuthLogin", () => ({
+  useOAuthLogin: (onDone: () => void) => {
+    oauthMock.onDone = onDone;
+    return oauthMock;
+  },
+}));
 
 import { agentApi, authApi, settingsApi } from "@/rpc/api";
 import type { AuthProviderRow, AuthStatus, OllamaInfo } from "@/rpc/types";
@@ -98,6 +105,7 @@ beforeEach(() => {
   oauthMock.active = null;
   oauthMock.error = null;
   oauthMock.errorProvider = null;
+  oauthMock.onDone = null;
 });
 
 afterEach(() => {
@@ -322,6 +330,143 @@ describe("ProvidersSettings", () => {
       await waitFor(() => expect(authApi.removeOllama).toHaveBeenCalledTimes(1));
       expect(authApi.logout).not.toHaveBeenCalled();
       expect(agentApi.restart).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("adding a provider (afterAdd)", () => {
+    it("should restart the agent and widen the enabled-model list to the new provider after an API key save", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      // A scoped list that doesn't yet include Groq's model (so adding it must widen).
+      vi.mocked(settingsApi.get).mockResolvedValue({ enabledModels: ["openai/gpt-4"] });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "openai", id: "gpt-4" },
+          { provider: "openai", id: "gpt-5" },
+          { provider: "groq", id: "llama" },
+        ],
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
+      expect(authApi.setKey).toHaveBeenCalledWith("groq", "sk-groq");
+      // The new provider's model is unioned into the scoped list (spec: adding a
+      // provider must not leave its models hidden), ordered by the full model list.
+      expect(settingsApi.set).toHaveBeenCalledWith({ enabledModels: ["openai/gpt-4", "groq/llama"] });
+    });
+
+    it("should leave the enabled-model list untouched when everything was already enabled", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      // No scoped list means "all enabled": adding a provider needs no widening.
+      vi.mocked(settingsApi.get).mockResolvedValue({});
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [{ provider: "groq", id: "llama" }],
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
+      expect(settingsApi.set).not.toHaveBeenCalled();
+    });
+
+    it("should widen the enabled-model list for the signing provider when an OAuth sign-in completes", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({ enabledModels: ["openai/gpt-4"] });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "openai", id: "gpt-4" },
+          { provider: "openai", id: "gpt-5" },
+          { provider: "anthropic", id: "claude" },
+        ],
+      } as never);
+
+      render(<ProvidersSettings />);
+      // Arm the flow for anthropic, then simulate the hook signalling completion.
+      fireEvent.click(await screen.findByRole("button", { name: "Sign In" }));
+      expect(oauthMock.start).toHaveBeenCalledWith("anthropic");
+      await act(async () => {
+        oauthMock.onDone?.();
+      });
+
+      await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
+      expect(settingsApi.set).toHaveBeenCalledWith({ enabledModels: ["openai/gpt-4", "anthropic/claude"] });
+    });
+
+    it("should just reload without an add when a sign-in completes with no provider armed", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
+      );
+      render(<ProvidersSettings />);
+      await screen.findByText("Anthropic");
+      const statusCallsBefore = vi.mocked(authApi.status).mock.calls.length;
+
+      // No Sign In was clicked, so signingProvider is null: the done callback only reloads.
+      await act(async () => {
+        oauthMock.onDone?.();
+      });
+
+      await waitFor(() => expect(vi.mocked(authApi.status).mock.calls.length).toBeGreaterThan(statusCallsBefore));
+      expect(agentApi.restart).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("OAuth error surfacing", () => {
+    it("should keep the sign-in dialog open for the provider whose flow failed", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
+      );
+      // active is already null after a failure; the dialog stays open via errorProvider.
+      oauthMock.active = null;
+      oauthMock.error = "Sign-in failed";
+      oauthMock.errorProvider = "anthropic";
+      render(<ProvidersSettings />);
+      expect(await screen.findByText("Sign in to Anthropic")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("Sign-in failed");
+    });
+  });
+
+  describe("Ollama detection failure", () => {
+    it("should not offer the Ollama row when detection rejects", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
+      );
+      vi.mocked(authApi.detectOllama).mockRejectedValue(new Error("no ollama"));
+      render(<ProvidersSettings />);
+      await screen.findByText("Anthropic");
+      expect(screen.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Ollama connect errors", () => {
+    it("should surface an error result and re-enable Connect when registering models fails", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(status([]));
+      vi.mocked(authApi.detectOllama).mockResolvedValue(ollamaInfo({ running: true, models: ["llama3"] }));
+      vi.mocked(authApi.addAllOllama).mockResolvedValue({ type: "error", message: "daemon down" } as never);
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
+
+      expect(await screen.findByText("daemon down", { exact: false })).toBeInTheDocument();
+      // The button returns to its idle label so the user can retry.
+      expect(screen.getByRole("button", { name: "Connect" })).toBeEnabled();
+      expect(agentApi.restart).not.toHaveBeenCalled();
     });
   });
 });

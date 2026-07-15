@@ -1,7 +1,8 @@
-import type { PiSendMessageInput } from "@assistant-ui/react-pi";
+import type { PiClientEvent, PiSendMessageInput } from "@assistant-ui/react-pi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeAttachmentRef } from "../../lib/attachmentMarker";
 import { createElectronPiClient } from "../electronPiClient";
+import { newChatModel } from "../newChatModel";
 
 // electronPiClient bridges the pi RPC stream to the runtime and reports the
 // anonymous usage events (message/tool counts + coarse props — never content).
@@ -10,11 +11,26 @@ import { createElectronPiClient } from "../electronPiClient";
 
 const h = vi.hoisted(() => ({
   listeners: [] as Array<(e: unknown) => void>,
+  errorListeners: [] as Array<(msg: string) => void>,
   sent: [] as Record<string, unknown>[],
+  /** Every command routed through agentBridge.request, for ordering assertions. */
+  requests: [] as Record<string, unknown>[],
   /** get_messages response — per-test override for transcript contents. */
   messages: [] as unknown[],
   /** get_state response — per-test override for the model under test. */
   state: {} as Record<string, unknown>,
+  /** get_available_models response — per-test override for the model catalog. */
+  availableModels: [] as unknown[],
+  /** sessions_list response — per-test override for the thread list. */
+  sessions: [] as unknown[],
+  /** app settings — per-test override for defaultModel etc. */
+  settings: {} as Record<string, unknown>,
+  /** when true, settingsApi.get rejects (settings unreadable). */
+  settingsThrows: false,
+  /** session paths passed to sessionsApi.delete. */
+  deleted: [] as string[],
+  /** request types that should reject, to exercise error/edge paths. */
+  errorTypes: new Set<string>(),
   /** skills_list response — feeds the skill_used native/custom lookup. */
   skills: [] as { name: string; description: string; enabled: boolean; native?: boolean }[],
   track: vi.fn(),
@@ -25,23 +41,46 @@ vi.mock("../agentBridge", () => ({
   agentBridge: {
     addEventListener: (fn: (e: unknown) => void) => {
       h.listeners.push(fn);
-      return () => {};
+      return () => {
+        const i = h.listeners.indexOf(fn);
+        if (i >= 0) h.listeners.splice(i, 1);
+      };
     },
-    addErrorListener: () => () => {},
+    addErrorListener: (fn: (msg: string) => void) => {
+      h.errorListeners.push(fn);
+      return () => {
+        const i = h.errorListeners.indexOf(fn);
+        if (i >= 0) h.errorListeners.splice(i, 1);
+      };
+    },
     send: async (command: Record<string, unknown>) => {
       h.sent.push(command);
     },
     request: async (command: { type: string }) => {
+      h.requests.push(command);
+      if (h.errorTypes.has(command.type)) throw new Error(`fail:${command.type}`);
       if (command.type === "get_state") return h.state;
       if (command.type === "get_messages") return { messages: h.messages };
+      if (command.type === "get_available_models") return { models: h.availableModels };
       return {};
     },
   },
 }));
 vi.mock("../../rpc/api", () => ({
   analyticsApi: { track: h.track, trackOnce: h.trackOnce },
-  sessionsApi: { list: async () => ({ type: "sessions", sessions: [] }), delete: async () => ({}) },
-  settingsApi: { get: async () => ({}) },
+  sessionsApi: {
+    list: async () => ({ type: "sessions", sessions: h.sessions }),
+    delete: async (path: string) => {
+      h.deleted.push(path);
+      return {};
+    },
+  },
+  settingsApi: {
+    get: async () => {
+      if (h.settingsThrows) throw new Error("settings unreadable");
+      return h.settings;
+    },
+  },
   skillsApi: { list: async () => ({ skills: h.skills }) },
   agentApi: { onModelsChanged: () => () => {} },
 }));
@@ -49,6 +88,11 @@ vi.mock("../../rpc/api", () => ({
 /** Deliver a sidecar event to every persistent listener the client registered. */
 const emit = (event: Record<string, unknown>) => {
   for (const fn of h.listeners) fn(event);
+};
+
+/** Deliver a sidecar error to every error listener the client registered. */
+const emitError = (msg: string) => {
+  for (const fn of [...h.errorListeners]) fn(msg);
 };
 
 const toolEnd = (toolName: string, isError = false) => ({
@@ -63,10 +107,19 @@ const message = (text: string, attachments?: string[]) =>
 
 beforeEach(() => {
   h.listeners.length = 0;
+  h.errorListeners.length = 0;
   h.sent.length = 0;
+  h.requests.length = 0;
   h.messages = [];
+  h.availableModels = [];
+  h.sessions = [];
+  h.settings = {};
+  h.settingsThrows = false;
+  h.deleted.length = 0;
+  h.errorTypes = new Set();
   h.state = { model: { provider: "anthropic", id: "claude-x" }, sessionFile: "/ws/sessions/s1.jsonl" };
   h.skills = [{ name: "subscription-audit", description: "Audit.", enabled: true, native: true }];
+  newChatModel.set(undefined);
 });
 
 /** Let the client's async skills-lookup fetch settle. */
@@ -322,5 +375,494 @@ describe("createElectronPiClient() analytics", () => {
       await client.createThread({});
       expect(h.track).toHaveBeenCalledWith("chat_created");
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Event mapping, thread bridging, snapshots and mutations — the transport
+// surface the runtime drives. The agentBridge/rpc I/O boundaries stay faked;
+// the client's own mapping/serialization runs for real.
+// ---------------------------------------------------------------------------
+
+const A_MODEL = { provider: "anthropic", id: "claude-x" };
+const skillBlockUser = {
+  role: "user",
+  content: [
+    {
+      type: "text",
+      text: '<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninjected\n</skill>\n\nsummarize this receipt',
+    },
+  ],
+};
+
+/** Subscribe live-only (no snapshot), collecting the mapped client events. */
+const captureLive = (client: ReturnType<typeof createElectronPiClient>, threadId = "pending-live") => {
+  const events: PiClientEvent[] = [];
+  const unsub = client.subscribe(threadId, (e) => events.push(e), { includeSnapshot: false });
+  return { events, unsub };
+};
+
+/** Read the mutable body fields of a captured event without fighting the union. */
+const body = (e: PiClientEvent) => e as unknown as Record<string, unknown>;
+
+describe("createElectronPiClient() event mapping", () => {
+  it("should map agent_start to an agent_start body stamped with thread + seq", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "agent_start" });
+    expect(events[0]).toMatchObject({ type: "agent_start", threadId: "pending-live", seq: 1 });
+  });
+
+  it("should map agent_end to an agent_end body", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "agent_end" });
+    expect(events[0]).toMatchObject({ type: "agent_end" });
+  });
+
+  it("should number turns from zero, incrementing on each turn_start", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "turn_start" });
+    emit({ type: "turn_start" });
+    expect(events.map((e) => body(e).turnIndex)).toEqual([0, 1]);
+  });
+
+  it("should stamp turn_end with the current turn index", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "turn_start" });
+    emit({ type: "turn_end" });
+    expect(events[1]).toMatchObject({ type: "turn_end", turnIndex: 0 });
+  });
+
+  it("should default turn_end to turn zero when no turn has started", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "turn_end" });
+    expect(events[0]).toMatchObject({ type: "turn_end", turnIndex: 0 });
+  });
+
+  it("should pass an assistant message through message_start unchanged", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const msg = { role: "assistant", content: [{ type: "text", text: "hi" }] };
+    emit({ type: "message_start", message: msg });
+    expect(body(events[0]).message).toEqual(msg);
+  });
+
+  it("should collapse a skill block in a message_start user message back to the directive", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "message_start", message: skillBlockUser });
+    const message = body(events[0]).message as { content: Array<{ text: string }> };
+    expect(message.content[0].text).toBe(":skill[pdf] summarize this receipt");
+  });
+
+  it("should carry a text_delta through message_update as its assistantMessageEvent", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const delta = { type: "text_delta", text: "hel" };
+    emit({ type: "message_update", message: { role: "assistant", content: [] }, assistantMessageEvent: delta });
+    expect(events[0]).toMatchObject({ type: "message_update", assistantMessageEvent: delta });
+  });
+
+  it("should carry a thinking_delta through message_update as its assistantMessageEvent", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const delta = { type: "thinking_delta", thinking: "hmm" };
+    emit({ type: "message_update", message: { role: "assistant", content: [] }, assistantMessageEvent: delta });
+    expect(events[0]).toMatchObject({ type: "message_update", assistantMessageEvent: delta });
+  });
+
+  it("should pass the final message through message_end", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const msg = { role: "assistant", content: [{ type: "text", text: "done" }] };
+    emit({ type: "message_end", message: msg });
+    expect(body(events[0])).toMatchObject({ type: "message_end", message: msg });
+  });
+
+  it("should map tool_execution_start with its id, name and args", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "tool_execution_start", toolCallId: "t1", toolName: "query", args: { sql: "x" } });
+    expect(events[0]).toMatchObject({
+      type: "tool_execution_start",
+      toolCallId: "t1",
+      toolName: "query",
+      args: { sql: "x" },
+    });
+  });
+
+  it("should map tool_execution_update with an undefined partial result", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "tool_execution_update", toolCallId: "t1", toolName: "query" });
+    expect(events[0]).toMatchObject({ type: "tool_execution_update", toolCallId: "t1", toolName: "query" });
+    expect(body(events[0]).partialResult).toBeUndefined();
+  });
+
+  it("should map tool_execution_end carrying the result and a false error flag by default", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "tool_execution_end", toolCallId: "t1", toolName: "query", result: { rows: 3 } });
+    expect(events[0]).toMatchObject({
+      type: "tool_execution_end",
+      toolCallId: "t1",
+      result: { rows: 3 },
+      isError: false,
+    });
+  });
+
+  it("should coerce a truthy error into isError true on tool_execution_end", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "tool_execution_end", toolCallId: "t1", toolName: "query", isError: true });
+    expect(events[0]).toMatchObject({ type: "tool_execution_end", isError: true });
+  });
+
+  it("should pass an unrecognized event type (response) through as a bare typed body", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "response", id: "r1", command: "get_state", success: true });
+    expect(events[0]).toMatchObject({ type: "response", threadId: "pending-live", seq: 1 });
+  });
+
+  it("should stamp a strictly increasing seq per emitted event", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emit({ type: "agent_start" });
+    emit({ type: "agent_end" });
+    emit({ type: "turn_start" });
+    expect(events.map((e) => body(e).seq)).toEqual([1, 2, 3]);
+  });
+
+  it("should forward a sidecar error to the subscriber as an error event", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitError("boom");
+    expect(events[0]).toMatchObject({ type: "error", error: "boom", threadId: "pending-live" });
+  });
+
+  it("should stop delivering events after the subscription is torn down", () => {
+    const { events, unsub } = captureLive(createElectronPiClient());
+    unsub();
+    emit({ type: "agent_start" });
+    emitError("boom");
+    expect(events).toHaveLength(0);
+  });
+});
+
+describe("createElectronPiClient() subscribe() snapshot", () => {
+  it("should emit the snapshot first (seq 1) then live events (seq 2+)", async () => {
+    const client = createElectronPiClient();
+    const events: PiClientEvent[] = [];
+    client.subscribe("/ws/sessions/s1.jsonl", (e) => events.push(e));
+    await flushLookup();
+    expect(events[0]).toMatchObject({ type: "snapshot", seq: 1 });
+    emit({ type: "agent_end" });
+    expect(events[1]).toMatchObject({ type: "agent_end", seq: 2 });
+  });
+
+  it("should emit an error then still attach live events when the snapshot fetch fails", async () => {
+    h.errorTypes = new Set(["get_state"]);
+    const client = createElectronPiClient();
+    const events: PiClientEvent[] = [];
+    client.subscribe("pending-err", (e) => events.push(e));
+    await flushLookup();
+    expect(events[0]).toMatchObject({ type: "error", error: "fail:get_state", seq: 1 });
+    emit({ type: "agent_start" });
+    expect(events[1]).toMatchObject({ type: "agent_start", seq: 2 });
+  });
+});
+
+describe("createElectronPiClient() session switching", () => {
+  it("should issue switch_session before operating on a non-active thread", async () => {
+    const client = createElectronPiClient();
+    await client.getThread("/ws/sessions/other.jsonl");
+    expect(h.requests).toContainEqual({ type: "switch_session", sessionPath: "/ws/sessions/other.jsonl" });
+  });
+
+  it("should not re-issue switch_session for the already-active thread", async () => {
+    const client = createElectronPiClient();
+    await client.getThread("/ws/sessions/other.jsonl");
+    await client.getThread("/ws/sessions/other.jsonl");
+    expect(h.requests.filter((r) => r.type === "switch_session")).toHaveLength(1);
+  });
+
+  it("should not switch sessions for a pending (not-yet-created) thread id", async () => {
+    const client = createElectronPiClient();
+    await client.getThread("pending-1");
+    expect(h.requests.some((r) => r.type === "switch_session")).toBe(false);
+  });
+
+  it("should serialize switch_session in call order across concurrent threads", async () => {
+    const client = createElectronPiClient();
+    await Promise.all([client.getThread("/ws/A.jsonl"), client.getThread("/ws/B.jsonl")]);
+    const paths = h.requests.filter((r) => r.type === "switch_session").map((r) => r.sessionPath);
+    expect(paths).toEqual(["/ws/A.jsonl", "/ws/B.jsonl"]);
+  });
+
+  it("should switch to the target session before setModel forwards the model", async () => {
+    const client = createElectronPiClient();
+    await client.setModel("/ws/C.jsonl", { provider: "openai", modelId: "gpt-x" });
+    expect(h.requests).toContainEqual({ type: "switch_session", sessionPath: "/ws/C.jsonl" });
+    expect(h.sent).toContainEqual({ type: "set_model", provider: "openai", modelId: "gpt-x" });
+  });
+
+  it("should re-switch after an agent crash forgets the active thread", async () => {
+    const client = createElectronPiClient();
+    await client.createThread({}); // activeThreadId = /ws/sessions/s1.jsonl
+    h.requests.length = 0;
+    emitError("crash"); // errorListener clears activeThreadId
+    await client.getThread("/ws/sessions/s1.jsonl");
+    expect(h.requests).toContainEqual({ type: "switch_session", sessionPath: "/ws/sessions/s1.jsonl" });
+  });
+});
+
+describe("createElectronPiClient() createThread() model selection", () => {
+  it("should apply the pending new-chat model to the fresh session", async () => {
+    newChatModel.set({ provider: "openai", modelId: "gpt-x" });
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(h.sent).toContainEqual({ type: "set_model", provider: "openai", modelId: "gpt-x" });
+  });
+
+  it("should clear the pending model after the thread is created", async () => {
+    newChatModel.set({ provider: "openai", modelId: "gpt-x" });
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(newChatModel.get()).toBeUndefined();
+  });
+
+  it("should fall back to the configured default model when there is no pending pick", async () => {
+    h.settings = { defaultModel: "anthropic/claude-y" };
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(h.sent).toContainEqual({ type: "set_model", provider: "anthropic", modelId: "claude-y" });
+  });
+
+  it("should prefer the pending pick over the configured default", async () => {
+    h.settings = { defaultModel: "anthropic/claude-y" };
+    newChatModel.set({ provider: "openai", modelId: "gpt-x" });
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(h.sent).toContainEqual({ type: "set_model", provider: "openai", modelId: "gpt-x" });
+    expect(h.sent.some((c) => c.provider === "anthropic")).toBe(false);
+  });
+
+  it("should not set any model when neither a pending pick nor a default exists", async () => {
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(h.sent.some((c) => c.type === "set_model")).toBe(false);
+  });
+
+  it("should not set a model for a malformed default id", async () => {
+    h.settings = { defaultModel: "no-slash" };
+    const client = createElectronPiClient();
+    await client.createThread({});
+    expect(h.sent.some((c) => c.type === "set_model")).toBe(false);
+  });
+
+  it("should keep pi's default and still clear the pending model when settings are unreadable", async () => {
+    h.settingsThrows = true;
+    const client = createElectronPiClient();
+    await expect(client.createThread({})).resolves.toBeDefined();
+    expect(h.sent.some((c) => c.type === "set_model")).toBe(false);
+    expect(newChatModel.get()).toBeUndefined();
+  });
+
+  it("should fall back to a pending id when pi reports neither a session file nor id", async () => {
+    h.state = { model: A_MODEL };
+    const client = createElectronPiClient();
+    const snap = await client.createThread({});
+    expect(snap.metadata.id).toMatch(/^pending-\d+$/);
+  });
+});
+
+describe("createElectronPiClient() getThread() snapshot", () => {
+  it("should report ready readiness with the session's model selection", async () => {
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.readiness).toEqual({
+      state: "ready",
+      selection: { provider: "anthropic", modelId: "claude-x" },
+      source: "session",
+    });
+  });
+
+  it("should report missing-model readiness and a model-less config when no model is selected", async () => {
+    h.state = { sessionFile: "/ws/sessions/s1.jsonl", thinkingLevel: "low" };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.readiness).toMatchObject({ state: "missing-model" });
+    expect(snap.metadata.config).toEqual({ thinkingLevel: "low" });
+  });
+
+  it("should mark the thread running when pi reports it streaming", async () => {
+    h.state = { model: A_MODEL, sessionFile: "/ws/sessions/s1.jsonl", isStreaming: true };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.status).toBe("running");
+  });
+
+  it("should mark the thread idle when it is neither streaming nor mid-run", async () => {
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.status).toBe("idle");
+  });
+
+  it("should title the thread from the session name", async () => {
+    h.state = { model: A_MODEL, sessionFile: "/ws/sessions/s1.jsonl", sessionName: "Monthly budget" };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.title).toBe("Monthly budget");
+  });
+
+  it("should fall back messageCount to the transcript length when pi omits it", async () => {
+    h.messages = [
+      { role: "user", content: [{ type: "text", text: "a" }] },
+      { role: "assistant", content: [{ type: "text", text: "b" }] },
+    ];
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.messageCount).toBe(2);
+  });
+
+  it("should use pi's reported messageCount over the transcript length", async () => {
+    h.state = { model: A_MODEL, sessionFile: "/ws/sessions/s1.jsonl", messageCount: 7 };
+    h.messages = [{ role: "user", content: [{ type: "text", text: "a" }] }];
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.messageCount).toBe(7);
+  });
+
+  it("should carry the model and thinking level into metadata config", async () => {
+    h.state = { model: A_MODEL, sessionFile: "/ws/sessions/s1.jsonl", thinkingLevel: "high" };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.config).toEqual({ provider: "anthropic", modelId: "claude-x", thinkingLevel: "high" });
+  });
+});
+
+describe("createElectronPiClient() getAvailableModels()", () => {
+  it("should map provider/id and derive supportsThinking from the reasoning flag", async () => {
+    h.availableModels = [{ provider: "anthropic", id: "claude-x", name: "Claude X", reasoning: true }];
+    const client = createElectronPiClient();
+    expect(await client.getAvailableModels()).toEqual([
+      { provider: "anthropic", modelId: "claude-x", name: "Claude X", supportsThinking: true },
+    ]);
+  });
+
+  it("should report supportsThinking false and omit name when the model lacks them", async () => {
+    h.availableModels = [{ provider: "openai", id: "gpt-x" }];
+    const client = createElectronPiClient();
+    const models = await client.getAvailableModels();
+    expect(models[0]).toEqual({ provider: "openai", modelId: "gpt-x", supportsThinking: false });
+  });
+
+  it("should return an empty list when the sidecar reports an empty catalog", async () => {
+    const client = createElectronPiClient();
+    expect(await client.getAvailableModels()).toEqual([]);
+  });
+
+  it("should return an empty list when the sidecar omits the models field", async () => {
+    (h as { availableModels: unknown }).availableModels = undefined;
+    const client = createElectronPiClient();
+    expect(await client.getAvailableModels()).toEqual([]);
+  });
+});
+
+describe("createElectronPiClient() listThreads()", () => {
+  it("should map session summaries to idle thread metadata", async () => {
+    h.sessions = [
+      { path: "/ws/s1.jsonl", id: "s1", name: "Budget", firstMessage: "hi", messageCount: 3, modified: "2026-01-01" },
+    ];
+    const client = createElectronPiClient();
+    expect(await client.listThreads()).toEqual([
+      {
+        id: "/ws/s1.jsonl",
+        status: "idle",
+        title: "Budget",
+        sessionFile: "/ws/s1.jsonl",
+        messageCount: 3,
+        updatedAt: "2026-01-01",
+      },
+    ]);
+  });
+
+  it("should title an unnamed session from its first message, collapsing a skill block to plain text", async () => {
+    h.sessions = [
+      {
+        path: "/ws/s2.jsonl",
+        id: "s2",
+        name: "",
+        firstMessage:
+          '<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninjected\n</skill>\n\nsummarize this receipt',
+        messageCount: 1,
+        modified: "m",
+      },
+    ];
+    const client = createElectronPiClient();
+    const list = await client.listThreads();
+    // collapseSkillText → ":skill[pdf] summarize…"; mentionsToPlainText then
+    // renders the skill mention as its bare label.
+    expect(list[0].title).toBe("pdf summarize this receipt");
+  });
+
+  it("should fall back to the file base name when there is neither a name nor a first message", async () => {
+    h.sessions = [
+      { path: "/ws/dir/session-abc.jsonl", id: "s3", name: "", firstMessage: "", messageCount: 0, modified: "m" },
+    ];
+    const client = createElectronPiClient();
+    const list = await client.listThreads();
+    expect(list[0].title).toBe("session-abc.jsonl");
+  });
+
+  it("should return an empty list when there are no sessions", async () => {
+    const client = createElectronPiClient();
+    expect(await client.listThreads()).toEqual([]);
+  });
+});
+
+describe("createElectronPiClient() thread mutations", () => {
+  it("should send abort on cancelRun", async () => {
+    const client = createElectronPiClient();
+    await client.cancelRun("/ws/s1.jsonl");
+    expect(h.sent).toContainEqual({ type: "abort" });
+  });
+
+  it("should return empty steering and follow-up queues from clearQueue", async () => {
+    const client = createElectronPiClient();
+    expect(await client.clearQueue("/ws/s1.jsonl")).toEqual({ steering: [], followUp: [] });
+  });
+
+  it("should switch sessions then send set_thinking_level", async () => {
+    const client = createElectronPiClient();
+    await client.setThinkingLevel("/ws/t.jsonl", "high");
+    expect(h.requests).toContainEqual({ type: "switch_session", sessionPath: "/ws/t.jsonl" });
+    expect(h.sent).toContainEqual({ type: "set_thinking_level", level: "high" });
+  });
+
+  it("should send set_session_name on renameThread", async () => {
+    const client = createElectronPiClient();
+    await client.renameThread("/ws/r.jsonl", "New name");
+    expect(h.sent).toContainEqual({ type: "set_session_name", name: "New name" });
+  });
+
+  it("should delete the session file on deleteThread", async () => {
+    const client = createElectronPiClient();
+    await client.deleteThread("/ws/d.jsonl");
+    expect(h.deleted).toContain("/ws/d.jsonl");
+  });
+
+  it("should be a no-op for archiveThread and unarchiveThread", async () => {
+    const client = createElectronPiClient();
+    await expect(client.archiveThread("/ws/x.jsonl")).resolves.toBeUndefined();
+    await expect(client.unarchiveThread("/ws/x.jsonl")).resolves.toBeUndefined();
+  });
+});
+
+describe("createElectronPiClient() respondToHostUiRequest()", () => {
+  it("should forward a confirmation response", async () => {
+    const client = createElectronPiClient();
+    await client.respondToHostUiRequest("/ws/t.jsonl", { requestId: "r1", confirmed: true } as never);
+    expect(h.sent).toContainEqual({ type: "extension_ui_response", id: "r1", confirmed: true });
+  });
+
+  it("should forward a value response as a confirmed value", async () => {
+    const client = createElectronPiClient();
+    await client.respondToHostUiRequest("/ws/t.jsonl", { requestId: "r2", value: "hello" } as never);
+    expect(h.sent).toContainEqual({ type: "extension_ui_response", id: "r2", value: "hello", confirmed: true });
+  });
+
+  it("should forward a decline when neither confirmed nor value is present", async () => {
+    const client = createElectronPiClient();
+    await client.respondToHostUiRequest("/ws/t.jsonl", { requestId: "r3" } as never);
+    expect(h.sent).toContainEqual({ type: "extension_ui_response", id: "r3", confirmed: false });
   });
 });

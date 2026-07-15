@@ -2,7 +2,7 @@
 
 import type { ToolCallMessagePartStatus } from "@assistant-ui/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { prettyPrintJson, ToolFallback, toolLabel } from "../tool-fallback";
 
 afterEach(cleanup);
@@ -166,5 +166,211 @@ describe("ToolFallback", () => {
   it("should humanize unknown tool names in the trigger", () => {
     render(<ToolFallback {...partProps({ toolName: "fetch_exchange_rates" })} />);
     expect(screen.getByText("Fetch exchange rates")).toBeTruthy();
+  });
+
+  it("should show an alert-circle icon while the tool requires an approval action", () => {
+    render(<ToolFallback {...partProps({ status: { type: "requires-action" } })} />);
+    expect(triggerIcon()).toContain("lucide-circle-alert");
+  });
+
+  it("should pretty-print a non-string (object) result as indented JSON", () => {
+    render(<ToolFallback {...partProps({ result: { balance: 100, currency: "EUR" } })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    const output = document.querySelector("[data-slot=tool-fallback-result] pre");
+    expect(output?.textContent).toBe(`{\n  "balance": 100,\n  "currency": "EUR"\n}`);
+  });
+
+  it("should not render an input section when the tool has no argsText", () => {
+    render(<ToolFallback {...partProps({ argsText: undefined, result: "ok" })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    expect(screen.queryByText("Input:")).toBeNull();
+  });
+
+  it("should not render a result section when the tool has no result yet", () => {
+    render(<ToolFallback {...partProps({ result: undefined })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    expect(screen.queryByText("Output:")).toBeNull();
+    expect(screen.queryByText("Error:")).toBeNull();
+  });
+});
+
+describe("ToolFallback expand/collapse", () => {
+  const trigger = () => screen.getByRole("button", { name: /Query Ledger/ });
+
+  it("should start collapsed with the details hidden", () => {
+    render(<ToolFallback {...partProps({ result: "ok" })} />);
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Output:")).toBeNull();
+  });
+
+  it("should reveal the details when the trigger is clicked", () => {
+    render(<ToolFallback {...partProps({ result: "ok" })} />);
+    fireEvent.click(trigger());
+    expect(trigger()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Output:")).toBeTruthy();
+  });
+
+  it("should collapse again when the open trigger is clicked a second time", () => {
+    render(<ToolFallback {...partProps({ result: "ok" })} />);
+    fireEvent.click(trigger());
+    fireEvent.click(trigger());
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("should start expanded when the tool requires an approval action", () => {
+    render(<ToolFallback {...partProps({ status: { type: "requires-action" } })} />);
+    expect(trigger()).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("ToolFallback error details", () => {
+  it("should render an 'Error:' header and the error text for a failed (incomplete) run", () => {
+    const status: ToolCallMessagePartStatus = {
+      type: "incomplete",
+      // reason narrows in the union; only "cancelled" changes the header wording.
+      error: "boom",
+    } as ToolCallMessagePartStatus;
+    render(<ToolFallback {...partProps({ status })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    const errorBox = document.querySelector("[data-slot=tool-fallback-error]");
+    expect(errorBox?.textContent).toContain("Error:");
+    expect(errorBox?.textContent).toContain("boom");
+  });
+
+  it("should stringify a non-string error object", () => {
+    const status = { type: "incomplete", error: { code: 500 } } as unknown as ToolCallMessagePartStatus;
+    render(<ToolFallback {...partProps({ status })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    const errorBox = document.querySelector("[data-slot=tool-fallback-error]");
+    expect(errorBox?.textContent).toContain('{"code":500}');
+  });
+
+  it("should label the error box 'Cancelled reason:' when the run was cancelled", () => {
+    const status: ToolCallMessagePartStatus = {
+      type: "incomplete",
+      reason: "cancelled",
+      error: "user aborted",
+    } as ToolCallMessagePartStatus;
+    render(<ToolFallback {...partProps({ status })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    const errorBox = document.querySelector("[data-slot=tool-fallback-error]");
+    expect(errorBox?.textContent).toContain("Cancelled reason:");
+    expect(errorBox?.textContent).toContain("user aborted");
+  });
+
+  it("should not render an error box when an incomplete run carries no error", () => {
+    const status: ToolCallMessagePartStatus = { type: "incomplete", reason: "cancelled" };
+    render(<ToolFallback {...partProps({ status, result: "partial" })} />);
+    fireEvent.click(screen.getByText("Query Ledger"));
+    expect(document.querySelector("[data-slot=tool-fallback-error]")).toBeNull();
+  });
+});
+
+describe("ToolFallback approval bar", () => {
+  const REQUIRES_ACTION: ToolCallMessagePartStatus = { type: "requires-action", reason: "interrupt" };
+
+  it("should resolve with the approved result when the default Allow button is clicked", () => {
+    const addResult = vi.fn();
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, addResult })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+    expect(addResult).toHaveBeenCalledWith("Approved by user");
+  });
+
+  it("should resolve with the denied result when the default Deny button is clicked", () => {
+    const addResult = vi.fn();
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, addResult })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
+    expect(addResult).toHaveBeenCalledWith("User denied tool execution");
+  });
+
+  it("should ignore a second click after the approval has been submitted", () => {
+    const addResult = vi.fn();
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, addResult })} />);
+    const allow = screen.getByRole("button", { name: "Allow" });
+    fireEvent.click(allow);
+    fireEvent.click(allow);
+    expect(addResult).toHaveBeenCalledTimes(1);
+  });
+
+  it("should render the host's declared options and respond with the chosen option id", () => {
+    const respondToApproval = vi.fn();
+    const approval = {
+      options: [
+        { id: "opt-allow", kind: "allow-once" },
+        { id: "opt-reject", kind: "reject-once" },
+      ],
+    };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval })} />);
+    // Default labels map allow-once -> "Allow", reject-once -> "Deny".
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+    expect(respondToApproval).toHaveBeenCalledWith({ optionId: "opt-allow" });
+  });
+
+  it("should prefer an option's explicit label over the default", () => {
+    const respondToApproval = vi.fn();
+    const approval = {
+      options: [
+        { id: "opt-allow", kind: "allow-once", label: "Grant access" },
+        { id: "opt-reject", kind: "reject-once" },
+      ],
+    };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval })} />);
+    expect(screen.getByRole("button", { name: "Grant access" })).toBeInTheDocument();
+  });
+
+  it("should require a confirmation step before responding to a confirm-guarded option", () => {
+    const respondToApproval = vi.fn();
+    const approval = {
+      options: [
+        { id: "opt-always", kind: "allow-always", label: "Always allow", confirm: true },
+        { id: "opt-reject", kind: "reject-once" },
+      ],
+    };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Always allow" }));
+    // A confirm step opens instead of resolving immediately.
+    expect(respondToApproval).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(respondToApproval).toHaveBeenCalledWith({ optionId: "opt-always" });
+  });
+
+  it("should return to the option list without responding when Back is clicked in the confirm step", () => {
+    const respondToApproval = vi.fn();
+    const approval = {
+      options: [
+        { id: "opt-always", kind: "allow-always", label: "Always allow", confirm: true },
+        { id: "opt-reject", kind: "reject-once" },
+      ],
+    };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Always allow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(respondToApproval).not.toHaveBeenCalled();
+    // Back on the option list — the original options are shown again.
+    expect(screen.getByRole("button", { name: "Always allow" })).toBeInTheDocument();
+  });
+
+  it("should not render an approval bar once the approval has been resolved", () => {
+    const approval = { approved: true, options: [{ id: "opt-allow", kind: "allow-once" }] };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval: vi.fn() })} />);
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+  });
+
+  it("should always offer a refusal path even when the host declares only allow options", () => {
+    const respondToApproval = vi.fn();
+    const approval = { options: [{ id: "opt-allow", kind: "allow-once" }] };
+    render(<ToolFallback {...partProps({ status: REQUIRES_ACTION, approval, respondToApproval })} />);
+    // No reject option declared, so a fallback Deny is added.
+    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
+  it("should auto-expand when a running tool transitions into requiring an approval action", () => {
+    const { rerender } = render(<ToolFallback {...partProps({ status: { type: "running" } })} />);
+    const trigger = () => screen.getByRole("button", { name: /Query Ledger/ });
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+
+    rerender(<ToolFallback {...partProps({ status: REQUIRES_ACTION })} />);
+    expect(trigger()).toHaveAttribute("aria-expanded", "true");
   });
 });

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 import { MarkdownText } from "../markdown-text";
 
@@ -27,10 +27,46 @@ describe("MarkdownText", () => {
     expect(heading).toHaveTextContent("Balance Sheet");
   });
 
+  it("should render an ATX level-2 heading as a level-2 heading element", async () => {
+    draw("## Liabilities");
+    const heading = await screen.findByRole("heading", { level: 2 });
+    expect(heading).toHaveTextContent("Liabilities");
+  });
+
   it("should render an ATX level-3 heading as a level-3 heading element", async () => {
     draw("### Assets");
     const heading = await screen.findByRole("heading", { level: 3 });
     expect(heading).toHaveTextContent("Assets");
+  });
+
+  it("should render an ATX level-4 heading as a level-4 heading element", async () => {
+    draw("#### Current Assets");
+    const heading = await screen.findByRole("heading", { level: 4 });
+    expect(heading).toHaveTextContent("Current Assets");
+  });
+
+  it("should render an ATX level-5 heading as a level-5 heading element", async () => {
+    draw("##### Cash Equivalents");
+    const heading = await screen.findByRole("heading", { level: 5 });
+    expect(heading).toHaveTextContent("Cash Equivalents");
+  });
+
+  it("should render an ATX level-6 heading as a level-6 heading element", async () => {
+    draw("###### Petty Cash");
+    const heading = await screen.findByRole("heading", { level: 6 });
+    expect(heading).toHaveTextContent("Petty Cash");
+  });
+
+  it("should render a thematic break as a separator (<hr>) element", async () => {
+    draw("Above\n\n---\n\nBelow");
+    await screen.findByText("Above");
+    expect(screen.getByRole("separator")).toBeInTheDocument();
+  });
+
+  it("should render a footnote reference as a superscript", async () => {
+    draw("Interest accrues[^1]\n\n[^1]: Compounded monthly.");
+    await screen.findByText(/Interest accrues/);
+    expect(document.querySelector("sup")).not.toBeNull();
   });
 
   it("should render a bullet list as a list with one item per bullet", async () => {
@@ -106,5 +142,45 @@ describe("MarkdownText", () => {
   it("should render plain paragraph prose as text", async () => {
     draw("A simple sentence with no formatting.");
     expect(await screen.findByText("A simple sentence with no formatting.")).toBeInTheDocument();
+  });
+
+  describe("code block copy button", () => {
+    afterEach(() => {
+      Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+    });
+
+    const stubClipboard = (writeText: () => Promise<void>) => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+    };
+
+    it("should copy the block's code to the clipboard when the Copy button is clicked", async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      stubClipboard(writeText);
+
+      draw("```js\nconst x = 1;\n```");
+      await screen.findByText("js");
+      fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(writeText.mock.calls[0][0]).toContain("const x = 1;");
+    });
+
+    it("should not copy again while the copied state is still active", async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      stubClipboard(writeText);
+
+      draw("```js\nconst x = 1;\n```");
+      await screen.findByText("js");
+      const copyButton = screen.getByRole("button", { name: "Copy" });
+      fireEvent.click(copyButton);
+      // Wait for the transient isCopied flag to flip before the second click.
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+      fireEvent.click(copyButton);
+
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
   });
 });
