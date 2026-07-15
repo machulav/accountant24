@@ -48,23 +48,45 @@ let runtime: AssistantRuntime;
  *  popover only opens when the trigger char is active at the cursor in a real
  *  composer input, so we render a live ComposerPrimitive.Input to type into. The
  *  mention adapter carries the `@` trigger char (no explicit `char` prop). */
-function Picker({ categories, emptyLabel }: { categories: typeof CATEGORIES; emptyLabel: string }) {
+type PickerOpts = {
+  isLoading?: boolean;
+  loadingLabel?: string;
+  /** Drop the adapter's formatter so the popover falls back to its default. */
+  omitFormatter?: boolean;
+};
+
+function Picker({
+  categories,
+  emptyLabel,
+  isLoading,
+  loadingLabel,
+  omitFormatter,
+}: { categories: typeof CATEGORIES; emptyLabel: string } & PickerOpts) {
   const mention = unstable_useMentionAdapter({
     categories,
     includeModelContextTools: false,
     iconMap: { accounts: LandmarkIcon },
   });
+  // The adapter always supplies a formatter; drop it to exercise the popover's
+  // own default fallback.
+  const directive = omitFormatter ? {} : mention.directive;
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input />
-        <ComposerMentionsPopover {...mention} emptyItemsLabel={emptyLabel} />
+        <ComposerMentionsPopover
+          {...mention}
+          directive={directive}
+          emptyItemsLabel={emptyLabel}
+          isLoading={isLoading}
+          loadingLabel={loadingLabel}
+        />
       </ComposerPrimitive.Root>
     </ComposerPrimitive.Unstable_TriggerPopoverRoot>
   );
 }
 
-function renderPicker(categories = CATEGORIES, emptyLabel = "No matching items") {
+function renderPicker(categories = CATEGORIES, emptyLabel = "No matching items", opts: PickerOpts = {}) {
   function Chrome({ children }: { children: ReactNode }) {
     const store: ExternalStoreAdapter = { messages: [], onNew: async () => {} };
     runtime = useExternalStoreRuntime(store);
@@ -72,7 +94,7 @@ function renderPicker(categories = CATEGORIES, emptyLabel = "No matching items")
   }
   render(
     <Chrome>
-      <Picker categories={categories} emptyLabel={emptyLabel} />
+      <Picker categories={categories} emptyLabel={emptyLabel} {...opts} />
     </Chrome>,
   );
   return screen.getByRole("textbox") as HTMLTextAreaElement;
@@ -161,5 +183,38 @@ describe("ComposerMentionsPopover", () => {
     await waitFor(() => expect(screen.getByText("Empty")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Empty"));
     await waitFor(() => expect(screen.getByText("No matching items")).toBeInTheDocument());
+  });
+
+  it("should render an item that has no icon key using the fallback icon", async () => {
+    const input = renderPicker([
+      { id: "tags", label: "Tags", items: [{ id: "t1", type: "tag", label: "vacation" }] },
+    ] as unknown as typeof CATEGORIES);
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Tags")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Tags"));
+    // The item still renders even though it carries no `icon` metadata.
+    await waitFor(() => expect(screen.getByText("vacation")).toBeInTheDocument());
+  });
+
+  it("should show the loading label instead of the empty label while resolving", async () => {
+    const input = renderPicker(
+      [{ id: "empty", label: "Empty", items: [] }] as unknown as typeof CATEGORIES,
+      "No matching items",
+      { isLoading: true, loadingLabel: "Fetching…" },
+    );
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Empty")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Empty"));
+    await waitFor(() => expect(screen.getByText("Fetching…")).toBeInTheDocument());
+    expect(screen.queryByText("No matching items")).toBeNull();
+  });
+
+  it("should fall back to the default directive formatter when none is supplied", async () => {
+    // With no `directive.formatter`, the popover must supply its built-in default
+    // (the `?? unstable_defaultDirectiveFormatter` fallback branch).
+    const input = renderPicker(CATEGORIES, "No matching items", { omitFormatter: true });
+    type(input, "@");
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    expect(screen.getByText("Accounts")).toBeInTheDocument();
   });
 });
