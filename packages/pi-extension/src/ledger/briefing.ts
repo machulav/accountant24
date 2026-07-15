@@ -1,4 +1,4 @@
-import { tryRunHledger } from "./hledger";
+import { type HledgerRunOpts, tryRunHledger } from "./hledger";
 
 export interface BriefingData {
   netWorth: Array<{ amount: number; currency: string; change: number }>;
@@ -126,7 +126,7 @@ function emptyData(): BriefingData {
 
 const TOP_CATEGORIES_LIMIT = 5;
 
-export async function fetchBriefingData(journalPath: string): Promise<BriefingData> {
+export async function fetchBriefingData(journalPath: string, opts?: HledgerRunOpts): Promise<BriefingData> {
   const { beginDate } = getMonthBounds();
   const f = ["-f", journalPath];
 
@@ -138,11 +138,11 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
 
   try {
     [netWorthNow, netWorthPrev, expenses, income, categories] = await Promise.all([
-      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", "tomorrow", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", beginDate, "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"]),
-      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "2", "-O", "csv"]),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", "tomorrow", "-O", "csv"], opts),
+      tryRunHledger(["bal", ...f, "Assets", "Liabilities", "--flat", "-e", beginDate, "-O", "csv"], opts),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"], opts),
+      tryRunHledger(["bal", ...f, "Income", "-b", beginDate, "-e", "tomorrow", "--depth", "1", "-O", "csv"], opts),
+      tryRunHledger(["bal", ...f, "Expenses", "-b", beginDate, "-e", "tomorrow", "--depth", "2", "-O", "csv"], opts),
     ]);
   } catch {
     // tryRunHledger only re-throws HledgerNotFoundError; all other errors return null
@@ -209,7 +209,7 @@ export async function fetchBriefingData(journalPath: string): Promise<BriefingDa
     const rows = parseBalRows(categories);
     data.topCategories = rows
       .map((r) => ({
-        name: r.name.replace(/^Expenses:/, ""),
+        name: r.name.replace(/^expenses:/i, ""),
         amount: r.amount,
         currency: r.currency,
       }))

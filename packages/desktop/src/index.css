@@ -41,11 +41,16 @@
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
-  --chart-1: oklch(0.872 0.007 219.6);
-  --chart-2: oklch(0.56 0.021 213.5);
-  --chart-3: oklch(0.45 0.017 213.2);
-  --chart-4: oklch(0.378 0.015 216);
-  --chart-5: oklch(0.275 0.011 216.9);
+  /* Chart palette (replaces the preset's monochrome ramp): brand-teal-led
+     categorical set, per-mode steps, slot order chosen for CVD separation.
+     Validated with the dataviz palette checker against the card surfaces
+     (light #ffffff, dark #161b1d): lightness band, chroma floor, adjacent-pair
+     CVD deltaE, >=3:1 contrast. Revalidate if you change values or order. */
+  --chart-1: oklch(0.56 0.105 183);
+  --chart-2: oklch(0.62 0.15 45);
+  --chart-3: oklch(0.55 0.14 258);
+  --chart-4: oklch(0.58 0.15 356);
+  --chart-5: oklch(0.5 0.17 290);
   --sidebar: oklch(0.987 0.002 197.1);
   --sidebar-foreground: oklch(0.148 0.004 228.8);
   --sidebar-primary: oklch(0.6 0.118 184.704);
@@ -75,11 +80,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
-  --chart-1: oklch(0.872 0.007 219.6);
-  --chart-2: oklch(0.56 0.021 213.5);
-  --chart-3: oklch(0.45 0.017 213.2);
-  --chart-4: oklch(0.378 0.015 216);
-  --chart-5: oklch(0.275 0.011 216.9);
+  --chart-1: oklch(0.66 0.115 183);
+  --chart-2: oklch(0.66 0.14 45);
+  --chart-3: oklch(0.62 0.13 258);
+  --chart-4: oklch(0.64 0.14 356);
+  --chart-5: oklch(0.65 0.12 290);
   --sidebar: oklch(0.218 0.008 223.9);
   --sidebar-foreground: oklch(0.987 0.002 197.1);
   --sidebar-primary: oklch(0.704 0.14 182.503);

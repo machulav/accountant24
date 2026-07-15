@@ -23,17 +23,16 @@ export class HledgerCommandError extends Error {
 
 // ── Commands ────────────────────────────────────────────────────────
 
-export async function runHledger(args: string[], opts?: { cwd?: string; signal?: AbortSignal }): Promise<string> {
+export type HledgerRunOpts = { cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal };
+
+export async function runHledger(args: string[], opts?: HledgerRunOpts): Promise<string> {
   const { exitCode, stdout, stderr } = await spawn(["hledger", ...args], opts);
   if (exitCode === 127) throw new HledgerNotFoundError();
   if (exitCode !== 0) throw new HledgerCommandError(stdout, stderr);
   return stdout;
 }
 
-export async function tryRunHledger(
-  args: string[],
-  opts?: { cwd?: string; signal?: AbortSignal },
-): Promise<string | null> {
+export async function tryRunHledger(args: string[], opts?: HledgerRunOpts): Promise<string | null> {
   try {
     return await runHledger(args, opts);
   } catch (e) {
@@ -42,7 +41,7 @@ export async function tryRunHledger(
   }
 }
 
-export async function hledgerCheck(journalPath: string, opts?: { cwd?: string; signal?: AbortSignal }): Promise<void> {
+export async function hledgerCheck(journalPath: string, opts?: HledgerRunOpts): Promise<void> {
   await runHledger(["check", "--strict", "-f", journalPath], opts);
 }
 
@@ -50,7 +49,7 @@ export async function hledgerCheck(journalPath: string, opts?: { cwd?: string; s
 
 async function spawn(
   cmd: string[],
-  opts?: { cwd?: string; signal?: AbortSignal },
+  opts?: HledgerRunOpts,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   try {
     return await spawnText(cmd, opts);

@@ -12,6 +12,7 @@ import type {
   AuthModels,
   AuthProviders,
   AuthStatus,
+  DashboardData,
   LedgerMentions,
   OllamaInfo,
   SessionSummary,
@@ -116,6 +117,8 @@ export const settingsApi = {
 export const ledgerApi = {
   /** Fetch accounts/payees/tags for the @-mention picker. */
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
+  /** Fetch the main-page finance overview (stats + chart series). */
+  dashboard: () => api.invoke<DashboardData>("ledger_dashboard"),
 };
 
 export const skillsApi = {

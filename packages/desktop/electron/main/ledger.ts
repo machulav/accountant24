@@ -10,6 +10,7 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { fetchDashboardData } from "@accountant24/pi-extension/ledger/dashboard";
 import { ipcMain } from "electron";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
 
@@ -55,7 +56,12 @@ async function ledgerMentions(): Promise<LedgerMentions> {
   return { accounts, payees, tags };
 }
 
-/** Register the ledger IPC handler (one call returns all three mention lists). */
+/** Register the ledger IPC handlers. */
 export function registerLedgerIpc(): void {
   ipcMain.handle("ledger_mentions", () => ledgerMentions());
+  // agentEnv() prepends the vendored bin dir to PATH, so pi-extension's
+  // spawn("hledger", ...) resolves the same binary the agent child uses.
+  ipcMain.handle("ledger_dashboard", () =>
+    fetchDashboardData(mainJournalPath(), { env: agentEnv(), cwd: workspaceDir() }),
+  );
 }

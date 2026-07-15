@@ -49,6 +49,9 @@
           "correctness": {
             "useExhaustiveDependencies": "off"
           },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
           "suspicious": {
             "noDocumentCookie": "off",
             "noDoubleEquals": "off"

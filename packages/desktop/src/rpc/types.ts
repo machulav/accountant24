@@ -1,5 +1,16 @@
 // Subset of the pi RPC protocol and the auth-helper protocol that the UI uses.
 
+// ---- Ledger dashboard (main-page finance overview) -----------------------
+
+// Type-only re-export from the workspace package; erased at build, so the
+// renderer bundle stays free of pi-extension code.
+export type {
+  CurrencyAmount,
+  DashboardData,
+  IncomeExpensePoint,
+  NetWorthPoint,
+} from "@accountant24/pi-extension/ledger/dashboard";
+
 // ---- Ledger mentions (@-mention picker data) ----------------------------
 
 /** Entity names available to the chat composer's @-mention popover, sourced

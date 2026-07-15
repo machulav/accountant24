@@ -18,6 +18,7 @@ import {
   splitReasoningSections,
 } from "@/components/accountant24/chain-of-thought";
 import { Composer, EditComposer, isNewChatView } from "@/components/accountant24/composer";
+import { FinanceOverview } from "@/components/accountant24/dashboard/finance-overview";
 import { MarkdownText } from "@/components/accountant24/markdown-text";
 import { MessageError } from "@/components/accountant24/message-error";
 import { ToolFallback } from "@/components/accountant24/tool-fallback";
@@ -86,7 +87,9 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
         <div
           className={cn(
             "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
-            isEmpty && "justify-center",
+            // -safe: the finance overview can outgrow small windows; plain
+            // center would clip its top edge past the scroll viewport.
+            isEmpty && "justify-center-safe",
           )}
         >
           <AuiIf condition={isNewChatView}>
@@ -106,6 +109,10 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <ThreadScrollToBottom />
             <Composer />
           </ThreadPrimitive.ViewportFooter>
+
+          <AuiIf condition={isNewChatView}>
+            <FinanceOverview />
+          </AuiIf>
         </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
