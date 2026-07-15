@@ -46,9 +46,7 @@ const Params = Type.Object({
       { description: "Period grouping for multi-period reports" },
     ),
   ),
-  depth: Type.Optional(
-    Type.Number({ description: "Account depth limit (2 = Expenses:Food, not Expenses:Food:Groceries)" }),
-  ),
+  depth: Type.Optional(Type.Number({ description: "Account depth limit (2 = Assets:Bank, not Assets:Bank:Checking)" })),
   invert: Type.Optional(Type.Boolean({ description: "Flip signs — show expenses as positive (--invert)" })),
   output_format: Type.Optional(
     Type.Union([Type.Literal("txt"), Type.Literal("csv"), Type.Literal("json"), Type.Literal("tsv")], {

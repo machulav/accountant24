@@ -4,7 +4,7 @@ import { type AddTransactionsResult, addTransactions } from "../ledger";
 import { TOOL_LABELS } from "../tool-labels";
 
 const Posting = Type.Object({
-  account: Type.String({ description: "Account name, e.g. Expenses:Food:Groceries" }),
+  account: Type.String({ description: "Account name, e.g. Expenses:Food" }),
   amount: Type.Number({ description: "Amount — use negative for outflows (e.g. -45), positive for inflows" }),
   currency: Type.String({ description: "Currency code, e.g. USD, EUR" }),
 });
