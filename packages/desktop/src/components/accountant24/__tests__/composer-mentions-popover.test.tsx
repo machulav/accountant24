@@ -30,7 +30,10 @@ const CATEGORIES = [
   {
     id: "accounts",
     label: "Accounts",
-    items: [{ id: "Assets:Cash", type: "account", label: "Assets:Cash", icon: "account" }],
+    items: [
+      { id: "Assets:Cash", type: "account", label: "Assets:Cash", icon: "account", description: "Cash on hand" },
+      { id: "Assets:Bank", type: "account", label: "Assets:Bank", icon: "account" },
+    ],
   },
   {
     id: "payees",
@@ -116,5 +119,47 @@ describe("ComposerMentionsPopover", () => {
     const input = renderPicker([], "Nothing here");
     type(input, "@");
     await waitFor(() => expect(screen.getByText("Nothing here")).toBeInTheDocument());
+  });
+
+  it("should drill into a category to reveal its items when the category is chosen", async () => {
+    const input = renderPicker();
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Accounts")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Accounts"));
+    await waitFor(() => expect(screen.getByText("Assets:Cash")).toBeInTheDocument());
+    expect(screen.getByText("Assets:Bank")).toBeInTheDocument();
+    // Sibling categories are no longer offered once drilled in.
+    expect(screen.queryByText("Payees")).toBeNull();
+  });
+
+  it("should show an item's description subtitle when present", async () => {
+    const input = renderPicker();
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Accounts")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Accounts"));
+    await waitFor(() => expect(screen.getByText("Cash on hand")).toBeInTheDocument());
+  });
+
+  it("should offer a Back control that returns from items to the category list", async () => {
+    const input = renderPicker();
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Accounts")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Accounts"));
+    await waitFor(() => expect(screen.getByText("Assets:Cash")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Back"));
+    await waitFor(() => expect(screen.getByText("Payees")).toBeInTheDocument());
+    expect(screen.getByText("Accounts")).toBeInTheDocument();
+  });
+
+  it("should show the empty-items label when a drilled-in category has nothing to match", async () => {
+    const input = renderPicker(
+      [{ id: "empty", label: "Empty", items: [] }] as unknown as typeof CATEGORIES,
+      "No matching items",
+    );
+    type(input, "@");
+    await waitFor(() => expect(screen.getByText("Empty")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Empty"));
+    await waitFor(() => expect(screen.getByText("No matching items")).toBeInTheDocument());
   });
 });

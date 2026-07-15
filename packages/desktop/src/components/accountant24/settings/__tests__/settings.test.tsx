@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   get: vi.fn(),
   set: vi.fn(),
   restart: vi.fn(),
+  skillsList: vi.fn(),
 }));
 
 vi.mock("@/rpc/api", () => ({
@@ -30,6 +31,13 @@ vi.mock("@/rpc/api", () => ({
   },
   settingsApi: { get: h.get, set: h.set, onChange: vi.fn(() => () => {}) },
   agentApi: { restart: h.restart, onModelsChanged: vi.fn(() => () => {}) },
+  skillsApi: {
+    list: h.skillsList,
+    add: vi.fn(),
+    remove: vi.fn(),
+    setEnabled: vi.fn(),
+    onEvent: vi.fn(async () => () => {}),
+  },
 }));
 
 import { Settings } from "../settings";
@@ -52,6 +60,7 @@ beforeEach(() => {
   h.get.mockResolvedValue({});
   h.set.mockResolvedValue({});
   h.restart.mockResolvedValue(undefined);
+  h.skillsList.mockResolvedValue({ skills: [] });
 });
 
 afterEach(() => {
@@ -87,6 +96,13 @@ describe("Settings shell", () => {
     renderSettings(true);
     fireEvent.click(screen.getByRole("button", { name: "Models" }));
     expect(await screen.findByText("Default model")).toBeInTheDocument();
+    expect(screen.queryByText("Loading providers…")).toBeNull();
+  });
+
+  it("should swap to the Skills pane when Skills is clicked", async () => {
+    renderSettings(true);
+    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
+    expect(await screen.findByText("Add from GitHub repository")).toBeInTheDocument();
     expect(screen.queryByText("Loading providers…")).toBeNull();
   });
 
@@ -130,6 +146,13 @@ describe("Settings version footer", () => {
     h.version.mockReturnValue(new Promise(() => {}));
     renderSettings(true);
     // The nav renders immediately; the footer is gated on the version.
+    await screen.findByRole("button", { name: "Providers" });
+    expect(screen.queryByRole("link", { name: "Changelog" })).toBeNull();
+  });
+
+  it("should not show a version footer when fetching the version fails", async () => {
+    h.version.mockRejectedValue(new Error("no version"));
+    renderSettings(true);
     await screen.findByRole("button", { name: "Providers" });
     expect(screen.queryByRole("link", { name: "Changelog" })).toBeNull();
   });

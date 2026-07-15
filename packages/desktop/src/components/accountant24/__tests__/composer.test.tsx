@@ -143,23 +143,46 @@ describe("isNewChatView()", () => {
 
 type Msg = { id: string; role: "user" | "assistant"; content: { type: "text"; text: string }[] };
 
+/** A no-op dictation adapter: its presence flips `capabilities.dictation` on,
+ *  and `listen()` returns a never-ending session so starting dictation moves the
+ *  composer into the "dictating" state (swapping mic → stop). */
+const makeDictationAdapter = () => ({
+  listen: () => ({
+    status: { type: "running" as const },
+    stop: async () => {},
+    cancel: () => {},
+    onSpeechStart: () => () => {},
+    onSpeechEnd: () => () => {},
+    onSpeech: () => () => {},
+  }),
+});
+
 function Chrome({
   children,
   isRunning = false,
   messages = [],
   attachments = false,
+  dictation = false,
 }: {
   children: ReactNode;
   isRunning?: boolean;
   messages?: Msg[];
   attachments?: boolean;
+  dictation?: boolean;
 }) {
+  const adapters =
+    attachments || dictation
+      ? {
+          ...(attachments ? { attachments: new SimpleImageAttachmentAdapter() } : {}),
+          ...(dictation ? { dictation: makeDictationAdapter() } : {}),
+        }
+      : undefined;
   const store: ExternalStoreAdapter = {
     messages,
     isRunning,
     onNew: async () => {},
     convertMessage: (m: unknown) => m,
-    adapters: attachments ? { attachments: new SimpleImageAttachmentAdapter() } : undefined,
+    adapters,
   } as unknown as ExternalStoreAdapter;
   const runtime = useExternalStoreRuntime(store);
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
@@ -202,6 +225,29 @@ describe("<Composer />", () => {
     fireEvent(input, paste);
     expect(paste.defaultPrevented).toBe(true);
   });
+
+  it("should not offer a voice-input control when the thread has no dictation adapter", () => {
+    render(
+      <Chrome>
+        <Composer />
+      </Chrome>,
+    );
+    expect(screen.queryByRole("button", { name: "Start voice input" })).toBeNull();
+  });
+
+  it("should offer a voice-input control when the thread supports dictation", () => {
+    render(
+      <Chrome dictation>
+        <Composer />
+      </Chrome>,
+    );
+    expect(screen.getByRole("button", { name: "Start voice input" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stop voice input" })).toBeNull();
+  });
+
+  // Note: driving dictation from "start" to the "recording" state needs a real
+  // dictation runtime (mic/MediaRecorder), which jsdom can't provide — the
+  // presence/absence of the control is covered above; the live toggle is left to E2E.
 });
 
 describe("<EditComposer />", () => {
