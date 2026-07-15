@@ -4,6 +4,7 @@
 
 import { CheckIcon, TriangleAlertIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
 import {
   AlertDialog,
@@ -18,15 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/shadcn/alert-dialog";
 import { Button } from "@/components/shadcn/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/shadcn/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogOverlay, DialogPortal } from "@/components/shadcn/dialog";
 import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Spinner } from "@/components/shadcn/spinner";
@@ -202,57 +195,57 @@ function AddSkillForm({
   };
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Add skills from GitHub repository</DialogTitle>
-      </DialogHeader>
-      {/* The trust warning as a stock Alert restyled as a warning callout:
+    <DialogContent showCloseButton={false} className="flex flex-col gap-0 overflow-hidden p-0">
+      <AppDialogHeader title="Add skills from GitHub repository" />
+      <div className="flex flex-col gap-6 p-6">
+        {/* The trust warning as a stock Alert restyled as a warning callout:
           borderless soft-yellow fill with amber text and icon (the standard
           warning treatment). The theme has no warning token, so amber is
           hardcoded with dark-mode variants (the SkillPill precedent). */}
-      <Alert
-        className={cn(
-          "border-none bg-amber-100/70 text-amber-900 *:data-[slot=alert-description]:text-amber-900/80",
-          "dark:bg-amber-400/15 dark:text-amber-200 dark:*:data-[slot=alert-description]:text-amber-200/80",
-        )}
-      >
-        <TriangleAlertIcon />
-        <AlertTitle>Only add skills you trust</AlertTitle>
-        <AlertDescription>Skills can run commands with full access to your workspace.</AlertDescription>
-      </Alert>
-      <Field>
-        <FieldLabel htmlFor="skill-repo-url">GitHub repository</FieldLabel>
-        <Input
-          id="skill-repo-url"
-          value={url}
-          placeholder="owner/repo or https://github.com/owner/repo"
-          autoFocus
-          autoComplete="off"
-          spellCheck={false}
-          disabled={busy}
-          onChange={(e) => setUrl(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === "Enter" && void submit()}
-        />
-        {progress.length > 0 && (
-          <div className="flex flex-col gap-2 pt-1">
-            {progress.map((line, i) => {
-              const current = busy && i === progress.length - 1;
-              return (
-                <div key={`${i}-${line}`} className="flex items-start gap-2 text-sm">
-                  {current ? (
-                    <Spinner className="text-muted-foreground mt-0.5 shrink-0" />
-                  ) : (
-                    <CheckIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                  )}
-                  <span className={current ? undefined : "text-muted-foreground"}>{line}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {error && <ErrorBanner message={error} />}
-      </Field>
-      <DialogFooter>
+        <Alert
+          className={cn(
+            "border-none bg-amber-100/70 text-amber-900 *:data-[slot=alert-description]:text-amber-900/80",
+            "dark:bg-amber-400/15 dark:text-amber-200 dark:*:data-[slot=alert-description]:text-amber-200/80",
+          )}
+        >
+          <TriangleAlertIcon />
+          <AlertTitle>Only add skills you trust</AlertTitle>
+          <AlertDescription>Skills can run commands with full access to your workspace.</AlertDescription>
+        </Alert>
+        <Field>
+          <FieldLabel htmlFor="skill-repo-url">GitHub repository</FieldLabel>
+          <Input
+            id="skill-repo-url"
+            value={url}
+            placeholder="owner/repo or https://github.com/owner/repo"
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+            disabled={busy}
+            onChange={(e) => setUrl(e.currentTarget.value)}
+            onKeyDown={(e) => e.key === "Enter" && void submit()}
+          />
+          {progress.length > 0 && (
+            <div className="flex flex-col gap-2 pt-1">
+              {progress.map((line, i) => {
+                const current = busy && i === progress.length - 1;
+                return (
+                  <div key={`${i}-${line}`} className="flex items-start gap-2 text-sm">
+                    {current ? (
+                      <Spinner className="text-muted-foreground mt-0.5 shrink-0" />
+                    ) : (
+                      <CheckIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                    )}
+                    <span className={current ? undefined : "text-muted-foreground"}>{line}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {error && <ErrorBanner message={error} />}
+        </Field>
+      </div>
+      <DialogFooter className="border-t px-6 py-4">
         <Button variant="outline" onClick={onClose} disabled={busy}>
           Cancel
         </Button>

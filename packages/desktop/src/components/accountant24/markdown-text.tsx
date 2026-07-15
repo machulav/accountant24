@@ -13,6 +13,7 @@ import { type FC, memo } from "react";
 import remarkGfm from "remark-gfm";
 
 import { DirectivePill } from "@/components/accountant24/directive-chips";
+import { MarkdownTable } from "@/components/accountant24/markdown-table";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { remarkMentions } from "@/lib/remark-mentions";
@@ -113,17 +114,17 @@ const defaultComponents = memoizeMarkdownComponents({
   hr: ({ className, ...props }) => (
     <hr className={cn("aui-md-hr border-muted-foreground/20 my-3", className)} {...props} />
   ),
-  table: ({ className, ...props }) => (
-    <div className="aui-md-table-wrapper my-3 w-full overflow-x-auto">
-      <table className={cn("aui-md-table w-full border-separate border-spacing-0", className)} {...props} />
-    </div>
-  ),
+  table: MarkdownTable,
   th: ({ className, ...props }) => (
     <th
       className={cn(
         // bg-input/50: the shared "surface" token (composer, user bubbles,
         // code blocks) so tables read as the same family.
-        "aui-md-th bg-input/50 px-3 py-1.5 text-start font-medium first:rounded-ss-lg last:rounded-se-lg [[align=center]]:text-center [[align=right]]:text-right",
+        // max-w-72 caps prose columns at a readable measure so long text wraps
+        // instead of stretching the (w-max) table indefinitely. first:max-w-none
+        // exempts the identity column, whose non-wrapping mention chips would
+        // otherwise overflow into the next column.
+        "aui-md-th bg-input/50 max-w-72 px-3 py-1.5 text-start font-medium first:max-w-none first:rounded-ss-lg last:rounded-se-lg [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -132,7 +133,7 @@ const defaultComponents = memoizeMarkdownComponents({
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "aui-md-td border-input/50 border-s border-b px-3 py-1.5 text-start last:border-e [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-td border-input/50 max-w-72 border-s border-b px-3 py-1.5 text-start align-top first:max-w-none last:border-e [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}

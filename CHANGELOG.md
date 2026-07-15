@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.9
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.8...v0.2.9)
+
+### 🚀 Features
+
+- **desktop:** Expand wide tables and download them as CSV ([5ba25ed](https://github.com/machulav/accountant24/commit/5ba25ed))
+- **desktop:** Rotate composer tips on all chats and more often ([8000ab0](https://github.com/machulav/accountant24/commit/8000ab0))
+- **skills:** Add subscription-audit and recurring-spending skills ([f3fda9a](https://github.com/machulav/accountant24/commit/f3fda9a))
+
+### 🏡 Chore
+
+- Stop maintaining independent sub-package versions ([76b98ff](https://github.com/machulav/accountant24/commit/76b98ff))
+
 ## v0.2.8
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.7...v0.2.8)

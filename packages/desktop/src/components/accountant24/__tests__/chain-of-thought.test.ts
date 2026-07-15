@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chainLabel, turnDurationMs } from "../chain-of-thought";
+import { chainLabel, splitReasoningSections, turnDurationMs } from "../chain-of-thought";
 
 const at = (ms: number) => new Date(ms);
 
@@ -93,5 +93,56 @@ describe("chainLabel()", () => {
 
   it("should fall back to 'Worked through 3 steps' (plural) when duration is unknown", () => {
     expect(chainLabel(false, null, 3)).toBe("Worked through 3 steps");
+  });
+});
+
+describe("splitReasoningSections()", () => {
+  it("should keep a title with its body as one section", () => {
+    expect(splitReasoningSections("**Planning the query**\n\nI need to check the ledger.")).toEqual([
+      "**Planning the query**\n\nI need to check the ledger.",
+    ]);
+  });
+
+  it("should split concatenated title-only blocks into one section each", () => {
+    expect(splitReasoningSections("**Planning**\n\n**Assessing overdue bills**\n\n**Classifying results**")).toEqual([
+      "**Planning**",
+      "**Assessing overdue bills**",
+      "**Classifying results**",
+    ]);
+  });
+
+  it("should attach each body to its preceding title when sections have bodies", () => {
+    expect(splitReasoningSections("**First**\n\nbody one\n\n**Second**\n\nbody two")).toEqual([
+      "**First**\n\nbody one",
+      "**Second**\n\nbody two",
+    ]);
+  });
+
+  it("should keep plain prose without title lines as a single section", () => {
+    expect(splitReasoningSections("just thinking out loud\n\nmore thoughts")).toEqual([
+      "just thinking out loud\n\nmore thoughts",
+    ]);
+  });
+
+  it("should not split on a paragraph that merely starts with bold text", () => {
+    expect(splitReasoningSections("**Planning**\n\n**Note:** details follow here")).toEqual([
+      "**Planning**\n\n**Note:** details follow here",
+    ]);
+  });
+
+  it("should keep prose before the first title as its own leading section", () => {
+    expect(splitReasoningSections("some intro\n\n**Title**\n\nbody")).toEqual(["some intro", "**Title**\n\nbody"]);
+  });
+
+  it("should drop a blank leading chunk when the text starts with a blank line", () => {
+    expect(splitReasoningSections("\n\n**Title**")).toEqual(["**Title**"]);
+  });
+
+  it("should return no sections for an empty string (encrypted CoT with no summary)", () => {
+    expect(splitReasoningSections("")).toEqual([]);
+  });
+
+  it("should return no sections for whitespace-only text", () => {
+    expect(splitReasoningSections("\n\n  ")).toEqual([]);
   });
 });
