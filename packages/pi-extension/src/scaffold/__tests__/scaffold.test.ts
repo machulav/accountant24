@@ -76,7 +76,7 @@ describe("ensureScaffolded()", () => {
   test("should write accounts.journal with semicolon comments", async () => {
     await ensureScaffolded();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
-    expect(content).toContain("; Default chart of accounts");
+    expect(content).toContain("; Chart of accounts");
     expect(content).not.toMatch(/^#/m);
   });
 

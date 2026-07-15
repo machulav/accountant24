@@ -1,47 +1,38 @@
-; Default chart of accounts for accountant24
+; Chart of accounts — every account used in the ledger must be declared here.
 ;
 ; Account types:
-;   ASSETS       — things you own (bank accounts, cash, investments)
+;   ASSETS       — things you own (cash, bank accounts, investments, property)
 ;   LIABILITIES  — things you owe (credit cards, loans, mortgages)
-;   EQUITY       — owner's investment, balances assets and liabilities
-;   INCOME       — inflows of money (salary, business, interest)
+;   EQUITY       — technical balancing entries, not real money flows (opening balances, currency conversion)
+;   INCOME       — inflows of money (salary, business, investments)
 ;   EXPENSES     — outflows of money (rent, groceries, subscriptions)
 
 ; ====================================================================
-; ASSETS — things you own (bank accounts, cash, investments)
+; ASSETS — things you own (cash, bank accounts, investments, property)
 ; ====================================================================
 
-account Assets:Cash
+account Assets:Cash  ; physical cash
 
 ; ====================================================================
 ; LIABILITIES — things you owe (credit cards, loans, mortgages)
 ; ====================================================================
 
-account Liabilities:Credit Card
-account Liabilities:Mortgage
-account Liabilities:Car Loan
-account Liabilities:Student Loan
-account Liabilities:Loan
+account Liabilities:Loan  ; personal loans
 
 ; ====================================================================
-; EQUITY — owner's investment, balances assets and liabilities
+; EQUITY — technical balancing entries, not real money flows (opening balances, currency conversion)
 ; ====================================================================
 
-account Equity:Opening Balances
+account Equity:Opening Balances  ; counterpart for initial account balances
 
 ; ====================================================================
-; INCOME — inflows of money (salary, business, interest)
+; INCOME — inflows of money (salary, business, investments)
 ; ====================================================================
 
-account Income:Salary
-account Income:Business
-account Income:Investment
-account Income:Interest
-account Income:Rental
-account Income:Gifts Received
-account Income:Government Benefits
-account Income:Tax Refund
-account Income:Other
+account Income:Salary      ; wages, bonuses, employer benefits
+account Income:Business    ; self-employment, freelance, side gigs
+account Income:Investment  ; dividends, capital gains, interest
+account Income:Other       ; gifts, tax refunds, government benefits
 
 ; ====================================================================
 ; EXPENSES — outflows of money (rent, groceries, subscriptions)
@@ -58,10 +49,8 @@ account Expenses:Health                 ; health insurance, doctors, hospitals, 
 account Expenses:Personal Care          ; hair, beauty, gym and fitness
 account Expenses:Education              ; tuition, courses, books
 account Expenses:Children               ; childcare, kids' activities
-account Expenses:Pets                   ; pet food, supplies, vet
-account Expenses:Financial              ; bank fees, credit card and loan interest
+account Expenses:Financial              ; bank fees, interest, legal and accounting services
 account Expenses:Taxes                  ; income tax, property tax
-account Expenses:Professional Services  ; legal, tax and accounting, consulting
 account Expenses:Gifts & Donations      ; gifts, charity
 account Expenses:Subscriptions          ; streaming, software and apps, memberships
 account Expenses:Uncategorized          ; transactions pending categorization
