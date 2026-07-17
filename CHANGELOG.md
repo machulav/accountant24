@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.2.10
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.9...v0.2.10)
+
+### 🚀 Features
+
+- Simplify the starter accounts and add naming rules ([#19](https://github.com/machulav/accountant24/pull/19))
+
+### 🐞 Bug Fixes
+
+- **desktop:** Show a dot for every reasoning title on the timeline ([9b61fc9](https://github.com/machulav/accountant24/commit/9b61fc9))
+- **desktop:** Restore the original size of the pulsing working dot ([3ed2b52](https://github.com/machulav/accountant24/commit/3ed2b52))
+- **desktop:** Always show the table expand button ([e03f6b1](https://github.com/machulav/accountant24/commit/e03f6b1))
+
+### ✅ Tests
+
+- Improve test coverage ([#20](https://github.com/machulav/accountant24/pull/20))
+
 ## v0.2.9
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.8...v0.2.9)
