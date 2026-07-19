@@ -6,7 +6,6 @@
 // parse here (one place).
 
 import type {
-  AgentEvent,
   AppSettings,
   AuthEvent,
   AuthModels,
@@ -14,6 +13,7 @@ import type {
   AuthStatus,
   LedgerMentions,
   OllamaInfo,
+  SessionAgentEvent,
   SessionSummary,
   SkillAddRequest,
   SkillAddResult,
@@ -34,13 +34,16 @@ const MODELS_CHANGED = "a24:models-changed";
 
 /** Payload for an unexpected agent exit (crash), carrying a stderr tail for
  *  diagnostics. Deliberate stops (restart / app quit) are not reported. */
-export type AgentExit = { code: number | null; signal: string | null; stderr: string };
+export type AgentExit = { sessionPath: string; code: number | null; signal: string | null; stderr: string };
 
 export const agentApi = {
-  start: () => api.invoke<void>("agent_start"),
-  send: (command: object) => api.invoke<void>("agent_send", command),
-  stop: () => api.invoke<void>("agent_stop"),
-  /** Respawn the agent so it re-reads auth.json + models.json, then notify the UI. */
+  /** Mint a fresh session file path for a new chat (no process is spawned —
+   *  the first send to it does that). */
+  createSession: () => api.invoke<string>("agent_create_session"),
+  /** Send one RPC command to the given session's child, spawning it on demand. */
+  send: (sessionPath: string, command: object) => api.invoke<void>("agent_send", { sessionPath, command }),
+  /** Kill all children so the next send respawns them with fresh auth.json +
+   *  models.json, then notify the UI. */
   async restart(): Promise<void> {
     await api.invoke<void>("agent_restart");
     window.dispatchEvent(new Event(MODELS_CHANGED));
@@ -50,18 +53,25 @@ export const agentApi = {
     window.addEventListener(MODELS_CHANGED, cb);
     return () => window.removeEventListener(MODELS_CHANGED, cb);
   },
-  onEvent: async (cb: (event: AgentEvent) => void): Promise<() => void> =>
+  onEvent: async (cb: (event: SessionAgentEvent) => void): Promise<() => void> =>
     api.on("agent-event", (payload) => {
+      const { sessionPath, line } = payload as { sessionPath: string; line: string };
+      let event: SessionAgentEvent;
       try {
-        cb(JSON.parse(payload as string) as AgentEvent);
+        // Mutate the freshly parsed object (nothing else references it) —
+        // this runs per streaming token, so skip the spread copy.
+        event = JSON.parse(line) as SessionAgentEvent;
+        event.sessionPath = sessionPath;
       } catch {
-        dlog(`PARSE FAIL: ${String(payload).slice(0, 140)}`);
+        dlog(`PARSE FAIL: ${String(line).slice(0, 140)}`);
+        return;
       }
+      cb(event);
     }),
   onTerminated: async (cb: (info: AgentExit) => void): Promise<() => void> =>
     api.on("agent-terminated", (payload) => cb(payload as AgentExit)),
-  onError: async (cb: (message: string) => void): Promise<() => void> =>
-    api.on("agent-error", (payload) => cb(payload as string)),
+  onError: async (cb: (info: { sessionPath: string; message: string }) => void): Promise<() => void> =>
+    api.on("agent-error", (payload) => cb(payload as { sessionPath: string; message: string })),
 };
 
 export const appApi = {

@@ -8,11 +8,13 @@
 // same files the agent child reads (PI_CODING_AGENT_DIR points there).
 
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { join } from "node:path";
 import { AuthStorage, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type BrowserWindow, ipcMain, shell } from "electron";
+import { killSessionAgent } from "./agent";
 import { trackProviderConnected } from "./analytics";
 import { sessionsDir, workspaceDir } from "./env";
+import { resolveSessionPath } from "./sessionPaths";
 
 type LoginCallbacks = Parameters<AuthStorage["login"]>[1];
 
@@ -292,13 +294,13 @@ async function sessionsList() {
 
 function sessionsDelete(path: string) {
   if (!path) return { type: "error", message: "session path is required" };
-  const dir = resolve(sessionsDir());
-  const target = resolve(path);
-  // Strictly inside the sessions dir: the separator suffix stops both siblings
-  // that merely share the prefix (…/sessions-backup) and the dir itself.
-  if (!target.startsWith(dir + sep)) {
+  const target = resolveSessionPath(path);
+  if (!target) {
     return { type: "error", message: "refusing to delete a path outside the sessions directory" };
   }
+  // A live child would keep running (and eventually re-persist the file) —
+  // deleting a running session intentionally aborts it.
+  killSessionAgent(target);
   rmSync(target, { force: true });
   return { type: "done", path };
 }
