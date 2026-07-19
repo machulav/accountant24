@@ -35,35 +35,25 @@ function onlyPayload(channel: string): unknown {
 }
 
 describe("agentApi", () => {
-  describe("start()", () => {
-    it("should invoke the 'agent_start' channel with no payload and resolve its value", async () => {
-      bridge.setHandler("agent_start", () => "started");
+  describe("createSession()", () => {
+    it("should invoke the 'agent_create_session' channel and resolve the minted path", async () => {
+      bridge.setHandler("agent_create_session", () => "/ws/sessions/new.jsonl");
 
-      const result = await agentApi.start();
+      const result = await agentApi.createSession();
 
-      expect(result).toBe("started");
-      expect(bridge.callsFor("agent_start")).toEqual([undefined]);
+      expect(result).toBe("/ws/sessions/new.jsonl");
+      expect(bridge.callsFor("agent_create_session")).toEqual([undefined]);
     });
   });
 
   describe("send()", () => {
-    it("should invoke 'agent_send' with the command object as payload", async () => {
+    it("should invoke 'agent_send' with the session path and the command object", async () => {
       const command = { type: "user", text: "hi" };
       bridge.setHandler("agent_send", () => undefined);
 
-      await agentApi.send(command);
+      await agentApi.send("/ws/sessions/a.jsonl", command);
 
-      expect(onlyPayload("agent_send")).toEqual(command);
-    });
-  });
-
-  describe("stop()", () => {
-    it("should invoke the 'agent_stop' channel with no payload", async () => {
-      bridge.setHandler("agent_stop", () => undefined);
-
-      await agentApi.stop();
-
-      expect(bridge.callsFor("agent_stop")).toEqual([undefined]);
+      expect(onlyPayload("agent_send")).toEqual({ sessionPath: "/ws/sessions/a.jsonl", command });
     });
   });
 
@@ -107,21 +97,26 @@ describe("agentApi", () => {
   });
 
   describe("onEvent()", () => {
-    it("should parse a JSONL payload into an object and pass it to the callback", async () => {
+    it("should parse the JSONL line and merge the session path into the event", async () => {
       const cb = vi.fn();
       await agentApi.onEvent(cb);
 
-      bridge.emit("agent-event", JSON.stringify({ type: "text", value: "hello" }));
+      bridge.emit("agent-event", {
+        sessionPath: "/ws/sessions/a.jsonl",
+        line: JSON.stringify({ type: "text", value: "hello" }),
+      });
 
       expect(cb).toHaveBeenCalledTimes(1);
-      expect(cb).toHaveBeenCalledWith({ type: "text", value: "hello" });
+      expect(cb).toHaveBeenCalledWith({ type: "text", value: "hello", sessionPath: "/ws/sessions/a.jsonl" });
     });
 
-    it("should not throw and not call the callback when the payload is malformed JSON", async () => {
+    it("should not throw and not call the callback when the line is malformed JSON", async () => {
       const cb = vi.fn();
       await agentApi.onEvent(cb);
 
-      expect(() => bridge.emit("agent-event", "{not valid json")).not.toThrow();
+      expect(() =>
+        bridge.emit("agent-event", { sessionPath: "/ws/sessions/a.jsonl", line: "{not valid json" }),
+      ).not.toThrow();
       expect(cb).not.toHaveBeenCalled();
     });
 
@@ -136,10 +131,10 @@ describe("agentApi", () => {
   });
 
   describe("onTerminated()", () => {
-    it("should pass the exit-info payload through to the callback", async () => {
+    it("should pass the exit-info payload (with its session) through to the callback", async () => {
       const cb = vi.fn();
       await agentApi.onTerminated(cb);
-      const exit = { code: 1, signal: null, stderr: "boom" };
+      const exit = { sessionPath: "/ws/sessions/a.jsonl", code: 1, signal: null, stderr: "boom" };
 
       bridge.emit("agent-terminated", exit);
 
@@ -148,13 +143,13 @@ describe("agentApi", () => {
   });
 
   describe("onError()", () => {
-    it("should pass the error message payload through to the callback", async () => {
+    it("should pass the error payload (with its session) through to the callback", async () => {
       const cb = vi.fn();
       await agentApi.onError(cb);
 
-      bridge.emit("agent-error", "spawn failed");
+      bridge.emit("agent-error", { sessionPath: "/ws/sessions/a.jsonl", message: "spawn failed" });
 
-      expect(cb).toHaveBeenCalledWith("spawn failed");
+      expect(cb).toHaveBeenCalledWith({ sessionPath: "/ws/sessions/a.jsonl", message: "spawn failed" });
     });
   });
 });

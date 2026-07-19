@@ -52,9 +52,11 @@ export function ChatLayout() {
   // The "*" adapter must be last (it handles all remaining types).
   // Image filenames are lost once pi projects them to bare `image` parts, so the
   // adapter reports each sent image's name here. `pending` collects the current
-  // send; `run` is the snapshot taken at agent_start so a run is titled only from
-  // its own images (not images left over from an earlier, already-titled chat).
-  const imageNames = useRef<{ pending: string[]; run: string[] }>({ pending: [], run: [] });
+  // send; `run` maps each session to the snapshot taken at its agent_start so a
+  // run is titled only from its own images (not images left over from an
+  // earlier, already-titled chat) — keyed per session because runs on several
+  // chats can be in flight at once.
+  const imageNames = useRef<{ pending: string[]; run: Map<string, string[]> }>({ pending: [], run: new Map() });
   const attachments = useMemo(
     () =>
       new CompositeAttachmentAdapter([
@@ -79,33 +81,53 @@ export function ChatLayout() {
   // When a still-untitled chat finishes its first run, title it from the first
   // user message via the thread item's own rename — an optimistic, single-thread
   // update (no list refetch) that also persists the name. Titled chats are
-  // skipped, so this never clobbers a manual rename or fires twice.
+  // skipped, so this never clobbers a manual rename or fires twice. Everything
+  // is keyed by the event's sessionPath (= threadId), so a run finishing in a
+  // background chat titles THAT chat, not the one being viewed.
   useEffect(() => {
     return agentBridge.addEventListener((e) => {
-      // Claim this run's images before agent_end so a later message can't retitle.
+      // Claim this run's images before agent_end so a later message can't
+      // retitle. The pending images belong to this session: they were attached
+      // in the composer whose send started this very run.
       if (e.type === "agent_start") {
-        imageNames.current.run = imageNames.current.pending;
+        imageNames.current.run.set(e.sessionPath, imageNames.current.pending);
         imageNames.current.pending = [];
         return;
       }
       if (e.type !== "agent_end") return;
-      const sentImages = imageNames.current.run;
-      imageNames.current.run = [];
-      const item = runtime.threads.mainItem;
+      const sentImages = imageNames.current.run.get(e.sessionPath) ?? [];
+      imageNames.current.run.delete(e.sessionPath);
+      let item: ReturnType<typeof runtime.threads.getItemById>;
+      try {
+        item = runtime.threads.getItemById(e.sessionPath);
+      } catch {
+        return; // session unknown to the thread list — nothing to title
+      }
       if (item.getState().title) return;
-      const firstUser = runtime.thread.getState().messages.find((m) => m.role === "user");
-      const texts = (firstUser?.content ?? [])
-        .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text);
-      // Title from the first user message: its text (markers stripped, mentions
-      // as plain labels), or the attached file/image names for an attachment-only
-      // message. `sentImages` are the names the adapter reported for this run,
-      // since images are gone from the transcript.
-      const title = deriveChatTitle({ texts, imageNames: sentImages });
-      if (!title) return;
-      void item.rename(title);
+      // Fetch the first user message from the session's transcript — works the
+      // same for the viewed and background chats, and arrives already
+      // normalized (skill blocks collapsed) by the client's snapshot path.
+      // One extra RPC, paid only on the first run of a still-untitled chat.
+      void client
+        .getThread(e.sessionPath)
+        .then((snapshot) => {
+          if (item.getState().title) return; // a rename landed meanwhile
+          const messages = snapshot.messages as Array<{ role?: string; content?: unknown }>;
+          const firstUser = messages.find((m) => m.role === "user");
+          const content = Array.isArray(firstUser?.content)
+            ? (firstUser.content as { type?: string; text?: string }[])
+            : [];
+          const texts = content.filter((p) => p.type === "text" && typeof p.text === "string").map((p) => p.text ?? "");
+          // Title from the first user message: its text (markers stripped,
+          // mentions as plain labels), or the attached file/image names for an
+          // attachment-only message. `sentImages` are the names the adapter
+          // reported for this run, since images are gone from the transcript.
+          const title = deriveChatTitle({ texts, imageNames: sentImages });
+          if (title) void item.rename(title);
+        })
+        .catch(() => undefined);
     });
-  }, [runtime]);
+  }, [runtime, client]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

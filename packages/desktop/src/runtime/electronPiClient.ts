@@ -5,11 +5,12 @@
 // This is the transport the package leaves open (HTTP/SSE is just one
 // implementation); we mirror `client/httpClient.ts` against the sidecar.
 //
-// pi is single-active-session; the runtime is multi-thread. We bridge that by
-// treating `threadId` = pi session-file path and issuing `switch_session` before
-// any operation targeting a non-active thread (the user views one thread at a
-// time). Every emitted event is stamped with a monotonic per-thread `seq` and a
-// derived `turnIndex`, exactly as the node ThreadSupervisor does.
+// pi is single-active-session PER PROCESS; the runtime is multi-thread. We
+// bridge that with one pi child per session (main spawns them on demand):
+// `threadId` = pi session-file path = the routing key on every command and
+// event, so a run keeps going — and keeps streaming — while the user views
+// other threads. Every emitted event is stamped with a monotonic per-thread
+// `seq` and a derived `turnIndex`, exactly as the node ThreadSupervisor does.
 
 import type {
   PiClient,
@@ -37,7 +38,7 @@ import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
 import { mentionsToPlainText } from "../lib/mentions";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
-import { agentApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
+import { agentApi, authApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
@@ -55,8 +56,6 @@ type PiState = {
 
 const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
 
-let pendingCounter = 0;
-
 const deriveReadiness = (model: ModelInfo | undefined): PiRuntimeReadiness =>
   model
     ? { state: "ready", selection: { provider: model.provider, modelId: model.id }, source: "session" }
@@ -70,21 +69,18 @@ const toModelInfo = (m: ModelInfo): PiModelInfo => ({
 });
 
 export function createElectronPiClient(): PiClient {
-  /** The session pi currently has loaded (its single active session). */
-  let activeThreadId: string | undefined;
-  /** The active session's model as `provider/modelId` — an analytics prop only.
+  /** Each thread's model as `provider/modelId` — an analytics prop only.
    *  Kept from get_state snapshots and setModel; never sent back to pi. */
-  let currentModelId: string | undefined;
-  /** Serializes switch_session so events route to the intended thread. */
-  let switchChain: Promise<void> = Promise.resolve();
+  const modelByThread = new Map<string, string>();
   const seqs = new Map<string, number>();
   const turns = new Map<string, number>();
   // Threads with a run in flight. Tracked here because a NEW thread's first
   // message is sent via createThread (not the controller), so without this the
   // runtime's load() snapshot would report idle and never connect() to the
   // stream — leaving the just-sent message and its reply invisible until a
-  // manual refetch. Set on send, cleared on agent_end (runs are on the active
-  // session). A persistent listener keeps it accurate even between subscriptions.
+  // manual refetch. Set on send, cleared on agent_end, keyed by the session
+  // each event is tagged with — so background runs stay accurately "running".
+  // A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
   // skill_used analytics: resolve a skill to native-or-custom without leaking
   // custom identities. The lookup refreshes on the same signal as the composer
@@ -122,32 +118,19 @@ export function createElectronPiClient(): PiClient {
       if (segments.at(-1) === "SKILL.md") trackSkillByName(segments.at(-2) ?? "", "auto");
     }
     if (e.type === "agent_end") trackAgentMessageSent();
-    if (!activeThreadId) return;
-    if (e.type === "agent_start") running.add(activeThreadId);
-    else if (e.type === "agent_end") running.delete(activeThreadId);
+    if (e.type === "agent_start") running.add(e.sessionPath);
+    else if (e.type === "agent_end") running.delete(e.sessionPath);
   });
-  // If the agent crashes, a respawn starts with no active session. Forget the
-  // active thread + in-flight runs so the next ensureActive() re-issues
-  // switch_session against the fresh process instead of assuming it's loaded.
-  agentBridge.addErrorListener(() => {
-    activeThreadId = undefined;
-    running.clear();
+  // A crashed child takes its in-flight run with it; other sessions' runs are
+  // separate processes and keep going untouched.
+  agentBridge.addErrorListener((sessionPath) => {
+    running.delete(sessionPath);
   });
 
   const nextSeq = (threadId: string): number => {
     const n = (seqs.get(threadId) ?? 0) + 1;
     seqs.set(threadId, n);
     return n;
-  };
-
-  const ensureActive = (threadId: string): Promise<void> => {
-    if (threadId === activeThreadId || threadId.startsWith("pending-")) return Promise.resolve();
-    switchChain = switchChain.then(async () => {
-      if (threadId === activeThreadId) return;
-      await agentBridge.request({ type: "switch_session", sessionPath: threadId }, "switch_session");
-      activeThreadId = threadId;
-    });
-    return switchChain;
   };
 
   /** Collapse pi's expanded skill block in a transcript USER message back to
@@ -172,7 +155,7 @@ export function createElectronPiClient(): PiClient {
   };
 
   const buildSnapshot = (threadId: string, state: PiState, messages: unknown): PiThreadSnapshot => {
-    if (state.model) currentModelId = `${state.model.provider}/${state.model.id}`;
+    if (state.model) modelByThread.set(threadId, `${state.model.provider}/${state.model.id}`);
     const list = Array.isArray(messages) ? messages.map(collapseUserMessage) : [];
     return {
       metadata: {
@@ -253,49 +236,49 @@ export function createElectronPiClient(): PiClient {
     },
 
     async createThread(input) {
-      await agentBridge.request({ type: "new_session" }, "new_session");
+      // Mint the session path up front (the first command spawns its child,
+      // which starts a fresh session AT that path — see electron/main/agent.ts),
+      // fetching the default-model setting concurrently: two independent IPC
+      // round-trips on the user-visible new-chat path.
+      const [id, settings] = await Promise.all([agentApi.createSession(), settingsApi.get().catch(() => undefined)]);
       trackChatCreated();
       // Pick the model for the fresh session: the model the user chose in the
       // composer for this new chat, else the configured default. Sent before
       // get_state so the snapshot reflects it (stdin commands run in order).
       try {
-        const chosen = newChatModel.get() ?? parseModelId((await settingsApi.get()).defaultModel ?? "");
+        const chosen = newChatModel.get() ?? parseModelId(settings?.defaultModel ?? "");
         if (chosen) {
-          await agentBridge.send({ type: "set_model", provider: chosen.provider, modelId: chosen.modelId });
+          await agentBridge.send(id, { type: "set_model", provider: chosen.provider, modelId: chosen.modelId });
         }
       } catch {
-        // No model configured / settings unreadable: keep pi's own default.
+        // No model configured: keep pi's own default.
       } finally {
         // Reset so the next new chat starts from the default again.
         newChatModel.set(undefined);
       }
-      const state = await agentBridge.request<PiState>({ type: "get_state" }, "get_state");
-      const id = state.sessionFile ?? state.sessionId ?? `pending-${(pendingCounter += 1)}`;
-      activeThreadId = id;
+      const state = await agentBridge.request<PiState>(id, { type: "get_state" }, "get_state");
       turns.delete(id);
       // Record the new chat's model before the initial message is tracked —
       // buildSnapshot below runs too late, and would leave user_message_sent
-      // stamped with the PREVIOUS session's model.
-      if (state.model) currentModelId = `${state.model.provider}/${state.model.id}`;
+      // stamped with no model.
+      if (state.model) modelByThread.set(id, `${state.model.provider}/${state.model.id}`);
       if (input?.initialMessage) await client.sendMessage(id, input.initialMessage);
       return buildSnapshot(id, state, []);
     },
 
     async getThread(threadId) {
-      await ensureActive(threadId);
       const [msgs, state] = await Promise.all([
-        agentBridge.request<{ messages: unknown }>({ type: "get_messages" }, "get_messages"),
-        agentBridge.request<PiState>({ type: "get_state" }, "get_state"),
+        agentBridge.request<{ messages: unknown }>(threadId, { type: "get_messages" }, "get_messages"),
+        agentBridge.request<PiState>(threadId, { type: "get_state" }, "get_state"),
       ]);
       return buildSnapshot(threadId, state, msgs.messages);
     },
 
     async sendMessage(threadId, input: PiSendMessageInput) {
-      await ensureActive(threadId);
       // `input.attachments` carries images only; documents (PDF, CSV, …) travel
       // as marker lines inside `content` — count both as attachments.
       const hasAttachment = Boolean(input.attachments?.length) || extractAttachmentRefs(input.content).refs.length > 0;
-      trackUserMessageSent(hasAttachment, currentModelId);
+      trackUserMessageSent(hasAttachment, modelByThread.get(threadId));
       trackUserFirstMessageSent();
       // A picked skill rides in the composer as a `:skill[name]` chip; pi
       // expects a leading `/skill:name` token instead — rewrite on the way out.
@@ -303,7 +286,7 @@ export function createElectronPiClient(): PiClient {
       const skillToken = /^\/skill:(\S+)/.exec(message)?.[1];
       if (skillToken) trackSkillByName(skillToken, "manual");
       running.add(threadId); // optimistic — flips status to running before agent_start arrives
-      await agentBridge.send({
+      await agentBridge.send(threadId, {
         type: "prompt",
         message,
         ...(input.attachments?.length ? { images: input.attachments } : {}),
@@ -311,8 +294,8 @@ export function createElectronPiClient(): PiClient {
       });
     },
 
-    async cancelRun() {
-      await agentBridge.send({ type: "abort" });
+    async cancelRun(threadId) {
+      await agentBridge.send(threadId, { type: "abort" });
     },
 
     async clearQueue() {
@@ -321,27 +304,24 @@ export function createElectronPiClient(): PiClient {
     },
 
     async getAvailableModels() {
-      const data = await agentBridge.request<{ models?: ModelInfo[] }>(
-        { type: "get_available_models" },
-        "get_available_models",
-      );
+      // Session-independent: read the catalog straight from main's in-process
+      // ModelRegistry (re-reads auth.json/models.json per call) instead of
+      // asking some child — no child needs to exist for the picker to work.
+      const data = await authApi.models();
       return (data.models ?? []).map(toModelInfo);
     },
 
     async setModel(threadId, input) {
-      await ensureActive(threadId);
-      currentModelId = `${input.provider}/${input.modelId}`;
-      await agentBridge.send({ type: "set_model", provider: input.provider, modelId: input.modelId });
+      modelByThread.set(threadId, `${input.provider}/${input.modelId}`);
+      await agentBridge.send(threadId, { type: "set_model", provider: input.provider, modelId: input.modelId });
     },
 
     async setThinkingLevel(threadId, level: PiThinkingLevel) {
-      await ensureActive(threadId);
-      await agentBridge.send({ type: "set_thinking_level", level });
+      await agentBridge.send(threadId, { type: "set_thinking_level", level });
     },
 
     async renameThread(threadId, title) {
-      await ensureActive(threadId);
-      await agentBridge.send({ type: "set_session_name", name: title });
+      await agentBridge.send(threadId, { type: "set_session_name", name: title });
     },
 
     async archiveThread() {
@@ -355,24 +335,24 @@ export function createElectronPiClient(): PiClient {
       await sessionsApi.delete(threadId);
     },
 
-    async respondToHostUiRequest(_threadId, response: PiHostUiResponse) {
+    async respondToHostUiRequest(threadId, response: PiHostUiResponse) {
       // Auto-approval in agentBridge means the runtime normally never calls this;
       // honor it anyway for completeness.
       if ("confirmed" in response) {
-        await agentBridge.send({
+        await agentBridge.send(threadId, {
           type: "extension_ui_response",
           id: response.requestId,
           confirmed: response.confirmed,
         });
       } else if ("value" in response) {
-        await agentBridge.send({
+        await agentBridge.send(threadId, {
           type: "extension_ui_response",
           id: response.requestId,
           value: response.value,
           confirmed: true,
         });
       } else {
-        await agentBridge.send({ type: "extension_ui_response", id: response.requestId, confirmed: false });
+        await agentBridge.send(threadId, { type: "extension_ui_response", id: response.requestId, confirmed: false });
       }
     },
 
@@ -388,11 +368,18 @@ export function createElectronPiClient(): PiClient {
         if (!active) return;
         offs.push(
           agentBridge.addEventListener((e) => {
+            // The bridge broadcasts every session's stream; only this thread's
+            // child's events belong here (concurrent runs stream in parallel).
+            if (e.sessionPath !== threadId) return;
             const body = mapEvent(threadId, e);
             if (body) emit(body);
           }),
         );
-        offs.push(agentBridge.addErrorListener((msg) => emit({ type: "error", error: msg })));
+        offs.push(
+          agentBridge.addErrorListener((sessionPath, msg) => {
+            if (sessionPath === threadId) emit({ type: "error", error: msg });
+          }),
+        );
       };
 
       if (includeSnapshot) {

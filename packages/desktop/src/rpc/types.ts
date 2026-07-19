@@ -182,6 +182,11 @@ export type AgentEvent =
     }
   | { type: "response"; id?: string; command: string; success: boolean; data?: unknown; error?: string };
 
+/** An agent event tagged with the session it came from. The pi wire event is
+ *  anonymous; main tags each line with its child's session path so the
+ *  renderer can route concurrent sessions' streams. */
+export type SessionAgentEvent = AgentEvent & { sessionPath: string };
+
 // ---- Sessions (from the sessions helper) --------------------------------
 
 export interface SessionSummary {

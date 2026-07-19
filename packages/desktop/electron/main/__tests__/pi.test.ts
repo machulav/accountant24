@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
   },
   sessionList: vi.fn<(...args: unknown[]) => Promise<unknown[]>>(async () => []),
   trackProviderConnected: vi.fn(),
+  killSessionAgent: vi.fn(),
   fs: {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("electron", () => ({
   shell: { openExternal: h.openExternal },
 }));
 vi.mock("../env", () => ({ workspaceDir: () => "/ws", sessionsDir: () => "/ws/sessions" }));
+vi.mock("../agent", () => ({ killSessionAgent: h.killSessionAgent }));
 vi.mock("../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   AuthStorage: { create: () => h.authStorage },
@@ -572,10 +574,21 @@ describe("sessions_delete", () => {
     expect(h.fs.rmSync).toHaveBeenCalledWith("/ws/sessions/a.jsonl", { force: true });
   });
 
+  it("should kill the session's agent child before removing the file", async () => {
+    await setup();
+    invoke("sessions_delete", { path: "/ws/sessions/a.jsonl" });
+    expect(h.killSessionAgent).toHaveBeenCalledWith("/ws/sessions/a.jsonl");
+    // Kill first, then remove — a live child could re-persist the file.
+    const killOrder = h.killSessionAgent.mock.invocationCallOrder[0];
+    const rmOrder = h.fs.rmSync.mock.invocationCallOrder[0];
+    expect(killOrder).toBeLessThan(rmOrder);
+  });
+
   it("should refuse a sibling directory that shares the sessions prefix", async () => {
     await setup();
     expect(invoke("sessions_delete", { path: "/ws/sessions-backup/x.jsonl" })).toEqual(refusal);
     expect(h.fs.rmSync).not.toHaveBeenCalled();
+    expect(h.killSessionAgent).not.toHaveBeenCalled();
   });
 
   it("should refuse a traversal that resolves outside the sessions directory", async () => {

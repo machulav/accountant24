@@ -7,10 +7,18 @@ import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 // Shared, mutable test state. `vi.hoisted` runs before the vi.mock factories
 // (which are hoisted to the top of the module), so the mocks can close over it.
 const h = vi.hoisted(() => ({
-  // Fake pi runtime surface ChatLayout drives.
+  // Fake pi runtime surface ChatLayout drives. MAIN is the viewed thread;
+  // BG is a background thread.
+  MAIN: "/ws/sessions/main.jsonl",
+  BG: "/ws/sessions/background.jsonl",
   rename: vi.fn<(title: string) => Promise<void>>(),
+  bgRename: vi.fn<(title: string) => Promise<void>>(),
+  bgTitle: null as string | null,
   switchToNewThread: vi.fn(),
-  thread: { title: null as string | null, messages: [] as { role: string; content: unknown[] }[] },
+  thread: { title: null as string | null },
+  // Per-session transcripts the fake client's getThread serves.
+  transcripts: {} as Record<string, unknown[]>,
+  getThread: vi.fn<(id: string) => Promise<{ messages: unknown[] }>>(),
   // Live agent-event subscribers (agentBridge.addEventListener registrations).
   agentListeners: new Set<(e: { type: string }) => void>(),
   // updateApi state the update banner reads.
@@ -19,13 +27,18 @@ const h = vi.hoisted(() => ({
 }));
 
 // A single stable runtime object so ChatLayout's title effect subscribes once.
-// getState reads `h.thread` live, so tests can seed messages/title per case.
+// getState reads `h` live, so tests can seed titles per case.
 const fakeRuntime = {
   threads: {
     switchToNewThread: h.switchToNewThread,
-    mainItem: { getState: () => ({ title: h.thread.title }), rename: h.rename },
+    mainItem: { getState: () => ({ title: h.thread.title, isMain: true, id: h.MAIN }), rename: h.rename },
+    getItemById: (id: string) => {
+      if (id === h.MAIN)
+        return { getState: () => ({ title: h.thread.title, isMain: true, id: h.MAIN }), rename: h.rename };
+      if (id === h.BG) return { getState: () => ({ title: h.bgTitle, isMain: false, id: h.BG }), rename: h.bgRename };
+      throw new Error("Thread not found");
+    },
   },
-  thread: { getState: () => ({ messages: h.thread.messages }) },
 };
 
 // AssistantRuntimeProvider is a pure context wrapper here; the real one demands a
@@ -39,8 +52,9 @@ vi.mock("@assistant-ui/react-pi", () => ({
   usePiRuntime: () => fakeRuntime,
 }));
 
+// The client's only role here is serving transcripts for auto-titling.
 vi.mock("@/runtime/electronPiClient", () => ({
-  createElectronPiClient: () => ({ __client: true }),
+  createElectronPiClient: () => ({ getThread: h.getThread }),
 }));
 
 vi.mock("@/runtime/fileAttachmentAdapter", () => ({
@@ -129,10 +143,15 @@ beforeAll(() => {
 beforeEach(() => {
   h.rename.mockReset();
   h.rename.mockResolvedValue(undefined);
+  h.bgRename.mockReset();
+  h.bgRename.mockResolvedValue(undefined);
+  h.bgTitle = null;
   h.switchToNewThread.mockReset();
   h.install.mockReset();
   h.thread.title = null;
-  h.thread.messages = [];
+  h.transcripts = {};
+  h.getThread.mockReset();
+  h.getThread.mockImplementation(async (id: string) => ({ messages: h.transcripts[id] ?? [] }));
   h.update.pendingValue = null;
   h.update.downloadedCb = null;
   h.agentListeners.clear();
@@ -140,12 +159,16 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-/** Push an agent event to every live subscriber, flushing React work. */
-const emit = (type: string) => {
+/** Push an agent event (tagged with its session) to every live subscriber,
+ *  flushing React work. */
+const emit = (type: string, sessionPath: string = h.MAIN) => {
   act(() => {
-    for (const fn of [...h.agentListeners]) fn({ type });
+    for (const fn of [...h.agentListeners]) fn({ type, sessionPath } as never);
   });
 };
+
+/** Let the titling path's async transcript fetch settle. */
+const flushTitling = () => act(async () => {});
 
 const userMessage = (text: string) => ({ role: "user", content: [{ type: "text", text }] });
 
@@ -228,61 +251,153 @@ describe("ChatLayout update banner", () => {
 });
 
 describe("ChatLayout auto-titling of new chats", () => {
-  it("should title an untitled chat from the first user message when a run ends", () => {
+  it("should title an untitled chat from the transcript's first user message when a run ends", async () => {
     h.thread.title = null;
-    h.thread.messages = [userMessage("what is my balance")];
+    h.transcripts[h.MAIN] = [userMessage("what is my balance")];
     render(<ChatLayout />);
 
     emit("agent_start");
     emit("agent_end");
+    await flushTitling();
 
     expect(h.rename).toHaveBeenCalledTimes(1);
     expect(h.rename).toHaveBeenCalledWith("what is my balance");
   });
 
-  it("should truncate a long first message to 60 characters with an ellipsis", () => {
+  it("should truncate a long first message to 60 characters with an ellipsis", async () => {
     // Spec: deriveChatTitle caps titles at 60 chars + "…".
     const long = "a".repeat(61);
     const expected = `${"a".repeat(60)}…`;
     h.thread.title = null;
-    h.thread.messages = [userMessage(long)];
+    h.transcripts[h.MAIN] = [userMessage(long)];
     render(<ChatLayout />);
 
     emit("agent_start");
     emit("agent_end");
+    await flushTitling();
 
     expect(h.rename).toHaveBeenCalledWith(expected);
   });
 
-  it("should not retitle a chat that already has a title", () => {
+  it("should not retitle (nor fetch the transcript of) a chat that already has a title", async () => {
     h.thread.title = "Groceries budget";
-    h.thread.messages = [userMessage("what is my balance")];
+    h.transcripts[h.MAIN] = [userMessage("what is my balance")];
     render(<ChatLayout />);
 
     emit("agent_start");
     emit("agent_end");
+    await flushTitling();
 
     expect(h.rename).not.toHaveBeenCalled();
+    expect(h.getThread).not.toHaveBeenCalled();
   });
 
-  it("should not rename when there is nothing to title from (no user message)", () => {
+  it("should not rename when there is nothing to title from (no user message)", async () => {
     h.thread.title = null;
-    h.thread.messages = [];
+    h.transcripts[h.MAIN] = [];
     render(<ChatLayout />);
 
     emit("agent_start");
     emit("agent_end");
+    await flushTitling();
 
     expect(h.rename).not.toHaveBeenCalled();
   });
 
-  it("should not rename on a bare agent_start with no run completion", () => {
+  it("should not rename on a bare agent_start with no run completion", async () => {
     h.thread.title = null;
-    h.thread.messages = [userMessage("what is my balance")];
+    h.transcripts[h.MAIN] = [userMessage("what is my balance")];
     render(<ChatLayout />);
 
     emit("agent_start");
+    await flushTitling();
 
     expect(h.rename).not.toHaveBeenCalled();
+  });
+
+  it("should not rename when the chat was titled while the transcript fetch was in flight", async () => {
+    h.thread.title = null;
+    h.transcripts[h.MAIN] = [userMessage("what is my balance")];
+    let release: (value: { messages: unknown[] }) => void = () => {};
+    h.getThread.mockImplementationOnce(() => new Promise((r) => (release = r)));
+    render(<ChatLayout />);
+
+    emit("agent_start");
+    emit("agent_end");
+    h.thread.title = "Renamed by hand"; // lands before the fetch resolves
+    release({ messages: h.transcripts[h.MAIN] });
+    await flushTitling();
+
+    expect(h.rename).not.toHaveBeenCalled();
+  });
+});
+
+describe("ChatLayout auto-titling of background chats", () => {
+  it("should title the background chat (not the viewed one) when its run ends", async () => {
+    // The viewed thread has its own untitled state — a background completion
+    // must not touch it.
+    h.thread.title = null;
+    h.transcripts[h.MAIN] = [userMessage("main thread question")];
+    h.transcripts[h.BG] = [userMessage("categorize last month")];
+    render(<ChatLayout />);
+
+    emit("agent_start", h.BG);
+    emit("agent_end", h.BG);
+    await flushTitling();
+
+    expect(h.bgRename).toHaveBeenCalledTimes(1);
+    expect(h.bgRename).toHaveBeenCalledWith("categorize last month");
+    expect(h.rename).not.toHaveBeenCalled();
+  });
+
+  it("should title from the transcript's FIRST user message, not a later one", async () => {
+    h.transcripts[h.BG] = [
+      userMessage("first question"),
+      { role: "assistant", content: [{ type: "text", text: "answer" }] },
+      userMessage("second question"),
+    ];
+    render(<ChatLayout />);
+
+    emit("agent_start", h.BG);
+    emit("agent_end", h.BG);
+    await flushTitling();
+
+    expect(h.bgRename).toHaveBeenCalledWith("first question");
+  });
+
+  it("should not retitle a background chat that already has a title", async () => {
+    h.bgTitle = "Named already";
+    h.transcripts[h.BG] = [userMessage("categorize last month")];
+    render(<ChatLayout />);
+
+    emit("agent_start", h.BG);
+    emit("agent_end", h.BG);
+    await flushTitling();
+
+    expect(h.bgRename).not.toHaveBeenCalled();
+    expect(h.getThread).not.toHaveBeenCalled();
+  });
+
+  it("should not crash when a run ends for a session unknown to the thread list", async () => {
+    render(<ChatLayout />);
+
+    emit("agent_start", "/ws/sessions/unknown.jsonl");
+    emit("agent_end", "/ws/sessions/unknown.jsonl");
+    await flushTitling();
+
+    expect(h.rename).not.toHaveBeenCalled();
+    expect(h.bgRename).not.toHaveBeenCalled();
+    expect(h.getThread).not.toHaveBeenCalled();
+  });
+
+  it("should not rename when the transcript fetch fails", async () => {
+    h.getThread.mockRejectedValueOnce(new Error("child crashed"));
+    render(<ChatLayout />);
+
+    emit("agent_start", h.BG);
+    emit("agent_end", h.BG);
+    await flushTitling();
+
+    expect(h.bgRename).not.toHaveBeenCalled();
   });
 });

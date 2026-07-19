@@ -3,7 +3,7 @@
 
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
-import { killAgent, registerAgentIpc } from "./agent";
+import { killAllAgents, registerAgentIpc } from "./agent";
 import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
@@ -68,11 +68,11 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  killAgent();
+  killAllAgents();
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
   trackQuit();
-  killAgent();
+  killAllAgents();
 });
