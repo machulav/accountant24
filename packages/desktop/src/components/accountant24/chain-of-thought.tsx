@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
+import { usePiThreadState } from "@assistant-ui/react-pi";
 import { createContext, type FC, type PropsWithChildren, useContext, useState } from "react";
 import {
   Disclosure,
@@ -17,28 +18,90 @@ import { cn } from "@/lib/utils";
 const InChainContext = createContext(false);
 
 /**
- * Wall-clock duration of the turn that produced `message`: from the preceding
- * user message's timestamp to the message's own. react-pi projects pi's
- * per-message `timestamp` into `createdAt` (an assistant group gets the
- * timestamp of its LAST pi message ≈ turn end) and replays original
- * timestamps on session reload, so this works for historical threads too.
- * Returns null when timestamps are missing or inconsistent.
+ * Timestamp of the user message that started the turn containing `messageId`:
+ * the closest preceding `user` message in the thread. Null when there is none
+ * or its timestamp is missing.
  */
-export const turnDurationMs = (
-  message: { id: string; createdAt?: Date },
+export const precedingUserTimestampMs = (
+  messageId: string,
   messages: readonly { id: string; role: string; createdAt?: Date }[],
 ): number | null => {
-  const end = message.createdAt?.getTime();
-  if (!end) return null;
-  const idx = messages.findIndex((m) => m.id === message.id);
+  const idx = messages.findIndex((m) => m.id === messageId);
   for (let i = idx - 1; i >= 0; i--) {
     const m = messages[i];
     if (m?.role === "user") {
-      const start = m.createdAt?.getTime();
-      return start && end >= start ? end - start : null;
+      return m.createdAt?.getTime() || null;
     }
   }
   return null;
+};
+
+/** Parse a part's react-pi `parentId` ("pi-step:<raw transcript index>") back
+ *  to the index of the pi message (turn) that produced the part. Parts are
+ *  `unknown` because not every aui part type declares `parentId`. */
+const piStepIndex = (part: unknown): number | null => {
+  const parentId = (part as { parentId?: unknown } | undefined)?.parentId;
+  const match = typeof parentId === "string" ? parentId.match(/^pi-step:(\d+)$/) : null;
+  return match ? Number(match[1]) : null;
+};
+
+const piTimestampMs = (piMessages: readonly { timestamp?: number }[], index: number | null): number | null =>
+  (index !== null && piMessages[index]?.timestamp) || null;
+
+/**
+ * Wall-clock duration of ONE thinking cycle: the chain-of-thought group
+ * spanning `parts[startIndex..endIndex]` of an assistant message. A message
+ * interleaving reasoning/tools with answer text renders several such groups,
+ * and each must report only its own time (A-32) — not the whole turn's.
+ *
+ * Anchors come from the raw pi transcript: react-pi stamps each part with
+ * `parentId` ("pi-step:<transcript index>"), and every pi message carries a
+ * `timestamp` set at its turn's STREAM START (replayed on session reload, so
+ * this works for historical threads too):
+ * - start — the first cycle starts at the preceding user message (the wait the
+ *   user perceives), later cycles at their own first turn's timestamp.
+ * - end — the turn timestamp of the part right after the group (the answer
+ *   text that ended the cycle); when the group ends the message, the last of
+ *   its trailing toolResult messages in the raw transcript.
+ *
+ * pi has no per-part timing, so a boundary falling mid-turn (e.g. preamble
+ * text in the same turn as its thinking) resolves to that turn's start — a
+ * bounded approximation, matching the label's pre-existing accuracy.
+ * Returns null when anchors are missing or inconsistent.
+ */
+export const cycleDurationMs = ({
+  parts,
+  startIndex,
+  endIndex,
+  piMessages,
+  turnStartMs,
+}: {
+  parts: readonly unknown[];
+  startIndex: number;
+  endIndex: number;
+  piMessages: readonly { role: string; timestamp?: number }[];
+  turnStartMs: number | null;
+}): number | null => {
+  const firstTurnStart = piTimestampMs(piMessages, piStepIndex(parts[startIndex]));
+  const start = startIndex === 0 ? (turnStartMs ?? firstTurnStart) : firstTurnStart;
+
+  let end: number | null = null;
+  const nextPart = parts[endIndex + 1];
+  if (nextPart) {
+    end = piTimestampMs(piMessages, piStepIndex(nextPart));
+  } else {
+    // The group ends the message (stopped/aborted after reasoning or tools):
+    // the cycle ran until its last tools finished, i.e. the last of the
+    // toolResult messages directly following the group's final turn.
+    const lastTurn = piStepIndex(parts[endIndex]);
+    if (lastTurn !== null) {
+      for (let i = lastTurn + 1; piMessages[i]?.role === "toolResult"; i++) {
+        end = piMessages[i]?.timestamp || end;
+      }
+    }
+  }
+
+  return start !== null && end !== null && end >= start ? end - start : null;
 };
 
 /**
@@ -70,9 +133,10 @@ export const chainLabel = (active: boolean, durationMs: number | null, count: nu
  */
 export function ChainOfThoughtRoot({
   count,
+  startIndex,
   endIndex,
   children,
-}: PropsWithChildren<{ count: number; endIndex: number }>) {
+}: PropsWithChildren<{ count: number; startIndex: number; endIndex: number }>) {
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
   // "Still thinking" = the run is active AND nothing has streamed past this chain
@@ -84,7 +148,18 @@ export function ChainOfThoughtRoot({
     return s.message.parts.length - 1 <= endIndex;
   });
 
-  const durationMs = useAuiState((s) => turnDurationMs(s.message, s.thread.messages));
+  // Raw pi transcript for per-turn timestamps; empty outside a pi runtime,
+  // where the label degrades to the step-count fallback.
+  const piMessages = usePiThreadState((st) => st.messages);
+  const durationMs = useAuiState((s) =>
+    cycleDurationMs({
+      parts: s.message.parts,
+      startIndex,
+      endIndex,
+      piMessages,
+      turnStartMs: precedingUserTimestampMs(s.message.id, s.thread.messages),
+    }),
+  );
   const label = chainLabel(active, durationMs, count);
 
   return (

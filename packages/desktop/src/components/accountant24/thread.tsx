@@ -173,7 +173,11 @@ const AssistantMessage: FC = () => {
             switch (part.type) {
               case "group-chainOfThought":
                 return (
-                  <ChainOfThoughtRoot count={part.indices.length} endIndex={part.indices[part.indices.length - 1] ?? 0}>
+                  <ChainOfThoughtRoot
+                    count={part.indices.length}
+                    startIndex={part.indices[0] ?? 0}
+                    endIndex={part.indices[part.indices.length - 1] ?? 0}
+                  >
                     {children}
                   </ChainOfThoughtRoot>
                 );
