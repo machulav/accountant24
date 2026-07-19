@@ -79,6 +79,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
 | Memory          | Persistent                 | —                  | —                  | —                        |
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
+| Multi-currency  | Yes                        | —                  | —                  | Yes                      |
 | Bank sync       | —                          | Yes                | Yes (via add-ons)  | —                        |
 | Interface       | Desktop app                | Web + mobile       | Web + desktop      | CLI                      |
 | Price           | Free                       | $100–$180/yr       | Free               | Free                     |
