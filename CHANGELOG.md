@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.2.11
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.10...v0.2.11)
+
+### 🚀 Features
+
+- Keep chats working while you switch between them ([#24](https://github.com/machulav/accountant24/pull/24))
+
+### 🐞 Bug Fixes
+
+- Measure working time per thinking cycle instead of the whole turn ([f776ad9](https://github.com/machulav/accountant24/commit/f776ad9))
+
+### 📖 Documentation
+
+- Highlight multi-currency support in the comparison tables ([fc3b0a6](https://github.com/machulav/accountant24/commit/fc3b0a6))
+
+### 🏡 Chore
+
+- Sync package-lock version with v0.2.10 ([7c5d329](https://github.com/machulav/accountant24/commit/7c5d329))
+
 ## v0.2.10
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.9...v0.2.10)
