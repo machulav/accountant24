@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "e2e": "playwright test",
+    "docs": "sh scripts/docs.sh",
     "audit": "npm audit --audit-level=moderate",
     "lint": "biome lint .",
     "format": "biome format --write .",

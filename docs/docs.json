@@ -8,14 +8,23 @@
     "dark": "#15803D"
   },
   "navigation": {
-    "pages": [
-      "index",
-      "use-cases",
-      "quickstart",
-      "go-fully-local",
-      "skills",
-      "comparison",
-      "faq"
+    "groups": [
+      {
+        "group": "Get started",
+        "pages": ["index", "use-cases", "quickstart"]
+      },
+      {
+        "group": "Features",
+        "pages": ["skills"]
+      },
+      {
+        "group": "Guides",
+        "pages": ["go-fully-local"]
+      },
+      {
+        "group": "Resources",
+        "pages": ["comparison", "faq"]
+      }
     ]
   },
   "navbar": {
