@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ACCOUNTANT24_HOME } from "../config";
 import { runHledger } from "./hledger";
 import { resolveSafePath } from "./paths";
@@ -13,9 +16,26 @@ const PERIOD_FLAGS: Record<string, string> = {
 // TUI box border (2) + padding (2) + content indent (2)
 const TUI_CHROME_WIDTH = 6;
 
+// Reports past this size are rarely worth reading inline (a large `reg` dump
+// meant for further processing, not for the model to read directly) and cost
+// real context tokens - spill them to a scratch file instead. node:os tmpdir(),
+// not the workspace: `files/` is the user's git-tracked ledger workspace, and
+// a scratch dump left there would eventually get swept into a commit.
+const MAX_INLINE_LINES = 200;
+
+const OUTPUT_EXTENSIONS: Record<string, string> = { csv: "csv", tsv: "tsv", json: "json" };
+
 export interface QueryLedgerResult {
   command: string;
   output: string;
+  outputFile?: string;
+}
+
+function countLines(content: string): number {
+  if (content.length === 0) return 0;
+  const lines = content.split("\n");
+  if (content.endsWith("\n")) lines.pop();
+  return lines.length;
 }
 
 export async function queryLedger(params: any, signal?: AbortSignal): Promise<QueryLedgerResult> {
@@ -24,6 +44,20 @@ export async function queryLedger(params: any, signal?: AbortSignal): Promise<Qu
   const args = buildQueryArgs(params, resolved);
   const raw = await runHledger(args, { signal });
   const command = ["hledger", ...args].join(" ");
+
+  const lineCount = countLines(raw);
+  if (lineCount > MAX_INLINE_LINES) {
+    const dir = mkdtempSync(join(tmpdir(), "accountant24-query-output-"));
+    const ext = OUTPUT_EXTENSIONS[params.output_format] ?? "txt";
+    const outputFile = join(dir, `output.${ext}`);
+    writeFileSync(outputFile, raw);
+    return {
+      command,
+      output: `Output has ${lineCount} lines (over the ${MAX_INLINE_LINES}-line inline limit) - written to ${outputFile} instead of returning it inline. Read it from there (e.g. with bash or a script) rather than re-running this query.`,
+      outputFile,
+    };
+  }
+
   return { command, output: raw || "(no results)" };
 }
 
