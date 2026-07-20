@@ -4,9 +4,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
-// IPC boundary. The shell reads the app version through appApi; the panes it
-// mounts (Providers by default) reach for authApi/settingsApi/agentApi, so the
-// whole surface is stubbed. Providers is kept in its loading state (status never
+// IPC boundary. The panes the shell mounts (Providers by default) reach for
+// authApi/settingsApi/agentApi — and About for appApi/updateApi — so the whole
+// surface is stubbed. Providers is kept in its loading state (status never
 // resolves) so these tests exercise only the shell, not the provider list.
 const h = vi.hoisted(() => ({
   version: vi.fn(),
@@ -17,10 +17,12 @@ const h = vi.hoisted(() => ({
   set: vi.fn(),
   restart: vi.fn(),
   skillsList: vi.fn(),
+  updatePending: vi.fn(),
 }));
 
 vi.mock("@/rpc/api", () => ({
   appApi: { version: h.version },
+  updateApi: { pending: h.updatePending, install: vi.fn(), onDownloaded: vi.fn(() => () => {}) },
   authApi: {
     status: h.status,
     detectOllama: h.detectOllama,
@@ -61,6 +63,7 @@ beforeEach(() => {
   h.set.mockResolvedValue({});
   h.restart.mockResolvedValue(undefined);
   h.skillsList.mockResolvedValue({ skills: [] });
+  h.updatePending.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -76,7 +79,7 @@ const renderSettings = (open = true) => {
 describe("Settings shell", () => {
   it("should render every category in the nav when open", () => {
     renderSettings(true);
-    for (const label of ["Providers", "Models", "Privacy", "Shortcuts"]) {
+    for (const label of ["Providers", "Models", "Privacy", "Shortcuts", "About"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
@@ -120,6 +123,19 @@ describe("Settings shell", () => {
     expect(screen.queryByText("Loading providers…")).toBeNull();
   });
 
+  it("should swap to the About pane when About is clicked", async () => {
+    renderSettings(true);
+    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    expect(await screen.findByRole("link", { name: "Documentation" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading providers…")).toBeNull();
+  });
+
+  it("should link the sidebar star callout to the GitHub repository", () => {
+    renderSettings(true);
+    const link = screen.getByRole("link", { name: /Enjoying the app\?/ });
+    expect(link).toHaveAttribute("href", "https://github.com/machulav/accountant24");
+  });
+
   it("should swap back to the Providers pane after leaving it", async () => {
     renderSettings(true);
     fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
@@ -127,33 +143,5 @@ describe("Settings shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Providers" }));
     expect(await screen.findByText("Loading providers…")).toBeInTheDocument();
     expect(screen.queryByText("Keyboard shortcuts")).toBeNull();
-  });
-});
-
-describe("Settings version footer", () => {
-  it("should show the version once appApi.version resolves", async () => {
-    renderSettings(true);
-    expect(await screen.findByText("v1.2.3")).toBeInTheDocument();
-  });
-
-  it("should link the Changelog to the releases page", async () => {
-    renderSettings(true);
-    const link = await screen.findByRole("link", { name: "Changelog" });
-    expect(link).toHaveAttribute("href", "https://github.com/machulav/accountant24/releases");
-  });
-
-  it("should not show a version footer when the version never resolves", async () => {
-    h.version.mockReturnValue(new Promise(() => {}));
-    renderSettings(true);
-    // The nav renders immediately; the footer is gated on the version.
-    await screen.findByRole("button", { name: "Providers" });
-    expect(screen.queryByRole("link", { name: "Changelog" })).toBeNull();
-  });
-
-  it("should not show a version footer when fetching the version fails", async () => {
-    h.version.mockRejectedValue(new Error("no version"));
-    renderSettings(true);
-    await screen.findByRole("button", { name: "Providers" });
-    expect(screen.queryByRole("link", { name: "Changelog" })).toBeNull();
   });
 });
