@@ -300,6 +300,15 @@ test("should say 'Transaction saved' for single transaction", async () => {
   expect(result.content[0].text).toStartWith("Transaction saved to");
 });
 
+// ── execution mode ──────────────────────────────────────────────────
+
+describe("add_transactions execution mode", () => {
+  test("should run sequentially so ledger writes never interleave", () => {
+    // pi runs any batch containing a "sequential" tool one call at a time.
+    expect(addTransactionsTool.executionMode).toBe("sequential");
+  });
+});
+
 // ── batch transactions ──────────────────────────────────────────────
 
 describe("batch transactions", () => {
