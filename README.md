@@ -43,7 +43,17 @@ The agent checks your ledger and gives you a clear answer. Type `@` to point it 
 
 Tell the agent once — it remembers and applies it when it matters.
 
+### Extend the agent with skills
+
+> Create a skill that compares my spending this month to the previous month and shows where I spent more.
+
+Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. Use the built-in ones or create your own.
+
 ### Track every change with git
+
+> What did you change today?
+
+> Undo the last change.
 
 Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.
 
@@ -77,6 +87,7 @@ Want your financial data to never leave your machine? Run a local model with Oll
 | Input method    | Natural language           | Manual entry       | Manual entry       | Manual entry             |
 | AI              | Built-in, learns over time | —                  | —                  | —                        |
 | Memory          | Persistent                 | —                  | —                  | —                        |
+| Skills          | Built-in + custom          | —                  | —                  | —                        |
 | Version control | Git, built-in              | —                  | —                  | Via manual setup         |
 | Accounting      | Double-entry bookkeeping   | Envelope budgeting | Envelope budgeting | Double-entry bookkeeping |
 | Multi-currency  | Yes                        | —                  | —                  | Yes                      |

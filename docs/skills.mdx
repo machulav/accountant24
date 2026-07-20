@@ -1,0 +1,45 @@
+---
+title: "Skills"
+sidebarTitle: "Skills"
+description: "Extend the Accountant24 agent with skills: built-in skills for common money reviews, plus custom skills you add from GitHub, ask the agent to create, or create manually."
+---
+
+Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. A skill tells the agent which reports to run, what to look for, and how to present the result.
+
+Accountant24 follows the open [Agent Skills](https://agentskills.io) standard, so skills written for other agents work here too.
+
+## Built-in skills
+
+A set of skills for common money reviews ships with the app. They're always available and need no setup. You'll find the current list in **Settings → Skills**.
+
+## Use a skill in chat
+
+Just ask, and the agent picks a matching skill based on your request. To invoke one explicitly, type `/` in the message box and select the skill from the list.
+
+## Custom skills
+
+There are three ways to add your own skills.
+
+### Add from GitHub
+
+You can add skills from any public GitHub repository:
+
+1. Open **Settings → Skills**.
+2. Click **Add skill**.
+3. Enter the repository as `owner/repo` or a full GitHub URL.
+
+The app downloads the repository and copies the skills it finds into `~/Accountant24/skills`.
+
+Only add skills you trust. A skill can run commands with full access to your workspace, so treat adding one like installing software.
+
+### Ask the agent
+
+The easiest way: describe the routine you want and ask the agent to turn it into a skill.
+
+> Create a skill that compares my spending this month to the previous month and shows where I spent more.
+
+The agent writes the skill into your workspace. Enable it in **Settings → Skills** and it's ready to use.
+
+### Create manually
+
+A skill is a folder containing a `SKILL.md` file: a name and description in the frontmatter, followed by the instructions the agent should follow. It can also include scripts, for example in Python, that the agent runs as part of the skill. Put the folder into `~/Accountant24/skills`, then enable it in **Settings → Skills**.
