@@ -11,22 +11,30 @@
     "groups": [
       {
         "group": "Get started",
-        "pages": ["index", "use-cases", "quickstart"]
+        "pages": ["index", "docs/use-cases", "docs/quickstart"]
       },
       {
         "group": "Features",
-        "pages": ["skills"]
+        "pages": ["docs/skills"]
       },
       {
         "group": "Guides",
-        "pages": ["go-fully-local"]
+        "pages": ["docs/go-fully-local"]
       },
       {
         "group": "Resources",
-        "pages": ["comparison", "faq"]
+        "pages": ["docs/comparison", "docs/faq"]
       }
     ]
   },
+  "redirects": [
+    { "source": "/use-cases", "destination": "/docs/use-cases" },
+    { "source": "/quickstart", "destination": "/docs/quickstart" },
+    { "source": "/skills", "destination": "/docs/skills" },
+    { "source": "/go-fully-local", "destination": "/docs/go-fully-local" },
+    { "source": "/comparison", "destination": "/docs/comparison" },
+    { "source": "/faq", "destination": "/docs/faq" }
+  ],
   "navbar": {
     "links": [
       {

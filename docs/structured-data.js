@@ -30,7 +30,7 @@
       "Local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
     url: BASE,
     downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
-    softwareHelp: BASE + "/quickstart",
+    softwareHelp: BASE + "/docs/quickstart",
     license: "https://opensource.org/licenses/MIT",
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
@@ -47,7 +47,7 @@
 
   var faqPage = {
     "@type": "FAQPage",
-    "@id": BASE + "/faq#faqpage",
+    "@id": BASE + "/docs/faq#faqpage",
     mainEntity: [
       qa(
         "Is my financial data private?",
@@ -77,7 +77,7 @@
   var path = window.location.pathname.replace(/\/+$/, "");
   if (path === "" || path === "/index") {
     graph.push(software);
-  } else if (path === "/faq") {
+  } else if (path === "/docs/faq") {
     graph.push(faqPage);
   }
 
