@@ -25,7 +25,7 @@ export default defineConfig({
   resolve: {
     // Mirror the desktop app's `@` alias so component tests can load sources
     // that import via "@/...".
-    alias: { "@": new URL("./packages/desktop/src", import.meta.url).pathname },
+    alias: { "@": new URL("./packages/desktop/src/renderer", import.meta.url).pathname },
   },
   test: {
     include: ["packages/**/*.test.{ts,tsx}"],
@@ -42,7 +42,7 @@ export default defineConfig({
       all: true,
       // Only instrument TS/TSX — text assets imported as strings (.md/.journal/
       // .gitignore) would otherwise make v8's coverage parser choke on them.
-      include: ["packages/*/src/**/*.{ts,tsx}", "packages/desktop/electron/**/*.{ts,tsx}"],
+      include: ["packages/*/src/**/*.{ts,tsx}"],
       // Excluded = not worth testing: tests/fixtures, barrels, entry/glue, stock
       // third-party UI (shadcn — never edited per AGENTS.md), type-only files,
       // and generated/template assets.
@@ -55,11 +55,12 @@ export default defineConfig({
         "packages/pi-extension/src/entry.ts",
         "packages/pi-extension/src/spawn.ts",
         "packages/pi-extension/src/tool-labels.ts",
-        "packages/desktop/src/main.tsx",
-        "packages/desktop/src/test/**",
-        "packages/desktop/electron/main/index.ts",
-        "packages/desktop/electron/preload/index.ts",
-        "packages/desktop/src/rpc/types.ts",
+        "packages/desktop/src/renderer/main.tsx",
+        "packages/desktop/src/renderer/test/**",
+        "packages/desktop/src/main/index.ts",
+        "packages/desktop/src/preload/index.ts",
+        "packages/desktop/src/renderer/rpc/types.ts",
+        "packages/desktop/src/shared/**",
         "packages/pi-extension/src/scaffold/template/**",
       ],
       // Enforced floor — ratchets up toward 100 as gaps close; never lowered.

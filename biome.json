@@ -38,7 +38,7 @@
   },
   "overrides": [
     {
-      "includes": ["packages/desktop/src/components/shadcn/**"],
+      "includes": ["packages/desktop/src/renderer/components/shadcn/**"],
       "linter": {
         "rules": {
           "a11y": {

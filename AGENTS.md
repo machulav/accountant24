@@ -22,13 +22,24 @@ The Electron desktop app:
 - assistant-ui (`@assistant-ui/react`) — chat UI
 - pi coding agent (`@earendil-works/pi-coding-agent`) — agent
 
+# Architecture
+
+`packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
+
+- `src/main/` — Electron main process: window, IPC handlers, pi agent child processes, vendored binaries (hledger).
+- `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
+- `src/renderer/` — the React app, sandboxed; reaches main only through `window.api` (typed wrappers in `rpc/api.ts`).
+- `src/shared/` — IPC payload types used by both main and renderer. Types only, imported with `import type` from both sides; never add runtime code here.
+
+The agent itself is `packages/pi-extension`, loaded by pi sidecar processes that main spawns (one per chat).
+
 # UI Components
 
 The desktop app uses the **wrapper pattern**: library components stay untouched; all customization lives in our own components.
 
 ## Structure
 
-`packages/desktop/src/components/`:
+`packages/desktop/src/renderer/components/`:
 
 - `shadcn/` — stock shadcn/ui components (Base UI-based). **Never edit**; add/update only via `scripts/shadcn.sh`. The whole shadcn catalog (select, tabs, card, dropdown-menu, table, …) is available on demand: `sh packages/desktop/scripts/shadcn.sh add <component>` — install before building custom UI.
 - `accountant24/` — all our components: wrappers around shadcn, customized assistant-ui components, app UI.
@@ -38,10 +49,10 @@ The desktop app uses the **wrapper pattern**: library components stay untouched;
 - Naming: kebab-case file names (`composer-model-selector.tsx`), PascalCase component names (`ComposerModelSelector`).
 - Build UI/UX from stock `shadcn/` components with their default look wherever possible; customize only when absolutely necessary.
 - When customization is necessary, wrap the library component with a new component in `accountant24/` — don't edit the original.
-- Style with theme tokens from `src/index.css`; no hardcoded colors.
+- Style with theme tokens from `src/renderer/index.css`; no hardcoded colors.
 - **Match existing shadcn idioms by default.** When building custom UI, reuse the closest existing `shadcn/` component's token pattern rather than hand-rolling ad-hoc styles.
 - **No speculative style overrides.** Never add custom classes/styles to work around a behavior before finding its root cause — fix the cause instead. Add an override only when verified necessary (reproduce the problem, confirm the override is the minimal fix), and comment why it exists.
-- Dark theme follows the OS: `src/lib/systemTheme.ts` toggles the `.dark` class globally — no per-component theme handling.
+- Dark theme follows the OS: `src/renderer/lib/systemTheme.ts` toggles the `.dark` class globally — no per-component theme handling.
 
 # Testing
 
@@ -79,13 +90,13 @@ Four tiers, all on Vitest (`npm test`); the first three run in CI on every PR.
 
 - **Unit** (`node` env) — pure logic: formatters, parsers, validators, arg-builders, reducers. The default and largest tier. Reach for it for any pure function.
 - **Component** (`jsdom` + Testing Library) — a single React component in isolation. Mock the IPC layer with `vi.mock("@/rpc/api", …)`. Use for render/interaction behavior of one component.
-- **Integration** (`*.integration.test.ts(x)`) — a flow across modules. Two shapes: main-process handlers over a real temp workspace (`electron/main/__tests__/tmpWorkspace.ts`), or renderer flows over a fake `window.api` bridge (`src/test/fakeApi.ts`). Use for user flows and cross-boundary wiring.
+- **Integration** (`*.integration.test.ts(x)`) — a flow across modules. Two shapes: main-process handlers over a real temp workspace (`src/main/__tests__/tmpWorkspace.ts`), or renderer flows over a fake `window.api` bridge (`src/renderer/test/fakeApi.ts`). Use for user flows and cross-boundary wiring.
 - **E2E smoke** (Playwright-Electron, `packages/desktop/e2e/`, `npm run e2e`) — the real app on a few critical happy paths, with the pi agent stubbed. Guards wiring (preload allowlist, IPC, build), not logic. Keep it tiny.
 
 ## Best practices per tier
 
 - **Unit** — mock only at fs/child_process; keep functions small and pure.
-- **Component** — assert on roles/text, not classes or DOM structure; use the shared `src/test/jsdomPolyfills.ts` preamble; drive interaction with `@testing-library/user-event`.
+- **Component** — assert on roles/text, not classes or DOM structure; use the shared `src/renderer/test/jsdomPolyfills.ts` preamble; drive interaction with `@testing-library/user-event`.
 - **Integration** — assert **both** the resulting UI/state **and** the exact IPC calls (`fakeApi.calls` / invoked main handlers). Use a temp `ACCOUNTANT24_HOME`, never a global `node:fs` mock.
 - **E2E** — deterministic and small; stub the agent (no real LLM/network); leave logic coverage to the lower tiers.
 

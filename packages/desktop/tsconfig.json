@@ -9,7 +9,7 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] },
+    "paths": { "@/*": ["./src/renderer/*"] },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -22,6 +22,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src/renderer", "src/shared"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

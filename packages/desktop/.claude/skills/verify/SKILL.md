@@ -8,7 +8,7 @@ description: Verify desktop-app UI changes by launching the Electron dev app and
 ## Launch
 
 From `packages/desktop`, run `npm run dev` in the background. The main process
-(`electron/main/index.ts`) auto-enables CDP on **port 9223** in dev — no extra
+(`src/main/index.ts`) auto-enables CDP on **port 9223** in dev — no extra
 flags needed.
 
 Gotchas:
