@@ -61,7 +61,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Quality gate before anything is mutated: audit, format/lint, types, tests
+  # Quality gate before anything is mutated: format/lint, types, tests
   # with coverage (npm run verify). Failing here leaves no tag, no bump commit,
   # no draft release behind. Skipped for rebuilds — the tag's code already
   # passed when it was cut.
