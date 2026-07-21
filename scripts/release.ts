@@ -5,8 +5,9 @@
 // no longer triggers anything — the workflow is dispatch-only, and it cuts
 // the tag itself before building.
 //   1. preflight: working tree clean, on main
-//   2. bump version + generate CHANGELOG.md + tag (changelogen --release)
-//      — or, with --rc, bump to the next X.Y.Z-rc.N without touching CHANGELOG.md
+//   2. bump version (package.json + package-lock.json) + generate CHANGELOG.md
+//      + tag — or, with --rc, bump to the next X.Y.Z-rc.N without touching
+//      CHANGELOG.md
 //   3. push main + tag; expose the tag via GITHUB_OUTPUT for downstream jobs
 //
 // The same workflow run then builds the dmg, creates the GitHub Release
@@ -48,6 +49,19 @@ function sh(cmd: string[], opts: CmdOpts = {}): string {
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error(`Command failed (${r.status}): ${cmd.join(" ")}`);
   return opts.capture ? (r.stdout ?? "").trim() : "";
+}
+
+/**
+ * Mirror the bumped version into package-lock.json (root `version` and
+ * `packages[""].version`) — npm only rewrites these on `npm install`, so
+ * without this the lockfile lags one release behind until someone installs.
+ */
+function syncLockVersion(version: string) {
+  const lockPath = join(ROOT, "package-lock.json");
+  const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
+  lock.version = version;
+  lock.packages[""].version = version;
+  writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
 }
 
 /** Latest non-rc vX.Y.Z tag, or undefined if none exist yet. */
@@ -99,17 +113,32 @@ async function main() {
     if (!DRY) {
       pkg.version = version;
       writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+      syncLockVersion(version);
     }
-    sh(["git", "add", "package.json"]);
+    sh(["git", "add", "package.json", "package-lock.json"]);
     sh(["git", "commit", "-m", `chore(release): v${version}`]);
     sh(["git", "tag", `v${version}`]);
   } else {
-    // final: changelogen bumps version, writes CHANGELOG.md, commits, and tags.
-    // Generate notes from the last stable tag so rc iterations don't fragment them.
+    // final: changelogen bumps version and writes CHANGELOG.md; commit and tag
+    // stay here so package-lock.json lands in the same release commit the tag
+    // points at. Generate notes from the last stable tag so rc iterations
+    // don't fragment them.
     const from = lastStableTag();
-    sh(["npx", "changelogen", "--release", ...(from ? ["--from", from] : [])]);
+    sh([
+      "npx",
+      "changelogen",
+      "--release",
+      "--no-commit",
+      "--no-tag",
+      ...(from ? ["--from", from] : []),
+    ]);
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
     version = pkg.version;
+    if (!DRY) syncLockVersion(version);
+    sh(["git", "add", "package.json", "package-lock.json", "CHANGELOG.md"]);
+    sh(["git", "commit", "-m", `chore(release): v${version}`]);
+    // Annotated, matching what `changelogen --release` used to create.
+    sh(["git", "tag", "-am", `v${version}`, `v${version}`]);
   }
   const tag = `v${version}`;
   console.log(`[release] staged ${tag}`);
