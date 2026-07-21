@@ -8,6 +8,7 @@ import {
   addTransactionsTool,
   commitAndPushTool,
   extractTextTool,
+  modifyTransactionsTool,
   queryTool,
   updateMemoryTool,
   validateTool,
@@ -23,6 +24,7 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   pi.registerTool(addTransactionsTool);
   pi.registerTool(commitAndPushTool);
   pi.registerTool(extractTextTool);
+  pi.registerTool(modifyTransactionsTool);
   pi.registerTool(validateTool);
   pi.registerTool(updateMemoryTool);
 

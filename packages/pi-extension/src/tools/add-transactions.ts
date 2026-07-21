@@ -47,6 +47,10 @@ export const addTransactionsTool: ToolDefinition<typeof Params, AddTransactionsR
   label: TOOL_LABELS.add_transactions,
   description: "Add one or more transactions. Auto-routes to the correct monthly files and validates.",
   promptSnippet: "Record transactions (auto-routes to monthly files, validates)",
+  // Serialize every ledger write: "sequential" makes pi run any batch containing this
+  // tool one call at a time, so concurrent read/edit/write/validate cycles never
+  // interleave on shared journal files.
+  executionMode: "sequential",
   parameters: Params,
 
   async execute(_id, params, signal) {
