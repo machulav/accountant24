@@ -9,7 +9,6 @@ vi.mock("../../config.js", () => ({
   ACCOUNTANT24_HOME: BASE,
   LEDGER_DIR: join(BASE, "ledger"),
   MEMORY_PATH: join(BASE, "memory.md"),
-  FILES_DIR: join(BASE, "files"),
   setBaseDir: () => {},
 }));
 

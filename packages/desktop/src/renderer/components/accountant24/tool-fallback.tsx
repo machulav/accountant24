@@ -1,6 +1,5 @@
 "use client";
 
-import { TOOL_LABELS } from "@accountant24/pi-extension/tool-labels";
 import {
   type ToolApprovalOption,
   type ToolCallMessagePart,
@@ -22,6 +21,7 @@ import {
 import { Button } from "@/components/shadcn/button";
 import { Spinner } from "@/components/shadcn/spinner";
 import { formatDuration } from "@/lib/duration";
+import { TOOL_LABELS } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 
 const pressable = "active:scale-[0.98]";
@@ -35,8 +35,8 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
   "requires-action": AlertCircleIcon,
 };
 
-// TOOL_LABELS is the pi extension's own `label` metadata (the RPC stream only
-// carries tool names). Unknown tools fall back to a humanized key.
+// TOOL_LABELS mirrors the pi extension's `label` metadata (the event stream
+// only carries tool names). Unknown tools fall back to a humanized key.
 export const toolLabel = (toolName: string) =>
   TOOL_LABELS[toolName] ?? `${toolName.charAt(0).toUpperCase()}${toolName.slice(1)}`.replace(/[_-]+/g, " ");
 

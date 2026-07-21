@@ -3,19 +3,6 @@
   "private": true,
   "type": "module",
   "description": "Accountant24 customization for pi: ledger tools, commands, system prompt, scaffolding.",
-  "keywords": [
-    "pi-package"
-  ],
-  "pi": {
-    "extensions": [
-      "./src/entry.ts"
-    ]
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./entry": "./src/entry.ts",
-    "./tool-labels": "./src/tool-labels.ts"
-  },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.79.8",
     "file-type": "22.0.1",

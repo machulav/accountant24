@@ -1,1 +1,1 @@
-export { buildContextSection, buildToolsSection, patchBakedDate, type ToolInfo } from "./sections";
+export { buildContextSection, buildToolsSection, patchBakedDate } from "./sections";

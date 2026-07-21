@@ -1,10 +1,7 @@
-// Human-readable labels for this extension's tools, keyed by tool name.
-//
-// Single source of truth for both sides of the RPC boundary: the tool
-// definitions here use it for `label`, and the desktop renderer imports it
-// via "@accountant24/pi-extension/tool-labels" (the RPC stream only carries
-// tool names). Keep this module dependency-free — it is bundled into the
-// renderer.
+// Human-readable labels for this extension's tools, keyed by tool name; the
+// tool definitions use it for `label`. The desktop renderer keeps its own
+// deliberate copy (packages/desktop/src/renderer/lib/tool-labels.ts) — when a
+// tool is added or renamed here, update that map too.
 export const TOOL_LABELS: Record<string, string> = {
   query: "Query Ledger",
   add_transactions: "Add Transactions",

@@ -38,7 +38,6 @@
     "tw-shimmer": "^0.4.11"
   },
   "devDependencies": {
-    "@accountant24/pi-extension": "*",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^26.0.1",
     "@types/react": "^19.1.8",

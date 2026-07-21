@@ -54,7 +54,6 @@ export default defineConfig({
         "**/components/shadcn/**",
         "packages/pi-extension/src/entry.ts",
         "packages/pi-extension/src/spawn.ts",
-        "packages/pi-extension/src/tool-labels.ts",
         "packages/desktop/src/renderer/main.tsx",
         "packages/desktop/src/renderer/test/**",
         "packages/desktop/src/main/index.ts",

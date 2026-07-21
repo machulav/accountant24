@@ -24,7 +24,7 @@ const partProps = (overrides: Record<string, unknown> = {}) =>
 const triggerIcon = () => document.querySelector("[data-slot=tool-fallback-trigger-icon]")?.getAttribute("class") ?? "";
 
 describe("toolLabel()", () => {
-  describe("pi-extension tool labels", () => {
+  describe("known tool labels", () => {
     it("should return 'Query Ledger' when toolName is 'query'", () => {
       expect(toolLabel("query")).toBe("Query Ledger");
     });
