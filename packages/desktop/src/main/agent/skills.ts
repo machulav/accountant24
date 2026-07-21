@@ -16,7 +16,7 @@ import { pipeline } from "node:stream/promises";
 import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
 import { type BrowserWindow, ipcMain } from "electron";
 import * as tar from "tar";
-import type { SkillAddRequest, SkillInfo } from "../shared/types";
+import type { SkillAddRequest, SkillInfo } from "../../shared/types";
 import {
   type SkillAddFailReason,
   trackSkillAdded,
@@ -24,8 +24,8 @@ import {
   trackSkillDisabled,
   trackSkillEnabled,
   trackSkillRemoved,
-} from "./analytics";
-import { nativeSkillsDir, skillsDir } from "./env";
+} from "../analytics";
+import { nativeSkillsDir, skillsDir } from "../env";
 import {
   listSkillFolders,
   parseGitHubSource,

@@ -10,6 +10,16 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: path.resolve(import.meta.dirname, "src/main/index.ts"),
+          // The agent-host utilityProcess entry, emitted as out/main/agent-host.js
+          // next to the main bundle (see env.ts agentHostEntryPath).
+          "agent-host": path.resolve(import.meta.dirname, "src/main/agent/host/index.ts"),
+        },
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

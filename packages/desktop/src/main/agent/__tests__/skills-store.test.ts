@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  buildSkillArgs,
+  enabledSkillPaths,
   listSkillFolders,
   parseGitHubSource,
   readRegistry,
@@ -61,13 +61,13 @@ function setRegistry(entries: Record<string, { enabled: boolean }>): void {
   writeFileSync(join(root, ".skills.json"), JSON.stringify(entries));
 }
 
-describe("buildSkillArgs()", () => {
-  it("should emit a --skill flag per enabled registry entry", () => {
+describe("enabledSkillPaths()", () => {
+  it("should list the absolute dir of every enabled registry entry, sorted", () => {
     addSkill("docx");
     addSkill("pdf");
     setRegistry({ docx: { enabled: true }, pdf: { enabled: true } });
 
-    expect(buildSkillArgs(root)).toEqual(["--skill", join(root, "docx"), "--skill", join(root, "pdf")]);
+    expect(enabledSkillPaths(root)).toEqual([join(root, "docx"), join(root, "pdf")]);
   });
 
   it("should omit folders whose entry is disabled or missing", () => {
@@ -76,22 +76,22 @@ describe("buildSkillArgs()", () => {
     addSkill("web-search");
     setRegistry({ docx: { enabled: true }, pdf: { enabled: false } });
 
-    expect(buildSkillArgs(root)).toEqual(["--skill", join(root, "docx")]);
+    expect(enabledSkillPaths(root)).toEqual([join(root, "docx")]);
   });
 
-  it("should return no args without a registry (a hand-dropped folder stays off)", () => {
+  it("should return no paths without a registry (a hand-dropped folder stays off)", () => {
     addSkill("pdf");
-    expect(buildSkillArgs(root)).toEqual([]);
+    expect(enabledSkillPaths(root)).toEqual([]);
   });
 
   it("should ignore enabled entries whose folder is not installed", () => {
     addSkill("pdf");
     setRegistry({ pdf: { enabled: true }, ghost: { enabled: true } });
-    expect(buildSkillArgs(root)).toEqual(["--skill", join(root, "pdf")]);
+    expect(enabledSkillPaths(root)).toEqual([join(root, "pdf")]);
   });
 
-  it("should return no args when the store directory does not exist", () => {
-    expect(buildSkillArgs(join(root, "missing"))).toEqual([]);
+  it("should return no paths when the store directory does not exist", () => {
+    expect(enabledSkillPaths(join(root, "missing"))).toEqual([]);
   });
 });
 

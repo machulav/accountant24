@@ -26,12 +26,14 @@ The Electron desktop app:
 
 `packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
 
-- `src/main/` — Electron main process: window, IPC handlers, pi agent child processes, vendored binaries (hledger).
+- `src/main/` — Electron main process: window, IPC handlers, the agent (`agent/`), LLM provider connections (`llm-providers/`), vendored binaries (hledger).
+- `src/main/agent/` — the chat runtime: the IPC router plus `host/`, which runs in a single agent-host utilityProcess hosting one pi SDK session per chat. Nothing in `host/` may import Electron APIs.
+- `src/main/llm-providers/` — LLM provider auth, OAuth login, models, Ollama. `llm-providers/` and `agent/` never import each other; their only interface is the workspace files (`auth.json`/`models.json`).
 - `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
 - `src/renderer/` — the React app, sandboxed; reaches main only through `window.api` (typed wrappers in `rpc/api.ts`).
-- `src/shared/` — IPC payload types used by both main and renderer. Types only, imported with `import type` from both sides; never add runtime code here.
+- `src/shared/` — IPC payload types used by both main and renderer (and the agent host). Types only, imported with `import type` from both sides; never add runtime code here.
 
-The agent itself is `packages/pi-extension`, loaded by pi sidecar processes that main spawns (one per chat).
+The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 
 # UI Components
 

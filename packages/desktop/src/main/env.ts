@@ -1,16 +1,15 @@
-// Resource paths + the environment passed to the pi agent child.
+// Resource paths + the environment passed to the agent-host utilityProcess.
 //
-// Mirrors the old src-tauri/src/env.rs contract: the workspace (~/Accountant24)
-// holds the ledger + auth.json + models.json; PATH exposes the vendored native
-// tools (hledger/pdftotext/tesseract); TESSDATA_PREFIX points at the OCR data.
-// pi runs from node_modules, so PI_PACKAGE_DIR is no longer needed (its assets
-// sit beside it) — add it back here only if a future pi version requires it.
+// The workspace (~/Accountant24) holds the ledger + auth.json + models.json;
+// PATH exposes the vendored native tools (hledger/pdftotext/tesseract) to the
+// agent's bash/tool subprocesses; TESSDATA_PREFIX points at the OCR data.
 
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app } from "electron";
+import type { AgentHostConfig } from "../shared/agentHost";
 
 /** ~/Accountant24 — the agent's cwd and the home of the ledger/auth/models. */
 export function workspaceDir(): string {
@@ -55,14 +54,6 @@ function resourceDir(): string {
   return app.isPackaged ? process.resourcesPath : path.join(app.getAppPath(), "resources");
 }
 
-/** Absolute path to pi's Node CLI entry (run with Electron-as-Node). pi is
- *  ESM-only (its package "exports" has no `require` condition), so resolve via
- *  import.meta.resolve (the "." entry → dist/index.js) and take sibling cli.js. */
-export function piCliPath(): string {
-  const main = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
-  return path.join(path.dirname(main), "cli.js");
-}
-
 /** Dir holding the vendored native tools (hledger/pdftotext/tesseract). Prepended
  *  to the agent child's PATH; also used to resolve a tool's absolute path when we
  *  run one directly from the main process (which does NOT inherit that PATH). */
@@ -94,31 +85,28 @@ export function nativeSkillsDir(): string {
   return path.join(resourceDir(), "skills");
 }
 
-/** Binary for running pi as Node (ELECTRON_RUN_AS_NODE). On macOS, use the
- *  bundled Helper app's binary instead of the main app binary: pi touches
- *  AppKit at startup, which makes LaunchServices register the child under its
- *  bundle's Info.plist — for the main binary that's a regular app, i.e. a
- *  second (generic "exec") Dock icon. The helper bundles are LSUIElement, so
- *  the same process stays invisible. Falls back to the main binary if the
- *  helper isn't at the expected path. */
-export function nodeRuntimePath(): string {
-  if (process.platform !== "darwin") return process.execPath;
-  // <App>.app/Contents/MacOS/<App> -> <App>.app (also matches dev's Electron.app)
-  const bundle = path.resolve(process.execPath, "..", "..", "..");
-  const name = path.basename(bundle, ".app");
-  const helper = path.join(
-    bundle,
-    "Contents",
-    "Frameworks",
-    `${name} Helper (Plugin).app`,
-    "Contents",
-    "MacOS",
-    `${name} Helper (Plugin)`,
-  );
-  return existsSync(helper) ? helper : process.execPath;
+/** Built agent-host utilityProcess entry — emitted as a sibling of the main
+ *  bundle (out/main/agent-host.js) in both dev and packaged builds, so it
+ *  resolves relative to this module's own URL. */
+export function agentHostEntryPath(): string {
+  return fileURLToPath(new URL("./agent-host.js", import.meta.url));
 }
 
-/** Env overrides for the pi child + in-process SDK: workspace + vendored tools. */
+/** Static config for the agent host, passed as JSON in argv[2] at fork time. */
+export function agentHostConfig(): AgentHostConfig {
+  return {
+    workspaceDir: workspaceDir(),
+    sessionsDir: sessionsDir(),
+    skillsDir: skillsDir(),
+    nativeSkillsDir: nativeSkillsDir(),
+    extensionPath: extensionPath(),
+    systemPromptPath: systemPromptPath(),
+  };
+}
+
+/** Env overrides for the agent host + in-process SDK: workspace + vendored
+ *  tools. PI_CODING_AGENT_DIR is redundant for the host itself (agentDir is
+ *  passed explicitly) but kept for env parity in the agent's subprocesses. */
 export function agentEnv(): NodeJS.ProcessEnv {
   const workspace = workspaceDir();
   const env: NodeJS.ProcessEnv = {

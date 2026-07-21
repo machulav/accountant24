@@ -1,8 +1,8 @@
 appId: com.accountant24.desktop
 productName: Accountant24
-# asar disabled on purpose: the agent runs as a child Node process (Electron-as-
-# Node) that resolves pi + loads native deps from node_modules; keeping the tree
-# on real disk avoids the asar/asar.unpacked path + native-module pitfalls.
+# asar disabled on purpose: the agent-host utilityProcess resolves the pi SDK +
+# loads the bundled extension and native deps from node_modules; keeping the
+# tree on real disk avoids the asar/asar.unpacked path + native-module pitfalls.
 asar: false
 
 directories:

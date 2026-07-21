@@ -30,14 +30,14 @@ vi.mock("electron", () => ({
     },
   },
 }));
-vi.mock("../analytics", () => ({
+vi.mock("../../analytics", () => ({
   trackSkillAdded: h.skillAdded,
   trackSkillAddFailed: h.skillAddFailed,
   trackSkillRemoved: h.skillRemoved,
   trackSkillEnabled: h.skillEnabled,
   trackSkillDisabled: h.skillDisabled,
 }));
-vi.mock("../env", () => ({
+vi.mock("../../env", () => ({
   workspaceDir: () => h.ws,
   skillsDir: () => join(h.ws, "skills"),
   // Stands in for the app bundle's resources/skills — per-test fixtures.
@@ -518,7 +518,7 @@ describe("skills_remove", () => {
 describe("shipped native skills content", () => {
   it("should parse cleanly with pi's loader: valid frontmatter, name == folder, description present", () => {
     // The REAL committed content, not a fixture — guards typos in authored skills.
-    const shipped = fileURLToPath(new URL("../../../resources/skills", import.meta.url));
+    const shipped = fileURLToPath(new URL("../../../../resources/skills", import.meta.url));
     const { skills, diagnostics } = loadSkillsFromDir({ dir: shipped, source: "native" });
     expect(diagnostics).toEqual([]);
     expect(skills.length).toBeGreaterThan(0);

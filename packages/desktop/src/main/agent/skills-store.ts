@@ -18,17 +18,17 @@ export function listSkillFolders(root: string): string[] {
     .sort();
 }
 
-/** `--skill <dir>` args for every enabled skill in the store, straight from the
- *  registry. The agent child is spawned with `--no-skills` (suppressing pi's
- *  default discovery), and pi still loads paths passed explicitly via `--skill`
- *  — so the registry is the single source of truth for what the agent sees. A
- *  folder without an enabled registry entry (e.g. dropped in by hand) stays off
- *  until approved in Settings. */
-export function buildSkillArgs(root: string): string[] {
+/** Absolute dirs of every enabled skill in the store, straight from the
+ *  registry. The agent host loads skills with discovery disabled (pi's
+ *  `noSkills`) plus these explicit paths — so the registry is the single
+ *  source of truth for what the agent sees. A folder without an enabled
+ *  registry entry (e.g. dropped in by hand) stays off until approved in
+ *  Settings. */
+export function enabledSkillPaths(root: string): string[] {
   const registry = readRegistry(root);
   return listSkillFolders(root)
     .filter((name) => registry[name]?.enabled === true)
-    .flatMap((name) => ["--skill", join(root, name)]);
+    .map((name) => join(root, name));
 }
 
 // ── Store registry ────────────────────────────────────────────────────────────

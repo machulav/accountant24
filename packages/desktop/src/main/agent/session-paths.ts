@@ -3,7 +3,7 @@
 // security-relevant containment check, one place to harden.
 
 import { resolve, sep } from "node:path";
-import { sessionsDir } from "./env";
+import { sessionsDir } from "../env";
 
 /** Resolve a session path strictly inside the sessions dir, or null when it
  *  falls outside. The separator suffix stops both siblings that merely share

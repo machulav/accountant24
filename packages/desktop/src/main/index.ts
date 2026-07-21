@@ -3,13 +3,16 @@
 
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
-import { killAllAgents, registerAgentIpc } from "./agent";
+import { killAllAgents, registerAgentIpc } from "./agent/router";
+import { registerSessionsIpc } from "./agent/sessions";
+import { registerSkillsIpc } from "./agent/skills";
 import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
-import { registerPiIpc } from "./pi";
+import { registerAuthIpc } from "./llm-providers/auth";
+import { registerOauthIpc } from "./llm-providers/oauth";
+import { registerOllamaIpc } from "./llm-providers/ollama";
 import { registerSettingsIpc } from "./settings";
-import { registerSkillsIpc } from "./skills";
 import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
 
@@ -43,7 +46,10 @@ app.whenReady().then(() => {
   // version via extraMetadata), so it can't be read at renderer build time.
   ipcMain.handle("app_version", () => app.getVersion());
   registerAgentIpc(getWin);
-  registerPiIpc(getWin);
+  registerAuthIpc();
+  registerOauthIpc(getWin);
+  registerOllamaIpc();
+  registerSessionsIpc();
   registerSkillsIpc(getWin);
   registerSettingsIpc({ onAnalyticsToggled: trackAnalyticsToggle });
   registerFilesIpc();
