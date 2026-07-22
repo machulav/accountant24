@@ -127,7 +127,7 @@ describe("Balance Sheet view flow", () => {
 
     expect(await screen.findByTitle("assets:cash")).toBeInTheDocument();
     expect(screen.getByTitle("assets:checking")).toBeInTheDocument();
-    expect(screen.getByText("86.00 EUR")).toBeInTheDocument();
+    expect(screen.getByText("~86.00 EUR")).toBeInTheDocument();
     expect(screen.getByTitle("liabilities:card")).toBeInTheDocument();
     expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(1);
   });

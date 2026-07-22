@@ -30,7 +30,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/s
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
-import { formatAmounts } from "@/lib/amountFormat";
+import { formatAmounts, formatValue } from "@/lib/amountFormat";
 import { ledgerApi } from "@/rpc/api";
 import type { AccountBalance, BalanceSheet, BalanceSheetSection } from "@/rpc/types";
 
@@ -122,7 +122,7 @@ const columns: ColumnDef<AccountBalance>[] = [
         <SortHeader column={column} label="Value" className="-mr-3" />
       </div>
     ),
-    cell: ({ row }) => formatAmounts(row.original.value, "value", navigator.language),
+    cell: ({ row }) => formatValue(row.original, navigator.language),
   },
 ];
 
@@ -199,7 +199,7 @@ const SheetSection: FC<{ section: BalanceSheetSection; search: string }> = ({ se
     <div className="flex items-baseline justify-between gap-8 px-8 pt-8 pb-2">
       <h2 className="text-xl font-semibold">{section.name}</h2>
       <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
-        {formatAmounts(section.total.value, "value", navigator.language)}
+        {formatValue(section.total, navigator.language)}
       </div>
     </div>
     {/* px-5: with the cells' own px-3, the table text lines up with the px-8
@@ -285,7 +285,7 @@ export const BalanceSheetView: FC = () => {
               <div className="mx-3 mt-10 flex items-baseline justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4">
                 <div className="text-xl font-semibold">Net</div>
                 <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
-                  {formatAmounts(sheet.net.value, "value", navigator.language)}
+                  {formatValue(sheet.net, navigator.language)}
                 </div>
               </div>
             </>

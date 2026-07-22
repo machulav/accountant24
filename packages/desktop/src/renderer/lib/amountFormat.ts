@@ -40,3 +40,26 @@ export function formatAmount(a: LedgerAmount, mode: "value" | "native", locale?:
 export function formatAmounts(amounts: LedgerAmount[], mode: "value" | "native", locale?: string): string {
   return amounts.map((a) => formatAmount(a, mode, locale)).join(", ");
 }
+
+/** A report figure: the native amounts paired with their market value. */
+export interface ValuedFigure {
+  amounts: LedgerAmount[];
+  value: LedgerAmount[];
+}
+
+/** True when hledger's valuation actually changed the figure — a different
+ *  commodity list or different quantities than the native amounts. Display
+ *  precision is ignored: it's presentation metadata, not value. */
+export function isConverted({ amounts, value }: ValuedFigure): boolean {
+  return (
+    amounts.length !== value.length ||
+    amounts.some((a, i) => a.quantity !== value[i]?.quantity || a.commodity !== value[i]?.commodity)
+  );
+}
+
+/** Format a figure's market-value line. Converted figures get a leading "~":
+ *  they are estimates at the last rate recorded in the ledger, not exact
+ *  balances. A figure the valuation left untouched renders without it. */
+export function formatValue(figure: ValuedFigure, locale?: string): string {
+  return `${isConverted(figure) ? "~" : ""}${formatAmounts(figure.value, "value", locale)}`;
+}

@@ -70,7 +70,7 @@ const DATA: BalanceSheet = {
       total: { amounts: [A("EUR", 346.75)], value: [A("EUR", 346.75)] },
     },
   ],
-  net: { amounts: [], value: [A("EUR", 1738.97)] },
+  net: { amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", -296.75)], value: [A("EUR", 1738.97)] },
 };
 
 const EMPTY: BalanceSheet = { sections: [], net: { amounts: [], value: [] } };
@@ -110,7 +110,10 @@ describe("<BalanceSheetView />", () => {
     renderView();
     expect(await screen.findByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Liabilities" })).toBeInTheDocument();
-    expect(screen.getByText("2,085.72 EUR")).toBeInTheDocument();
+    // The assets total includes converted holdings: an estimate, so ~.
+    expect(screen.getByText("~2,085.72 EUR")).toBeInTheDocument();
+    // The liabilities total is exact EUR: no marker.
+    expect(screen.getByText("346.75 EUR", { selector: "div" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Assets" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Liabilities" })).toBeInTheDocument();
   });
@@ -129,7 +132,7 @@ describe("<BalanceSheetView />", () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     renderView();
     const net = await screen.findByText("Net");
-    expect(screen.getByText("1,738.97 EUR")).toBeInTheDocument();
+    expect(screen.getByText("~1,738.97 EUR")).toBeInTheDocument();
     // Net comes after both section tables in document order.
     const tables = screen.getAllByRole("table");
     const lastTable = tables[tables.length - 1] as HTMLElement;
@@ -158,11 +161,15 @@ describe("<BalanceSheetView />", () => {
     expect(accountOrder("Assets")).toEqual(["assets:bank", "assets:cash", "assets:darka:etf:sxr8"]);
   });
 
-  it("should show the locale-formatted market value as the primary figure on every row", async () => {
+  it("should mark converted row values with ~ and leave exact ones unmarked", async () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     renderView();
-    expect(await screen.findByText("115.57 EUR")).toBeInTheDocument();
-    expect(screen.getByText("1,920.15 EUR")).toBeInTheDocument();
+    // Converted (UAH+USD and SXR8 valued into EUR): estimates.
+    expect(await screen.findByText("~115.57 EUR")).toBeInTheDocument();
+    expect(screen.getByText("~1,920.15 EUR")).toBeInTheDocument();
+    // The plain EUR account is exact: holding and value, no marker.
+    expect(screen.getAllByText("50.00 EUR")).toHaveLength(2);
+    expect(screen.queryByText("~50.00 EUR")).not.toBeInTheDocument();
   });
 
   it("should show a multi-commodity holding comma-joined on one line", async () => {
@@ -172,13 +179,35 @@ describe("<BalanceSheetView />", () => {
     expect(screen.getByText("22.45 SXR8")).toBeInTheDocument();
   });
 
-  it("should show a multi-commodity net comma-joined on one line", async () => {
+  it("should show an unconverted multi-commodity net comma-joined, without ~", async () => {
+    // No rates in the journal: the valued run returns the same figures.
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
       ...DATA,
-      net: { amounts: [], value: [A("EUR", 7796.25), A("UAH", 1000)] },
+      net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
     });
     renderView();
     expect(await screen.findByText("7,796.25 EUR, 1,000.00 UAH")).toBeInTheDocument();
+    expect(screen.queryByText("~7,796.25 EUR, 1,000.00 UAH")).not.toBeInTheDocument();
+  });
+
+  it("should show no ~ anywhere when nothing was converted, totals included", async () => {
+    // An all-exact journal: every value equals its native amounts.
+    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+      sections: [
+        {
+          name: "Assets",
+          rows: [
+            { name: "assets:bank:mono", amounts: [A("UAH", 1000)], value: [A("UAH", 1000)] },
+            { name: "assets:bank:n26", amounts: [A("EUR", 7796.25)], value: [A("EUR", 7796.25)] },
+          ],
+          total: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
+        },
+      ],
+      net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
+    });
+    renderView();
+    await screen.findByTitle("assets:bank:mono");
+    expect(screen.queryByText(/~/)).not.toBeInTheDocument();
   });
 
   describe("sorting", () => {
@@ -317,7 +346,7 @@ describe("<BalanceSheetView />", () => {
   it("should refetch the report when the agent goes from running to idle", async () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     const { rerender } = renderView(false);
-    await screen.findByText("115.57 EUR");
+    await screen.findByText("~115.57 EUR");
     expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -343,7 +372,7 @@ describe("<BalanceSheetView />", () => {
       .mockResolvedValueOnce(DATA)
       .mockReturnValue(new Promise(() => {}));
     const { rerender } = renderView(false);
-    await screen.findByText("115.57 EUR");
+    await screen.findByText("~115.57 EUR");
 
     rerender(
       <Chrome isRunning={true}>
@@ -359,7 +388,7 @@ describe("<BalanceSheetView />", () => {
     // Once the refetch is genuinely in flight (its promise never resolves),
     // the previous rows must still be up, with no skeleton.
     await waitFor(() => expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(2));
-    expect(screen.getByText("115.57 EUR")).toBeInTheDocument();
+    expect(screen.getByText("~115.57 EUR")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
