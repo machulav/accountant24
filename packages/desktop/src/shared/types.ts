@@ -15,6 +15,54 @@ export interface LedgerMentions {
   tags: string[];
 }
 
+// ---- Ledger balances (Accounts view) --------------------------------------
+
+/** One commodity of a balance, as hledger computed it (exact numbers from the
+ *  JSON report; the renderer decides presentation). */
+export interface LedgerAmount {
+  quantity: number;
+  /** Commodity symbol ("EUR", "BTC", "SXR8"), unquoted. */
+  commodity: string;
+  /** Decimal places hledger carries for this amount (display precision). */
+  precision: number;
+}
+
+/** One account row of a balance report, in hledger's own order. */
+export interface AccountBalance {
+  /** Full account path ("assets:bank:checking"), verbatim. */
+  name: string;
+  /** The balance in its original commodities, one entry per commodity. */
+  amounts: LedgerAmount[];
+  /** The same balance at market value (`-X` valuation) — a single
+   *  base-currency figure when hledger finds a price path, otherwise equal
+   *  to `amounts`. This is the primary number the report views show. */
+  value: LedgerAmount[];
+}
+
+/** A figure of the report that isn't an account row: a section total or the
+ *  net line — native amounts paired with their market value like a row. */
+export interface BalanceSheetTotal {
+  amounts: LedgerAmount[];
+  value: LedgerAmount[];
+}
+
+/** One `hledger bs` subreport: Assets or Liabilities, rows in hledger's
+ *  order with hledger's own sign convention (liabilities positive) and the
+ *  section's hledger-computed total. */
+export interface BalanceSheetSection {
+  /** hledger's section name ("Assets", "Liabilities"), verbatim. */
+  name: string;
+  rows: AccountBalance[];
+  total: BalanceSheetTotal;
+}
+
+/** The Balance Sheet view payload: `hledger bs` as data — sections plus the
+ *  hledger-computed net (assets minus liabilities). */
+export interface BalanceSheet {
+  sections: BalanceSheetSection[];
+  net: BalanceSheetTotal;
+}
+
 // ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---
 
 /** The app's own settings schema (app-owned keys, distinct from pi's config,

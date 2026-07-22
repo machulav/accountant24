@@ -5,7 +5,17 @@
 
 import type { SkillInfo } from "../../shared/types";
 
-export type { AppSettings, LedgerMentions, SkillAddRequest, SkillInfo } from "../../shared/types";
+export type {
+  AccountBalance,
+  AppSettings,
+  BalanceSheet,
+  BalanceSheetSection,
+  BalanceSheetTotal,
+  LedgerAmount,
+  LedgerMentions,
+  SkillAddRequest,
+  SkillInfo,
+} from "../../shared/types";
 
 // ---- Models -------------------------------------------------------------
 

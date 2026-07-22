@@ -1,7 +1,7 @@
 import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { SettingsIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { LandmarkIcon, SettingsIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,7 @@ import { agentBridge } from "@/runtime/agentBridge";
 import { createElectronPiClient } from "@/runtime/electronPiClient";
 import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "@/runtime/fileAttachmentAdapter";
 import { PiClientContext } from "@/runtime/modelsContext";
+import { BalanceSheetView } from "./balance-sheet-view";
 import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
@@ -67,13 +68,20 @@ export function ChatLayout() {
   );
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Which view fills the inset. The chat is never unmounted (see below); the
+  // The Balance Sheet page mounts fresh on each open so it always shows current data.
+  const [view, setView] = useState<"chat" | "balance-sheet">("chat");
+  const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
   // Read once on mount; afterwards SidebarResizeHandle mutates the CSS var live.
   const [sidebarWidth] = useState(loadSidebarWidth);
 
   useKeyboardShortcuts({
-    newChat: () => void runtime.threads.switchToNewThread(),
+    newChat: () => {
+      setView("chat");
+      void runtime.threads.switchToNewThread();
+    },
     openSettings: () => setSettingsOpen(true),
   });
 
@@ -137,14 +145,23 @@ export function ChatLayout() {
             <SidebarHeader>
               {/* spacer + drag region so the header clears the overlaid traffic lights */}
               <div className="app-drag-region h-7" />
-              <ThreadListNew />
+              <ThreadListNew onSelect={showChat} />
             </SidebarHeader>
             <SidebarContent className="scroll-fade">
-              <ThreadList />
+              <ThreadList onSelectThread={showChat} />
             </SidebarContent>
             <SidebarFooter>
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={view === "balance-sheet"}
+                    onClick={() => setView((v) => (v === "balance-sheet" ? "chat" : "balance-sheet"))}
+                  >
+                    <LandmarkIcon className="size-4" />
+                    Balance Sheet
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
                     <SettingsIcon className="size-4" />
@@ -158,7 +175,13 @@ export function ChatLayout() {
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
-            <Thread />
+            {/* The chat stays mounted (display:none) while the Balance Sheet is open:
+                the composer's editor state, scroll position, and any in-flight
+                streaming all survive the round trip. */}
+            <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
+              <Thread />
+            </div>
+            {view === "balance-sheet" && <BalanceSheetView />}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>

@@ -23,11 +23,13 @@ import {
 import { sessionsApi } from "@/rpc/api";
 
 /** The sidebar's primary action — lives in the SidebarHeader, outside the nav
- *  list, per the shadcn sidebar recipe (header = actions, content = nav). */
-export const ThreadListNew: FC = () => {
+ *  list, per the shadcn sidebar recipe (header = actions, content = nav).
+ *  `onSelect` fires alongside the primitive's new-thread action (the layout
+ *  uses it to bring the chat view back). */
+export const ThreadListNew: FC<{ onSelect?: () => void }> = ({ onSelect }) => {
   return (
     <ThreadListPrimitive.New asChild>
-      <Button variant="outline" data-slot="aui_thread-list-new" className="w-full">
+      <Button variant="outline" data-slot="aui_thread-list-new" className="w-full" onClick={onSelect}>
         <PlusIcon data-icon="inline-start" />
         New Chat
       </Button>
@@ -35,14 +37,16 @@ export const ThreadListNew: FC = () => {
   );
 };
 
-export const ThreadList: FC = () => {
+/** `onSelectThread` fires when a thread row is clicked, alongside the
+ *  primitive's switch-to-thread action (not on the row's ••• actions). */
+export const ThreadList: FC<{ onSelectThread?: () => void }> = ({ onSelectThread }) => {
   return (
     <ThreadListPrimitive.Root data-slot="aui_thread-list-root" className="flex flex-col">
       <AuiIf condition={(s) => s.threads.isLoading}>
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListItemGroups />
+        <ThreadListItemGroups onSelectThread={onSelectThread} />
       </AuiIf>
     </ThreadListPrimitive.Root>
   );
@@ -87,9 +91,15 @@ function useSessionTimes(threadIds: readonly string[]): Map<string, number> {
   return times;
 }
 
-const ThreadListItemGroups: FC = () => {
+const ThreadListItemGroups: FC<{ onSelectThread?: () => void }> = ({ onSelectThread }) => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const times = useSessionTimes(threadIds);
+
+  // ItemByIndex takes a component (not an element), so bind the callback once.
+  const BoundThreadListItem = useMemo(() => {
+    const Bound: FC = () => <ThreadListItem onSelect={onSelectThread} />;
+    return Bound;
+  }, [onSelectThread]);
 
   const groups = useMemo<ThreadListGroup[] | null>(() => {
     if (times.size === 0) return null;
@@ -118,7 +128,7 @@ const ThreadListItemGroups: FC = () => {
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            <ThreadListPrimitive.Items>{() => <ThreadListItem />}</ThreadListPrimitive.Items>
+            <ThreadListPrimitive.Items>{() => <BoundThreadListItem />}</ThreadListPrimitive.Items>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -131,7 +141,11 @@ const ThreadListItemGroups: FC = () => {
       <SidebarGroupContent>
         <SidebarMenu>
           {group.indices.map((index) => (
-            <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
+            <ThreadListPrimitive.ItemByIndex
+              key={threadIds[index]}
+              index={index}
+              components={{ ThreadListItem: BoundThreadListItem }}
+            />
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
@@ -157,7 +171,7 @@ const ThreadListSkeleton: FC = () => {
   );
 };
 
-export const ThreadListItem: FC = () => {
+export const ThreadListItem: FC<{ onSelect?: () => void }> = ({ onSelect }) => {
   return (
     <ThreadListItemPrimitive.Root asChild>
       <SidebarMenuItem data-slot="aui_thread-list-item" className="group/thread-list-item">
@@ -170,6 +184,7 @@ export const ThreadListItem: FC = () => {
               the hover highlight off the whole row instead. */}
           <SidebarMenuButton
             data-slot="aui_thread-list-item-trigger"
+            onClick={onSelect}
             className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:bg-sidebar-accent group-data-active/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:font-medium group-has-data-popup-open/menu-item:bg-sidebar-accent"
           >
             <span data-slot="aui_thread-list-item-title" className="min-w-0 flex-1 truncate">

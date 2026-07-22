@@ -11,6 +11,7 @@ import type {
   AuthModels,
   AuthProviders,
   AuthStatus,
+  BalanceSheet,
   LedgerMentions,
   OllamaInfo,
   SessionAgentEvent,
@@ -126,6 +127,8 @@ export const settingsApi = {
 export const ledgerApi = {
   /** Fetch accounts/payees/tags for the @-mention picker. */
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
+  /** Fetch the `hledger bs` report (sections + net) for the Balance Sheet view. */
+  balanceSheet: () => api.invoke<BalanceSheet>("ledger_balance_sheet"),
 };
 
 export const skillsApi = {
