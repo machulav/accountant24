@@ -96,11 +96,18 @@ const accountOrder = (tableName: string) =>
     .map((row) => row.querySelector("td")?.getAttribute("title"));
 
 describe("<BalanceSheetView />", () => {
-  it("should show a loading status and no tables while the first load is in flight", () => {
+  it("should show the page chrome immediately and skeletons only for the loading data", () => {
     vi.mocked(ledgerApi.balanceSheet).mockReturnValue(new Promise(() => {}));
     renderView();
     expect(screen.getByRole("status", { name: "Loading accounts" })).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    // Everything that needs no data is up before the report arrives: the
+    // search box, the Assets band, the column labels, and the Net band.
+    expect(screen.getByRole("searchbox", { name: "Search accounts" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
+    expect(screen.getByText("Net")).toBeInTheDocument();
+    // But no figures yet — those are what's loading.
+    expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
   });
 
   it("should render the pinned Balance Sheet title without a figure", async () => {
@@ -113,7 +120,9 @@ describe("<BalanceSheetView />", () => {
   it("should render one section per bs subreport, with hledger's own totals", async () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     renderView();
-    expect(await screen.findByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
+    // Settle on loaded data first — the skeleton also carries an Assets band.
+    await screen.findByTitle("assets:cash");
+    expect(screen.getByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Liabilities" })).toBeInTheDocument();
     // The assets total includes converted holdings: an estimate, so ~.
     expect(screen.getByText("~2,085.72 EUR")).toBeInTheDocument();
@@ -180,8 +189,10 @@ describe("<BalanceSheetView />", () => {
   it("should show each account's last balance assertion date, and an em dash when it was never asserted", async () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     renderView();
+    // Settle on loaded data first — the skeleton also carries the header.
+    await screen.findByTitle("assets:cash");
     // One sortable header per section table.
-    expect(await screen.findAllByRole("button", { name: "Last Balance Assertion" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Last Balance Assertion" })).toHaveLength(2);
     // The journal's own ISO dates, verbatim.
     expect(screen.getByText("2026-07-12")).toBeInTheDocument();
     expect(screen.getByText("2026-06-15")).toBeInTheDocument();

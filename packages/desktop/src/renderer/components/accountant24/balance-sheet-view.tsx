@@ -234,14 +234,63 @@ const SheetSection: FC<{ section: BalanceSheetSection; search: string }> = ({ se
 
 const SKELETON_ROWS = ["s1", "s2", "s3", "s4", "s5", "s6"];
 
+/** The loading state mirrors the loaded page: everything that needs no data
+ *  (the Assets band, the column labels, the Net band) is up immediately, and
+ *  skeletons stand in only for the figures and rows hledger is still
+ *  computing. Assets and Net always exist on a balance sheet; Liabilities
+ *  may not, so no placeholder for it. */
 const SheetSkeleton: FC = () => (
-  <div role="status" aria-label="Loading accounts" className="flex flex-col gap-5 px-8 pt-8">
-    {SKELETON_ROWS.map((row) => (
-      <div key={row} className="flex items-center justify-between gap-8">
-        <Skeleton className="h-4 w-56" />
-        <Skeleton className="h-4 w-24" />
-      </div>
-    ))}
+  <div role="status" aria-label="Loading accounts">
+    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
+      <h2 className="text-xl font-semibold">Assets</h2>
+      <Skeleton className="h-5 w-36 self-center" />
+    </div>
+    <div className="px-5">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="w-full">
+              <Button variant="ghost" size="sm" className="-ml-3" disabled>
+                Account
+                <ChevronsUpDownIcon className="text-muted-foreground/60" />
+              </Button>
+            </TableHead>
+            {["Last Balance Assertion", "Holding", "Value"].map((label) => (
+              <TableHead key={label}>
+                <div className="text-right">
+                  <Button variant="ghost" size="sm" className="-mr-3" disabled>
+                    {label}
+                    <ChevronsUpDownIcon className="text-muted-foreground/60" />
+                  </Button>
+                </div>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {SKELETON_ROWS.map((row) => (
+            <TableRow key={row} className="hover:bg-transparent">
+              <TableCell className="w-full py-2.5">
+                <Skeleton className="h-4 w-56" />
+              </TableCell>
+              <TableCell className="py-2.5">
+                <Skeleton className="ml-auto h-4 w-20" />
+              </TableCell>
+              <TableCell className="py-2.5">
+                <Skeleton className="ml-auto h-4 w-24" />
+              </TableCell>
+              <TableCell className="py-2.5">
+                <Skeleton className="ml-auto h-4 w-24" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+    <div className={`mt-10 ${BAND_CLASS}`}>
+      <div className="text-xl font-semibold">Net</div>
+      <Skeleton className="h-5 w-32 self-center" />
+    </div>
   </div>
 );
 
@@ -272,7 +321,7 @@ export const BalanceSheetView: FC = () => {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mx-auto w-full max-w-4xl shrink-0 px-8 pt-16 pb-4">
         <h1 className="text-3xl font-semibold">Balance Sheet</h1>
-        {sections.length > 0 && (
+        {(sheet === null || sections.length > 0) && (
           <InputGroup className="mt-6">
             <InputGroupInput
               type="search"
