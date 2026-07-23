@@ -210,10 +210,15 @@ const AccountsTable: FC<{ rows: AccountBalance[]; search: string; label: string 
   );
 };
 
+/** The soft summary-band surface shared by the section headers and the Net
+ *  line: label left, hledger's figure right, on the app's muted panel. px-5
+ *  inside mx-3 keeps the text on the px-8 line of the page title. */
+const BAND_CLASS = "mx-3 flex items-baseline justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
+
 /** One `bs` section: its hledger name and total over its accounts table. */
 const SheetSection: FC<{ section: BalanceSheetSection; search: string }> = ({ section, search }) => (
   <section>
-    <div className="flex items-baseline justify-between gap-8 px-8 pt-8 pb-2">
+    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
       <h2 className="text-xl font-semibold">{section.name}</h2>
       <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
         {formatValue(section.total, navigator.language)}
@@ -295,11 +300,8 @@ export const BalanceSheetView: FC = () => {
               {sections.map((section) => (
                 <SheetSection key={section.name} section={section} search={search} />
               ))}
-              {/* The closing Net band, straight from hledger's own net — a
-                  soft muted panel like the app's other surfaces (search
-                  field, composer) instead of a bare rule. px-5 inside mx-3
-                  keeps the text on the px-8 line of the headings above. */}
-              <div className="mx-3 mt-10 flex items-baseline justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4">
+              {/* The closing Net band, straight from hledger's own net. */}
+              <div className={`mt-10 ${BAND_CLASS}`}>
                 <div className="text-xl font-semibold">Net</div>
                 <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
                   {formatValue(sheet.net, navigator.language)}
