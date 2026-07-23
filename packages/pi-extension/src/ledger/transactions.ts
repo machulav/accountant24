@@ -19,6 +19,22 @@ export interface AddTransactionParams {
   tags?: Array<{ name: string; value?: string }>;
 }
 
+/** A standalone balance checkpoint: hledger's balance assertion, always its
+ *  own journal entry (never attached to a regular transaction). */
+export interface AddBalanceAssertionParams {
+  date: string;
+  account: string;
+  balance: { amount: number; currency: string };
+}
+
+/** A market price: hledger's P directive, stating what one unit of a
+ *  commodity was worth on a date. */
+export interface AddPriceParams {
+  date: string;
+  commodity: string;
+  price: { amount: number; currency: string };
+}
+
 export interface AddTransactionsResult {
   transactions: Array<{ transactionText: string; fullFilePath: string }>;
   ledgerIsValid: boolean;
@@ -37,12 +53,47 @@ export async function addTransactions(
   paramsList: AddTransactionParams[],
   signal?: AbortSignal,
 ): Promise<AddTransactionsResult> {
-  validateAll(paramsList);
-  const formatted = formatAll(paramsList);
+  validateEach(paramsList, validateInputs, "Transaction");
+  const formatted = paramsList.map((params) => routeByMonth(params.date, formatTransaction(params)));
+  const currencies = paramsList.flatMap((params) => params.postings.map((p) => p.currency));
+  return persistFormatted(formatted, currencies, signal);
+}
+
+/** Record standalone balance checkpoints: one journal entry per assertion,
+ *  each a single zero-amount posting asserting the account's actual balance.
+ *  Routed to the monthly files like any transaction; `hledger check --strict`
+ *  then proves every assertion or rejects the write with hledger's own
+ *  error. */
+export async function addBalanceAssertions(
+  paramsList: AddBalanceAssertionParams[],
+  signal?: AbortSignal,
+): Promise<AddTransactionsResult> {
+  validateEach(paramsList, validateAssertionInputs, "Assertion");
+  const formatted = paramsList.map((params) => routeByMonth(params.date, formatBalanceAssertion(params)));
+  const currencies = paramsList.map((params) => params.balance.currency);
+  return persistFormatted(formatted, currencies, signal);
+}
+
+/** Record market prices as standalone P directives, routed to the monthly
+ *  file of each date. Both sides of every price are declared as commodities,
+ *  and `hledger check --strict` validates the write; the Net Worth
+ *  report values every holding at its latest recorded price. */
+export async function addPrices(paramsList: AddPriceParams[], signal?: AbortSignal): Promise<AddTransactionsResult> {
+  validateEach(paramsList, validatePriceInputs, "Price");
+  const formatted = paramsList.map((params) => routeByMonth(params.date, formatPrice(params)));
+  const currencies = paramsList.flatMap((params) => [params.commodity, params.price.currency]);
+  return persistFormatted(formatted, currencies, signal);
+}
+
+async function persistFormatted(
+  formatted: FormattedEntry[],
+  currencies: string[],
+  signal?: AbortSignal,
+): Promise<AddTransactionsResult> {
   const byFile = groupByFile(formatted);
   const fileContents = writeMonthlyFiles(byFile);
   updateMainJournal(byFile);
-  declareMissingCommodities(paramsList);
+  declareMissingCommodities(currencies);
   await validateLedger(formatted, signal);
   const diffs = buildDiffs(byFile, fileContents);
   const transactions = formatted.map((f) => ({ transactionText: f.text, fullFilePath: f.fullFilePath }));
@@ -51,25 +102,25 @@ export async function addTransactions(
 
 // ── Pipeline steps ─────────────────────────────────────────────────
 
-function validateAll(paramsList: AddTransactionParams[]): void {
+/** Validate every item, prefixing errors with the item's position (as
+ *  `label`) so batch failures point at the offending entry. */
+function validateEach<T>(paramsList: T[], validate: (params: T) => void, label: string): void {
   for (let i = 0; i < paramsList.length; i++) {
     try {
-      validateInputs(paramsList[i]);
+      validate(paramsList[i]);
     } catch (e) {
       if (paramsList.length > 1 && e instanceof Error) {
-        throw new Error(`Transaction ${i + 1}: ${e.message}`);
+        throw new Error(`${label} ${i + 1}: ${e.message}`);
       }
       throw e;
     }
   }
 }
 
-function formatAll(paramsList: AddTransactionParams[]): FormattedEntry[] {
-  return paramsList.map((params) => {
-    const [year, month] = params.date.split("-");
-    const fullFilePath = resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR);
-    return { text: formatTransaction(params), fileKey: `${year}/${month}`, fullFilePath };
-  });
+/** Every entry lives in the monthly journal of its date. */
+function routeByMonth(date: string, text: string): FormattedEntry {
+  const [year, month] = date.split("-");
+  return { text, fileKey: `${year}/${month}`, fullFilePath: resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR) };
 }
 
 function groupByFile(formatted: FormattedEntry[]): Map<string, FormattedEntry[]> {
@@ -145,13 +196,8 @@ function updateMainJournal(byFile: Map<string, FormattedEntry[]>): void {
   }
 }
 
-function declareMissingCommodities(paramsList: AddTransactionParams[]): void {
-  const allCurrencies = new Set<string>();
-  for (const params of paramsList) {
-    for (const p of params.postings) {
-      allCurrencies.add(p.currency);
-    }
-  }
+function declareMissingCommodities(currencies: string[]): void {
+  const allCurrencies = new Set<string>(currencies);
 
   const commoditiesPath = resolveSafePath("commodities.journal", LEDGER_DIR);
   const commoditiesContent = existsSync(commoditiesPath) ? readFileSync(commoditiesPath, "utf-8") : "";
@@ -216,6 +262,39 @@ function validateInputs(params: Pick<AddTransactionParams, "date" | "postings">)
   }
 }
 
+function validateAssertionInputs(params: AddBalanceAssertionParams): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
+    throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
+  }
+  if (!params.account) {
+    throw new Error("Balance assertion is missing an account.");
+  }
+  if (params.balance?.amount == null) {
+    throw new Error(`Balance assertion for ${params.account} is missing the balance amount.`);
+  }
+  if (!params.balance.currency) {
+    throw new Error(`Balance assertion for ${params.account} is missing the balance currency.`);
+  }
+}
+
+function validatePriceInputs(params: AddPriceParams): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
+    throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
+  }
+  if (!params.commodity) {
+    throw new Error("Price is missing a commodity.");
+  }
+  if (params.price?.amount == null) {
+    throw new Error(`Price for ${params.commodity} is missing the amount.`);
+  }
+  if (!(params.price.amount > 0)) {
+    throw new Error(`Price for ${params.commodity} must be positive.`);
+  }
+  if (!params.price.currency) {
+    throw new Error(`Price for ${params.commodity} is missing the currency.`);
+  }
+}
+
 function formatTransaction(params: AddTransactionParams): string {
   const header = params.description
     ? `${params.date} * ${params.payee} | ${params.description}`
@@ -249,4 +328,40 @@ function formatTransaction(params: AddTransactionParams): string {
   }
 
   return lines.join("\n");
+}
+
+/** Every checkpoint carries the same canonical payee, so assertions are easy
+ *  to spot (and query) in the journal. */
+const BALANCE_ASSERTION_PAYEE = "Balance Assertion";
+
+function formatBalanceAssertion(params: AddBalanceAssertionParams): string {
+  const header = `${params.date} * ${BALANCE_ASSERTION_PAYEE}`;
+  // A zero-amount posting moves no money and balances on its own; hledger's
+  // `= balance` after the amount is the assertion being checked.
+  const amountStr = `0.00 ${params.balance.currency}`;
+  const prefix = `    ${params.account}`;
+  const pad = Math.max(2, 69 - prefix.length);
+  const assertion = ` = ${params.balance.amount.toFixed(2)} ${params.balance.currency}`;
+  return `${header}\n${prefix}${" ".repeat(pad)}${amountStr}${assertion}`;
+}
+
+/** hledger requires double quotes around a commodity symbol containing
+ *  anything besides letters or currency signs (digits, spaces, punctuation)
+ *  — e.g. a ticker like "SOL2". */
+function quoteCommodity(commodity: string): string {
+  return /^[\p{L}\p{Sc}]+$/u.test(commodity) ? commodity : `"${commodity}"`;
+}
+
+/** Plain decimal rendering preserving the given precision — market rates
+ *  carry meaning in their decimals (0.0205), so no fixed rounding; tiny
+ *  rates must never fall into exponential notation. */
+function formatPriceAmount(amount: number): string {
+  const plain = String(amount);
+  if (!plain.toLowerCase().includes("e")) return plain;
+  return amount.toFixed(20).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatPrice(params: AddPriceParams): string {
+  const amount = `${formatPriceAmount(params.price.amount)} ${quoteCommodity(params.price.currency)}`;
+  return `P ${params.date} ${quoteCommodity(params.commodity)} ${amount}`;
 }

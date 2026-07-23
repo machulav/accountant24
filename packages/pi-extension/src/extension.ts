@@ -5,6 +5,8 @@ import { getMemory } from "./memory";
 import { ensureScaffolded } from "./scaffold/scaffold";
 import { buildContextSection, buildToolsSection, patchBakedDate } from "./system-prompt";
 import {
+  addBalanceAssertionsTool,
+  addPricesTool,
   addTransactionsTool,
   commitAndPushTool,
   extractTextTool,
@@ -20,6 +22,8 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   // Register custom tools (pi registers its own built-in tools, bound to the agent
   // cwd, which the app sets to the workspace).
   pi.registerTool(queryTool);
+  pi.registerTool(addBalanceAssertionsTool);
+  pi.registerTool(addPricesTool);
   pi.registerTool(addTransactionsTool);
   pi.registerTool(commitAndPushTool);
   pi.registerTool(extractTextTool);

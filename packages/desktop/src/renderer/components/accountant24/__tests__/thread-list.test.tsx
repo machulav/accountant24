@@ -13,7 +13,7 @@ import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRu
 import { SidebarProvider } from "@/components/shadcn/sidebar";
 import { sessionsApi } from "@/rpc/api";
 import type { SessionSummary } from "@/rpc/types";
-import { ThreadList } from "../thread-list";
+import { ThreadList, ThreadListNew } from "../thread-list";
 
 const listMock = vi.mocked(sessionsApi.list);
 
@@ -30,6 +30,8 @@ function makeChrome(opts: {
   threadId?: string;
   isLoading?: boolean;
   onDelete?: (threadId: string) => void | Promise<void>;
+  onSwitchToThread?: (threadId: string) => void | Promise<void>;
+  onSwitchToNewThread?: () => void | Promise<void>;
 }) {
   return function CustomChrome({ children }: { children: ReactNode }) {
     const store: ExternalStoreAdapter = {
@@ -40,8 +42,8 @@ function makeChrome(opts: {
           threadId: opts.threadId ?? opts.threads[0]?.id,
           isLoading: opts.isLoading,
           threads: opts.threads.map((t) => ({ id: t.id, status: "regular", title: t.title })),
-          onSwitchToThread: () => {},
-          onSwitchToNewThread: () => {},
+          onSwitchToThread: opts.onSwitchToThread ?? (() => {}),
+          onSwitchToNewThread: opts.onSwitchToNewThread ?? (() => {}),
           onDelete: opts.onDelete ?? (async () => {}),
         },
       },
@@ -179,6 +181,26 @@ describe("ThreadList row hover highlight", () => {
     expect(rowButton!.className).toContain("group-hover/menu-item:bg-sidebar-accent");
   });
 
+  it("should mute the active-thread highlight when highlightActive is off (Net Worth open)", async () => {
+    render(
+      <Chrome>
+        <ThreadList highlightActive={false} />
+      </Chrome>,
+    );
+    const rowButton = (await screen.findByText("test chat")).closest("button");
+    // jsdom has no CSS engine, so pin the CSS contract: the active-mirror
+    // styles must be absent while another sidebar destination is selected;
+    // hover feedback stays.
+    expect(rowButton!.className).not.toContain("group-data-active/menu-item:bg-sidebar-accent");
+    expect(rowButton!.className).toContain("group-hover/menu-item:bg-sidebar-accent");
+  });
+
+  it("should keep the active-thread highlight by default", async () => {
+    renderList();
+    const rowButton = (await screen.findByText("test chat")).closest("button");
+    expect(rowButton!.className).toContain("group-data-active/menu-item:bg-sidebar-accent");
+  });
+
   it("should hide the ••• action until hover at every window width (drawer mode included)", async () => {
     renderList();
     const trigger = await screen.findByRole("button", { name: "More options" });
@@ -308,6 +330,107 @@ describe("ThreadList delete", () => {
     press(del);
 
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith("t1"));
+  });
+});
+
+describe("ThreadList selection callbacks", () => {
+  // Two threads with t2 active: clicking t1 must genuinely switch (assistant-ui
+  // skips the switch action for the already-active row).
+  const TWO_THREADS = [
+    { id: "t1", title: "test chat" },
+    { id: "t2", title: "other chat" },
+  ];
+
+  it("should fire onSelectThread alongside the thread switch when a row is clicked", async () => {
+    const onSwitchToThread = vi.fn();
+    const onSelectThread = vi.fn();
+    const Chrome = makeChrome({ threads: TWO_THREADS, threadId: "t2", onSwitchToThread });
+    render(
+      <Chrome>
+        <ThreadList onSelectThread={onSelectThread} />
+      </Chrome>,
+    );
+
+    press(await screen.findByText("test chat"));
+
+    // Both the primitive's own action and our callback must run — proves the
+    // asChild trigger composes the child's onClick instead of replacing it.
+    await waitFor(() => expect(onSwitchToThread).toHaveBeenCalledWith("t1"));
+    expect(onSelectThread).toHaveBeenCalledTimes(1);
+  });
+
+  it("should fire onSelectThread even for the already-active row (it only re-shows the chat)", async () => {
+    const onSelectThread = vi.fn();
+    const Chrome = makeChrome({ threads: TWO_THREADS, threadId: "t2" });
+    render(
+      <Chrome>
+        <ThreadList onSelectThread={onSelectThread} />
+      </Chrome>,
+    );
+
+    press(await screen.findByText("other chat"));
+    await waitFor(() => expect(onSelectThread).toHaveBeenCalledTimes(1));
+  });
+
+  it("should not fire onSelectThread from the row's ••• menu or its Delete action", async () => {
+    const onSelectThread = vi.fn();
+    const onDelete = vi.fn();
+    const Chrome = makeChrome({ threads: [{ id: "t1", title: "test chat" }], onDelete });
+    render(
+      <Chrome>
+        <ThreadList onSelectThread={onSelectThread} />
+      </Chrome>,
+    );
+
+    press(await screen.findByRole("button", { name: "More options" }));
+    press(await screen.findByText("Delete"));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith("t1"));
+    expect(onSelectThread).not.toHaveBeenCalled();
+  });
+
+  it("should still switch the thread when onSelectThread is omitted", async () => {
+    const onSwitchToThread = vi.fn();
+    const Chrome = makeChrome({ threads: TWO_THREADS, threadId: "t2", onSwitchToThread });
+    render(
+      <Chrome>
+        <ThreadList />
+      </Chrome>,
+    );
+
+    press(await screen.findByText("test chat"));
+    await waitFor(() => expect(onSwitchToThread).toHaveBeenCalledWith("t1"));
+  });
+});
+
+describe("ThreadListNew", () => {
+  it("should fire onSelect alongside the new-thread action when clicked", async () => {
+    const onSwitchToNewThread = vi.fn();
+    const onSelect = vi.fn();
+    const Chrome = makeChrome({ threads: [], onSwitchToNewThread });
+    render(
+      <Chrome>
+        <ThreadListNew onSelect={onSelect} />
+      </Chrome>,
+    );
+
+    press(screen.getByRole("button", { name: "New Chat" }));
+
+    await waitFor(() => expect(onSwitchToNewThread).toHaveBeenCalled());
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("should still start a new thread when onSelect is omitted", async () => {
+    const onSwitchToNewThread = vi.fn();
+    const Chrome = makeChrome({ threads: [], onSwitchToNewThread });
+    render(
+      <Chrome>
+        <ThreadListNew />
+      </Chrome>,
+    );
+
+    press(screen.getByRole("button", { name: "New Chat" }));
+    await waitFor(() => expect(onSwitchToNewThread).toHaveBeenCalled());
   });
 });
 
