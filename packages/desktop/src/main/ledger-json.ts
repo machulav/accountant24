@@ -101,6 +101,31 @@ export function parseBalanceSheetJson(json: string): RawBalanceSheet | null {
   return { sections, net: parseRowAmounts(report.cbrTotals) };
 }
 
+/** The target commodity of the journal's latest declared market price — the
+ *  last line of `hledger prices` output. This is the journal's de-facto base
+ *  currency: the agent records prices toward the user's currency, and it is
+ *  the same "latest P directive" rule hledger's own `-V` valuation applies
+ *  per commodity, read once for the whole report. The amount's display style
+ *  is journal-defined ("0.01 EUR", "EUR0.01", "€0.01"), so the symbol is
+ *  whatever remains once the number is stripped away. Null when the journal
+ *  declares no prices or the line is unparseable. */
+export function parseLatestPriceTarget(text: string): string | null {
+  const line = text.trim().split("\n").at(-1)?.trim();
+  if (!line?.startsWith("P ")) return null;
+  // P <date> <commodity> <amount> — the commodity may be double-quoted.
+  const afterP = line.slice(2).trimStart();
+  const afterDate = afterP.replace(/^\d{4}-\d{2}-\d{2}\s+/, "");
+  if (afterDate === afterP) return null;
+  const afterCommodity = afterDate.startsWith('"')
+    ? afterDate.replace(/^"[^"]*"\s+/, "")
+    : afterDate.replace(/^\S+\s+/, "");
+  if (afterCommodity === afterDate) return null;
+  const quoted = afterCommodity.match(/"([^"]+)"/);
+  if (quoted?.[1]) return quoted[1];
+  const symbol = afterCommodity.replace(/[\s\d.,+-]/g, "");
+  return symbol.length > 0 ? symbol : null;
+}
+
 /** Parse `hledger print -O json` output into each account's most recent
  *  balance-assertion date — the posting's own date when it has one, the
  *  transaction's otherwise. Accounts without assertions are absent; anything

@@ -3,6 +3,7 @@ import {
   mergeValuedBalanceSheet,
   parseAssertionDates,
   parseBalanceSheetJson,
+  parseLatestPriceTarget,
   type RawBalanceSheet,
 } from "../ledger-json";
 
@@ -311,5 +312,55 @@ describe("parseAssertionDates()", () => {
       { tpostings: [posting("assets:dateless", true)] },
     ]);
     expect(parseAssertionDates(json)).toEqual({ "assets:ok": "2026-06-02" });
+  });
+});
+
+// parseLatestPriceTarget reads the journal's de-facto base currency off
+// plain `hledger prices` output: the target commodity of the last (latest)
+// declared price, whatever display style the journal gives the amount.
+
+describe("parseLatestPriceTarget()", () => {
+  it("should return null for empty output", () => {
+    expect(parseLatestPriceTarget("")).toBeNull();
+    expect(parseLatestPriceTarget("\n\n")).toBeNull();
+  });
+
+  it("should return null for a non-directive line", () => {
+    expect(parseLatestPriceTarget("hledger: error: no journal")).toBeNull();
+  });
+
+  it("should read a right-side commodity code", () => {
+    expect(parseLatestPriceTarget("P 2026-07-22 UAH 0.01958 EUR")).toBe("EUR");
+  });
+
+  it("should read a left-glued commodity code", () => {
+    expect(parseLatestPriceTarget("P 2026-07-22 UAH EUR0.01958")).toBe("EUR");
+  });
+
+  it("should read a bare currency symbol", () => {
+    expect(parseLatestPriceTarget("P 2026-07-22 UAH \u20ac0.02")).toBe("\u20ac");
+  });
+
+  it("should survive digit grouping in the amount", () => {
+    expect(parseLatestPriceTarget("P 2026-07-15 BTC 55,849.08 USD")).toBe("USD");
+  });
+
+  it("should skip a double-quoted priced commodity", () => {
+    expect(parseLatestPriceTarget('P 2026-07-17 "SXR8" 701.93 EUR')).toBe("EUR");
+  });
+
+  it("should unquote a double-quoted target", () => {
+    expect(parseLatestPriceTarget('P 2026-07-17 EUR 51.07 "UAH"')).toBe("UAH");
+  });
+
+  it("should use the last line (hledger prints prices date-ascending)", () => {
+    const text = ["P 2026-07-10 USD 0.87 EUR", "P 2026-07-22 EUR 41.85 UAH"].join("\n");
+    expect(parseLatestPriceTarget(text)).toBe("UAH");
+  });
+
+  it("should return null when the line has no amount or no symbol", () => {
+    expect(parseLatestPriceTarget("P 2026-07-22 UAH")).toBeNull();
+    expect(parseLatestPriceTarget("P 2026-07-22 UAH 0.01958")).toBeNull();
+    expect(parseLatestPriceTarget("P not-a-date UAH 1 EUR")).toBeNull();
   });
 });

@@ -14,7 +14,12 @@ import path from "node:path";
 import { ipcMain } from "electron";
 import type { BalanceSheet, LedgerMentions } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
-import { mergeValuedBalanceSheet, parseAssertionDates, parseBalanceSheetJson } from "./ledger-json";
+import {
+  mergeValuedBalanceSheet,
+  parseAssertionDates,
+  parseBalanceSheetJson,
+  parseLatestPriceTarget,
+} from "./ledger-json";
 
 function hledgerBin(): string {
   const exe = path.join(binDir(), process.platform === "win32" ? "hledger.exe" : "hledger");
@@ -52,32 +57,36 @@ async function ledgerMentions(): Promise<LedgerMentions> {
   return { accounts, payees, tags };
 }
 
-/** The app's base currency: every balance is valued in it. Explicit here
- *  (rather than implied by the journal's P directives) so hledger converts
- *  through reverse and chained prices too; a future setting could replace it. */
-const BASE_COMMODITY = "EUR";
-
-/** Flags shared by every valued report: value in the base currency, using
- *  declared P prices plus prices inferred from transaction costs — the
- *  manual-recommended pairing (`-X COMM --infer-market-prices`). */
-const VALUATION = ["-X", BASE_COMMODITY, "--infer-market-prices"];
+/** The report's base commodity — the target of the journal's latest
+ *  declared market price. The agent records prices toward the user's
+ *  currency, so the journal itself answers "which currency is home" and no
+ *  currency is hardcoded. Seam for the future default-currency setting: once
+ *  it exists, resolve it here first and fall back to the derivation. Null
+ *  when the journal declares no prices. */
+async function resolveBaseCommodity(): Promise<string | null> {
+  return parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath()]));
+}
 
 /** The classic balance sheet, straight from `hledger bs`: Assets and
  *  Liabilities sections (liabilities already sign-flipped positive by
  *  hledger), each with hledger's own total, plus the hledger-computed net.
- *  Run twice — native holdings and the market valuation — and paired; the
- *  valued run collapses multi-commodity holdings to one base-currency figure
- *  wherever hledger finds any price path (direct, reverse, chained, or
- *  cost-inferred). Each row also carries the date of the account's latest
- *  balance assertion (from `print -O json`) — when the balance was last
- *  reconciled. Empty when there's no journal yet or hledger fails. */
+ *  Run twice — native holdings and the market valuation — and paired. With a
+ *  base commodity the valued run is `-X <base> --infer-market-prices`, which
+ *  collapses multi-commodity holdings to one base-currency figure wherever
+ *  hledger finds any price path (direct, reverse, chained, or cost-
+ *  inferred); with no prices declared there is nothing to aim at, and `-V`
+ *  lets hledger value what it can. Each row also carries the date of the
+ *  account's latest balance assertion (from `print -O json`) — when the
+ *  balance was last reconciled. Empty when there's no journal yet or hledger
+ *  fails. */
 async function ledgerBalanceSheet(): Promise<BalanceSheet> {
   const base = ["bs", "-O", "json", "-f", mainJournalPath()];
-  const [native, valued, printed] = await Promise.all([
+  const [native, printed, target] = await Promise.all([
     hledgerRaw(base),
-    hledgerRaw([...base, ...VALUATION]),
     hledgerRaw(["print", "-O", "json", "-f", mainJournalPath()]),
+    resolveBaseCommodity(),
   ]);
+  const valued = await hledgerRaw(target ? [...base, "-X", target, "--infer-market-prices"] : [...base, "-V"]);
   const raw = parseBalanceSheetJson(native);
   if (raw === null) return { sections: [], net: { amounts: [], value: [] } };
   const sheet = mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
