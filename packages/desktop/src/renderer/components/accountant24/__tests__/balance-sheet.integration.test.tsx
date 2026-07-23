@@ -54,6 +54,7 @@ const DATA: BalanceSheet = {
           name: "assets:cash",
           amounts: [{ quantity: 100, commodity: "USD", precision: 2 }],
           value: [{ quantity: 86, commodity: "EUR", precision: 2 }],
+          assertedOn: "2026-07-01",
         },
         {
           name: "assets:checking",
@@ -129,6 +130,7 @@ describe("Balance Sheet view flow", () => {
     expect(screen.getByTitle("assets:checking")).toBeInTheDocument();
     expect(screen.getByText("~86.00 EUR")).toBeInTheDocument();
     expect(screen.getByTitle("liabilities:card")).toBeInTheDocument();
+    expect(screen.getByText("2026-07-01")).toBeInTheDocument();
     expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(1);
   });
 

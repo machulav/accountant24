@@ -213,6 +213,7 @@ describe("ledger_balance_sheet", () => {
   ];
   const EMPTY_REPORT = report([], []);
   const emptyStubs = { bs: EMPTY_REPORT, "bs:V": EMPTY_REPORT };
+  const printed = (txns: unknown[]) => [JSON.stringify(txns)];
 
   // Native run: BTC holding plus a positive (bs sign convention) liability;
   // valued run: everything in EUR.
@@ -231,6 +232,12 @@ describe("ledger_balance_sheet", () => {
       ],
       [amt("EUR", 9690)],
     ),
+    print: printed([
+      {
+        tdate: "2026-07-05",
+        tpostings: [{ paccount: "assets:btc", pdate: null, pbalanceassertion: { baamount: {} } }],
+      },
+    ]),
   };
 
   it("should pair the sections and net of the native and valued bs runs", async () => {
@@ -244,6 +251,7 @@ describe("ledger_balance_sheet", () => {
               name: "assets:btc",
               amounts: [{ quantity: 0.16, commodity: "BTC", precision: 8 }],
               value: [{ quantity: 9990, commodity: "EUR", precision: 2 }],
+              assertedOn: "2026-07-05",
             },
           ],
           total: {
@@ -276,21 +284,28 @@ describe("ledger_balance_sheet", () => {
     });
   });
 
-  it("should run bs twice (native and valued in EUR with inferred prices) against the workspace journal in the workspace cwd with the agent env", async () => {
+  it("should run bs twice (native and valued in EUR with inferred prices) plus print for assertion dates, against the workspace journal in the workspace cwd with the agent env", async () => {
     stubHledger(emptyStubs);
     await balanceSheet();
 
-    expect(h.execFile.mock.calls).toHaveLength(2);
+    expect(h.execFile.mock.calls).toHaveLength(3);
     const base = ["bs", "-O", "json", "-f", "/ws/ledger/main.journal"];
     const argLists = h.execFile.mock.calls.map((c) => c[1] as string[]);
     expect(argLists).toContainEqual(base);
     expect(argLists).toContainEqual([...base, "-X", "EUR", "--infer-market-prices"]);
+    expect(argLists).toContainEqual(["print", "-O", "json", "-f", "/ws/ledger/main.journal"]);
     for (const call of h.execFile.mock.calls) {
       const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
       expect(opts.cwd).toBe("/ws");
       expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
       expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
     }
+  });
+
+  it("should leave rows without assertions untouched when the print run fails", async () => {
+    stubHledger({ ...STUBS, print: new Error("boom") });
+    const sheet = await balanceSheet();
+    expect(sheet.sections[0]?.rows[0]?.assertedOn).toBeUndefined();
   });
 
   it("should fall back to the raw amounts as the value when the valued run fails", async () => {

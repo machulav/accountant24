@@ -37,6 +37,10 @@ export interface AccountBalance {
    *  base-currency figure when hledger finds a price path, otherwise equal
    *  to `amounts`. This is the primary number the report views show. */
   value: LedgerAmount[];
+  /** ISO date of the account's most recent balance assertion in the journal
+   *  (the posting's own date when it has one) — when the balance was last
+   *  reconciled. Absent when the account has no assertions. */
+  assertedOn?: string;
 }
 
 /** A figure of the report that isn't an account row: a section total or the

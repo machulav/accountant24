@@ -101,6 +101,34 @@ export function parseBalanceSheetJson(json: string): RawBalanceSheet | null {
   return { sections, net: parseRowAmounts(report.cbrTotals) };
 }
 
+/** Parse `hledger print -O json` output into each account's most recent
+ *  balance-assertion date — the posting's own date when it has one, the
+ *  transaction's otherwise. Accounts without assertions are absent; anything
+ *  unparseable yields {}. */
+export function parseAssertionDates(json: string): Record<string, string> {
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    return {};
+  }
+  if (!Array.isArray(data)) return {};
+  const latest: Record<string, string> = {};
+  for (const txn of data) {
+    const t = txn as { tdate?: unknown; tpostings?: unknown };
+    if (!Array.isArray(t?.tpostings)) continue;
+    for (const posting of t.tpostings) {
+      const p = posting as { paccount?: unknown; pdate?: unknown; pbalanceassertion?: unknown };
+      if (!p?.pbalanceassertion || typeof p.paccount !== "string" || !p.paccount) continue;
+      const date = typeof p.pdate === "string" && p.pdate ? p.pdate : t.tdate;
+      if (typeof date !== "string" || !date) continue;
+      const prev = latest[p.paccount];
+      if (!prev || date > prev) latest[p.paccount] = date;
+    }
+  }
+  return latest;
+}
+
 /** Merge the raw and market-value (`-X`) runs of the same `bs` report. Both
  *  runs cover the identical sections and account lists, so everything pairs
  *  by position; if the valued run is missing or disagrees (partial hledger

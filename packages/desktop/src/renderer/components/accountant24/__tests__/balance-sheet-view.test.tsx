@@ -55,9 +55,14 @@ const DATA: BalanceSheet = {
     {
       name: "Assets",
       rows: [
-        { name: "assets:cash", amounts: [A("UAH", 1408.26), A("USD", 100)], value: [A("EUR", 115.573, 3)] },
+        {
+          name: "assets:cash",
+          amounts: [A("UAH", 1408.26), A("USD", 100)],
+          value: [A("EUR", 115.573, 3)],
+          assertedOn: "2026-06-15",
+        },
         { name: "assets:darka:etf:sxr8", amounts: [A("SXR8", 22.45)], value: [A("EUR", 1920.148, 3)] },
-        { name: "assets:bank", amounts: [A("EUR", 50)], value: [A("EUR", 50)] },
+        { name: "assets:bank", amounts: [A("EUR", 50)], value: [A("EUR", 50)], assertedOn: "2026-07-12" },
       ],
       total: {
         amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", 50)],
@@ -172,6 +177,18 @@ describe("<BalanceSheetView />", () => {
     expect(screen.queryByText("~50.00 EUR")).not.toBeInTheDocument();
   });
 
+  it("should show each account's last balance assertion date, and an em dash when it was never asserted", async () => {
+    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    renderView();
+    // One sortable header per section table.
+    expect(await screen.findAllByRole("button", { name: "Last Balance Assertion" })).toHaveLength(2);
+    // The journal's own ISO dates, verbatim.
+    expect(screen.getByText("2026-07-12")).toBeInTheDocument();
+    expect(screen.getByText("2026-06-15")).toBeInTheDocument();
+    // Never asserted: the SXR8 account and the liability.
+    expect(screen.getAllByText("\u2014")).toHaveLength(2);
+  });
+
   it("should show a multi-commodity holding comma-joined on one line", async () => {
     vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
     renderView();
@@ -245,6 +262,18 @@ describe("<BalanceSheetView />", () => {
       // A second click flips to smallest first.
       await userEvent.click(assetsButton("Holding"));
       expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:bank", "assets:cash"]);
+    });
+
+    it("should sort by assertion date, most recent first, with never-asserted rows last", async () => {
+      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await userEvent.click(assetsButton("Last Balance Assertion"));
+      // bank (07-12) > cash (06-15) > darka (never asserted).
+      expect(accountOrder("Assets")).toEqual(["assets:bank", "assets:cash", "assets:darka:etf:sxr8"]);
+      // A second click flips: never-asserted first, then oldest.
+      await userEvent.click(assetsButton("Last Balance Assertion"));
+      expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:cash", "assets:bank"]);
     });
 
     it("should keep each section's sorting independent", async () => {

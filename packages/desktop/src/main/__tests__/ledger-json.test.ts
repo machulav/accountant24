@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mergeValuedBalanceSheet, parseBalanceSheetJson, type RawBalanceSheet } from "../ledger-json";
+import {
+  mergeValuedBalanceSheet,
+  parseAssertionDates,
+  parseBalanceSheetJson,
+  type RawBalanceSheet,
+} from "../ledger-json";
 
 // parseBalanceSheetJson turns `hledger bs -O json` output into sections and
 // the net row the Balance Sheet view renders. Fixtures follow the documented
@@ -252,5 +257,59 @@ describe("mergeValuedBalanceSheet()", () => {
     const merged = mergeValuedBalanceSheet(raw, valued);
     expect(merged.sections[0]?.rows[0]?.value).toEqual([A("BTC", 0.16)]);
     expect(merged.sections[0]?.total.value).toEqual([A("BTC", 0.16)]);
+  });
+});
+
+// parseAssertionDates turns `hledger print -O json` output (an array of
+// transactions with postings; a posting carrying `pbalanceassertion` asserts
+// its account's balance on that date) into each account's latest assertion
+// date. Fixtures follow the documented shape.
+
+describe("parseAssertionDates()", () => {
+  const posting = (account: string, asserted: boolean, pdate: string | null = null) => ({
+    paccount: account,
+    pdate,
+    pbalanceassertion: asserted ? { baamount: {}, batotal: false } : null,
+  });
+  const txn = (date: string, postings: unknown[]) => ({ tdate: date, tpostings: postings });
+
+  it("should return {} for an empty string, garbage, or a non-array", () => {
+    expect(parseAssertionDates("")).toEqual({});
+    expect(parseAssertionDates("hledger: error")).toEqual({});
+    expect(parseAssertionDates('{"a": 1}')).toEqual({});
+  });
+
+  it("should return {} when no posting carries an assertion", () => {
+    const json = JSON.stringify([txn("2026-06-01", [posting("assets:bank", false)])]);
+    expect(parseAssertionDates(json)).toEqual({});
+  });
+
+  it("should record the transaction date of an asserting posting", () => {
+    const json = JSON.stringify([txn("2026-06-15", [posting("assets:bank", true), posting("equity", false)])]);
+    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-06-15" });
+  });
+
+  it("should prefer the posting's own date over the transaction's", () => {
+    const json = JSON.stringify([txn("2026-07-10", [posting("assets:bank", true, "2026-07-12")])]);
+    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-12" });
+  });
+
+  it("should keep the latest date per account regardless of journal order", () => {
+    const json = JSON.stringify([
+      txn("2026-07-01", [posting("assets:bank", true)]),
+      txn("2026-06-15", [posting("assets:bank", true)]),
+      txn("2026-05-01", [posting("assets:cash", true)]),
+    ]);
+    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-01", "assets:cash": "2026-05-01" });
+  });
+
+  it("should skip malformed transactions and postings but keep the valid ones", () => {
+    const json = JSON.stringify([
+      "not a transaction",
+      { tdate: "2026-06-01" },
+      txn("2026-06-02", ["not a posting", { pbalanceassertion: {}, paccount: "" }, posting("assets:ok", true)]),
+      { tpostings: [posting("assets:dateless", true)] },
+    ]);
+    expect(parseAssertionDates(json)).toEqual({ "assets:ok": "2026-06-02" });
   });
 });

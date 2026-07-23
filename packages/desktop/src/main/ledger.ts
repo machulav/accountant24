@@ -14,7 +14,7 @@ import path from "node:path";
 import { ipcMain } from "electron";
 import type { BalanceSheet, LedgerMentions } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
-import { mergeValuedBalanceSheet, parseBalanceSheetJson } from "./ledger-json";
+import { mergeValuedBalanceSheet, parseAssertionDates, parseBalanceSheetJson } from "./ledger-json";
 
 function hledgerBin(): string {
   const exe = path.join(binDir(), process.platform === "win32" ? "hledger.exe" : "hledger");
@@ -68,13 +68,27 @@ const VALUATION = ["-X", BASE_COMMODITY, "--infer-market-prices"];
  *  Run twice — native holdings and the market valuation — and paired; the
  *  valued run collapses multi-commodity holdings to one base-currency figure
  *  wherever hledger finds any price path (direct, reverse, chained, or
- *  cost-inferred). Empty when there's no journal yet or hledger fails. */
+ *  cost-inferred). Each row also carries the date of the account's latest
+ *  balance assertion (from `print -O json`) — when the balance was last
+ *  reconciled. Empty when there's no journal yet or hledger fails. */
 async function ledgerBalanceSheet(): Promise<BalanceSheet> {
   const base = ["bs", "-O", "json", "-f", mainJournalPath()];
-  const [native, valued] = await Promise.all([hledgerRaw(base), hledgerRaw([...base, ...VALUATION])]);
+  const [native, valued, printed] = await Promise.all([
+    hledgerRaw(base),
+    hledgerRaw([...base, ...VALUATION]),
+    hledgerRaw(["print", "-O", "json", "-f", mainJournalPath()]),
+  ]);
   const raw = parseBalanceSheetJson(native);
   if (raw === null) return { sections: [], net: { amounts: [], value: [] } };
-  return mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
+  const sheet = mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
+  const asserted = parseAssertionDates(printed);
+  return {
+    ...sheet,
+    sections: sheet.sections.map((section) => ({
+      ...section,
+      rows: section.rows.map((row) => (asserted[row.name] ? { ...row, assertedOn: asserted[row.name] } : row)),
+    })),
+  };
 }
 
 /** Register the ledger IPC handlers. */

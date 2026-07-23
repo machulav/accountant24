@@ -93,14 +93,30 @@ const SortHeader: FC<{ column: Column<AccountBalance>; label: string; className?
  *  - Holding: by the primary native quantity — a plain number sort, so the
  *    column reads monotonic (commodity grouping was tried and read as
  *    disorder);
+ *  - Last Balance Assertion: by date, most recent first on the first
+ *    click; never-asserted rows sink to the end;
  *  - Value: by market value.
- *  Both money columns put the biggest figures first on the first click. */
+ *  Money columns put the biggest figures first on the first click. */
 const columns: ColumnDef<AccountBalance>[] = [
   {
     id: "account",
     accessorFn: (row) => row.name,
     header: ({ column }) => <SortHeader column={column} label="Account" className="-ml-3" />,
     cell: ({ row }) => row.original.name,
+  },
+  {
+    id: "asserted",
+    accessorFn: (row) => row.assertedOn ?? "",
+    sortDescFirst: true,
+    header: ({ column }) => (
+      <div className="text-right">
+        <SortHeader column={column} label="Last Balance Assertion" className="-mr-3" />
+      </div>
+    ),
+    // The journal's own ISO date, verbatim — unambiguous, and what you see
+    // is literally what the column sorts by. An em dash marks accounts whose
+    // balance was never asserted.
+    cell: ({ row }) => row.original.assertedOn ?? "\u2014",
   },
   {
     id: "holding",
@@ -131,6 +147,7 @@ const columns: ColumnDef<AccountBalance>[] = [
 const CELL_CLASS: Record<string, string> = {
   account: "w-full py-2.5",
   holding: "py-2.5 text-right tabular-nums",
+  asserted: "py-2.5 text-right tabular-nums",
   value: "py-2.5 text-right tabular-nums",
 };
 
