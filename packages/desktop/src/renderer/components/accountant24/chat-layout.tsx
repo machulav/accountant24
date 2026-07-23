@@ -23,6 +23,7 @@ import { agentBridge } from "@/runtime/agentBridge";
 import { createElectronPiClient } from "@/runtime/electronPiClient";
 import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "@/runtime/fileAttachmentAdapter";
 import { PiClientContext } from "@/runtime/modelsContext";
+import { NetWorthBadge } from "./net-worth-badge";
 import { NetWorthView } from "./net-worth-view";
 import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
@@ -157,6 +158,7 @@ export function ChatLayout() {
                   <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
                     <LandmarkIcon className="size-4" />
                     Net Worth
+                    <NetWorthBadge />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

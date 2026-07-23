@@ -63,3 +63,15 @@ export function isConverted({ amounts, value }: ValuedFigure): boolean {
 export function formatValue(figure: ValuedFigure, locale?: string): string {
   return `${isConverted(figure) ? "~" : ""}${formatAmounts(figure.value, "value", locale)}`;
 }
+
+/** The market-value line for tight chrome (the sidebar badge): the same "~"
+ *  semantics as formatValue, the number in Intl's compact notation
+ *  ("~334K EUR"). Empty when there is no value to show. */
+export function formatValueCompact(figure: ValuedFigure, locale?: string): string {
+  if (figure.value.length === 0) return "";
+  const compact = new Intl.NumberFormat(locale, { notation: "compact" });
+  const joined = figure.value
+    .map((a) => (a.commodity ? `${compact.format(a.quantity)} ${a.commodity}` : compact.format(a.quantity)))
+    .join(", ");
+  return `${isConverted(figure) ? "~" : ""}${joined}`;
+}

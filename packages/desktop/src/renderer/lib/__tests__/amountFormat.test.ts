@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerAmount } from "@/rpc/types";
-import { formatAmount, formatAmounts, formatValue, isConverted } from "../amountFormat";
+import { formatAmount, formatAmounts, formatValue, formatValueCompact, isConverted } from "../amountFormat";
 
 // Spec for the Net Worth view's number presentation. Every commodity
 // reads the same way: locale-formatted number, commodity code as a suffix
@@ -154,5 +154,30 @@ describe("formatValue()", () => {
 
   it("should render an empty figure as an empty string", () => {
     expect(formatValue({ amounts: [], value: [] }, "en-US")).toBe("");
+  });
+});
+
+describe("formatValueCompact()", () => {
+  it("should render a converted figure as ~ plus the compact number and code", () => {
+    expect(
+      formatValueCompact({ amounts: [a("UAH", 1408.26), a("USD", 100)], value: [a("EUR", 333534.3)] }, "en-US"),
+    ).toBe("~334K EUR");
+  });
+
+  it("should render an exact figure compactly without the marker", () => {
+    expect(formatValueCompact({ amounts: [a("EUR", 2736)], value: [a("EUR", 2736)] }, "en-US")).toBe("2.7K EUR");
+  });
+
+  it("should keep a sub-thousand figure as a plain rounded number", () => {
+    expect(formatValueCompact({ amounts: [a("EUR", 988.54)], value: [a("EUR", 988.54)] }, "en-US")).toBe("989 EUR");
+  });
+
+  it("should comma-join a multi-commodity figure compactly", () => {
+    const amounts = [a("EUR", 1200), a("UAH", 5000)];
+    expect(formatValueCompact({ amounts, value: [a("EUR", 1200), a("UAH", 5000)] }, "en-US")).toBe("1.2K EUR, 5K UAH");
+  });
+
+  it("should render an empty figure as an empty string", () => {
+    expect(formatValueCompact({ amounts: [], value: [] }, "en-US")).toBe("");
   });
 });

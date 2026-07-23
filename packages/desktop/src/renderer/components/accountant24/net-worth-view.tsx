@@ -12,7 +12,6 @@
 // section. All figures are hledger-computed; only the presentation happens
 // here. Data refreshes when the agent finishes a turn.
 
-import { useAuiState } from "@assistant-ui/react";
 import {
   type Column,
   type ColumnDef,
@@ -24,7 +23,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon, SearchIcon } from "lucide-react";
-import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, type ReactNode, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
@@ -32,45 +31,8 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmounts, formatValue } from "@/lib/amountFormat";
-import { ledgerApi } from "@/rpc/api";
-import type { AccountBalance, NetWorth, NetWorthSection } from "@/rpc/types";
-
-/** null = first load in flight; no section rows = loaded but empty (no
- *  journal yet or hledger failed — both render the empty state pointing at
- *  the agent). */
-function useNetWorth(): NetWorth | null {
-  const [data, setData] = useState<NetWorth | null>(null);
-
-  const refresh = useCallback(() => {
-    let cancelled = false;
-    ledgerApi
-      .netWorth()
-      .then((d) => {
-        if (!cancelled) setData(d);
-      })
-      .catch(() => {
-        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] } });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => refresh(), [refresh]);
-
-  // Refetch on the running → idle edge (the finished turn may have posted
-  // transactions). Existing rows stay up while the refresh is in flight, so
-  // the list never flickers back to the skeleton. Same pattern as mentions.tsx.
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const wasRunning = useRef(isRunning);
-  useEffect(() => {
-    const justFinished = wasRunning.current && !isRunning;
-    wasRunning.current = isRunning;
-    if (justFinished) return refresh();
-  }, [isRunning, refresh]);
-
-  return data;
-}
+import type { AccountBalance, NetWorthSection } from "@/rpc/types";
+import { useNetWorth } from "./use-net-worth";
 
 /** Clickable column header driving the table's sorting; the icon mirrors
  *  the current direction, neutral chevrons while the column is unsorted. */

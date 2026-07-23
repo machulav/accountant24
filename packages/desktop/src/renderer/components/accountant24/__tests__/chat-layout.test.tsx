@@ -121,6 +121,7 @@ vi.mock("../thread-list", () => ({
   ),
 }));
 vi.mock("../net-worth-view", () => ({ NetWorthView: () => <div data-testid="net-worth-view" /> }));
+vi.mock("../net-worth-badge", () => ({ NetWorthBadge: () => null }));
 // The Settings dialog is a real dialog elsewhere; here a light stub that mirrors
 // the `open` prop, so we can assert ChatLayout opens/closes it.
 vi.mock("../settings/settings", () => ({

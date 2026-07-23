@@ -34,7 +34,8 @@ vi.mock("@/runtime/agentBridge", () => ({
   agentBridge: { addEventListener: () => () => {} },
 }));
 
-// Heavy chat children with their own suites; the Net Worth view stays REAL.
+// Heavy chat children with their own suites; the Net Worth view and the
+// sidebar badge stay REAL.
 vi.mock("../thread", () => ({ Thread: () => <div data-testid="thread" /> }));
 vi.mock("../thread-list", () => ({
   ThreadList: () => <div data-testid="thread-list" />,
@@ -120,9 +121,17 @@ afterEach(() => cleanup());
 const openSheet = () => fireEvent.click(screen.getByRole("button", { name: "Net Worth" }));
 
 describe("Net Worth view flow", () => {
-  it("should fetch the report over IPC exactly once and render both sections when Net Worth is opened", async () => {
+  it("should show the compact net worth in the sidebar as soon as the layout loads", async () => {
     render(<ChatLayout />);
-    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(0);
+    // The badge's own fetch, before the page was ever opened.
+    expect(await screen.findByText("2.7K EUR")).toBeInTheDocument();
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
+  });
+
+  it("should fetch the report over IPC and render both sections when Net Worth is opened", async () => {
+    render(<ChatLayout />);
+    // One badge fetch on mount; the page adds its own on open.
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
 
     openSheet();
 
@@ -131,7 +140,7 @@ describe("Net Worth view flow", () => {
     expect(screen.getByText("~86.00 EUR")).toBeInTheDocument();
     expect(screen.getByTitle("liabilities:card")).toBeInTheDocument();
     expect(screen.getByText("2026-07-01")).toBeInTheDocument();
-    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(2);
   });
 
   it("should mark the sidebar entry active and keep the chat mounted but hidden while open", async () => {
@@ -154,7 +163,7 @@ describe("Net Worth view flow", () => {
 
     expect(screen.getByTitle("assets:cash")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Net Worth" })).toHaveAttribute("data-active");
-    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(2);
   });
 
   it("should fetch a fresh report on every open", async () => {
@@ -167,7 +176,7 @@ describe("Net Worth view flow", () => {
 
     openSheet();
     await screen.findByTitle("assets:cash");
-    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(2);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(3);
   });
 
   it("should show the empty state when the report has no accounts", async () => {
