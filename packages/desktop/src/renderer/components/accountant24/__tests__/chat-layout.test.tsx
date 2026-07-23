@@ -247,14 +247,14 @@ describe("ChatLayout Balance Sheet view", () => {
     expect(sheetButton()).toHaveAttribute("data-active");
   });
 
-  it("should return to the chat when the active Balance Sheet entry is clicked again", () => {
+  it("should keep the Balance Sheet open when the active entry is clicked again", () => {
     render(<ChatLayout />);
     fireEvent.click(sheetButton());
     fireEvent.click(sheetButton());
 
-    expect(screen.queryByTestId("balance-sheet-view")).toBeNull();
-    expect(threadWrapper().className).not.toContain("hidden");
-    expect(sheetButton()).not.toHaveAttribute("data-active");
+    expect(screen.getByTestId("balance-sheet-view")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(sheetButton()).toHaveAttribute("data-active");
   });
 
   it("should return to the chat when a thread is selected in the sidebar", () => {

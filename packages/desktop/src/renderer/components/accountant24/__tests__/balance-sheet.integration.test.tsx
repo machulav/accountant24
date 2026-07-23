@@ -145,16 +145,15 @@ describe("Balance Sheet view flow", () => {
     expect((thread.parentElement as HTMLElement).className).toContain("hidden");
   });
 
-  it("should return to the chat, without extra IPC, when Balance Sheet is toggled closed", async () => {
+  it("should ignore a second click on the active entry: the page stays, with no extra IPC", async () => {
     render(<ChatLayout />);
     openSheet();
     await screen.findByTitle("assets:cash");
 
     openSheet();
 
-    expect(screen.queryByTitle("assets:cash")).toBeNull();
-    expect((screen.getByTestId("thread").parentElement as HTMLElement).className).not.toContain("hidden");
-    expect(screen.getByRole("button", { name: "Balance Sheet" })).not.toHaveAttribute("data-active");
+    expect(screen.getByTitle("assets:cash")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Balance Sheet" })).toHaveAttribute("data-active");
     expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(1);
   });
 
@@ -162,7 +161,9 @@ describe("Balance Sheet view flow", () => {
     render(<ChatLayout />);
     openSheet();
     await screen.findByTitle("assets:cash");
-    openSheet();
+    // Returning to the chat goes through new chat (Cmd/Ctrl+N), not the entry.
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+    expect(screen.queryByTitle("assets:cash")).toBeNull();
 
     openSheet();
     await screen.findByTitle("assets:cash");

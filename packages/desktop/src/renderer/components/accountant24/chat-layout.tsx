@@ -154,10 +154,7 @@ export function ChatLayout() {
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={view === "balance-sheet"}
-                    onClick={() => setView((v) => (v === "balance-sheet" ? "chat" : "balance-sheet"))}
-                  >
+                  <SidebarMenuButton isActive={view === "balance-sheet"} onClick={() => setView("balance-sheet")}>
                     <LandmarkIcon className="size-4" />
                     Balance Sheet
                   </SidebarMenuButton>
