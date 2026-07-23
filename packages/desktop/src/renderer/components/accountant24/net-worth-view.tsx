@@ -309,7 +309,7 @@ const SheetSkeleton: FC = () => (
         </TableBody>
       </Table>
     </div>
-    <div className={`mt-10 ${BAND_CLASS}`}>
+    <div className={`mt-8 ${BAND_CLASS}`}>
       <div className="text-xl font-semibold">Net Worth</div>
       <Skeleton className="h-5 w-32 self-center" />
     </div>
@@ -372,7 +372,7 @@ export const NetWorthView: FC = () => {
                 <SheetSection key={section.name} section={section} search={search} />
               ))}
               {/* The closing Net band, straight from hledger's own net. */}
-              <div className={`mt-10 ${BAND_CLASS}`}>
+              <div className={`mt-8 ${BAND_CLASS}`}>
                 <div className="text-xl font-semibold">Net Worth</div>
                 <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
                   {formatValue(sheet.net, navigator.language)}
