@@ -8,7 +8,7 @@ import {
 } from "../ledger-json";
 
 // parseBalanceSheetJson turns `hledger bs -O json` output into sections and
-// the net row the Balance Sheet view renders. Fixtures follow the documented
+// the net row the Net Worth view renders. Fixtures follow the documented
 // compound-report shape: `{ cbrSubreports: [[name, periodicReport, bool]],
 // cbrTotals: netRow }`, periodicReport = { prRows, prTotals }, row =
 // { prrName, prrAmounts: [columnAmounts] }; expected values are hardcoded,

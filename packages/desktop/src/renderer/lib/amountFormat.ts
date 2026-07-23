@@ -1,4 +1,4 @@
-// Locale-aware presentation of hledger amounts for the Balance Sheet view.
+// Locale-aware presentation of hledger amounts for the Net Worth view.
 //
 // hledger computes the numbers; this module only decides how they read.
 // Every amount reads the same way — "1,234.56 EUR", "986.54 UAH",

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LedgerAmount } from "@/rpc/types";
 import { formatAmount, formatAmounts, formatValue, isConverted } from "../amountFormat";
 
-// Spec for the Balance Sheet view's number presentation. Every commodity
+// Spec for the Net Worth view's number presentation. Every commodity
 // reads the same way: locale-formatted number, commodity code as a suffix
 // (hledger's own display convention). Locales are pinned per assertion so
 // the expectations are deterministic. hledger owns the numbers; this module

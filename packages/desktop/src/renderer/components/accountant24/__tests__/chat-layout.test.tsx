@@ -105,8 +105,8 @@ vi.mock("@/rpc/api", () => ({
 // stubs surface their selection callbacks as buttons so tests can fire them.
 vi.mock("../thread", () => ({ Thread: () => <div data-testid="thread" /> }));
 vi.mock("../thread-list", () => ({
-  ThreadList: ({ onSelectThread }: { onSelectThread?: () => void }) => (
-    <div data-testid="thread-list">
+  ThreadList: ({ onSelectThread, highlightActive }: { onSelectThread?: () => void; highlightActive?: boolean }) => (
+    <div data-testid="thread-list" data-highlight-active={String(highlightActive)}>
       <button type="button" onClick={onSelectThread}>
         Select thread stub
       </button>
@@ -120,7 +120,7 @@ vi.mock("../thread-list", () => ({
     </div>
   ),
 }));
-vi.mock("../balance-sheet-view", () => ({ BalanceSheetView: () => <div data-testid="balance-sheet-view" /> }));
+vi.mock("../net-worth-view", () => ({ NetWorthView: () => <div data-testid="net-worth-view" /> }));
 // The Settings dialog is a real dialog elsewhere; here a light stub that mirrors
 // the `open` prop, so we can assert ChatLayout opens/closes it.
 vi.mock("../settings/settings", () => ({
@@ -224,35 +224,46 @@ describe("ChatLayout Settings dialog", () => {
   });
 });
 
-describe("ChatLayout Balance Sheet view", () => {
-  const sheetButton = () => screen.getByRole("button", { name: "Balance Sheet" });
+describe("ChatLayout Net Worth view", () => {
+  const sheetButton = () => screen.getByRole("button", { name: "Net Worth" });
   /** The wrapper ChatLayout hides (display:none) while Accounts is open — the
    *  CSS contract for "the chat survives the switch" (jsdom applies no CSS). */
   const threadWrapper = () => screen.getByTestId("thread").parentElement as HTMLElement;
 
-  it("should not show the Balance Sheet view initially", () => {
+  it("should not show the Net Worth view initially", () => {
     render(<ChatLayout />);
-    expect(screen.queryByTestId("balance-sheet-view")).toBeNull();
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
     expect(sheetButton()).not.toHaveAttribute("data-active");
   });
 
-  it("should show the Balance Sheet view and keep the chat mounted but hidden when Balance Sheet is clicked", () => {
+  it("should show the Net Worth view and keep the chat mounted but hidden when Net Worth is clicked", () => {
     render(<ChatLayout />);
     fireEvent.click(sheetButton());
 
-    expect(screen.getByTestId("balance-sheet-view")).toBeInTheDocument();
+    expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
     // The thread is still in the document (state preserved), only hidden.
     expect(screen.getByTestId("thread")).toBeInTheDocument();
     expect(threadWrapper().className).toContain("hidden");
     expect(sheetButton()).toHaveAttribute("data-active");
   });
 
-  it("should keep the Balance Sheet open when the active entry is clicked again", () => {
+  it("should mute the thread highlight while the Net Worth is open, and restore it back in the chat", () => {
+    render(<ChatLayout />);
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "true");
+
+    fireEvent.click(sheetButton());
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "false");
+
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "true");
+  });
+
+  it("should keep the Net Worth open when the active entry is clicked again", () => {
     render(<ChatLayout />);
     fireEvent.click(sheetButton());
     fireEvent.click(sheetButton());
 
-    expect(screen.getByTestId("balance-sheet-view")).toBeInTheDocument();
+    expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
     expect(threadWrapper().className).toContain("hidden");
     expect(sheetButton()).toHaveAttribute("data-active");
   });
@@ -262,7 +273,7 @@ describe("ChatLayout Balance Sheet view", () => {
     fireEvent.click(sheetButton());
     fireEvent.click(screen.getByRole("button", { name: "Select thread stub" }));
 
-    expect(screen.queryByTestId("balance-sheet-view")).toBeNull();
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
     expect(threadWrapper().className).not.toContain("hidden");
   });
 
@@ -271,7 +282,7 @@ describe("ChatLayout Balance Sheet view", () => {
     fireEvent.click(sheetButton());
     fireEvent.click(screen.getByRole("button", { name: "New chat stub" }));
 
-    expect(screen.queryByTestId("balance-sheet-view")).toBeNull();
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
     expect(threadWrapper().className).not.toContain("hidden");
   });
 
@@ -280,7 +291,7 @@ describe("ChatLayout Balance Sheet view", () => {
     fireEvent.click(sheetButton());
     fireEvent.keyDown(document.body, { key: "n", metaKey: true });
 
-    expect(screen.queryByTestId("balance-sheet-view")).toBeNull();
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
     expect(threadWrapper().className).not.toContain("hidden");
     expect(h.switchToNewThread).toHaveBeenCalledTimes(1);
   });

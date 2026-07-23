@@ -181,6 +181,26 @@ describe("ThreadList row hover highlight", () => {
     expect(rowButton!.className).toContain("group-hover/menu-item:bg-sidebar-accent");
   });
 
+  it("should mute the active-thread highlight when highlightActive is off (Net Worth open)", async () => {
+    render(
+      <Chrome>
+        <ThreadList highlightActive={false} />
+      </Chrome>,
+    );
+    const rowButton = (await screen.findByText("test chat")).closest("button");
+    // jsdom has no CSS engine, so pin the CSS contract: the active-mirror
+    // styles must be absent while another sidebar destination is selected;
+    // hover feedback stays.
+    expect(rowButton!.className).not.toContain("group-data-active/menu-item:bg-sidebar-accent");
+    expect(rowButton!.className).toContain("group-hover/menu-item:bg-sidebar-accent");
+  });
+
+  it("should keep the active-thread highlight by default", async () => {
+    renderList();
+    const rowButton = (await screen.findByText("test chat")).closest("button");
+    expect(rowButton!.className).toContain("group-data-active/menu-item:bg-sidebar-accent");
+  });
+
   it("should hide the ••• action until hover at every window width (drawer mode included)", async () => {
     renderList();
     const trigger = await screen.findByRole("button", { name: "More options" });

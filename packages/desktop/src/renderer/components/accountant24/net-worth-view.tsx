@@ -1,6 +1,6 @@
 "use client";
 
-// Full-page Balance Sheet view: `hledger bs` rendered as data — an Assets
+// Full-page Net Worth view: `hledger bs` rendered as data — an Assets
 // and a Liabilities section (liabilities already sign-flipped positive by
 // hledger), each with hledger's own total, and the hledger-computed Net as
 // the classic bottom line. A pinned header carries the page title and a
@@ -23,27 +23,28 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, SearchIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon, SearchIcon } from "lucide-react";
+import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmounts, formatValue } from "@/lib/amountFormat";
 import { ledgerApi } from "@/rpc/api";
-import type { AccountBalance, BalanceSheet, BalanceSheetSection } from "@/rpc/types";
+import type { AccountBalance, NetWorth, NetWorthSection } from "@/rpc/types";
 
 /** null = first load in flight; no section rows = loaded but empty (no
  *  journal yet or hledger failed — both render the empty state pointing at
  *  the agent). */
-function useBalanceSheet(): BalanceSheet | null {
-  const [data, setData] = useState<BalanceSheet | null>(null);
+function useNetWorth(): NetWorth | null {
+  const [data, setData] = useState<NetWorth | null>(null);
 
   const refresh = useCallback(() => {
     let cancelled = false;
     ledgerApi
-      .balanceSheet()
+      .netWorth()
       .then((d) => {
         if (!cancelled) setData(d);
       })
@@ -88,6 +89,61 @@ const SortHeader: FC<{ column: Column<AccountBalance>; label: string; className?
   );
 };
 
+/** What each money/meta column means, keyed by its label; shown behind the
+ *  little info marker next to the header (the Account column needs none). */
+const COLUMN_HELP: Record<string, ReactNode> = {
+  Holding:
+    "What the account actually holds: cash in its own currency, shares, or crypto. Exactly as recorded in the ledger, before any conversion.",
+  "Last Balance Assertion": (
+    <div>
+      <p>
+        When the ledger balance was last confirmed to match the real account balance. A dash means it was never
+        confirmed.
+      </p>
+      <p className="mt-1.5">
+        To confirm, tell the agent the actual account balance, for example: "My cash balance is 200 EUR."
+      </p>
+    </div>
+  ),
+  Value: (
+    <div>
+      <p>
+        What the holding is worth in your main currency, at the latest rate recorded in the ledger. A ~ means the value
+        was converted and is an estimate.
+      </p>
+      <p className="mt-1.5">
+        To update a rate, tell the agent what one unit of the holding is worth now in your main currency, for example:
+        "1 USD is 0.92 EUR."
+      </p>
+    </div>
+  ),
+};
+
+/** A visible little info marker; hovering it explains the column. A separate
+ *  target from the sort button, so the help is discoverable and sorting
+ *  stays a plain click. */
+const InfoTip: FC<{ label: string }> = ({ label }) => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`About ${label}`}
+            className="size-5 text-muted-foreground/70 hover:text-foreground"
+          />
+        }
+      >
+        <InfoIcon className="size-3.5" />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-60">
+        {COLUMN_HELP[label]}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 /** The accounts data table columns. Sorting semantics:
  *  - Account: A-Z on the full path (the table's default sort);
  *  - Holding: by the primary native quantity — a plain number sort, so the
@@ -109,7 +165,8 @@ const columns: ColumnDef<AccountBalance>[] = [
     accessorFn: (row) => row.assertedOn ?? "",
     sortDescFirst: true,
     header: ({ column }) => (
-      <div className="text-right">
+      <div className="flex items-center justify-end">
+        <InfoTip label="Last Balance Assertion" />
         <SortHeader column={column} label="Last Balance Assertion" className="-mr-3" />
       </div>
     ),
@@ -123,7 +180,8 @@ const columns: ColumnDef<AccountBalance>[] = [
     accessorFn: (row) => row.amounts[0]?.quantity ?? 0,
     sortDescFirst: true,
     header: ({ column }) => (
-      <div className="text-right">
+      <div className="flex items-center justify-end">
+        <InfoTip label="Holding" />
         <SortHeader column={column} label="Holding" className="-mr-3" />
       </div>
     ),
@@ -134,7 +192,8 @@ const columns: ColumnDef<AccountBalance>[] = [
     accessorFn: (row) => row.value[0]?.quantity ?? 0,
     sortDescFirst: true,
     header: ({ column }) => (
-      <div className="text-right">
+      <div className="flex items-center justify-end">
+        <InfoTip label="Value" />
         <SortHeader column={column} label="Value" className="-mr-3" />
       </div>
     ),
@@ -216,7 +275,7 @@ const AccountsTable: FC<{ rows: AccountBalance[]; search: string; label: string 
 const BAND_CLASS = "mx-3 flex items-baseline justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
 
 /** One `bs` section: its hledger name and total over its accounts table. */
-const SheetSection: FC<{ section: BalanceSheetSection; search: string }> = ({ section, search }) => (
+const SheetSection: FC<{ section: NetWorthSection; search: string }> = ({ section, search }) => (
   <section>
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
       <h2 className="text-xl font-semibold">{section.name}</h2>
@@ -257,7 +316,8 @@ const SheetSkeleton: FC = () => (
             </TableHead>
             {["Last Balance Assertion", "Holding", "Value"].map((label) => (
               <TableHead key={label}>
-                <div className="text-right">
+                <div className="flex items-center justify-end">
+                  <InfoTip label={label} />
                   <Button variant="ghost" size="sm" className="-mr-3" disabled>
                     {label}
                     <ChevronsUpDownIcon className="text-muted-foreground/60" />
@@ -288,7 +348,7 @@ const SheetSkeleton: FC = () => (
       </Table>
     </div>
     <div className={`mt-10 ${BAND_CLASS}`}>
-      <div className="text-xl font-semibold">Net</div>
+      <div className="text-xl font-semibold">Net Worth</div>
       <Skeleton className="h-5 w-32 self-center" />
     </div>
   </div>
@@ -305,13 +365,13 @@ const SheetEmpty: FC = () => (
   </Empty>
 );
 
-/** The Balance Sheet page, shown in place of the chat thread. Laid out like
+/** The Net Worth page, shown in place of the chat thread. Laid out like
  *  a Claude-app content page: a centered column of capped width, a large
  *  title sitting well below the window chrome (clear of the drag region and
  *  the sidebar toggle), and the search box under it. Title and search are
  *  pinned; the sections and the Net line scroll. */
-export const BalanceSheetView: FC = () => {
-  const sheet = useBalanceSheet();
+export const NetWorthView: FC = () => {
+  const sheet = useNetWorth();
   const [search, setSearch] = useState("");
   // hledger emits a section even when it has no accounts; an empty side
   // renders nothing rather than a fabricated zero.
@@ -319,10 +379,10 @@ export const BalanceSheetView: FC = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mx-auto w-full max-w-4xl shrink-0 px-8 pt-16 pb-4">
-        <h1 className="text-3xl font-semibold">Balance Sheet</h1>
+      <div className="mx-auto flex w-full max-w-4xl shrink-0 items-center justify-between gap-8 px-8 pt-16 pb-4">
+        <h1 className="text-3xl font-semibold">Net Worth</h1>
         {(sheet === null || sections.length > 0) && (
-          <InputGroup className="mt-6">
+          <InputGroup className="w-64">
             <InputGroupInput
               type="search"
               placeholder="Search accounts"
@@ -351,7 +411,7 @@ export const BalanceSheetView: FC = () => {
               ))}
               {/* The closing Net band, straight from hledger's own net. */}
               <div className={`mt-10 ${BAND_CLASS}`}>
-                <div className="text-xl font-semibold">Net</div>
+                <div className="text-xl font-semibold">Net Worth</div>
                 <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
                   {formatValue(sheet.net, navigator.language)}
                 </div>

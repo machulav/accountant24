@@ -45,7 +45,7 @@ export interface AccountBalance {
 
 /** A figure of the report that isn't an account row: a section total or the
  *  net line — native amounts paired with their market value like a row. */
-export interface BalanceSheetTotal {
+export interface NetWorthTotal {
   amounts: LedgerAmount[];
   value: LedgerAmount[];
 }
@@ -53,18 +53,18 @@ export interface BalanceSheetTotal {
 /** One `hledger bs` subreport: Assets or Liabilities, rows in hledger's
  *  order with hledger's own sign convention (liabilities positive) and the
  *  section's hledger-computed total. */
-export interface BalanceSheetSection {
+export interface NetWorthSection {
   /** hledger's section name ("Assets", "Liabilities"), verbatim. */
   name: string;
   rows: AccountBalance[];
-  total: BalanceSheetTotal;
+  total: NetWorthTotal;
 }
 
-/** The Balance Sheet view payload: `hledger bs` as data — sections plus the
+/** The Net Worth view payload: `hledger bs` as data — sections plus the
  *  hledger-computed net (assets minus liabilities). */
-export interface BalanceSheet {
-  sections: BalanceSheetSection[];
-  net: BalanceSheetTotal;
+export interface NetWorth {
+  sections: NetWorthSection[];
+  net: NetWorthTotal;
 }
 
 // ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---

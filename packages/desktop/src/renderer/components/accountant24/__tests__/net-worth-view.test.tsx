@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-// Spec for the Balance Sheet view: skeleton while the first load is in
+// Spec for the Net Worth view: skeleton while the first load is in
 // flight, a pinned title and search box, one data table per `hledger bs`
 // section (Assets, Liabilities — the latter already sign-flipped positive by
 // hledger) with the section's own total, the hledger-computed Net as the
@@ -14,7 +14,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 // IPC boundary: the view reads the bs report over the Electron bridge.
 vi.mock("@/rpc/api", () => ({
-  ledgerApi: { balanceSheet: vi.fn() },
+  ledgerApi: { netWorth: vi.fn() },
 }));
 
 import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRuntime } from "@assistant-ui/react";
@@ -22,14 +22,14 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { ledgerApi } from "@/rpc/api";
-import type { BalanceSheet, LedgerAmount } from "@/rpc/types";
+import type { LedgerAmount, NetWorth } from "@/rpc/types";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
-import { BalanceSheetView } from "../balance-sheet-view";
+import { NetWorthView } from "../net-worth-view";
 
 beforeAll(() => installJsdomPolyfills());
 afterEach(() => cleanup());
 beforeEach(() => {
-  vi.mocked(ledgerApi.balanceSheet).mockReset();
+  vi.mocked(ledgerApi.netWorth).mockReset();
 });
 
 /** Real assistant-ui chrome so the view's `useAuiState` reads an honest
@@ -50,7 +50,7 @@ const A = (commodity: string, quantity: number, precision = 2): LedgerAmount => 
 // A two-section sheet the way hledger bs hands it over: assets with a
 // converted multi-commodity account, a share account, and a plain EUR one;
 // liabilities already positive; hledger's own section totals and net.
-const DATA: BalanceSheet = {
+const DATA: NetWorth = {
   sections: [
     {
       name: "Assets",
@@ -78,12 +78,12 @@ const DATA: BalanceSheet = {
   net: { amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", -296.75)], value: [A("EUR", 1738.97)] },
 };
 
-const EMPTY: BalanceSheet = { sections: [], net: { amounts: [], value: [] } };
+const EMPTY: NetWorth = { sections: [], net: { amounts: [], value: [] } };
 
 const renderView = (isRunning = false) =>
   render(
     <Chrome isRunning={isRunning}>
-      <BalanceSheetView />
+      <NetWorthView />
     </Chrome>,
   );
 
@@ -95,9 +95,9 @@ const accountOrder = (tableName: string) =>
     .slice(1) // the column-header row
     .map((row) => row.querySelector("td")?.getAttribute("title"));
 
-describe("<BalanceSheetView />", () => {
+describe("<NetWorthView />", () => {
   it("should show the page chrome immediately and skeletons only for the loading data", () => {
-    vi.mocked(ledgerApi.balanceSheet).mockReturnValue(new Promise(() => {}));
+    vi.mocked(ledgerApi.netWorth).mockReturnValue(new Promise(() => {}));
     renderView();
     expect(screen.getByRole("status", { name: "Loading accounts" })).toBeInTheDocument();
     // Everything that needs no data is up before the report arrives: the
@@ -105,20 +105,21 @@ describe("<BalanceSheetView />", () => {
     expect(screen.getByRole("searchbox", { name: "Search accounts" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
     expect(screen.getByText("Account")).toBeInTheDocument();
-    expect(screen.getByText("Net")).toBeInTheDocument();
+    // The Net Worth band (the page h1 reads Net Worth too, hence the selector).
+    expect(screen.getByText("Net Worth", { selector: "div" })).toBeInTheDocument();
     // But no figures yet — those are what's loading.
     expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
   });
 
-  it("should render the pinned Balance Sheet title without a figure", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+  it("should render the pinned Net Worth title without a figure", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    expect(await screen.findByRole("heading", { level: 1, name: "Balance Sheet" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Net Worth" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("should render one section per bs subreport, with hledger's own totals", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     // Settle on loaded data first — the skeleton also carries an Assets band.
     await screen.findByTitle("assets:cash");
@@ -133,7 +134,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should show liabilities with hledger's positive sign", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     expect(await screen.findByTitle("liabilities:creditcard")).toBeInTheDocument();
     // The account row (holding + value) and the section total all read
@@ -143,9 +144,9 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should render the classic Net line last, with hledger's own figure", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    const net = await screen.findByText("Net");
+    const net = await screen.findByText("Net Worth", { selector: "div" });
     expect(screen.getByText("~1,738.97 EUR")).toBeInTheDocument();
     // Net comes after both section tables in document order.
     const tables = screen.getAllByRole("table");
@@ -154,10 +155,10 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should not render a section hledger sent empty", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
       ...DATA,
       sections: [
-        DATA.sections[0] as BalanceSheet["sections"][number],
+        DATA.sections[0] as NetWorth["sections"][number],
         { name: "Liabilities", rows: [], total: { amounts: [], value: [] } },
       ],
     });
@@ -167,7 +168,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should list complete account paths sorted A-Z by default", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     expect(await screen.findByTitle("assets:cash")).toHaveTextContent("assets:cash");
     // The fixture arrives in hledger's order (cash, darka, bank); the table
@@ -176,7 +177,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should mark converted row values with ~ and leave exact ones unmarked", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     // Converted (UAH+USD and SXR8 valued into EUR): estimates.
     expect(await screen.findByText("~115.57 EUR")).toBeInTheDocument();
@@ -187,7 +188,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should show each account's last balance assertion date, and an em dash when it was never asserted", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     // Settle on loaded data first — the skeleton also carries the header.
     await screen.findByTitle("assets:cash");
@@ -201,7 +202,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should show a multi-commodity holding comma-joined on one line", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     expect(await screen.findByText("1,408.26 UAH, 100.00 USD")).toBeInTheDocument();
     expect(screen.getByText("22.45 SXR8")).toBeInTheDocument();
@@ -209,7 +210,7 @@ describe("<BalanceSheetView />", () => {
 
   it("should show an unconverted multi-commodity net comma-joined, without ~", async () => {
     // No rates in the journal: the valued run returns the same figures.
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
       ...DATA,
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
     });
@@ -220,7 +221,7 @@ describe("<BalanceSheetView />", () => {
 
   it("should show no ~ anywhere when nothing was converted, totals included", async () => {
     // An all-exact journal: every value equals its native amounts.
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
       sections: [
         {
           name: "Assets",
@@ -243,7 +244,7 @@ describe("<BalanceSheetView />", () => {
       within(screen.getByRole("table", { name: "Assets" })).getByRole("button", { name });
 
     it("should sort Z-A when the Account header is clicked", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       await userEvent.click(assetsButton("Account"));
@@ -251,7 +252,7 @@ describe("<BalanceSheetView />", () => {
     });
 
     it("should sort by market value, biggest first, when the Value header is clicked", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       // €1,920.15 (darka) > €115.57 (cash) > €50.00 (bank).
@@ -263,7 +264,7 @@ describe("<BalanceSheetView />", () => {
     });
 
     it("should sort by the native quantity, biggest first, when the Holding header is clicked", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       // Primary native quantities: cash=1,408.26, bank=50, darka=22.45 — a
@@ -276,7 +277,7 @@ describe("<BalanceSheetView />", () => {
     });
 
     it("should sort by assertion date, most recent first, with never-asserted rows last", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       await userEvent.click(assetsButton("Last Balance Assertion"));
@@ -288,10 +289,10 @@ describe("<BalanceSheetView />", () => {
     });
 
     it("should keep each section's sorting independent", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue({
         ...DATA,
         sections: [
-          DATA.sections[0] as BalanceSheet["sections"][number],
+          DATA.sections[0] as NetWorth["sections"][number],
           {
             name: "Liabilities",
             rows: [
@@ -317,7 +318,7 @@ describe("<BalanceSheetView />", () => {
     it("should keep rows without amounts sortable and put bigger same-commodity holdings first", async () => {
       // A parsed report can emit a row with no amounts at all; it must not
       // break sorting.
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue({
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue({
         sections: [
           {
             name: "Assets",
@@ -342,9 +343,63 @@ describe("<BalanceSheetView />", () => {
     });
   });
 
+  describe("column explanations", () => {
+    const hoverInfo = async (label: string) => {
+      const marker = within(screen.getByRole("table", { name: "Assets" })).getByRole("button", {
+        name: `About ${label}`,
+      });
+      await userEvent.hover(marker);
+    };
+
+    it("should explain the Holding column behind its info marker", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await hoverInfo("Holding");
+      expect(
+        await screen.findByText(/What the account actually holds: cash in its own currency, shares, or crypto/),
+      ).toBeInTheDocument();
+    });
+
+    it("should explain the Last Balance Assertion column, including the dash", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await hoverInfo("Last Balance Assertion");
+      expect(
+        await screen.findByText(/When the ledger balance was last confirmed to match the real account balance/),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/A dash means it was never confirmed/)).toBeInTheDocument();
+      // The tooltip also teaches how to confirm one.
+      expect(screen.getByText(/My cash balance is 200 EUR/)).toBeInTheDocument();
+    });
+
+    it("should explain the Value column, including the ~ marker", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await hoverInfo("Value");
+      expect(
+        await screen.findByText(
+          /What the holding is worth in your main currency, at the latest rate recorded in the ledger/,
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/~ means the value was converted and is an estimate/)).toBeInTheDocument();
+      // The tooltip also teaches how to refresh a rate.
+      expect(screen.getByText(/1 USD is 0.92 EUR/)).toBeInTheDocument();
+    });
+
+    it("should give the Account column no info marker", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      expect(screen.queryByRole("button", { name: "About Account" })).not.toBeInTheDocument();
+    });
+  });
+
   describe("search", () => {
     it("should filter every section by account path, case-insensitively", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "CASH");
@@ -356,7 +411,7 @@ describe("<BalanceSheetView />", () => {
     });
 
     it("should show empty messages when nothing matches, and restore rows when cleared", async () => {
-      vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
       const box = screen.getByRole("searchbox", { name: "Search accounts" });
@@ -368,7 +423,7 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should show the empty state when the report has no accounts", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(EMPTY);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(EMPTY);
     renderView();
     expect(await screen.findByText("No accounts yet")).toBeInTheDocument();
     expect(screen.getByText(/Ask the agent to record your first transaction/)).toBeInTheDocument();
@@ -378,37 +433,37 @@ describe("<BalanceSheetView />", () => {
   });
 
   it("should fall back to the empty state when the report query rejects", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockRejectedValue(new Error("bridge down"));
+    vi.mocked(ledgerApi.netWorth).mockRejectedValue(new Error("bridge down"));
     renderView();
     expect(await screen.findByText("No accounts yet")).toBeInTheDocument();
   });
 
   it("should refetch the report when the agent goes from running to idle", async () => {
-    vi.mocked(ledgerApi.balanceSheet).mockResolvedValue(DATA);
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     const { rerender } = renderView(false);
     await screen.findByText("~115.57 EUR");
-    expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(1);
+    expect(ledgerApi.netWorth).toHaveBeenCalledTimes(1);
 
     rerender(
       <Chrome isRunning={true}>
-        <BalanceSheetView />
+        <NetWorthView />
       </Chrome>,
     );
     // Flush the runtime's async store propagation before asserting no refetch
     // happened on the idle → running edge.
     await act(async () => {});
-    expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(1);
+    expect(ledgerApi.netWorth).toHaveBeenCalledTimes(1);
 
     rerender(
       <Chrome isRunning={false}>
-        <BalanceSheetView />
+        <NetWorthView />
       </Chrome>,
     );
-    await waitFor(() => expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(ledgerApi.netWorth).toHaveBeenCalledTimes(2));
   });
 
   it("should keep the current rows visible while a refetch is in flight", async () => {
-    vi.mocked(ledgerApi.balanceSheet)
+    vi.mocked(ledgerApi.netWorth)
       .mockResolvedValueOnce(DATA)
       .mockReturnValue(new Promise(() => {}));
     const { rerender } = renderView(false);
@@ -416,18 +471,18 @@ describe("<BalanceSheetView />", () => {
 
     rerender(
       <Chrome isRunning={true}>
-        <BalanceSheetView />
+        <NetWorthView />
       </Chrome>,
     );
     await act(async () => {});
     rerender(
       <Chrome isRunning={false}>
-        <BalanceSheetView />
+        <NetWorthView />
       </Chrome>,
     );
     // Once the refetch is genuinely in flight (its promise never resolves),
     // the previous rows must still be up, with no skeleton.
-    await waitFor(() => expect(ledgerApi.balanceSheet).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(ledgerApi.netWorth).toHaveBeenCalledTimes(2));
     expect(screen.getByText("~115.57 EUR")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BalanceSheet } from "../../shared/types";
+import type { NetWorth } from "../../shared/types";
 
 // ledger.ts answers the composer's @-mention query (`hledger
-// accounts|payees|tags`) and the Balance Sheet view's report query
+// accounts|payees|tags`) and the Net Worth view's report query
 // (`hledger bs`) against the workspace journal. child_process (the real
 // hledger binary), node:fs, Electron IPC, and env paths are the faked
 // boundaries; the line-shaping, the JSON parse, and the
@@ -62,7 +62,7 @@ async function invoke<T>(channel: string): Promise<T> {
 }
 
 const mentions = () => invoke<{ accounts: string[]; payees: string[]; tags: string[] }>("ledger_mentions");
-const balanceSheet = () => invoke<BalanceSheet>("ledger_balance_sheet");
+const netWorth = () => invoke<NetWorth>("ledger_net_worth");
 
 beforeEach(() => {
   h.handlers.clear();
@@ -194,7 +194,7 @@ describe("ledger_mentions", () => {
   });
 });
 
-describe("ledger_balance_sheet", () => {
+describe("ledger_net_worth", () => {
   const amt = (commodity: string, floatingPoint: number, decimalPlaces = 2) => ({
     acommodity: commodity,
     aquantity: { decimalMantissa: 0, decimalPlaces, floatingPoint },
@@ -244,7 +244,7 @@ describe("ledger_balance_sheet", () => {
 
   it("should pair the sections and net of the native and valued bs runs", async () => {
     stubHledger(STUBS);
-    expect(await balanceSheet()).toEqual({
+    expect(await netWorth()).toEqual({
       sections: [
         {
           name: "Assets",
@@ -288,7 +288,7 @@ describe("ledger_balance_sheet", () => {
 
   it("should run bs natively, then valued toward the base derived from the journal prices, plus print for assertion dates, against the workspace journal in the workspace cwd with the agent env", async () => {
     stubHledger(emptyStubs);
-    await balanceSheet();
+    await netWorth();
 
     expect(h.execFile.mock.calls).toHaveLength(4);
     const base = ["bs", "-O", "json", "-f", "/ws/ledger/main.journal"];
@@ -307,20 +307,20 @@ describe("ledger_balance_sheet", () => {
 
   it("should fall back to -V when the journal declares no prices", async () => {
     stubHledger({ ...emptyStubs, prices: [] });
-    await balanceSheet();
+    await netWorth();
     const argLists = h.execFile.mock.calls.map((c) => c[1] as string[]);
     expect(argLists).toContainEqual(["bs", "-O", "json", "-f", "/ws/ledger/main.journal", "-V"]);
   });
 
   it("should leave rows without assertions untouched when the print run fails", async () => {
     stubHledger({ ...STUBS, print: new Error("boom") });
-    const sheet = await balanceSheet();
+    const sheet = await netWorth();
     expect(sheet.sections[0]?.rows[0]?.assertedOn).toBeUndefined();
   });
 
   it("should fall back to the raw amounts as the value when the valued run fails", async () => {
     stubHledger({ ...STUBS, "bs:V": new Error("no prices") });
-    const sheet = await balanceSheet();
+    const sheet = await netWorth();
     expect(sheet.sections[0]?.rows[0]?.value).toEqual([{ quantity: 0.16, commodity: "BTC", precision: 8 }]);
     expect(sheet.net.value).toEqual([
       { quantity: 0.16, commodity: "BTC", precision: 8 },
@@ -331,19 +331,19 @@ describe("ledger_balance_sheet", () => {
   it("should return an empty sheet when hledger fails (no journal yet)", async () => {
     const err = new Error("hledger: no journal");
     stubHledger({ bs: err, "bs:V": err });
-    expect(await balanceSheet()).toEqual({ sections: [], net: { amounts: [], value: [] } });
+    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] } });
   });
 
   it("should return an empty sheet when hledger is missing entirely", async () => {
     const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
     stubHledger({ bs: enoent, "bs:V": enoent });
-    expect(await balanceSheet()).toEqual({ sections: [], net: { amounts: [], value: [] } });
+    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] } });
   });
 
   it("should run the vendored hledger binary when it exists in binDir", async () => {
     h.existsSync.mockReturnValue(true);
     stubHledger(emptyStubs);
-    await balanceSheet();
+    await netWorth();
     for (const call of h.execFile.mock.calls) {
       expect(call[0]).toBe("/vendored/bin/hledger");
     }
@@ -352,7 +352,7 @@ describe("ledger_balance_sheet", () => {
   it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {
     h.existsSync.mockReturnValue(false);
     stubHledger(emptyStubs);
-    await balanceSheet();
+    await netWorth();
     for (const call of h.execFile.mock.calls) {
       expect(call[0]).toBe("hledger");
     }

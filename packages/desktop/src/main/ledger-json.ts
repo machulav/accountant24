@@ -1,4 +1,4 @@
-// Parser for `hledger bs -O json` output (the Balance Sheet view). The
+// Parser for `hledger bs -O json` output (the Net Worth view). The
 // compound report carries exact quantities and clean commodity symbols (no
 // display-string ambiguity), so the renderer can format numbers for humans
 // while every figure stays hledger-computed.
@@ -13,7 +13,7 @@
 // row — so amounts are aggregated per commodity here, exactly what
 // hledger's own display does.
 
-import type { AccountBalance, BalanceSheet, BalanceSheetSection, LedgerAmount } from "../shared/types";
+import type { AccountBalance, LedgerAmount, NetWorth, NetWorthSection } from "../shared/types";
 
 /** A parsed balance row before the market-value report is merged in. */
 export type RawBalanceRow = Omit<AccountBalance, "value">;
@@ -158,10 +158,10 @@ export function parseAssertionDates(json: string): Record<string, string> {
  *  runs cover the identical sections and account lists, so everything pairs
  *  by position; if the valued run is missing or disagrees (partial hledger
  *  failure), the raw amounts stand in for the value. */
-export function mergeValuedBalanceSheet(raw: RawBalanceSheet, valued: RawBalanceSheet | null): BalanceSheet {
+export function mergeValuedBalanceSheet(raw: RawBalanceSheet, valued: RawBalanceSheet | null): NetWorth {
   const orRaw = (amounts: LedgerAmount[], candidate: LedgerAmount[] | undefined): LedgerAmount[] =>
     candidate ?? amounts;
-  const sections: BalanceSheetSection[] = raw.sections.map((section, s) => {
+  const sections: NetWorthSection[] = raw.sections.map((section, s) => {
     const valuedSection = valued?.sections[s];
     const aligned = valuedSection?.name === section.name ? valuedSection : undefined;
     return {

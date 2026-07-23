@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-// Integration: the Balance Sheet flow across real ChatLayout + real
-// BalanceSheetView + the real rpc/api layer, over the fake `window.api`
+// Integration: the Net Worth flow across real ChatLayout + real
+// NetWorthView + the real rpc/api layer, over the fake `window.api`
 // bridge. Asserts both the UI and the exact IPC traffic. The pi runtime and
 // heavy chat children are stubbed (they have their own suites); the IPC
 // boundary is the fake bridge.
@@ -34,7 +34,7 @@ vi.mock("@/runtime/agentBridge", () => ({
   agentBridge: { addEventListener: () => () => {} },
 }));
 
-// Heavy chat children with their own suites; the Balance Sheet view stays REAL.
+// Heavy chat children with their own suites; the Net Worth view stays REAL.
 vi.mock("../thread", () => ({ Thread: () => <div data-testid="thread" /> }));
 vi.mock("../thread-list", () => ({
   ThreadList: () => <div data-testid="thread-list" />,
@@ -42,10 +42,10 @@ vi.mock("../thread-list", () => ({
 }));
 vi.mock("../settings/settings", () => ({ Settings: () => null }));
 
-import type { BalanceSheet } from "@/rpc/types";
+import type { NetWorth } from "@/rpc/types";
 import { ChatLayout } from "../chat-layout";
 
-const DATA: BalanceSheet = {
+const DATA: NetWorth = {
   sections: [
     {
       name: "Assets",
@@ -112,17 +112,17 @@ beforeAll(() => {
 beforeEach(() => {
   bridge.reset();
   bridge.setHandler("update_pending", () => null);
-  bridge.setHandler("ledger_balance_sheet", () => DATA);
+  bridge.setHandler("ledger_net_worth", () => DATA);
 });
 
 afterEach(() => cleanup());
 
-const openSheet = () => fireEvent.click(screen.getByRole("button", { name: "Balance Sheet" }));
+const openSheet = () => fireEvent.click(screen.getByRole("button", { name: "Net Worth" }));
 
-describe("Balance Sheet view flow", () => {
-  it("should fetch the report over IPC exactly once and render both sections when Balance Sheet is opened", async () => {
+describe("Net Worth view flow", () => {
+  it("should fetch the report over IPC exactly once and render both sections when Net Worth is opened", async () => {
     render(<ChatLayout />);
-    expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(0);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(0);
 
     openSheet();
 
@@ -131,7 +131,7 @@ describe("Balance Sheet view flow", () => {
     expect(screen.getByText("~86.00 EUR")).toBeInTheDocument();
     expect(screen.getByTitle("liabilities:card")).toBeInTheDocument();
     expect(screen.getByText("2026-07-01")).toBeInTheDocument();
-    expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(1);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
   });
 
   it("should mark the sidebar entry active and keep the chat mounted but hidden while open", async () => {
@@ -139,7 +139,7 @@ describe("Balance Sheet view flow", () => {
     openSheet();
     await screen.findByTitle("assets:cash");
 
-    expect(screen.getByRole("button", { name: "Balance Sheet" })).toHaveAttribute("data-active");
+    expect(screen.getByRole("button", { name: "Net Worth" })).toHaveAttribute("data-active");
     const thread = screen.getByTestId("thread");
     expect(thread).toBeInTheDocument();
     expect((thread.parentElement as HTMLElement).className).toContain("hidden");
@@ -153,8 +153,8 @@ describe("Balance Sheet view flow", () => {
     openSheet();
 
     expect(screen.getByTitle("assets:cash")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Balance Sheet" })).toHaveAttribute("data-active");
-    expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Net Worth" })).toHaveAttribute("data-active");
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(1);
   });
 
   it("should fetch a fresh report on every open", async () => {
@@ -167,11 +167,11 @@ describe("Balance Sheet view flow", () => {
 
     openSheet();
     await screen.findByTitle("assets:cash");
-    expect(bridge.callsFor("ledger_balance_sheet")).toHaveLength(2);
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(2);
   });
 
   it("should show the empty state when the report has no accounts", async () => {
-    bridge.setHandler("ledger_balance_sheet", () => ({ sections: [], net: { amounts: [], value: [] } }));
+    bridge.setHandler("ledger_net_worth", () => ({ sections: [], net: { amounts: [], value: [] } }));
     render(<ChatLayout />);
     openSheet();
 

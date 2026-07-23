@@ -12,7 +12,7 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
-import type { BalanceSheet, LedgerMentions } from "../shared/types";
+import type { LedgerMentions, NetWorth } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
 import {
   mergeValuedBalanceSheet,
@@ -79,7 +79,7 @@ async function resolveBaseCommodity(): Promise<string | null> {
  *  account's latest balance assertion (from `print -O json`) — when the
  *  balance was last reconciled. Empty when there's no journal yet or hledger
  *  fails. */
-async function ledgerBalanceSheet(): Promise<BalanceSheet> {
+async function ledgerNetWorth(): Promise<NetWorth> {
   const base = ["bs", "-O", "json", "-f", mainJournalPath()];
   const [native, printed, target] = await Promise.all([
     hledgerRaw(base),
@@ -103,5 +103,5 @@ async function ledgerBalanceSheet(): Promise<BalanceSheet> {
 /** Register the ledger IPC handlers. */
 export function registerLedgerIpc(): void {
   ipcMain.handle("ledger_mentions", () => ledgerMentions());
-  ipcMain.handle("ledger_balance_sheet", () => ledgerBalanceSheet());
+  ipcMain.handle("ledger_net_worth", () => ledgerNetWorth());
 }

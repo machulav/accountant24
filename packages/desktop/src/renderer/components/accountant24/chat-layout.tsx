@@ -23,7 +23,7 @@ import { agentBridge } from "@/runtime/agentBridge";
 import { createElectronPiClient } from "@/runtime/electronPiClient";
 import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "@/runtime/fileAttachmentAdapter";
 import { PiClientContext } from "@/runtime/modelsContext";
-import { BalanceSheetView } from "./balance-sheet-view";
+import { NetWorthView } from "./net-worth-view";
 import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
@@ -69,8 +69,8 @@ export function ChatLayout() {
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which view fills the inset. The chat is never unmounted (see below); the
-  // The Balance Sheet page mounts fresh on each open so it always shows current data.
-  const [view, setView] = useState<"chat" | "balance-sheet">("chat");
+  // The Net Worth page mounts fresh on each open so it always shows current data.
+  const [view, setView] = useState<"chat" | "net-worth">("chat");
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
@@ -148,15 +148,15 @@ export function ChatLayout() {
               <ThreadListNew onSelect={showChat} />
             </SidebarHeader>
             <SidebarContent className="scroll-fade">
-              <ThreadList onSelectThread={showChat} />
+              <ThreadList onSelectThread={showChat} highlightActive={view === "chat"} />
             </SidebarContent>
             <SidebarFooter>
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={view === "balance-sheet"} onClick={() => setView("balance-sheet")}>
+                  <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
                     <LandmarkIcon className="size-4" />
-                    Balance Sheet
+                    Net Worth
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -172,13 +172,13 @@ export function ChatLayout() {
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
-            {/* The chat stays mounted (display:none) while the Balance Sheet is open:
+            {/* The chat stays mounted (display:none) while the Net Worth is open:
                 the composer's editor state, scroll position, and any in-flight
                 streaming all survive the round trip. */}
             <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
               <Thread />
             </div>
-            {view === "balance-sheet" && <BalanceSheetView />}
+            {view === "net-worth" && <NetWorthView />}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>
