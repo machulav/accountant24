@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.2.12
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.11...v0.2.12)
+
+### 🚀 Features
+
+- Add an About page to Settings ([7adc3f1](https://github.com/machulav/accountant24/commit/7adc3f1))
+- Net Worth page, add_balance_assertions and add_prices agent tools ([#29](https://github.com/machulav/accountant24/pull/29))
+
+### 🐞 Bug Fixes
+
+- Keep the package-lock version in sync when releasing ([8e8b90d](https://github.com/machulav/accountant24/commit/8e8b90d))
+
+### ♻️ Refactors
+
+- Adopt the standard electron-vite project layout ([7b8709a](https://github.com/machulav/accountant24/commit/7b8709a))
+- Migrate the agent from pi RPC mode to the pi SDK ([93457df](https://github.com/machulav/accountant24/commit/93457df))
+- Clean unused code out of the pi extension ([b9e15c4](https://github.com/machulav/accountant24/commit/b9e15c4))
+
+### 📖 Documentation
+
+- Introduce skills in the README and docs ([0253fac](https://github.com/machulav/accountant24/commit/0253fac))
+- Group the sidebar and add npm run docs for local preview ([b2a19e9](https://github.com/machulav/accountant24/commit/b2a19e9))
+- Move doc pages under /docs URLs with redirects ([4c281da](https://github.com/machulav/accountant24/commit/4c281da))
+- Clean up the docs ([c5d74d9](https://github.com/machulav/accountant24/commit/c5d74d9))
+- Update the app screenshot ([8d72eac](https://github.com/machulav/accountant24/commit/8d72eac))
+
+### 🏡 Chore
+
+- Update dependencies with security fixes ([724b17c](https://github.com/machulav/accountant24/commit/724b17c))
+- Drop npm audit from the verify gate ([4e0492c](https://github.com/machulav/accountant24/commit/4e0492c))
+
 ## v0.2.11
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.10...v0.2.11)
