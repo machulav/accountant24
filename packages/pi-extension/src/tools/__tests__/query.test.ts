@@ -3,7 +3,7 @@ import { spawnText } from "../../spawn";
 
 vi.mock("../../spawn");
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -230,5 +230,62 @@ describe("arg-building", () => {
     expect(args).toContain("--invert");
     expect(args).toContain("-O");
     expect(args).toContain("csv");
+  });
+});
+
+// ── large-output spillover ──────────────────────────────────────────
+
+function linesOf(n: number): string {
+  return `${Array.from({ length: n }, (_, i) => `line${i}`).join("\n")}\n`;
+}
+
+describe("large-output spillover", () => {
+  test("returns output inline at exactly the 200-line limit", async () => {
+    mockProc = makeMockProc(0, linesOf(200));
+    const result = await run({ report: "reg" });
+    expect(result.details.outputFile).toBeUndefined();
+    expect(result.content[0].text).toContain("line199");
+  });
+
+  test("spills to a scratch file when over the 200-line limit", async () => {
+    mockProc = makeMockProc(0, linesOf(201));
+    const result = await run({ report: "reg" });
+    expect(result.details.outputFile).toBeDefined();
+    expect(existsSync(result.details.outputFile)).toBe(true);
+    expect(readFileSync(result.details.outputFile, "utf-8")).toBe(linesOf(201));
+  });
+
+  test("tells the agent the line count and file path instead of the content", async () => {
+    mockProc = makeMockProc(0, linesOf(500));
+    const result = await run({ report: "reg" });
+    expect(result.content[0].text).toContain("500 lines");
+    expect(result.content[0].text).toContain(result.details.outputFile);
+    expect(result.content[0].text).not.toContain("line0");
+  });
+
+  test("writes the scratch file outside the workspace (OS tmpdir, not files/)", async () => {
+    mockProc = makeMockProc(0, linesOf(300));
+    const result = await run({ report: "reg" });
+    expect(result.details.outputFile).toContain(tmpdir());
+    expect(result.details.outputFile).not.toContain(BASE);
+  });
+
+  test("names the scratch file with the requested output_format extension", async () => {
+    mockProc = makeMockProc(0, linesOf(300));
+    const result = await run({ report: "reg", output_format: "tsv" });
+    expect(result.details.outputFile).toMatch(/\.tsv$/);
+  });
+
+  test("defaults the scratch file extension to txt with no output_format", async () => {
+    mockProc = makeMockProc(0, linesOf(300));
+    const result = await run({ report: "reg" });
+    expect(result.details.outputFile).toMatch(/\.txt$/);
+  });
+
+  test("still returns the real hledger command in details when spilled", async () => {
+    mockProc = makeMockProc(0, linesOf(300));
+    const result = await run({ report: "bal", account_pattern: "Expenses" });
+    expect(result.details.command).toContain("hledger bal");
+    expect(result.details.command).toContain("Expenses");
   });
 });
