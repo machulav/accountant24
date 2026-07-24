@@ -221,7 +221,7 @@ jobs:
       - name: Untap untrusted Homebrew taps from the runner image
         run: brew untap aws/tap || true
 
-      - name: Vendor CLI tools (hledger, pdftotext, tesseract)
+      - name: Vendor CLI tools (hledger, pdftotext, tesseract, python3)
         run: npx tsx scripts/vendor-bin.ts
 
       - name: Build renderer + main + extension bundle

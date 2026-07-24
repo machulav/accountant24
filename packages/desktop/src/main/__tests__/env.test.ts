@@ -121,6 +121,20 @@ describe("binDir()", () => {
   });
 });
 
+describe("pythonBinDir()", () => {
+  it("should resolve <resourcesPath>/bin/python/bin when the app is packaged", async () => {
+    h.app.isPackaged = true;
+    const orig = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    try {
+      const mod = await import("../env");
+      expect(mod.pythonBinDir()).toBe("/pkg-res/bin/python/bin");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
+    }
+  });
+});
+
 describe("agentEnv()", () => {
   it("should point ACCOUNTANT24_HOME and PI_CODING_AGENT_DIR at the workspace", async () => {
     const prev = process.env.ACCOUNTANT24_HOME;
@@ -170,6 +184,26 @@ describe("agentEnv()", () => {
       const mod = await import("../env");
       const env = mod.agentEnv();
       expect(env.PATH).toBe("/usr/bin");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
+      process.env.PATH = prevPath;
+    }
+  });
+
+  it("should prepend python/bin ahead of binDir on PATH when both exist", async () => {
+    h.app.isPackaged = true;
+    const origRes = process.resourcesPath;
+    const prevPath = process.env.PATH;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    process.env.PATH = "/usr/bin";
+    // Both bin and bin/python/bin exist; tessdata does not.
+    h.existsSync.mockImplementation(
+      (p: string) => p === `/pkg-res${path.sep}bin` || p === `/pkg-res${path.sep}bin${path.sep}python${path.sep}bin`,
+    );
+    try {
+      const mod = await import("../env");
+      const env = mod.agentEnv();
+      expect(env.PATH).toBe(`/pkg-res/bin/python/bin${path.delimiter}/pkg-res/bin${path.delimiter}/usr/bin`);
     } finally {
       Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
       process.env.PATH = prevPath;
