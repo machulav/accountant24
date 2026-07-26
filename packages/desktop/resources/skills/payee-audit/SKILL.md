@@ -13,8 +13,9 @@ follows is one edit instead of several. Detecting and reporting is
 `map_payees.py` script (via `bash`) only to collapse that output into a payee
 -> account map - never edit, validate, or commit the journal while building
 the report. Once findings are presented, offer to apply them yourself: use
-whatever modify tool is available in this build (or the built-in `edit` tool
-on the monthly journal files), then validate and commit - but only after the
+the modify-transactions skill's bundled script (via `bash`) - or the
+built-in `edit` tool on the monthly journal files if that skill isn't
+installed in this build - then validate and commit, but only after the
 user confirms which corrections to apply. Don't make the user do the
 mechanical work of applying a fix themselves; that's the point of offering.
 
@@ -135,9 +136,10 @@ Present findings, most actionable first.
   The journal still has the raw spellings until a proposed rename is actually
   applied - so for a unified payee, list every raw spelling as its own row
   (each with its own current account, since variants can differ) rather than
-  the canonical name alone. A modify tool acting on this table needs the real,
-  currently-matching payee strings; the canonical name only exists once the
-  Unify table above has been applied. Suggest a target account that already
+  the canonical name alone. Applying this table (via the modify-transactions
+  skill or `edit`) needs the real, currently-matching payee strings; the
+  canonical name only exists once the Unify table above has been applied.
+  Suggest a target account that already
   exists in the ledger (cross-check against the accounts list); if none fits,
   say a new account is needed rather than inventing one.
 - **Unsure** - a short list, each with the single question that would resolve it
@@ -146,9 +148,10 @@ Present findings, most actionable first.
   enumerate them.
 
 Offer to apply the findings: ask which corrections the user wants (all of
-them, just one table, one row at a time), then make the change with whatever
-modify tool is available in this build (a dedicated modify tool, or the
-built-in `edit` tool on the monthly journal files), validate, and commit.
+them, just one table, one row at a time), then make the change with the
+modify-transactions skill's bundled script (via `bash`) - or the built-in
+`edit` tool on the monthly journal files if that skill isn't installed in
+this build - then validate and commit.
 Apply unification renames before account fixes - it turns each Wrong row's
 list of raw spellings into one payee, so the account fix that follows is one
 edit instead of several.
