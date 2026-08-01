@@ -688,4 +688,271 @@ describe("modify_transactions: hledger syntax edge cases", () => {
     expect(raw).toContain("\r\n"); // CRLF preserved
     expect(raw).not.toContain("\r\r"); // no doubled carriage returns
   });
+
+  test("preserves CRLF line endings when renaming a payee", async () => {
+    const before = [
+      "2026-03-15 * EDK | note",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\r\n");
+    seed("2026/03.journal", before);
+
+    await run({ query: ["payee:EDK"], field: "payee", from_payee: "EDK", new_value: "EDEKA" });
+
+    const raw = read("2026/03.journal");
+    expect(raw).toContain("2026-03-15 * EDEKA | note");
+    expect(raw).toContain("\r\n");
+    expect(raw).not.toContain("\r\r");
+  });
+
+  test("stops the posting scan at the next transaction header (no blank line between)", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 * EDEKA",
+        posting("expenses:uncategorized", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "2026-03-16 * OTHER",
+        posting("expenses:uncategorized", "10.00 EUR"),
+        posting("assets:checking", "-10.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    const result = await run({ query: ["payee:EDEKA"], ...recat });
+
+    const lines = read("2026/03.journal").split("\n");
+    expect(result.details.transactions).toBe(1);
+    expect(lines[1].trim().startsWith("expenses:food:groceries")).toBe(true);
+    // The scan must not run past OTHER's header into its postings.
+    expect(lines[4].trim().startsWith("expenses:uncategorized")).toBe(true);
+  });
+
+  test("skips comment lines inside a transaction", async () => {
+    const comment = "    ; imported from bank csv";
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 * EDEKA",
+        comment,
+        posting("expenses:uncategorized", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    const result = await run({ query: ["payee:EDEKA"], ...recat });
+
+    const lines = read("2026/03.journal").split("\n");
+    expect(result.details.postings).toBe(1);
+    expect(lines[1]).toBe(comment); // comment line untouched
+    expect(lines[2].trim().startsWith("expenses:food:groceries")).toBe(true);
+  });
+});
+
+// ── parameter validation ────────────────────────────────────────────
+
+describe("modify_transactions: parameter validation", () => {
+  const recat = {
+    field: "account" as const,
+    from_account: "expenses:uncategorized",
+    new_value: "expenses:food:groceries",
+  };
+
+  test("rejects an empty-string query term", async () => {
+    await expect(run({ query: [""], ...recat })).rejects.toThrow("query terms must not be empty");
+  });
+
+  test("rejects a whitespace-only query term", async () => {
+    await expect(run({ query: ["  "], ...recat })).rejects.toThrow("query terms must not be empty");
+  });
+
+  test("rejects an unsupported field", async () => {
+    await expect(
+      run({ query: ["payee:EDEKA"], field: "amount", from_account: "x", new_value: "50.00 EUR" }),
+    ).rejects.toThrow("Unsupported field");
+  });
+
+  test("rejects an empty new_value", async () => {
+    await expect(run({ query: ["payee:EDEKA"], field: "account", from_account: "x", new_value: "" })).rejects.toThrow(
+      "new_value must not be empty",
+    );
+  });
+
+  test("rejects a new_value with leading or trailing whitespace", async () => {
+    await expect(
+      run({ query: ["payee:EDEKA"], field: "account", from_account: "x", new_value: " expenses:food " }),
+    ).rejects.toThrow("leading or trailing whitespace");
+  });
+});
+
+// ── discovery robustness ────────────────────────────────────────────
+
+describe("modify_transactions: discovery robustness", () => {
+  const recat = {
+    field: "account" as const,
+    from_account: "expenses:uncategorized",
+    new_value: "expenses:food:groceries",
+  };
+  const rename = { field: "payee" as const, from_payee: "EDEKA", new_value: "Edeka" };
+
+  test("returns zero matches when hledger print outputs invalid JSON", async () => {
+    const before = [
+      "2026-03-15 * EDEKA",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    printOverride = "this is not json";
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.transactions).toBe(0);
+    expect(read("2026/03.journal")).toBe(before);
+  });
+
+  test("returns zero matches when hledger print outputs a non-array", async () => {
+    printOverride = JSON.stringify({ tag: "not-an-array" });
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.transactions).toBe(0);
+  });
+
+  test("skips transactions with a missing or malformed tsourcepos", async () => {
+    printOverride = JSON.stringify([
+      { tpostings: [] }, // no tsourcepos at all
+      { tsourcepos: [], tpostings: [] }, // empty array
+      { tsourcepos: [{ sourceName: 42, sourceLine: "x" }], tpostings: [] }, // wrong types
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.transactions).toBe(0);
+  });
+
+  test("skips a transaction whose source file is outside the ledger dir", async () => {
+    printOverride = JSON.stringify([
+      { tsourcepos: [{ sourceName: "/etc/passwd", sourceLine: 1, sourceColumn: 1 }], tpostings: [] },
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.transactions).toBe(0);
+  });
+
+  test("resolves a relative tsourcepos path against the workspace", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 * EDEKA",
+        posting("expenses:uncategorized", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+    printOverride = JSON.stringify([
+      {
+        tsourcepos: [{ sourceName: "ledger/2026/03.journal", sourceLine: 1, sourceColumn: 1 }],
+        tpostings: [{ paccount: "expenses:uncategorized" }],
+      },
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...recat });
+
+    expect(result.details.transactions).toBe(1);
+    expect(read("2026/03.journal")).toContain("expenses:food:groceries");
+  });
+
+  test("skips an account-field match whose tpostings is missing", async () => {
+    const before = [
+      "2026-03-15 * EDEKA",
+      posting("expenses:uncategorized", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    printOverride = JSON.stringify([
+      { tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 1, sourceColumn: 1 }] },
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...recat });
+
+    expect(result.details.transactions).toBe(0);
+    expect(read("2026/03.journal")).toBe(before);
+  });
+
+  test("warns and leaves the transaction unchanged when the target line is not a header", async () => {
+    const before = [
+      "2026-03-15 * EDEKA",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    printOverride = JSON.stringify([
+      // sourceLine 2 points at a posting line, which cannot parse as a header.
+      { tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 2, sourceColumn: 1 }], tpostings: [] },
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.warnings).toHaveLength(1);
+    expect(result.details.warnings[0]).toContain("Could not parse transaction header");
+    expect(result.details.transactions).toBe(0);
+    expect(read("2026/03.journal")).toBe(before);
+  });
+
+  test("warns when the source line is past the end of the file", async () => {
+    const before = [
+      "2026-03-15 * EDEKA",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    printOverride = JSON.stringify([
+      {
+        tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 999, sourceColumn: 1 }],
+        tpostings: [],
+      },
+    ]);
+
+    const result = await run({ query: ["payee:EDEKA"], ...rename });
+
+    expect(result.details.warnings).toHaveLength(1);
+    expect(result.details.transactions).toBe(0);
+    expect(read("2026/03.journal")).toBe(before);
+  });
+});
+
+// ── unexpected validation failures ──────────────────────────────────
+
+describe("modify_transactions: unexpected validation failures", () => {
+  const recat = {
+    field: "account" as const,
+    from_account: "expenses:uncategorized",
+    new_value: "expenses:food:groceries",
+  };
+
+  test("restores files and rethrows when hledger check itself fails unexpectedly", async () => {
+    const before = [
+      "2026-03-15 * EDEKA",
+      posting("expenses:uncategorized", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    // Not an HledgerCommandError: the crash must roll the batch back and propagate.
+    vi.mocked(spawnText).mockImplementation(async (cmd: string[]) => {
+      if (cmd.includes("print")) return makeMockProc(0, fakeHledgerPrintJson(queryTerms(cmd)));
+      if (cmd.includes("check")) throw new Error("hledger crashed");
+      return makeMockProc(0);
+    });
+
+    await expect(run({ query: ["payee:EDEKA"], ...recat })).rejects.toThrow("hledger crashed");
+    expect(read("2026/03.journal")).toBe(before);
+  });
 });

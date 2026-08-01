@@ -165,4 +165,20 @@ describe("JournalEditSession", () => {
       expect(session.diff()[0].diff).toContain("new");
     });
   });
+
+  describe("write() without a prior read()", () => {
+    test("flush writes the file, and restore leaves it in place (no snapshot to revert to)", () => {
+      // File creation is not modeled: a never-read path has no snapshot, so
+      // restore() cannot undo it. This documents the current contract.
+      const abs = join(dir, "new.journal");
+      const session = new JournalEditSession();
+      session.write(abs, "created");
+
+      expect(session.flush()).toEqual([abs]);
+      expect(read(abs)).toBe("created");
+
+      session.restore();
+      expect(read(abs)).toBe("created");
+    });
+  });
 });

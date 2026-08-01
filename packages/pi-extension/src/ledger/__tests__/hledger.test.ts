@@ -1,77 +1,36 @@
-import { beforeEach, describe, expect, type Mock, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { spawnText } from "../../spawn";
 
-// ── Strategy ────────────────────────────────────────────────────────
-// Verify the runHledger / tryRunHledger / hledgerCheck behavioural contract
-// (exit-code handling, ENOENT → HledgerNotFoundError, abort signal) against
-// fallback implementations that mirror hledger.ts's spec, driven by the
-// spawnResult / spawnThrow test state below.
-// ─────────────────────────────────────────────────────────────────────
+vi.mock("../../spawn");
 
-const mod = await import("../hledger.js");
-const { HledgerNotFoundError, HledgerCommandError } = mod;
+import { HledgerCommandError, HledgerNotFoundError, hledgerCheck, runHledger, tryRunHledger } from "../hledger";
 
 // ── Test state ──────────────────────────────────────────────────────
+// The real module runs against a mocked spawnText seam (the process boundary):
+// tests drive exit codes / spawn errors through these two variables.
 
 let spawnResult: { exitCode: number; stdout: string; stderr: string };
 let spawnThrow: Error | null;
-let lastArgs: string[];
-let killFn: Mock<() => void>;
 
-// Fallback implementation matching hledger.ts spec
-async function spawn(
-  cmd: string[],
-  opts?: { cwd?: string; signal?: AbortSignal },
-): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  lastArgs = cmd;
-  if (spawnThrow) {
-    const err = spawnThrow;
-    if ((err as any).code === "ENOENT") {
-      return { exitCode: 127, stdout: "", stderr: `Command not found: ${cmd[0]}` };
-    }
-    throw err;
-  }
-  if (opts?.signal) {
-    opts.signal.addEventListener("abort", () => killFn(), { once: true });
-  }
-  return { ...spawnResult };
-}
-
-async function fallbackRunHledger(args: string[], opts?: any): Promise<string> {
-  const { exitCode, stdout, stderr } = await spawn(["hledger", ...args], opts);
-  if (exitCode === 127) throw new HledgerNotFoundError();
-  if (exitCode !== 0) throw new HledgerCommandError(stdout, stderr);
-  return stdout;
-}
-
-async function fallbackTryRunHledger(args: string[], opts?: any): Promise<string | null> {
-  try {
-    return await fallbackRunHledger(args, opts);
-  } catch (e) {
-    if (e instanceof HledgerNotFoundError) throw e;
-    return null;
-  }
-}
-
-async function fallbackHledgerCheck(journalPath: string, opts?: any): Promise<void> {
-  await fallbackRunHledger(["check", "--strict", "-f", journalPath], opts);
-}
-
-// Decide which functions to use - prefer real module when possible
-let runHledger: typeof fallbackRunHledger;
-let tryRunHledger: typeof fallbackTryRunHledger;
-let hledgerCheck: typeof fallbackHledgerCheck;
-
-// Set up before each test
 beforeEach(() => {
   spawnResult = { exitCode: 0, stdout: "", stderr: "" };
   spawnThrow = null;
-  lastArgs = [];
-  killFn = vi.fn(() => {});
-
-  runHledger = fallbackRunHledger;
-  tryRunHledger = fallbackTryRunHledger;
-  hledgerCheck = fallbackHledgerCheck;
+  vi.mocked(spawnText).mockImplementation(async () => {
+    if (spawnThrow) throw spawnThrow;
+    return { ...spawnResult };
+  });
 });
+
+function lastArgs(): string[] {
+  const calls = vi.mocked(spawnText).mock.calls;
+  return calls[calls.length - 1][0];
+}
+
+function enoent(): Error {
+  const err: any = new Error("spawn hledger ENOENT");
+  err.code = "ENOENT";
+  return err;
+}
 
 // ── Error types ─────────────────────────────────────────────────────
 
@@ -160,7 +119,7 @@ describe("runHledger()", () => {
       throw new Error("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(HledgerCommandError);
-      const err = e as InstanceType<typeof HledgerCommandError>;
+      const err = e as HledgerCommandError;
       expect(err.stdout).toBe("partial output");
       expect(err.stderr).toBe("something went wrong");
     }
@@ -169,13 +128,11 @@ describe("runHledger()", () => {
   test("should prepend 'hledger' to args", async () => {
     spawnResult = { exitCode: 0, stdout: "ok", stderr: "" };
     await runHledger(["bal", "--monthly", "-f", "main.journal"]);
-    expect(lastArgs).toEqual(["hledger", "bal", "--monthly", "-f", "main.journal"]);
+    expect(lastArgs()).toEqual(["hledger", "bal", "--monthly", "-f", "main.journal"]);
   });
 
   test("should handle ENOENT as exit code 127", async () => {
-    const err: any = new Error("spawn ENOENT");
-    err.code = "ENOENT";
-    spawnThrow = err;
+    spawnThrow = enoent();
     await expect(runHledger(["bal"])).rejects.toThrow(HledgerNotFoundError);
   });
 
@@ -187,7 +144,7 @@ describe("runHledger()", () => {
   test("should handle empty args array", async () => {
     spawnResult = { exitCode: 0, stdout: "help", stderr: "" };
     await runHledger([]);
-    expect(lastArgs).toEqual(["hledger"]);
+    expect(lastArgs()).toEqual(["hledger"]);
   });
 
   test("should differentiate exit 127 from other non-zero codes", async () => {
@@ -204,6 +161,13 @@ describe("runHledger()", () => {
   test("should throw HledgerCommandError for exit code 2", async () => {
     spawnResult = { exitCode: 2, stdout: "", stderr: "usage error" };
     await expect(runHledger(["bad-command"])).rejects.toThrow(HledgerCommandError);
+  });
+
+  test("should forward cwd and signal to spawnText", async () => {
+    spawnResult = { exitCode: 0, stdout: "ok", stderr: "" };
+    const controller = new AbortController();
+    await runHledger(["bal"], { cwd: "/work", signal: controller.signal });
+    expect(spawnText).toHaveBeenCalledWith(["hledger", "bal"], { cwd: "/work", signal: controller.signal });
   });
 });
 
@@ -226,9 +190,7 @@ describe("tryRunHledger()", () => {
   });
 
   test("should re-throw HledgerNotFoundError from ENOENT", async () => {
-    const err: any = new Error("spawn ENOENT");
-    err.code = "ENOENT";
-    spawnThrow = err;
+    spawnThrow = enoent();
     await expect(tryRunHledger(["reg"])).rejects.toThrow(HledgerNotFoundError);
   });
 
@@ -244,7 +206,7 @@ describe("hledgerCheck()", () => {
   test("should pass check --strict -f and journal path", async () => {
     spawnResult = { exitCode: 0, stdout: "", stderr: "" };
     await hledgerCheck("/path/to/main.journal");
-    expect(lastArgs).toEqual(["hledger", "check", "--strict", "-f", "/path/to/main.journal"]);
+    expect(lastArgs()).toEqual(["hledger", "check", "--strict", "-f", "/path/to/main.journal"]);
   });
 
   test("should resolve on success", async () => {
@@ -260,30 +222,5 @@ describe("hledgerCheck()", () => {
   test("should throw HledgerNotFoundError when hledger missing", async () => {
     spawnResult = { exitCode: 127, stdout: "", stderr: "" };
     await expect(hledgerCheck("/path/to/main.journal")).rejects.toThrow(HledgerNotFoundError);
-  });
-});
-
-// ── abort signal ────────────────────────────────────────────────────
-
-describe("abort signal handling", () => {
-  test("should call kill when signal aborts", async () => {
-    spawnResult = { exitCode: 0, stdout: "output", stderr: "" };
-    const controller = new AbortController();
-    const promise = runHledger(["bal"], { signal: controller.signal });
-    controller.abort();
-    await promise;
-    expect(killFn).toHaveBeenCalled();
-  });
-
-  test("should not call kill when signal is not aborted", async () => {
-    spawnResult = { exitCode: 0, stdout: "output", stderr: "" };
-    const controller = new AbortController();
-    await runHledger(["bal"], { signal: controller.signal });
-    expect(killFn).not.toHaveBeenCalled();
-  });
-
-  test("should work without signal option", async () => {
-    spawnResult = { exitCode: 0, stdout: "ok", stderr: "" };
-    expect(await runHledger(["bal"])).toBe("ok");
   });
 });
