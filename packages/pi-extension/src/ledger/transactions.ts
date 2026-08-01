@@ -49,17 +49,10 @@ interface FormattedEntry {
 
 // ── Public ──────────────────────────────────────────────────────────
 
-export function addTransactions(
-  paramsList: AddTransactionParams[],
-  signal?: AbortSignal,
-): Promise<AddTransactionsResult> {
-  // Serialization is handled at the tool layer: the add_transactions tool is registered
-  // executionMode "sequential", so pi never runs it concurrently with another ledger-writing
-  // tool. That keeps concurrent writes and the ledger-wide `hledger check` from interleaving.
-  return runAddTransactions(paramsList, signal);
-}
-
-async function runAddTransactions(
+// Serialization is handled at the tool layer: the add_transactions tool is registered
+// executionMode "sequential", so pi never runs it concurrently with another ledger-writing
+// tool. That keeps concurrent writes and the ledger-wide `hledger check` from interleaving.
+export async function addTransactions(
   paramsList: AddTransactionParams[],
   signal?: AbortSignal,
 ): Promise<AddTransactionsResult> {

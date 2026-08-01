@@ -65,21 +65,13 @@ type ModifyStatus = keyof typeof STATUS_MARKERS;
  * Edits are surgical (only the named field's text changes; the rest of the transaction
  * is preserved). The whole ledger is validated afterward and the batch is rolled back on
  * any error. `dryRun` previews without writing.
+ *
+ * Serialization is handled at the tool layer: the bulk_edit_transactions tool is registered
+ * executionMode "sequential", so pi never runs it concurrently with another ledger-writing
+ * tool. That keeps concurrent read/edit/write/validate cycles from interleaving on shared
+ * journal files.
  */
-export function modifyTransactions(
-  query: string[],
-  params: ModifyParams,
-  dryRun = false,
-  signal?: AbortSignal,
-): Promise<ModifyResult> {
-  // Serialization is handled at the tool layer: the bulk_edit_transactions tool is registered
-  // executionMode "sequential", so pi never runs it concurrently with another ledger-writing
-  // tool. That keeps concurrent read/edit/write/validate cycles from interleaving on shared
-  // journal files.
-  return runModify(query, params, dryRun, signal);
-}
-
-async function runModify(
+export async function modifyTransactions(
   query: string[],
   params: ModifyParams,
   dryRun = false,
