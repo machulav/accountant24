@@ -52,11 +52,11 @@ export const bulkEditTransactionsTool: ToolDefinition<typeof Params, ModifyResul
   promptSnippet: "Bulk-edit transactions matching an hledger query (change account, change payee, or set status)",
   promptGuidelines: [
     "bulk_edit_transactions targets transactions with a standard hledger query (e.g. payee:, desc:, acct:, date:, status:), then applies one `action` to all of them.",
-    "change_account moves postings whose account exactly equals `from` into `to`; other postings are never touched. Ensure `to` is declared in accounts.journal or the strict check fails and the whole batch reverts.",
-    "change_payee renames the payee `from` (exact match) to `to`, preserving the date, status, description, and comments. Matched transactions with a different payee are left untouched, so a fuzzy query can never rename the wrong one.",
-    "set_status sets the header status marker on every match: `to` is 'cleared' (*), 'pending' (!), or 'unmarked' (no marker). It assigns the status regardless of the current one; to restrict by current status, add a status: query term. Posting-level markers are left untouched.",
-    "hledger query terms are case-insensitive regex substring matches, so payee:DB also matches 'GOLDBACH' and desc:shell matches 'Michelle'. Anchor to be precise, e.g. payee:^EDEKA$, and prefer narrow terms.",
-    "For broad or unfamiliar queries, run with dry_run: true first to review the diff, then apply. Call commit_and_push after a batch of related edits.",
+    "bulk_edit_transactions change_account moves postings whose account exactly equals `from` into `to`; other postings are never touched. Ensure `to` is declared in accounts.journal or the strict check fails and the whole batch reverts.",
+    "bulk_edit_transactions change_payee renames the payee `from` (exact match) to `to`, preserving the date, status, description, and comments. Matched transactions with a different payee are left untouched, so a fuzzy query can never rename the wrong one.",
+    "bulk_edit_transactions set_status sets the header status marker on every match: `to` is 'cleared' (*), 'pending' (!), or 'unmarked' (no marker). It assigns the status regardless of the current one; to restrict by current status, add a status: query term. Posting-level markers are left untouched.",
+    "bulk_edit_transactions query terms are case-insensitive regex substrings (payee:DB also matches 'GOLDBACH', desc:shell matches 'Michelle'); anchor to be precise, e.g. payee:^EDEKA$, and prefer narrow terms.",
+    "For broad or unfamiliar queries, call bulk_edit_transactions with dry_run: true first to review the diff, then apply. Call commit_and_push after a batch of related edits.",
   ],
   // Serialize every ledger write: "sequential" makes pi run any batch containing this
   // tool one call at a time, so concurrent read/edit/write/validate cycles never
