@@ -956,3 +956,224 @@ describe("bulk_edit_transactions: unexpected validation failures", () => {
     expect(read("2026/03.journal")).toBe(before);
   });
 });
+
+// ── field: status ───────────────────────────────────────────────────
+
+describe("bulk_edit_transactions: field status", () => {
+  const status = (next: string) => ({ field: "status" as const, new_value: next });
+
+  test("marks a matched transaction cleared, preserving the rest of the header", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 EDK | weekly shop  ; ref:1",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    const result = await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 * EDK | weekly shop  ; ref:1");
+    expect(result.details.transactions).toBe(1);
+    expect(result.details.postings).toBe(0);
+    expect(result.content[0].text).toContain("1 transaction(s) marked cleared");
+  });
+
+  test("marks a matched transaction pending", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    await run({ query: ["payee:EDK"], ...status("pending") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 ! EDK");
+  });
+
+  test("removes the marker when setting unmarked", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 * EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    await run({ query: ["payee:EDK"], ...status("unmarked") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 EDK");
+  });
+
+  test("swaps pending to cleared, preserving the original spacing", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15  !  EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15  *  EDK");
+  });
+
+  test("is a no-op when the status already matches", async () => {
+    const before = [
+      "2026-03-15 * EDK",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+
+    const result = await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(read("2026/03.journal")).toBe(before);
+    expect(result.details.transactions).toBe(0);
+    expect(result.details.diffs).toHaveLength(0);
+  });
+
+  test("marks all matching transactions", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+        "2026-03-20 ! EDK",
+        posting("expenses:food:groceries", "20.00 EUR"),
+        posting("assets:checking", "-20.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    const result = await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(result.details.transactions).toBe(2);
+    expect(read("2026/03.journal").match(/\* EDK/g)).toHaveLength(2);
+  });
+
+  test("leaves posting-level status markers untouched", async () => {
+    const marked = "    * expenses:food:groceries                45.00 EUR";
+    seed("2026/03.journal", ["2026-03-15 EDK", marked, posting("assets:checking", "-45.00 EUR"), ""].join("\n"));
+
+    await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    const lines = read("2026/03.journal").split("\n");
+    expect(lines[0]).toBe("2026-03-15 * EDK");
+    expect(lines[1]).toBe(marked);
+  });
+
+  test("preserves a secondary date and a transaction code", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15=2026-03-18 (INV42) EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+
+    await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15=2026-03-18 * (INV42) EDK");
+  });
+
+  test("marks a description-less transaction (header is just the date)", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+    // The date-only header has no payee for the query to match; target it directly.
+    printOverride = JSON.stringify([
+      { tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 1, sourceColumn: 1 }], tpostings: [] },
+    ]);
+
+    await run({ query: ["date:2026-03-15"], ...status("cleared") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 *");
+  });
+
+  test("removes the marker from a header that is just a date and marker", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 *",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\n"),
+    );
+    printOverride = JSON.stringify([
+      { tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 1, sourceColumn: 1 }], tpostings: [] },
+    ]);
+
+    await run({ query: ["date:2026-03-15"], ...status("unmarked") });
+
+    expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15");
+  });
+
+  test("preserves CRLF line endings when setting status", async () => {
+    seed(
+      "2026/03.journal",
+      [
+        "2026-03-15 EDK",
+        posting("expenses:food:groceries", "45.00 EUR"),
+        posting("assets:checking", "-45.00 EUR"),
+        "",
+      ].join("\r\n"),
+    );
+
+    await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    const raw = read("2026/03.journal");
+    expect(raw).toContain("2026-03-15 * EDK");
+    expect(raw).toContain("\r\n");
+    expect(raw).not.toContain("\r\r");
+  });
+
+  test("warns and leaves the file unchanged when the target line is not a header", async () => {
+    const before = [
+      "2026-03-15 EDK",
+      posting("expenses:food:groceries", "45.00 EUR"),
+      posting("assets:checking", "-45.00 EUR"),
+      "",
+    ].join("\n");
+    seed("2026/03.journal", before);
+    printOverride = JSON.stringify([
+      // sourceLine 2 points at a posting line, which cannot parse as a header.
+      { tsourcepos: [{ sourceName: join(LEDGER, "2026/03.journal"), sourceLine: 2, sourceColumn: 1 }], tpostings: [] },
+    ]);
+
+    const result = await run({ query: ["payee:EDK"], ...status("cleared") });
+
+    expect(result.details.warnings).toHaveLength(1);
+    expect(result.details.warnings[0]).toContain("Could not parse transaction header");
+    expect(read("2026/03.journal")).toBe(before);
+  });
+
+  test("rejects an invalid status value", async () => {
+    await expect(run({ query: ["payee:EDK"], ...status("done") })).rejects.toThrow(
+      'new_value (status) must be "cleared", "pending", or "unmarked"',
+    );
+  });
+});

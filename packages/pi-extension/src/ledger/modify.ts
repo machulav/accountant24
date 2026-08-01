@@ -7,11 +7,12 @@ import { resolveSafePath } from "./paths";
 // ── Types ───────────────────────────────────────────────────────────
 
 /** The transaction/posting fields that are safe to change by surgical text replacement. */
-export type ModifyField = "account" | "payee";
+export type ModifyField = "account" | "payee" | "status";
 
 export interface ModifyParams {
   field: ModifyField;
-  /** The replacement value: a new account (field "account") or a new payee (field "payee"). */
+  /** The replacement value: a new account (field "account"), a new payee (field "payee"),
+   * or a status name — "cleared" | "pending" | "unmarked" (field "status"). */
   new_value: string;
   /** Required for field "account": selects which posting to change, by its current account. */
   from_account?: string;
@@ -39,6 +40,15 @@ const ACCOUNT_AMOUNT_SEP = / {2,}|\t+/;
 // (code), then the description ("payee | note"). Captures [prefix, description].
 const HEADER_RE = /^(\d{4}[-/.]\d{2}[-/.]\d{2}(?:=\d{4}[-/.]\d{2}[-/.]\d{2})?\s+(?:[*!]\s+)?(?:\([^)]*\)\s+)?)(.*)$/;
 
+// A finer header split for status edits: date(s), the gap after them, an optional
+// status marker with its trailing whitespace, then the rest (code, description, comment).
+const STATUS_HEADER_RE =
+  /^(\d{4}[-/.]\d{2}[-/.]\d{2}(?:=\d{4}[-/.]\d{2}[-/.]\d{2})?)([ \t]+|$)([*!](?:[ \t]+|$))?(.*)$/;
+
+/** Journal status markers by their tool-facing names ("" = unmarked). */
+const STATUS_MARKERS = { cleared: "*", pending: "!", unmarked: "" } as const;
+type ModifyStatus = keyof typeof STATUS_MARKERS;
+
 // ── Public ──────────────────────────────────────────────────────────
 
 /**
@@ -46,6 +56,7 @@ const HEADER_RE = /^(\d{4}[-/.]\d{2}[-/.]\d{2}(?:=\d{4}[-/.]\d{2}[-/.]\d{2})?\s+
  * Supported fields (safe surgical text replacements):
  *   - account: move postings in `from_account` to `new_value` (a new account).
  *   - payee:   replace each transaction's payee with `new_value`.
+ *   - status:  set the header status marker to `new_value` (cleared/pending/unmarked).
  *
  * `query` is an array of hledger query terms. Each element is passed verbatim as one
  * argv token to `hledger` (via spawn, never a shell), so a term containing spaces such
@@ -95,7 +106,9 @@ async function runModify(
     const { newContent, count, warn } =
       params.field === "account"
         ? applyAccountEdit(content, match, params.from_account as string, params.new_value)
-        : applyPayeeEdit(content, match, params.from_payee as string, params.new_value);
+        : params.field === "payee"
+          ? applyPayeeEdit(content, match, params.from_payee as string, params.new_value)
+          : applyStatusEdit(content, match, params.new_value as ModifyStatus);
 
     warnings.push(...warn);
     if (count > 0) {
@@ -161,8 +174,8 @@ function validate(query: string[], params: ModifyParams): void {
       throw new Error(`Invalid query term "${term}": query terms must not start with '-'.`);
     }
   }
-  if (params.field !== "account" && params.field !== "payee") {
-    throw new Error(`Unsupported field: ${params.field}. Expected "account" or "payee".`);
+  if (params.field !== "account" && params.field !== "payee" && params.field !== "status") {
+    throw new Error(`Unsupported field: ${params.field}. Expected "account", "payee", or "status".`);
   }
   if (!params.new_value || params.new_value.trim() === "") {
     throw new Error("new_value must not be empty.");
@@ -189,6 +202,9 @@ function validate(query: string[], params: ModifyParams): void {
     if (/[|;]/.test(params.new_value)) {
       throw new Error("new_value (payee) must not contain '|' or ';'.");
     }
+  }
+  if (params.field === "status" && !(params.new_value in STATUS_MARKERS)) {
+    throw new Error('new_value (status) must be "cleared", "pending", or "unmarked".');
   }
 }
 
@@ -397,4 +413,43 @@ function renderHeaderPayee({ prefix, gap, trailing }: ParsedHeader, newPayee: st
   // when the original payee ran right up against it (gap === "").
   const safeGap = gap === "" ? " " : gap;
   return `${prefix}${newPayee}${safeGap}${trailing}`;
+}
+
+/**
+ * Set the status marker on the matched transaction's header line to `newStatus`,
+ * preserving the date, code, description, comments, and original spacing. Posting-level
+ * status markers are deliberately left untouched (they override the header only when
+ * present, so clearing the header does not change what they assert).
+ */
+function applyStatusEdit(content: string, match: Match, newStatus: ModifyStatus): ApplyResult {
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const lines = content.split(/\r?\n/);
+  const warn: string[] = [];
+  const headerIdx = match.startLine - 1;
+  const line = lines[headerIdx] ?? "";
+
+  const m = line.match(STATUS_HEADER_RE);
+  if (!m) {
+    warn.push(`Could not parse transaction header at ${match.file}:${match.startLine}; left unchanged.`);
+    return { newContent: content, count: 0, warn };
+  }
+  const [, date, gap, marker = "", rest] = m;
+  const current: ModifyStatus = marker.startsWith("*") ? "cleared" : marker.startsWith("!") ? "pending" : "unmarked";
+  if (current === newStatus) {
+    return { newContent: content, count: 0, warn }; // already there; no-op
+  }
+
+  const token = STATUS_MARKERS[newStatus];
+  let header: string;
+  if (token === "") {
+    header = rest === "" ? date : `${date}${gap}${rest}`;
+  } else if (rest === "") {
+    header = `${date}${gap || " "}${token}`;
+  } else {
+    // Swapping markers keeps the old marker's trailing whitespace; adding one inserts a space.
+    const markerGap = marker ? marker.slice(1) : " ";
+    header = `${date}${gap || " "}${token}${markerGap}${rest}`;
+  }
+  lines[headerIdx] = header;
+  return { newContent: lines.join(eol), count: 1, warn };
 }
