@@ -21,7 +21,7 @@ function makeMockProc(exitCode: number, stdout = "", stderr = "") {
   return { exitCode, stdout, stderr };
 }
 
-const { addTransactions } = await import("../transactions.js");
+const { addTransactions, addBalanceAssertions, addPrices } = await import("../transactions.js");
 
 /** Helper: add a single transaction and return a flat result for backward-compatible test assertions. */
 async function addTransaction(params: any, signal?: AbortSignal) {
@@ -104,6 +104,186 @@ describe("addTransaction() input validation", () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     const result = await addTransaction(basicParams);
     expect(result.ledgerIsValid).toBe(true);
+  });
+});
+
+// ── Balance assertions (standalone checkpoints) ─────────────────────
+
+describe("addBalanceAssertions()", () => {
+  const checkpoint = {
+    date: "2026-03-15",
+    account: "Assets:Bank:Cash",
+    balance: { amount: 200, currency: "EUR" },
+  };
+
+  test("should save a standalone checkpoint entry", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addBalanceAssertions([checkpoint]);
+    expect(result.ledgerIsValid).toBe(true);
+    expect(result.transactions).toHaveLength(1);
+  });
+
+  test("should format the canonical payee and hledger's `= balance` syntax, keeping the column alignment", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addBalanceAssertions([checkpoint]);
+    const text = result.transactions[0].transactionText;
+    expect(text.split("\n")[0]).toBe("2026-03-15 * Balance Assertion");
+    const line = findLine(text, "Assets:Bank:Cash");
+    expect(line).toMatch(/0\.00 EUR = 200\.00 EUR$/);
+    // First digit stays at column 70 (1-indexed), like every other posting.
+    expect(line.indexOf("0.00 EUR")).toBe(69);
+  });
+
+  test("should format a negative confirmed balance", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addBalanceAssertions([{ ...checkpoint, balance: { amount: -133.51, currency: "EUR" } }]);
+    expect(findLine(result.transactions[0].transactionText, "Assets:Bank:Cash")).toMatch(/0\.00 EUR = -133\.51 EUR$/);
+  });
+
+  test("should route the checkpoint to the monthly file of its date", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addBalanceAssertions([checkpoint]);
+    expect(result.transactions[0].fullFilePath).toContain("2026/03.journal");
+  });
+
+  test("should write each assertion of a batch as its own journal entry", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addBalanceAssertions([
+      checkpoint,
+      { date: "2026-03-15", account: "Assets:Bank:Checking", balance: { amount: 500, currency: "EUR" } },
+    ]);
+    expect(result.transactions).toHaveLength(2);
+    // Two standalone entries in the monthly file — never merged into one,
+    // even on the same date.
+    const file = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(file.match(/^2026-03-15 \* Balance Assertion$/gm)).toHaveLength(2);
+    expect(findLine(file, "Assets:Bank:Checking")).toMatch(/0\.00 EUR = 500\.00 EUR$/);
+  });
+
+  test("should reject a date not in YYYY-MM-DD format", async () => {
+    await expect(addBalanceAssertions([{ ...checkpoint, date: "March 15" }])).rejects.toThrow("Invalid date format");
+  });
+
+  test("should reject a missing account", async () => {
+    await expect(addBalanceAssertions([{ ...checkpoint, account: "" }])).rejects.toThrow("missing an account");
+  });
+
+  test("should reject a balance without an amount", async () => {
+    await expect(addBalanceAssertions([{ ...checkpoint, balance: { currency: "EUR" } }] as any)).rejects.toThrow(
+      "missing the balance amount",
+    );
+  });
+
+  test("should reject a balance without a currency", async () => {
+    await expect(addBalanceAssertions([{ ...checkpoint, balance: { amount: 200 } }] as any)).rejects.toThrow(
+      "missing the balance currency",
+    );
+  });
+
+  test("should point at the offending assertion when a batch fails validation", async () => {
+    await expect(addBalanceAssertions([checkpoint, { ...checkpoint, account: "" }])).rejects.toThrow(
+      "Assertion 2: Balance assertion is missing an account.",
+    );
+  });
+
+  test("should surface hledger's error when the assertion does not hold", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "balance assertion failed"));
+    await expect(addBalanceAssertions([checkpoint])).rejects.toThrow("balance assertion failed");
+  });
+});
+
+// ── Market prices (standalone P directives) ─────────────────────────
+
+describe("addPrices()", () => {
+  const rate = {
+    date: "2026-03-15",
+    commodity: "USD",
+    price: { amount: 0.87, currency: "EUR" },
+  };
+
+  test("should format the P directive verbatim", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addPrices([rate]);
+    expect(result.ledgerIsValid).toBe(true);
+    expect(result.transactions[0].transactionText).toBe("P 2026-03-15 USD 0.87 EUR");
+  });
+
+  test("should double-quote a commodity containing digits, as hledger requires", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addPrices([{ ...rate, commodity: "SOL2" }]);
+    expect(result.transactions[0].transactionText).toBe('P 2026-03-15 "SOL2" 0.87 EUR');
+  });
+
+  test("should double-quote a target currency containing digits", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addPrices([{ ...rate, price: { amount: 0.87, currency: "SOL2" } }]);
+    expect(result.transactions[0].transactionText).toBe('P 2026-03-15 USD 0.87 "SOL2"');
+  });
+
+  test("should preserve the rate's full precision instead of rounding to 2 decimals", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addPrices([{ ...rate, commodity: "UAH", price: { amount: 0.0205, currency: "EUR" } }]);
+    expect(result.transactions[0].transactionText).toBe("P 2026-03-15 UAH 0.0205 EUR");
+  });
+
+  test("should render a tiny rate in plain decimal, never exponential notation", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addPrices([{ ...rate, commodity: "SAT", price: { amount: 0.0000005, currency: "EUR" } }]);
+    expect(result.transactions[0].transactionText).toBe("P 2026-03-15 SAT 0.0000005 EUR");
+  });
+
+  test("should route each price of a batch to the monthly file of its date", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addPrices([rate, { date: "2026-04-02", commodity: "BTC", price: { amount: 55000, currency: "EUR" } }]);
+    expect(readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8")).toContain("P 2026-03-15 USD 0.87 EUR");
+    expect(readFileSync(join(LEDGER, "2026", "04.journal"), "utf-8")).toContain("P 2026-04-02 BTC 55000 EUR");
+  });
+
+  test("should declare both sides of the price as commodities when missing", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await addPrices([{ ...rate, commodity: "BTC" }]);
+    const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
+    expect(commodities).toContain("commodity BTC");
+    expect(commodities).toContain("commodity EUR");
+  });
+
+  test("should reject a date not in YYYY-MM-DD format", async () => {
+    await expect(addPrices([{ ...rate, date: "March 15" }])).rejects.toThrow("Invalid date format");
+  });
+
+  test("should reject a missing commodity", async () => {
+    await expect(addPrices([{ ...rate, commodity: "" }])).rejects.toThrow("missing a commodity");
+  });
+
+  test("should reject a price without an amount", async () => {
+    await expect(addPrices([{ ...rate, price: { currency: "EUR" } }] as any)).rejects.toThrow("missing the amount");
+  });
+
+  test("should reject a zero price", async () => {
+    await expect(addPrices([{ ...rate, price: { amount: 0, currency: "EUR" } }])).rejects.toThrow("must be positive");
+  });
+
+  test("should reject a negative price", async () => {
+    await expect(addPrices([{ ...rate, price: { amount: -0.87, currency: "EUR" } }])).rejects.toThrow(
+      "must be positive",
+    );
+  });
+
+  test("should reject a price without a currency", async () => {
+    await expect(addPrices([{ ...rate, price: { amount: 0.87 } }] as any)).rejects.toThrow("missing the currency");
+  });
+
+  test("should point at the offending price when a batch fails validation", async () => {
+    await expect(addPrices([rate, { ...rate, commodity: "" }])).rejects.toThrow(
+      "Price 2: Price is missing a commodity.",
+    );
+  });
+
+  test("should surface hledger's error when the write does not validate", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "commodity check failed"));
+    await expect(addPrices([rate])).rejects.toThrow("commodity check failed");
   });
 });
 

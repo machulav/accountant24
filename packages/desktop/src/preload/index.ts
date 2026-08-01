@@ -31,6 +31,7 @@ const INVOKE_CHANNELS = new Set([
   "skills_set_enabled",
   "files_archive_to_workspace",
   "ledger_mentions",
+  "ledger_net_worth",
   "analytics_track",
   "update_pending",
   "update_install",

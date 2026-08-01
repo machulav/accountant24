@@ -91,19 +91,37 @@ vi.mock("@/rpc/api", () => ({
     get: vi.fn().mockResolvedValue({ enabledModels: [], defaultModel: undefined }),
     onChange: () => () => {},
   },
-  ledgerApi: { mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }) },
+  ledgerApi: {
+    mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }),
+    balances: vi.fn().mockResolvedValue([]),
+  },
   skillsApi: { list: vi.fn().mockResolvedValue({ skills: [] }) },
   sessionsApi: { list: vi.fn().mockResolvedValue({ type: "ok", sessions: [] }) },
   appApi: { version: vi.fn().mockResolvedValue("1.0.0") },
 }));
 
 // Heavy children: ChatLayout only composes them, and each has its own test file.
-// Stubbing keeps this suite focused on ChatLayout's own wiring.
+// Stubbing keeps this suite focused on ChatLayout's own wiring. The thread-list
+// stubs surface their selection callbacks as buttons so tests can fire them.
 vi.mock("../thread", () => ({ Thread: () => <div data-testid="thread" /> }));
 vi.mock("../thread-list", () => ({
-  ThreadList: () => <div data-testid="thread-list" />,
-  ThreadListNew: () => <div data-testid="thread-list-new" />,
+  ThreadList: ({ onSelectThread, highlightActive }: { onSelectThread?: () => void; highlightActive?: boolean }) => (
+    <div data-testid="thread-list" data-highlight-active={String(highlightActive)}>
+      <button type="button" onClick={onSelectThread}>
+        Select thread stub
+      </button>
+    </div>
+  ),
+  ThreadListNew: ({ onSelect }: { onSelect?: () => void }) => (
+    <div data-testid="thread-list-new">
+      <button type="button" onClick={onSelect}>
+        New chat stub
+      </button>
+    </div>
+  ),
 }));
+vi.mock("../net-worth-view", () => ({ NetWorthView: () => <div data-testid="net-worth-view" /> }));
+vi.mock("../net-worth-badge", () => ({ NetWorthBadge: () => null }));
 // The Settings dialog is a real dialog elsewhere; here a light stub that mirrors
 // the `open` prop, so we can assert ChatLayout opens/closes it.
 vi.mock("../settings/settings", () => ({
@@ -204,6 +222,79 @@ describe("ChatLayout Settings dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+  });
+});
+
+describe("ChatLayout Net Worth view", () => {
+  const sheetButton = () => screen.getByRole("button", { name: "Net Worth" });
+  /** The wrapper ChatLayout hides (display:none) while Accounts is open — the
+   *  CSS contract for "the chat survives the switch" (jsdom applies no CSS). */
+  const threadWrapper = () => screen.getByTestId("thread").parentElement as HTMLElement;
+
+  it("should not show the Net Worth view initially", () => {
+    render(<ChatLayout />);
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect(sheetButton()).not.toHaveAttribute("data-active");
+  });
+
+  it("should show the Net Worth view and keep the chat mounted but hidden when Net Worth is clicked", () => {
+    render(<ChatLayout />);
+    fireEvent.click(sheetButton());
+
+    expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
+    // The thread is still in the document (state preserved), only hidden.
+    expect(screen.getByTestId("thread")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(sheetButton()).toHaveAttribute("data-active");
+  });
+
+  it("should mute the thread highlight while the Net Worth is open, and restore it back in the chat", () => {
+    render(<ChatLayout />);
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "true");
+
+    fireEvent.click(sheetButton());
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "false");
+
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+    expect(screen.getByTestId("thread-list")).toHaveAttribute("data-highlight-active", "true");
+  });
+
+  it("should keep the Net Worth open when the active entry is clicked again", () => {
+    render(<ChatLayout />);
+    fireEvent.click(sheetButton());
+    fireEvent.click(sheetButton());
+
+    expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(sheetButton()).toHaveAttribute("data-active");
+  });
+
+  it("should return to the chat when a thread is selected in the sidebar", () => {
+    render(<ChatLayout />);
+    fireEvent.click(sheetButton());
+    fireEvent.click(screen.getByRole("button", { name: "Select thread stub" }));
+
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect(threadWrapper().className).not.toContain("hidden");
+  });
+
+  it("should return to the chat when a new chat is started from the sidebar", () => {
+    render(<ChatLayout />);
+    fireEvent.click(sheetButton());
+    fireEvent.click(screen.getByRole("button", { name: "New chat stub" }));
+
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect(threadWrapper().className).not.toContain("hidden");
+  });
+
+  it("should return to the chat on the Cmd/Ctrl+N shortcut", () => {
+    render(<ChatLayout />);
+    fireEvent.click(sheetButton());
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+
+    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect(threadWrapper().className).not.toContain("hidden");
+    expect(h.switchToNewThread).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NetWorth } from "../../shared/types";
 
-// ledger.ts answers the composer's @-mention query by running the vendored
-// `hledger accounts|payees|tags` against the workspace journal. child_process
-// (the real hledger binary), node:fs, Electron IPC, and env paths are the faked
-// boundaries; the line-shaping (trim / drop-empty / case-insensitive sort) and
-// the []-on-any-failure contract run for real.
+// ledger.ts answers the composer's @-mention query (`hledger
+// accounts|payees|tags`) and the Net Worth view's report query
+// (`hledger bs`) against the workspace journal. child_process (the real
+// hledger binary), node:fs, Electron IPC, and env paths are the faked
+// boundaries; the line-shaping, the JSON parse, and the
+// empty-on-any-failure contract run for real.
 type Handler = (event: unknown, payload?: unknown) => unknown;
 type ExecCb = (err: Error | null, stdout: string, stderr: string) => void;
 
@@ -34,10 +36,14 @@ vi.mock("../env", () => ({
  *  Error to simulate a failure (missing binary, no journal, parse error). */
 type Response = string[] | Error;
 
-/** Program execFile so each `hledger <sub>` returns the given canned result. */
+/** Program execFile so each `hledger <sub>` returns the given canned result.
+ *  Balance-sheet variants are keyed by their flags: "bs" (native holdings),
+ *  "bs:V" (at market value, `-X`). A sub without a canned result returns
+ *  empty output. */
 function stubHledger(bySub: Record<string, Response>) {
   h.execFile.mockImplementation((_bin: string, args: string[], _opts: unknown, cb: ExecCb) => {
-    const sub = args[0];
+    let sub = args[0] as string;
+    if (args.includes("-X") || args.includes("-V")) sub += ":V";
     const r = bySub[sub];
     if (r instanceof Error) {
       cb(r, "", "boom");
@@ -47,13 +53,16 @@ function stubHledger(bySub: Record<string, Response>) {
   });
 }
 
-async function mentions(): Promise<{ accounts: string[]; payees: string[]; tags: string[] }> {
+async function invoke<T>(channel: string): Promise<T> {
   const mod = await import("../ledger");
   mod.registerLedgerIpc();
-  const handler = h.handlers.get("ledger_mentions");
-  if (!handler) throw new Error("no handler for ledger_mentions");
-  return (await handler(null)) as { accounts: string[]; payees: string[]; tags: string[] };
+  const handler = h.handlers.get(channel);
+  if (!handler) throw new Error(`no handler for ${channel}`);
+  return (await handler(null)) as T;
 }
+
+const mentions = () => invoke<{ accounts: string[]; payees: string[]; tags: string[] }>("ledger_mentions");
+const netWorth = () => invoke<NetWorth>("ledger_net_worth");
 
 beforeEach(() => {
   h.handlers.clear();
@@ -179,6 +188,171 @@ describe("ledger_mentions", () => {
     h.existsSync.mockReturnValue(false);
     stubHledger({ accounts: [], payees: [], tags: [] });
     await mentions();
+    for (const call of h.execFile.mock.calls) {
+      expect(call[0]).toBe("hledger");
+    }
+  });
+});
+
+describe("ledger_net_worth", () => {
+  const amt = (commodity: string, floatingPoint: number, decimalPlaces = 2) => ({
+    acommodity: commodity,
+    aquantity: { decimalMantissa: 0, decimalPlaces, floatingPoint },
+    astyle: { asprecision: decimalPlaces },
+  });
+  const prow = (name: string, amounts: unknown[]) => ({ prrName: name, prrAmounts: [amounts] });
+  const report = (subreports: [string, unknown[], unknown[]][], net: unknown[]) => [
+    JSON.stringify({
+      cbrSubreports: subreports.map(([name, rows, total]) => [
+        name,
+        { prRows: rows, prTotals: { prrAmounts: [total] } },
+        true,
+      ]),
+      cbrTotals: { prrAmounts: [net] },
+    }),
+  ];
+  const EMPTY_REPORT = report([], []);
+  const emptyStubs = { bs: EMPTY_REPORT, "bs:V": EMPTY_REPORT, prices: ["P 2026-07-22 UAH 0.01958 EUR"] };
+  const printed = (txns: unknown[]) => [JSON.stringify(txns)];
+
+  // Native run: BTC holding plus a positive (bs sign convention) liability;
+  // valued run: everything in EUR.
+  const STUBS = {
+    bs: report(
+      [
+        ["Assets", [prow("assets:btc", [amt("BTC", 0.16, 8)])], [amt("BTC", 0.16, 8)]],
+        ["Liabilities", [prow("liabilities:card", [amt("EUR", 300)])], [amt("EUR", 300)]],
+      ],
+      [amt("BTC", 0.16, 8), amt("EUR", -300)],
+    ),
+    "bs:V": report(
+      [
+        ["Assets", [prow("assets:btc", [amt("EUR", 9990)])], [amt("EUR", 9990)]],
+        ["Liabilities", [prow("liabilities:card", [amt("EUR", 300)])], [amt("EUR", 300)]],
+      ],
+      [amt("EUR", 9690)],
+    ),
+    print: printed([
+      {
+        tdate: "2026-07-05",
+        tpostings: [{ paccount: "assets:btc", pdate: null, pbalanceassertion: { baamount: {} } }],
+      },
+    ]),
+    // The latest price in the stub journal targets EUR: the derived base.
+    prices: ["P 2026-07-10 USD 0.87 EUR", "P 2026-07-22 UAH 0.01958 EUR"],
+  };
+
+  it("should pair the sections and net of the native and valued bs runs", async () => {
+    stubHledger(STUBS);
+    expect(await netWorth()).toEqual({
+      sections: [
+        {
+          name: "Assets",
+          rows: [
+            {
+              name: "assets:btc",
+              amounts: [{ quantity: 0.16, commodity: "BTC", precision: 8 }],
+              value: [{ quantity: 9990, commodity: "EUR", precision: 2 }],
+              assertedOn: "2026-07-05",
+            },
+          ],
+          total: {
+            amounts: [{ quantity: 0.16, commodity: "BTC", precision: 8 }],
+            value: [{ quantity: 9990, commodity: "EUR", precision: 2 }],
+          },
+        },
+        {
+          name: "Liabilities",
+          rows: [
+            {
+              name: "liabilities:card",
+              amounts: [{ quantity: 300, commodity: "EUR", precision: 2 }],
+              value: [{ quantity: 300, commodity: "EUR", precision: 2 }],
+            },
+          ],
+          total: {
+            amounts: [{ quantity: 300, commodity: "EUR", precision: 2 }],
+            value: [{ quantity: 300, commodity: "EUR", precision: 2 }],
+          },
+        },
+      ],
+      net: {
+        amounts: [
+          { quantity: 0.16, commodity: "BTC", precision: 8 },
+          { quantity: -300, commodity: "EUR", precision: 2 },
+        ],
+        value: [{ quantity: 9690, commodity: "EUR", precision: 2 }],
+      },
+    });
+  });
+
+  it("should run bs natively, then valued toward the base derived from the journal prices, plus print for assertion dates, against the workspace journal in the workspace cwd with the agent env", async () => {
+    stubHledger(emptyStubs);
+    await netWorth();
+
+    expect(h.execFile.mock.calls).toHaveLength(4);
+    const base = ["bs", "-O", "json", "-f", "/ws/ledger/main.journal"];
+    const argLists = h.execFile.mock.calls.map((c) => c[1] as string[]);
+    expect(argLists).toContainEqual(base);
+    expect(argLists).toContainEqual([...base, "-X", "EUR", "--infer-market-prices"]);
+    expect(argLists).toContainEqual(["print", "-O", "json", "-f", "/ws/ledger/main.journal"]);
+    expect(argLists).toContainEqual(["prices", "-f", "/ws/ledger/main.journal"]);
+    for (const call of h.execFile.mock.calls) {
+      const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
+      expect(opts.cwd).toBe("/ws");
+      expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+      expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
+    }
+  });
+
+  it("should fall back to -V when the journal declares no prices", async () => {
+    stubHledger({ ...emptyStubs, prices: [] });
+    await netWorth();
+    const argLists = h.execFile.mock.calls.map((c) => c[1] as string[]);
+    expect(argLists).toContainEqual(["bs", "-O", "json", "-f", "/ws/ledger/main.journal", "-V"]);
+  });
+
+  it("should leave rows without assertions untouched when the print run fails", async () => {
+    stubHledger({ ...STUBS, print: new Error("boom") });
+    const sheet = await netWorth();
+    expect(sheet.sections[0]?.rows[0]?.assertedOn).toBeUndefined();
+  });
+
+  it("should fall back to the raw amounts as the value when the valued run fails", async () => {
+    stubHledger({ ...STUBS, "bs:V": new Error("no prices") });
+    const sheet = await netWorth();
+    expect(sheet.sections[0]?.rows[0]?.value).toEqual([{ quantity: 0.16, commodity: "BTC", precision: 8 }]);
+    expect(sheet.net.value).toEqual([
+      { quantity: 0.16, commodity: "BTC", precision: 8 },
+      { quantity: -300, commodity: "EUR", precision: 2 },
+    ]);
+  });
+
+  it("should return an empty sheet when hledger fails (no journal yet)", async () => {
+    const err = new Error("hledger: no journal");
+    stubHledger({ bs: err, "bs:V": err });
+    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] } });
+  });
+
+  it("should return an empty sheet when hledger is missing entirely", async () => {
+    const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
+    stubHledger({ bs: enoent, "bs:V": enoent });
+    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] } });
+  });
+
+  it("should run the vendored hledger binary when it exists in binDir", async () => {
+    h.existsSync.mockReturnValue(true);
+    stubHledger(emptyStubs);
+    await netWorth();
+    for (const call of h.execFile.mock.calls) {
+      expect(call[0]).toBe("/vendored/bin/hledger");
+    }
+  });
+
+  it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {
+    h.existsSync.mockReturnValue(false);
+    stubHledger(emptyStubs);
+    await netWorth();
     for (const call of h.execFile.mock.calls) {
       expect(call[0]).toBe("hledger");
     }

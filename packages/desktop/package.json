@@ -21,6 +21,7 @@
     "@earendil-works/pi-ai": "0.79.8",
     "@earendil-works/pi-coding-agent": "0.79.8",
     "@fontsource-variable/inter": "^5.2.8",
+    "@tanstack/react-table": "^8.21.3",
     "assistant-stream": "^0.3.24",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,8 +1,10 @@
 // Shared helpers for the Electron E2E smoke tests.
 //
-// Each test launches the built app pointed at a fresh, empty temp
-// ACCOUNTANT24_HOME so it boots deterministically to the onboarding screen (no
-// providers => no models => onboarding, and the pi agent child is never spawned).
+// Each test launches the built app pointed at a fresh temp ACCOUNTANT24_HOME.
+// Empty, it boots deterministically to the onboarding screen (no providers =>
+// no models => onboarding, and the pi agent child is never spawned); a `seed`
+// callback can pre-populate the home (e.g. auth.json) to boot into the chat
+// layout instead — the agent still only spawns on the first send.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,8 +24,11 @@ export interface LaunchedApp {
 }
 
 /** Launch the built app with an isolated temp workspace. */
-export async function launchApp(env: Record<string, string> = {}): Promise<LaunchedApp> {
+export async function launchApp(
+  opts: { env?: Record<string, string>; seed?: (home: string) => void } = {},
+): Promise<LaunchedApp> {
   const home = mkdtempSync(path.join(tmpdir(), "a24-e2e-"));
+  opts.seed?.(home);
   const app = await electron.launch({
     args: [MAIN_ENTRY],
     cwd: DESKTOP_DIR,
@@ -34,7 +39,7 @@ export async function launchApp(env: Record<string, string> = {}): Promise<Launc
       A24_FAKE_UPDATE: "",
       CI: "1",
       // Per-test overrides (e.g. an agent-stub flag) win.
-      ...env,
+      ...opts.env,
     } as Record<string, string>,
   });
   return {

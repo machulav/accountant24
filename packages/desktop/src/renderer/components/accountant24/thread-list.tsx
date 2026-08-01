@@ -20,14 +20,17 @@ import {
   SidebarMenuItem,
   SidebarMenuSkeleton,
 } from "@/components/shadcn/sidebar";
+import { cn } from "@/lib/utils";
 import { sessionsApi } from "@/rpc/api";
 
 /** The sidebar's primary action — lives in the SidebarHeader, outside the nav
- *  list, per the shadcn sidebar recipe (header = actions, content = nav). */
-export const ThreadListNew: FC = () => {
+ *  list, per the shadcn sidebar recipe (header = actions, content = nav).
+ *  `onSelect` fires alongside the primitive's new-thread action (the layout
+ *  uses it to bring the chat view back). */
+export const ThreadListNew: FC<{ onSelect?: () => void }> = ({ onSelect }) => {
   return (
     <ThreadListPrimitive.New asChild>
-      <Button variant="outline" data-slot="aui_thread-list-new" className="w-full">
+      <Button variant="outline" data-slot="aui_thread-list-new" className="w-full" onClick={onSelect}>
         <PlusIcon data-icon="inline-start" />
         New Chat
       </Button>
@@ -35,14 +38,22 @@ export const ThreadListNew: FC = () => {
   );
 };
 
-export const ThreadList: FC = () => {
+/** `onSelectThread` fires when a thread row is clicked, alongside the
+ *  primitive's switch-to-thread action (not on the row's ••• actions).
+ *  `highlightActive` mutes the active-thread highlight while another sidebar
+ *  destination (the Net Worth) is the selected one — the runtime thread
+ *  stays active underneath, but the sidebar must not show two selections. */
+export const ThreadList: FC<{ onSelectThread?: () => void; highlightActive?: boolean }> = ({
+  onSelectThread,
+  highlightActive = true,
+}) => {
   return (
     <ThreadListPrimitive.Root data-slot="aui_thread-list-root" className="flex flex-col">
       <AuiIf condition={(s) => s.threads.isLoading}>
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListItemGroups />
+        <ThreadListItemGroups onSelectThread={onSelectThread} highlightActive={highlightActive} />
       </AuiIf>
     </ThreadListPrimitive.Root>
   );
@@ -87,9 +98,18 @@ function useSessionTimes(threadIds: readonly string[]): Map<string, number> {
   return times;
 }
 
-const ThreadListItemGroups: FC = () => {
+const ThreadListItemGroups: FC<{ onSelectThread?: () => void; highlightActive?: boolean }> = ({
+  onSelectThread,
+  highlightActive,
+}) => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const times = useSessionTimes(threadIds);
+
+  // ItemByIndex takes a component (not an element), so bind the callback once.
+  const BoundThreadListItem = useMemo(() => {
+    const Bound: FC = () => <ThreadListItem onSelect={onSelectThread} highlightActive={highlightActive} />;
+    return Bound;
+  }, [onSelectThread, highlightActive]);
 
   const groups = useMemo<ThreadListGroup[] | null>(() => {
     if (times.size === 0) return null;
@@ -118,7 +138,7 @@ const ThreadListItemGroups: FC = () => {
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            <ThreadListPrimitive.Items>{() => <ThreadListItem />}</ThreadListPrimitive.Items>
+            <ThreadListPrimitive.Items>{() => <BoundThreadListItem />}</ThreadListPrimitive.Items>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -131,7 +151,11 @@ const ThreadListItemGroups: FC = () => {
       <SidebarGroupContent>
         <SidebarMenu>
           {group.indices.map((index) => (
-            <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
+            <ThreadListPrimitive.ItemByIndex
+              key={threadIds[index]}
+              index={index}
+              components={{ ThreadListItem: BoundThreadListItem }}
+            />
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
@@ -157,20 +181,31 @@ const ThreadListSkeleton: FC = () => {
   );
 };
 
-export const ThreadListItem: FC = () => {
+export const ThreadListItem: FC<{ onSelect?: () => void; highlightActive?: boolean }> = ({
+  onSelect,
+  highlightActive = true,
+}) => {
   return (
     <ThreadListItemPrimitive.Root asChild>
       <SidebarMenuItem data-slot="aui_thread-list-item" className="group/thread-list-item">
         <ThreadListItemPrimitive.Trigger asChild>
           {/* Active-thread highlight: aui marks the Root (the <li>) with
               data-active, so mirror the button's own data-active styles off
-              the parent. Same for an open "more" menu keeping the row lit.
-              group-hover: the ••• action is a sibling overlaying the row, so
-              the button's own :hover drops while the pointer is on it — key
-              the hover highlight off the whole row instead. */}
+              the parent — but only while the chat is the selected sidebar
+              destination (highlightActive); the runtime thread stays active
+              while the Net Worth is open, and the sidebar must not show
+              two selections. Same for an open "more" menu keeping the row
+              lit. group-hover: the ••• action is a sibling overlaying the
+              row, so the button's own :hover drops while the pointer is on
+              it — key the hover highlight off the whole row instead. */}
           <SidebarMenuButton
             data-slot="aui_thread-list-item-trigger"
-            className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:bg-sidebar-accent group-data-active/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:font-medium group-has-data-popup-open/menu-item:bg-sidebar-accent"
+            onClick={onSelect}
+            className={cn(
+              "group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground group-has-data-popup-open/menu-item:bg-sidebar-accent",
+              highlightActive &&
+                "group-data-active/menu-item:bg-sidebar-accent group-data-active/menu-item:text-sidebar-accent-foreground group-data-active/menu-item:font-medium",
+            )}
           >
             <span data-slot="aui_thread-list-item-title" className="min-w-0 flex-1 truncate">
               <ThreadListItemPrimitive.Title fallback="New Chat" />
