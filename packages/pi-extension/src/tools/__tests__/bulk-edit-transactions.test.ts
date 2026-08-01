@@ -166,13 +166,13 @@ describe("bulk_edit_transactions execution mode", () => {
   });
 });
 
-// ── field: account ──────────────────────────────────────────────────
+// ── change_account ───────────────────────────────────────────────────
 
-describe("bulk_edit_transactions: field account", () => {
+describe("bulk_edit_transactions: change_account", () => {
   const acct = (from: string, next: string) => ({
-    field: "account" as const,
-    from_account: from,
-    new_value: next,
+    action: "change_account" as const,
+    from: from,
+    to: next,
   });
 
   test("rewrites only the target posting; sibling postings are byte-identical", async () => {
@@ -285,7 +285,7 @@ describe("bulk_edit_transactions: field account", () => {
     expect(result.details.warnings).toHaveLength(0);
   });
 
-  test("rejects field account without from_account", async () => {
+  test("rejects change_account without from", async () => {
     seed(
       "2026/03.journal",
       [
@@ -296,21 +296,21 @@ describe("bulk_edit_transactions: field account", () => {
       ].join("\n"),
     );
     await expect(
-      run({ query: ["payee:EDEKA"], field: "account", new_value: "expenses:food:groceries" }),
-    ).rejects.toThrow("from_account is required");
+      run({ query: ["payee:EDEKA"], action: "change_account", to: "expenses:food:groceries" }),
+    ).rejects.toThrow("from is required");
   });
 
-  test("rejects an account new_value containing two or more consecutive spaces", async () => {
+  test("rejects an account to-value containing two or more consecutive spaces", async () => {
     await expect(
       run({ query: ["payee:EDEKA"], ...acct("expenses:uncategorized", "expenses:food  groceries") }),
     ).rejects.toThrow("two or more consecutive spaces");
   });
 });
 
-// ── field: payee ────────────────────────────────────────────────────
+// ── change_payee ─────────────────────────────────────────────────────
 
-describe("bulk_edit_transactions: field payee", () => {
-  const payee = (from: string, next: string) => ({ field: "payee" as const, from_payee: from, new_value: next });
+describe("bulk_edit_transactions: change_payee", () => {
+  const payee = (from: string, next: string) => ({ action: "change_payee" as const, from: from, to: next });
 
   test("renames the payee, preserving date, status, description, and comment", async () => {
     seed(
@@ -381,7 +381,7 @@ describe("bulk_edit_transactions: field payee", () => {
     expect(content.match(/\* EDEKA/g)).toHaveLength(2);
   });
 
-  test("is a no-op when the payee already equals new_value", async () => {
+  test("is a no-op when the payee already equals `to`", async () => {
     const before = [
       "2026-03-15 * EDEKA",
       posting("expenses:food:groceries", "45.00 EUR"),
@@ -397,7 +397,7 @@ describe("bulk_edit_transactions: field payee", () => {
     expect(result.details.diffs).toHaveLength(0);
   });
 
-  test("renames only the payee that exactly equals from_payee, sparing fuzzy matches", async () => {
+  test("renames only the payee that exactly equals `from`, sparing fuzzy matches", async () => {
     // A `payee:DB` query matches both via case-insensitive substring, but only the exact
     // "DB" payee should be renamed; "GOLDBACH" must be left untouched.
     seed(
@@ -440,7 +440,7 @@ describe("bulk_edit_transactions: field payee", () => {
     expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 * EDEKA | note");
   });
 
-  test("rejects field payee without from_payee", async () => {
+  test("rejects change_payee without from", async () => {
     seed(
       "2026/03.journal",
       [
@@ -450,14 +450,14 @@ describe("bulk_edit_transactions: field payee", () => {
         "",
       ].join("\n"),
     );
-    await expect(run({ query: ["payee:EDK"], field: "payee", new_value: "EDEKA" })).rejects.toThrow(
-      "from_payee is required",
+    await expect(run({ query: ["payee:EDK"], action: "change_payee", to: "EDEKA" })).rejects.toThrow(
+      "from is required",
     );
   });
 
-  test("rejects a payee new_value containing '|' or ';'", async () => {
+  test("rejects a payee to-value containing '|' or ';'", async () => {
     await expect(
-      run({ query: ["payee:EDK"], field: "payee", from_payee: "EDK", new_value: "EDEKA | injected" }),
+      run({ query: ["payee:EDK"], action: "change_payee", from: "EDK", to: "EDEKA | injected" }),
     ).rejects.toThrow("must not contain");
   });
 });
@@ -466,9 +466,9 @@ describe("bulk_edit_transactions: field payee", () => {
 
 describe("bulk_edit_transactions: query, dry_run, validation", () => {
   const recat = {
-    field: "account" as const,
-    from_account: "expenses:uncategorized",
-    new_value: "expenses:food:groceries",
+    action: "change_account" as const,
+    from: "expenses:uncategorized",
+    to: "expenses:food:groceries",
   };
 
   test("matches a single query element containing a space (desc:whole foods)", async () => {
@@ -588,9 +588,9 @@ describe("bulk_edit_transactions: query, dry_run, validation", () => {
 
 describe("bulk_edit_transactions: hledger syntax edge cases", () => {
   const recat = {
-    field: "account" as const,
-    from_account: "expenses:uncategorized",
-    new_value: "expenses:food:groceries",
+    action: "change_account" as const,
+    from: "expenses:uncategorized",
+    to: "expenses:food:groceries",
   };
 
   test("preserves a posting status marker (cleared/pending) when recategorizing", async () => {
@@ -650,7 +650,7 @@ describe("bulk_edit_transactions: hledger syntax edge cases", () => {
       ].join("\n"),
     );
 
-    await run({ query: ["payee:EDK"], field: "payee", from_payee: "EDK", new_value: "EDEKA" });
+    await run({ query: ["payee:EDK"], action: "change_payee", from: "EDK", to: "EDEKA" });
 
     expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15=2026-03-18 * EDEKA | note");
   });
@@ -666,7 +666,7 @@ describe("bulk_edit_transactions: hledger syntax edge cases", () => {
       ].join("\n"),
     );
 
-    await run({ query: ["payee:EDK"], field: "payee", from_payee: "EDK", new_value: "EDEKA" });
+    await run({ query: ["payee:EDK"], action: "change_payee", from: "EDK", to: "EDEKA" });
 
     expect(read("2026/03.journal").split("\n")[0]).toBe("2026-03-15 * (INV42) EDEKA");
   });
@@ -698,7 +698,7 @@ describe("bulk_edit_transactions: hledger syntax edge cases", () => {
     ].join("\r\n");
     seed("2026/03.journal", before);
 
-    await run({ query: ["payee:EDK"], field: "payee", from_payee: "EDK", new_value: "EDEKA" });
+    await run({ query: ["payee:EDK"], action: "change_payee", from: "EDK", to: "EDEKA" });
 
     const raw = read("2026/03.journal");
     expect(raw).toContain("2026-03-15 * EDEKA | note");
@@ -755,9 +755,9 @@ describe("bulk_edit_transactions: hledger syntax edge cases", () => {
 
 describe("bulk_edit_transactions: parameter validation", () => {
   const recat = {
-    field: "account" as const,
-    from_account: "expenses:uncategorized",
-    new_value: "expenses:food:groceries",
+    action: "change_account" as const,
+    from: "expenses:uncategorized",
+    to: "expenses:food:groceries",
   };
 
   test("rejects an empty-string query term", async () => {
@@ -768,21 +768,21 @@ describe("bulk_edit_transactions: parameter validation", () => {
     await expect(run({ query: ["  "], ...recat })).rejects.toThrow("query terms must not be empty");
   });
 
-  test("rejects an unsupported field", async () => {
-    await expect(
-      run({ query: ["payee:EDEKA"], field: "amount", from_account: "x", new_value: "50.00 EUR" }),
-    ).rejects.toThrow("Unsupported field");
-  });
-
-  test("rejects an empty new_value", async () => {
-    await expect(run({ query: ["payee:EDEKA"], field: "account", from_account: "x", new_value: "" })).rejects.toThrow(
-      "new_value must not be empty",
+  test("rejects an unsupported action", async () => {
+    await expect(run({ query: ["payee:EDEKA"], action: "amount", from: "x", to: "50.00 EUR" })).rejects.toThrow(
+      "Unsupported field",
     );
   });
 
-  test("rejects a new_value with leading or trailing whitespace", async () => {
+  test("rejects an empty to-value", async () => {
+    await expect(run({ query: ["payee:EDEKA"], action: "change_account", from: "x", to: "" })).rejects.toThrow(
+      "to must not be empty",
+    );
+  });
+
+  test("rejects a to-value with leading or trailing whitespace", async () => {
     await expect(
-      run({ query: ["payee:EDEKA"], field: "account", from_account: "x", new_value: " expenses:food " }),
+      run({ query: ["payee:EDEKA"], action: "change_account", from: "x", to: " expenses:food " }),
     ).rejects.toThrow("leading or trailing whitespace");
   });
 });
@@ -791,11 +791,11 @@ describe("bulk_edit_transactions: parameter validation", () => {
 
 describe("bulk_edit_transactions: discovery robustness", () => {
   const recat = {
-    field: "account" as const,
-    from_account: "expenses:uncategorized",
-    new_value: "expenses:food:groceries",
+    action: "change_account" as const,
+    from: "expenses:uncategorized",
+    to: "expenses:food:groceries",
   };
-  const rename = { field: "payee" as const, from_payee: "EDEKA", new_value: "Edeka" };
+  const rename = { action: "change_payee" as const, from: "EDEKA", to: "Edeka" };
 
   test("returns zero matches when hledger print outputs invalid JSON", async () => {
     const before = [
@@ -932,9 +932,9 @@ describe("bulk_edit_transactions: discovery robustness", () => {
 
 describe("bulk_edit_transactions: unexpected validation failures", () => {
   const recat = {
-    field: "account" as const,
-    from_account: "expenses:uncategorized",
-    new_value: "expenses:food:groceries",
+    action: "change_account" as const,
+    from: "expenses:uncategorized",
+    to: "expenses:food:groceries",
   };
 
   test("restores files and rethrows when hledger check itself fails unexpectedly", async () => {
@@ -957,10 +957,10 @@ describe("bulk_edit_transactions: unexpected validation failures", () => {
   });
 });
 
-// ── field: status ───────────────────────────────────────────────────
+// ── set_status ───────────────────────────────────────────────────────
 
-describe("bulk_edit_transactions: field status", () => {
-  const status = (next: string) => ({ field: "status" as const, new_value: next });
+describe("bulk_edit_transactions: set_status", () => {
+  const status = (next: string) => ({ action: "set_status" as const, to: next });
 
   test("marks a matched transaction cleared, preserving the rest of the header", async () => {
     seed(
@@ -1173,7 +1173,7 @@ describe("bulk_edit_transactions: field status", () => {
 
   test("rejects an invalid status value", async () => {
     await expect(run({ query: ["payee:EDK"], ...status("done") })).rejects.toThrow(
-      'new_value (status) must be "cleared", "pending", or "unmarked"',
+      'to (status) must be "cleared", "pending", or "unmarked"',
     );
   });
 });
