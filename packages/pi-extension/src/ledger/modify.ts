@@ -61,7 +61,7 @@ export function modifyTransactions(
   dryRun = false,
   signal?: AbortSignal,
 ): Promise<ModifyResult> {
-  // Serialization is handled at the tool layer: the modify_transactions tool is registered
+  // Serialization is handled at the tool layer: the bulk_edit_transactions tool is registered
   // executionMode "sequential", so pi never runs it concurrently with another ledger-writing
   // tool. That keeps concurrent read/edit/write/validate cycles from interleaving on shared
   // journal files.

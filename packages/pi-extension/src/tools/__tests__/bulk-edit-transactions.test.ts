@@ -18,7 +18,7 @@ vi.mock("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-const { modifyTransactionsTool } = await import("../modify-transactions.js");
+const { bulkEditTransactionsTool } = await import("../bulk-edit-transactions.js");
 
 // ── Fake hledger at the spawnText seam ──────────────────────────────
 //
@@ -144,7 +144,7 @@ beforeEach(() => {
 });
 
 const run = (params: any) =>
-  modifyTransactionsTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
+  bulkEditTransactionsTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
 function read(relPath: string): string {
   return readFileSync(join(LEDGER, relPath), "utf-8");
@@ -159,16 +159,16 @@ function posting(account: string, amount: string, col = 50): string {
 
 // ── execution mode ──────────────────────────────────────────────────
 
-describe("modify_transactions execution mode", () => {
+describe("bulk_edit_transactions execution mode", () => {
   test("should run sequentially so ledger writes never interleave", () => {
     // pi runs any batch containing a "sequential" tool one call at a time.
-    expect(modifyTransactionsTool.executionMode).toBe("sequential");
+    expect(bulkEditTransactionsTool.executionMode).toBe("sequential");
   });
 });
 
 // ── field: account ──────────────────────────────────────────────────
 
-describe("modify_transactions: field account", () => {
+describe("bulk_edit_transactions: field account", () => {
   const acct = (from: string, next: string) => ({
     field: "account" as const,
     from_account: from,
@@ -309,7 +309,7 @@ describe("modify_transactions: field account", () => {
 
 // ── field: payee ────────────────────────────────────────────────────
 
-describe("modify_transactions: field payee", () => {
+describe("bulk_edit_transactions: field payee", () => {
   const payee = (from: string, next: string) => ({ field: "payee" as const, from_payee: from, new_value: next });
 
   test("renames the payee, preserving date, status, description, and comment", async () => {
@@ -464,7 +464,7 @@ describe("modify_transactions: field payee", () => {
 
 // ── query handling, dry_run, validation ─────────────────────────────
 
-describe("modify_transactions: query, dry_run, validation", () => {
+describe("bulk_edit_transactions: query, dry_run, validation", () => {
   const recat = {
     field: "account" as const,
     from_account: "expenses:uncategorized",
@@ -586,7 +586,7 @@ describe("modify_transactions: query, dry_run, validation", () => {
 
 // ── hledger syntax edge cases ───────────────────────────────────────
 
-describe("modify_transactions: hledger syntax edge cases", () => {
+describe("bulk_edit_transactions: hledger syntax edge cases", () => {
   const recat = {
     field: "account" as const,
     from_account: "expenses:uncategorized",
@@ -753,7 +753,7 @@ describe("modify_transactions: hledger syntax edge cases", () => {
 
 // ── parameter validation ────────────────────────────────────────────
 
-describe("modify_transactions: parameter validation", () => {
+describe("bulk_edit_transactions: parameter validation", () => {
   const recat = {
     field: "account" as const,
     from_account: "expenses:uncategorized",
@@ -789,7 +789,7 @@ describe("modify_transactions: parameter validation", () => {
 
 // ── discovery robustness ────────────────────────────────────────────
 
-describe("modify_transactions: discovery robustness", () => {
+describe("bulk_edit_transactions: discovery robustness", () => {
   const recat = {
     field: "account" as const,
     from_account: "expenses:uncategorized",
@@ -930,7 +930,7 @@ describe("modify_transactions: discovery robustness", () => {
 
 // ── unexpected validation failures ──────────────────────────────────
 
-describe("modify_transactions: unexpected validation failures", () => {
+describe("bulk_edit_transactions: unexpected validation failures", () => {
   const recat = {
     field: "account" as const,
     from_account: "expenses:uncategorized",

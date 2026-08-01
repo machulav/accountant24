@@ -3,7 +3,7 @@ import { generateDiffString } from "@earendil-works/pi-coding-agent";
 
 // A buffered, snapshot-backed editor for a set of journal files.
 //
-// Ledger writers (add_transactions, modify_transactions) all follow the same shape: read
+// Ledger writers (add_transactions, bulk_edit_transactions) all follow the same shape: read
 // some files, edit them, write the batch to disk, run `hledger check` over the whole
 // ledger, then keep the writes if valid or revert them if not. This class owns that
 // read/write/flush/restore machinery so each tool only supplies the domain-specific edits.

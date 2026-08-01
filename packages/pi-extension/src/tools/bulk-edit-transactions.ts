@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { type ModifyParams, type ModifyResult, modifyTransactions } from "../ledger";
+import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({
   query: Type.Array(Type.String(), {
@@ -35,16 +36,14 @@ const Params = Type.Object({
   ),
 });
 
-const LABEL = "Modify Transactions";
-
-export const modifyTransactionsTool: ToolDefinition<typeof Params, ModifyResult> = {
-  name: "modify_transactions",
-  label: LABEL,
+export const bulkEditTransactionsTool: ToolDefinition<typeof Params, ModifyResult> = {
+  name: "bulk_edit_transactions",
+  label: TOOL_LABELS.bulk_edit_transactions,
   description:
     "Run an hledger query and change one field on every matching transaction: move a posting to a different account, or rename the payee. Edits are surgical; the ledger is validated and the whole batch reverts on error.",
   promptSnippet: "Bulk-edit a field (account or payee) on transactions matching an hledger query",
   promptGuidelines: [
-    "modify_transactions targets transactions with a standard hledger query (e.g. payee:, desc:, acct:, date:), then changes one `field` on all of them.",
+    "bulk_edit_transactions targets transactions with a standard hledger query (e.g. payee:, desc:, acct:, date:), then changes one `field` on all of them.",
     "field 'account' moves postings in `from_account` (exact match) into `new_value`; other postings are never touched. Ensure `new_value` is declared in accounts.journal or the strict check fails and the whole batch reverts.",
     "field 'payee' renames the payee `from_payee` (exact match) to `new_value`, preserving the date, status, description, and comments. Matched transactions with a different payee are left untouched, so a fuzzy query can never rename the wrong one.",
     "hledger query terms are case-insensitive regex substring matches, so payee:DB also matches 'GOLDBACH' and desc:shell matches 'Michelle'. Anchor to be precise, e.g. payee:^EDEKA$, and prefer narrow terms.",
