@@ -561,6 +561,105 @@ describe("addTransaction() file routing", () => {
   });
 });
 
+// ── Date-ordered insertion ──────────────────────────────────────────
+
+describe("addTransaction() date-ordered insertion", () => {
+  const laterEntry = "2026-03-20 * Later | Rent\n    Expenses:Rent    900.00 USD\n    Assets:Checking\n";
+
+  function seedMonthly(content: string) {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    mkdirSync(join(LEDGER, "2026"), { recursive: true });
+    writeFileSync(join(LEDGER, "2026", "03.journal"), content);
+  }
+
+  test("should insert an earlier-dated transaction before existing later entries", async () => {
+    seedMonthly(laterEntry);
+    const result = await addTransaction({ ...basicParams, date: "2026-03-05" });
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toBe(`${result.transactionText}\n\n${laterEntry}`);
+  });
+
+  test("should place an out-of-order batch date-sorted within the monthly file", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    const result = await addTransactions([tx2, basicParams]); // 03-20 first, 03-15 second
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toBe(`${result.transactions[1].transactionText}\n\n${result.transactions[0].transactionText}\n`);
+  });
+
+  test("should insert a same-date transaction after the existing one", async () => {
+    const sameDate = "2026-03-15 * First | Same day\n    Expenses:X    1.00 USD\n    Assets:Checking\n";
+    seedMonthly(`${sameDate}\n${laterEntry}`);
+    const result = await addTransaction(basicParams);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toBe(`${sameDate}\n${result.transactionText}\n\n${laterEntry}`);
+  });
+
+  test("should terminate a file lacking a trailing newline before inserting", async () => {
+    seedMonthly(laterEntry.trimEnd());
+    const result = await addTransaction({ ...basicParams, date: "2026-03-25" });
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toBe(`${laterEntry.trimEnd()}\n\n${result.transactionText}\n`);
+  });
+
+  test("should keep a comment attached to its transaction when inserting before it", async () => {
+    seedMonthly(`; rent note\n${laterEntry}`);
+    const result = await addTransaction({ ...basicParams, date: "2026-03-05" });
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content).toBe(`${result.transactionText}\n\n; rent note\n${laterEntry}`);
+  });
+
+  test("should produce a diff with context lines for a mid-file insert", async () => {
+    const earlyEntry = "2026-03-01 * Early | Coffee\n    Expenses:Coffee    5.00 USD\n    Assets:Checking\n";
+    seedMonthly(`${earlyEntry}\n${laterEntry}`);
+    const result = await addTransaction(basicParams);
+    const lines = result.diff.split("\n").filter((l: string) => l.trim());
+    expect(lines.some((l: string) => l.startsWith("+") && l.includes("Whole Foods"))).toBe(true);
+    expect(lines.some((l: string) => !l.startsWith("+") && !l.startsWith("-"))).toBe(true);
+  });
+
+  test("should insert a backdated balance assertion before later transactions", async () => {
+    seedMonthly(laterEntry);
+    await addBalanceAssertions([
+      { date: "2026-03-10", account: "Assets:Checking", balance: { amount: 500, currency: "USD" } },
+    ]);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content.indexOf("Balance Assertion")).toBeLessThan(content.indexOf("2026-03-20"));
+  });
+
+  test("should insert a backdated price before later transactions", async () => {
+    seedMonthly(laterEntry);
+    await addPrices([{ date: "2026-03-10", commodity: "BTC", price: { amount: 55000, currency: "USD" } }]);
+    const content = readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8");
+    expect(content.indexOf("P 2026-03-10")).toBeLessThan(content.indexOf("2026-03-20"));
+  });
+});
+
+// ── Calendar-date validation ────────────────────────────────────────
+
+describe("calendar-impossible dates", () => {
+  test("should reject a transaction dated on a day that does not exist, before writing anything", async () => {
+    writeFileSync(join(LEDGER, "main.journal"), "");
+    await expect(addTransaction({ ...basicParams, date: "2026-02-31" })).rejects.toThrow(
+      "That calendar day does not exist",
+    );
+    expect(existsSync(join(LEDGER, "2026"))).toBe(false);
+  });
+
+  test("should reject a balance assertion dated on a day that does not exist", async () => {
+    await expect(
+      addBalanceAssertions([
+        { date: "2026-02-30", account: "Assets:Checking", balance: { amount: 1, currency: "USD" } },
+      ]),
+    ).rejects.toThrow("That calendar day does not exist");
+  });
+
+  test("should reject a price dated in a month that does not exist", async () => {
+    await expect(
+      addPrices([{ date: "2026-13-01", commodity: "USD", price: { amount: 0.87, currency: "EUR" } }]),
+    ).rejects.toThrow("That calendar day does not exist");
+  });
+});
+
 // ── main.journal management ─────────────────────────────────────────
 
 describe("addTransaction() main.journal management", () => {

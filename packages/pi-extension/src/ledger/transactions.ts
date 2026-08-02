@@ -1,5 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import {
+  formatBalanceAssertion,
+  formatPrice,
+  formatTransaction,
+  isValidCalendarDate,
+  JournalDoc,
+} from "@accountant24/hledger-journal";
 import { generateDiffString } from "@earendil-works/pi-coding-agent";
 import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck } from "./hledger";
@@ -43,6 +50,7 @@ export interface AddTransactionsResult {
 
 interface FormattedEntry {
   text: string;
+  date: string;
   fileKey: string;
   fullFilePath: string;
 }
@@ -120,7 +128,12 @@ function validateEach<T>(paramsList: T[], validate: (params: T) => void, label: 
 /** Every entry lives in the monthly journal of its date. */
 function routeByMonth(date: string, text: string): FormattedEntry {
   const [year, month] = date.split("-");
-  return { text, fileKey: `${year}/${month}`, fullFilePath: resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR) };
+  return {
+    text,
+    date,
+    fileKey: `${year}/${month}`,
+    fullFilePath: resolveSafePath(`${year}/${month}.journal`, LEDGER_DIR),
+  };
 }
 
 function groupByFile(formatted: FormattedEntry[]): Map<string, FormattedEntry[]> {
@@ -141,7 +154,8 @@ interface FileContents {
   newContents: Map<string, string>;
 }
 
-/** Writes transactions to monthly journal files. Returns old and new contents for diff generation. */
+/** Writes entries to monthly journal files, each inserted in date order among
+ *  the existing entries. Returns old and new contents for diff generation. */
 function writeMonthlyFiles(byFile: Map<string, FormattedEntry[]>): FileContents {
   const oldContents = new Map<string, string>();
   const newContents = new Map<string, string>();
@@ -150,18 +164,14 @@ function writeMonthlyFiles(byFile: Map<string, FormattedEntry[]>): FileContents 
     const fullFilePath = entries[0].fullFilePath;
     mkdirSync(dirname(fullFilePath), { recursive: true });
 
-    const isNew = !existsSync(fullFilePath);
-    const oldContent = isNew ? "" : readFileSync(fullFilePath, "utf-8");
+    const oldContent = existsSync(fullFilePath) ? readFileSync(fullFilePath, "utf-8") : "";
     oldContents.set(fileKey, oldContent);
 
-    const joined = entries.map((e) => e.text).join("\n\n");
-    let newContent: string;
-    if (isNew) {
-      newContent = `${joined}\n`;
-    } else {
-      const separator = oldContent.endsWith("\n") ? "\n" : "\n\n";
-      newContent = `${oldContent}${separator}${joined}\n`;
+    const doc = JournalDoc.open(oldContent);
+    for (const entry of entries) {
+      doc.insertEntry(entry.text, entry.date);
     }
+    const newContent = doc.serialize();
     writeFileSync(fullFilePath, newContent);
     newContents.set(fileKey, newContent);
   }
@@ -249,6 +259,9 @@ function validateInputs(params: Pick<AddTransactionParams, "date" | "postings">)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
     throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
   }
+  if (!isValidCalendarDate(params.date)) {
+    throw new Error(`Invalid date: ${params.date}. That calendar day does not exist.`);
+  }
   if (params.postings.length < 2) {
     throw new Error("At least 2 postings are required.");
   }
@@ -266,6 +279,9 @@ function validateAssertionInputs(params: AddBalanceAssertionParams): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
     throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
   }
+  if (!isValidCalendarDate(params.date)) {
+    throw new Error(`Invalid date: ${params.date}. That calendar day does not exist.`);
+  }
   if (!params.account) {
     throw new Error("Balance assertion is missing an account.");
   }
@@ -281,6 +297,9 @@ function validatePriceInputs(params: AddPriceParams): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
     throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
   }
+  if (!isValidCalendarDate(params.date)) {
+    throw new Error(`Invalid date: ${params.date}. That calendar day does not exist.`);
+  }
   if (!params.commodity) {
     throw new Error("Price is missing a commodity.");
   }
@@ -293,75 +312,4 @@ function validatePriceInputs(params: AddPriceParams): void {
   if (!params.price.currency) {
     throw new Error(`Price for ${params.commodity} is missing the currency.`);
   }
-}
-
-function formatTransaction(params: AddTransactionParams): string {
-  const header = params.description
-    ? `${params.date} * ${params.payee} | ${params.description}`
-    : `${params.date} * ${params.payee}`;
-
-  const lines = [header];
-
-  if (params.tags?.length) {
-    const sortedTags = [...params.tags].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-    );
-    for (const tag of sortedTags) {
-      lines.push(tag.value != null ? `    ; ${tag.name}: ${tag.value}` : `    ; ${tag.name}:`);
-    }
-  }
-
-  const sortedPostings = [...params.postings].sort((a, b) => {
-    const groupA = a.amount < 0 ? 0 : 1;
-    const groupB = b.amount < 0 ? 0 : 1;
-    return groupA - groupB;
-  });
-
-  for (const p of sortedPostings) {
-    const sign = p.amount < 0 ? "-" : "";
-    const amountStr = `${sign}${Math.abs(p.amount).toFixed(2)} ${p.currency}`;
-    const prefix = `    ${p.account}`;
-    // Align first digit at column 70 (1-indexed); sign hangs left at 69
-    const targetCol = 69 - sign.length;
-    const pad = Math.max(2, targetCol - prefix.length);
-    lines.push(`${prefix}${" ".repeat(pad)}${amountStr}`);
-  }
-
-  return lines.join("\n");
-}
-
-/** Every checkpoint carries the same canonical payee, so assertions are easy
- *  to spot (and query) in the journal. */
-const BALANCE_ASSERTION_PAYEE = "Balance Assertion";
-
-function formatBalanceAssertion(params: AddBalanceAssertionParams): string {
-  const header = `${params.date} * ${BALANCE_ASSERTION_PAYEE}`;
-  // A zero-amount posting moves no money and balances on its own; hledger's
-  // `= balance` after the amount is the assertion being checked.
-  const amountStr = `0.00 ${params.balance.currency}`;
-  const prefix = `    ${params.account}`;
-  const pad = Math.max(2, 69 - prefix.length);
-  const assertion = ` = ${params.balance.amount.toFixed(2)} ${params.balance.currency}`;
-  return `${header}\n${prefix}${" ".repeat(pad)}${amountStr}${assertion}`;
-}
-
-/** hledger requires double quotes around a commodity symbol containing
- *  anything besides letters or currency signs (digits, spaces, punctuation)
- *  — e.g. a ticker like "SOL2". */
-function quoteCommodity(commodity: string): string {
-  return /^[\p{L}\p{Sc}]+$/u.test(commodity) ? commodity : `"${commodity}"`;
-}
-
-/** Plain decimal rendering preserving the given precision — market rates
- *  carry meaning in their decimals (0.0205), so no fixed rounding; tiny
- *  rates must never fall into exponential notation. */
-function formatPriceAmount(amount: number): string {
-  const plain = String(amount);
-  if (!plain.toLowerCase().includes("e")) return plain;
-  return amount.toFixed(20).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function formatPrice(params: AddPriceParams): string {
-  const amount = `${formatPriceAmount(params.price.amount)} ${quoteCommodity(params.price.currency)}`;
-  return `P ${params.date} ${quoteCommodity(params.commodity)} ${amount}`;
 }

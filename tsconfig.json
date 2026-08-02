@@ -11,5 +11,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["packages/pi-extension/src/**/*.ts"]
+  "include": ["packages/pi-extension/src/**/*.ts", "packages/hledger-journal/src/**/*.ts"]
 }

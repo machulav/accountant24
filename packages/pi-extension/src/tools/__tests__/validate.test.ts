@@ -3,7 +3,7 @@ import { spawnText } from "../../spawn";
 
 vi.mock("../../spawn");
 
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -71,4 +71,31 @@ test("throws on validation failure", async () => {
 test("re-throws unexpected errors", async () => {
   vi.mocked(spawnText).mockRejectedValue(new TypeError("unexpected"));
   await expect(run({})).rejects.toThrow("unexpected");
+});
+
+test("summarizes the journal files it sorted and formatted", async () => {
+  vi.mocked(spawnText).mockImplementation(async (cmd: string[]) =>
+    cmd[1] === "print" ? makeMockProc(0, "[]") : makeMockProc(0),
+  );
+  mkdirSync(join(LEDGER, "2026"), { recursive: true });
+  writeFileSync(join(LEDGER, "2026", "03.journal"), "2026-03-05 * Shop\n  Expenses:Food  45.00 EUR\n  Assets:Cash\n");
+  const result = await run({});
+  expect(result.content[0].text).toContain("The ledger is valid.");
+  expect(result.content[0].text).toContain("Sorted and formatted 1 journal file(s):");
+  expect(result.content[0].text).toContain(join(LEDGER, "2026", "03.journal"));
+  expect(result.details.tidy.changed).toBe(1);
+});
+
+test("lists entries left outside the canonical format", async () => {
+  vi.mocked(spawnText).mockImplementation(async (cmd: string[]) =>
+    cmd[1] === "print" ? makeMockProc(0, "[]") : makeMockProc(0),
+  );
+  mkdirSync(join(LEDGER, "2026"), { recursive: true });
+  writeFileSync(
+    join(LEDGER, "2026", "03.journal"),
+    "2026-03-20 * Rent\n  Expenses:Rent  900.00 EUR\n  Assets:Bank\n\n2026-03-10 * Weird\n    Assets:X    1 BTC @ 55000 EUR\n",
+  );
+  const result = await run({});
+  expect(result.content[0].text).toContain("Entries left as written");
+  expect(result.content[0].text).toContain("cost notation (@) is not supported");
 });
