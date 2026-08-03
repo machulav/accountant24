@@ -16,7 +16,7 @@ const RESOURCES = [
   { label: "Changelog", href: "https://github.com/machulav/accountant24/releases" },
   { label: "Report an issue", href: "https://github.com/machulav/accountant24/issues" },
   { label: "Source code", href: "https://github.com/machulav/accountant24" },
-  { label: "MIT license", href: "https://github.com/machulav/accountant24/blob/main/LICENSE" },
+  { label: "Apache 2.0 license", href: "https://github.com/machulav/accountant24/blob/main/LICENSE" },
 ];
 
 /** A whole-row external link (the Item renders as an anchor, so the stock

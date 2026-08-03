@@ -135,4 +135,4 @@ This is a personal project I use every day, and I'd love to hear from anyone els
 
 ## License
 
-[MIT](LICENSE)
+[Apache 2.0](LICENSE)

@@ -1,6 +1,7 @@
 {
   "name": "@accountant24/pi-extension",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Accountant24 customization for pi: ledger tools, commands, system prompt, scaffolding.",
   "dependencies": {

@@ -86,9 +86,9 @@ describe("AboutSettings", () => {
     expect(link).toHaveAttribute("href", "https://github.com/machulav/accountant24");
   });
 
-  it("should link the MIT license", async () => {
+  it("should link the Apache 2.0 license", async () => {
     render(<AboutSettings />);
-    const link = await screen.findByRole("link", { name: "MIT license" });
+    const link = await screen.findByRole("link", { name: "Apache 2.0 license" });
     expect(link).toHaveAttribute("href", "https://github.com/machulav/accountant24/blob/main/LICENSE");
   });
 

@@ -31,7 +31,7 @@
     url: BASE,
     downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
     softwareHelp: BASE + "/docs/quickstart",
-    license: "https://opensource.org/licenses/MIT",
+    license: "https://www.apache.org/licenses/LICENSE-2.0",
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     publisher: { "@id": BASE + "/#organization" },
@@ -63,7 +63,7 @@
       ),
       qa(
         "Is it really free?",
-        "Yes. Accountant24 is free and open source (MIT), with no subscription. If you use a paid LLM provider you pay them for your own usage; with a local model there's nothing to pay at all."
+        "Yes. Accountant24 is free and open source (Apache 2.0), with no subscription. If you use a paid LLM provider you pay them for your own usage; with a local model there's nothing to pay at all."
       ),
       qa(
         "What format is my data in, and is there lock-in?",
