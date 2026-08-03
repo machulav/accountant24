@@ -6,7 +6,7 @@ import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { killAllAgents, registerAgentIpc } from "./agent/router";
 import { registerSessionsIpc } from "./agent/sessions";
 import { registerSkillsIpc } from "./agent/skills";
-import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
+import { initAnalytics, registerAnalyticsIpc, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerAuthIpc } from "./llm-providers/auth";
@@ -51,7 +51,7 @@ app.whenReady().then(() => {
   registerOllamaIpc();
   registerSessionsIpc();
   registerSkillsIpc(getWin);
-  registerSettingsIpc({ onAnalyticsToggled: trackAnalyticsToggle });
+  registerSettingsIpc();
   registerFilesIpc();
   registerLedgerIpc();
   registerAnalyticsIpc();

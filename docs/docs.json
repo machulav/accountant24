@@ -23,7 +23,7 @@
       },
       {
         "group": "Resources",
-        "pages": ["docs/comparison", "docs/faq"]
+        "pages": ["docs/comparison", "docs/settings", "docs/faq"]
       }
     ]
   },

@@ -1,0 +1,33 @@
+---
+title: "Settings"
+sidebarTitle: "Settings"
+description: "Every option in Accountant24's app-settings.json settings file and the values each one accepts."
+---
+
+Accountant24 stores its settings in `~/Accountant24/app-settings.json`. The app updates the file when you change options in **Settings**. You can also edit it by hand; restart the app afterwards to apply the changes.
+
+```json
+{
+  "defaultModel": "anthropic/claude-sonnet-4-5",
+  "enabledModels": ["anthropic/claude-sonnet-4-5", "ollama/qwen3"],
+  "analyticsEnabled": false
+}
+```
+
+## `defaultModel`
+
+The model new chats start with. A model id in the `provider/model` form, for example `anthropic/claude-sonnet-4-5`. Managed in **Settings → Models**.
+
+## `enabledModels`
+
+The models available in the chat's model picker. A list of `provider/model` ids. An empty list or a missing key means all models of the connected providers are available. Managed in **Settings → Models**.
+
+## `analyticsEnabled`
+
+Whether the app sends anonymous usage analytics: `true` or `false`. A missing key means `true`.
+
+The app sends basic usage events together with the app version, operating system, and country to [Aptabase](https://aptabase.com/legal/privacy), a privacy-first analytics service hosted in the EU. They contain nothing that can identify you. Your personal or financial data, messages, and files are never sent.
+
+## `onceEvents`
+
+A list of one-time analytics milestones the app has already sent, so each is sent at most once per install. The app manages this key. There is no reason to edit it.

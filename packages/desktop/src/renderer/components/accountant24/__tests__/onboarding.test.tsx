@@ -81,12 +81,6 @@ describe("Onboarding", () => {
     expect(screen.getByText("Run local models · free and fully offline")).toBeInTheDocument();
   });
 
-  it("should disclose that anonymous analytics are collected but personal data is never sent", () => {
-    render(<Onboarding />);
-    expect(screen.getByText(/We collect anonymous analytics to improve Accountant24\./)).toBeInTheDocument();
-    expect(screen.getByText(/Your personal or financial data is never sent\./)).toBeInTheDocument();
-  });
-
   it("should keep the Settings dialog closed until an option is chosen", () => {
     render(<Onboarding />);
     expect(screen.queryByRole("dialog")).toBeNull();

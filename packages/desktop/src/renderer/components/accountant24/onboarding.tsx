@@ -54,11 +54,6 @@ export function Onboarding() {
             />
           </div>
         </div>
-
-        <p className="text-muted-foreground/70 mx-auto max-w-xl pt-8 text-center text-xs text-pretty">
-          We collect anonymous analytics to improve Accountant24. Your personal or financial data is never sent. You can
-          turn this off any time in Settings → Privacy.
-        </p>
       </div>
       <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>

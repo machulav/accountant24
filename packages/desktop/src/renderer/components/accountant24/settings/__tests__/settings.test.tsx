@@ -79,7 +79,7 @@ const renderSettings = (open = true) => {
 describe("Settings shell", () => {
   it("should render every category in the nav when open", () => {
     renderSettings(true);
-    for (const label of ["Providers", "Models", "Privacy", "Shortcuts", "About"]) {
+    for (const label of ["Providers", "Models", "Skills", "Shortcuts", "About"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
@@ -106,13 +106,6 @@ describe("Settings shell", () => {
     renderSettings(true);
     fireEvent.click(screen.getByRole("button", { name: "Skills" }));
     expect(await screen.findByText("Add from GitHub repository")).toBeInTheDocument();
-    expect(screen.queryByText("Loading providers…")).toBeNull();
-  });
-
-  it("should swap to the Privacy pane when Privacy is clicked", async () => {
-    renderSettings(true);
-    fireEvent.click(screen.getByRole("button", { name: "Privacy" }));
-    expect(await screen.findByText("Analytics")).toBeInTheDocument();
     expect(screen.queryByText("Loading providers…")).toBeNull();
   });
 

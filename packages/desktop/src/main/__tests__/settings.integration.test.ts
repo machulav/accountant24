@@ -17,11 +17,11 @@ vi.mock("electron", () => ({
 const ws = makeTmpWorkspace();
 
 /** Fresh module + handlers against the current temp workspace. */
-async function load(opts?: { onAnalyticsToggled?: (enabled: boolean) => void }) {
+async function load() {
   vi.resetModules();
   h.handlers.clear();
   const mod = await import("../settings");
-  mod.registerSettingsIpc(opts);
+  mod.registerSettingsIpc();
   return mod;
 }
 
@@ -112,26 +112,6 @@ describe("settings persistence (real fs)", () => {
       expect(mod.consumeOnce("a")).toBe(true);
       expect(mod.consumeOnce("b")).toBe(true);
       expect(readJson("app-settings.json").onceEvents).toEqual(["a", "b"]);
-    });
-  });
-
-  describe("analytics toggle callback", () => {
-    it("should invoke onAnalyticsToggled only when the value actually flips", async () => {
-      const onAnalyticsToggled = vi.fn();
-      await load({ onAnalyticsToggled });
-
-      set({ defaultModel: "a/1" }); // unrelated change — no flip
-      expect(onAnalyticsToggled).not.toHaveBeenCalled();
-
-      set({ analyticsEnabled: false }); // on (default) -> off
-      expect(onAnalyticsToggled).toHaveBeenLastCalledWith(false);
-
-      set({ analyticsEnabled: false }); // already off — no flip
-      expect(onAnalyticsToggled).toHaveBeenCalledTimes(1);
-
-      set({ analyticsEnabled: true }); // off -> on
-      expect(onAnalyticsToggled).toHaveBeenLastCalledWith(true);
-      expect(onAnalyticsToggled).toHaveBeenCalledTimes(2);
     });
   });
 

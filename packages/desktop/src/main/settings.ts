@@ -77,18 +77,10 @@ function writeSettings(patch: Partial<AppSettings>): AppSettings {
   return merged;
 }
 
-/** Register settings IPC handlers.
- *  @param opts.onAnalyticsToggled called when `analyticsEnabled` actually flips,
- *    with the new value — lets the caller record the opt-in/opt-out. */
-export function registerSettingsIpc(opts?: { onAnalyticsToggled?: (enabled: boolean) => void }): void {
+/** Register settings IPC handlers. */
+export function registerSettingsIpc(): void {
   ipcMain.handle("settings_get", () => readSettings());
-  ipcMain.handle("settings_set", (_e, patch: Partial<AppSettings>) => {
-    const before = readSettings().analyticsEnabled ?? true;
-    const merged = writeSettings(patch);
-    const after = merged.analyticsEnabled ?? true;
-    if (after !== before) opts?.onAnalyticsToggled?.(after);
-    return merged;
-  });
+  ipcMain.handle("settings_set", (_e, patch: Partial<AppSettings>) => writeSettings(patch));
 }
 
 /** Whether anonymous usage analytics are enabled (default on, opt-out). */
