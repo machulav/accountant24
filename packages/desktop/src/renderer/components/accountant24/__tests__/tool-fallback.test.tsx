@@ -157,7 +157,7 @@ describe("ToolFallback", () => {
     const status: ToolCallMessagePartStatus = { type: "incomplete", reason: "cancelled" };
     render(<ToolFallback {...partProps({ status, result: "partial" })} />);
     const label = screen.getByText("Query Ledger");
-    expect(label.parentElement?.className).toContain("line-through");
+    expect(label.className).toContain("line-through");
     fireEvent.click(label);
     expect(screen.queryByText("Output:")).toBeNull();
     expect(screen.queryByText("partial")).toBeNull();

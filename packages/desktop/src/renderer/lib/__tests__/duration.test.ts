@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { formatDuration } from "../duration";
 
 describe("formatDuration()", () => {
-  it("should return '<1s' when ms is 0", () => {
-    expect(formatDuration(0)).toBe("<1s");
+  it("should return '1s' when ms is 0 (sub-second rounds up, never '0s' or '<1s')", () => {
+    expect(formatDuration(0)).toBe("1s");
   });
 
-  it("should return '<1s' when ms is 999", () => {
-    expect(formatDuration(999)).toBe("<1s");
+  it("should return '1s' when ms is 999", () => {
+    expect(formatDuration(999)).toBe("1s");
   });
 
   it("should return '1s' when ms is 1000", () => {

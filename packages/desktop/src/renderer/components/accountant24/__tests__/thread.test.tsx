@@ -20,15 +20,23 @@ vi.mock("@/rpc/api", () => ({
 }));
 
 // The chain-of-thought timer reads the raw pi transcript (per-turn timestamps)
-// through usePiThreadState. Stub just that hook so specs can supply a
-// transcript; everything else in react-pi stays real.
-const pi = vi.hoisted(() => ({ transcript: [] as { role: string; timestamp?: number }[] }));
+// and the compaction indicator reads the compaction flag, both through
+// usePiThreadState. Stub just that hook so specs can supply the state;
+// everything else in react-pi stays real.
+const pi = vi.hoisted(() => ({
+  transcript: [] as { role: string; timestamp?: number }[],
+  compaction: { active: false },
+  threadId: "/ws/sessions/t1.jsonl",
+}));
 vi.mock("@assistant-ui/react-pi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react-pi")>()),
-  usePiThreadState: (selector: (st: { messages: unknown[] }) => unknown) => selector({ messages: pi.transcript }),
+  usePiThreadState: (
+    selector: (st: { messages: unknown[]; compaction: { active: boolean }; threadId: string }) => unknown,
+  ) => selector({ messages: pi.transcript, compaction: pi.compaction, threadId: pi.threadId }),
 }));
 
 import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRuntime } from "@assistant-ui/react";
+import { addPendingCompactionMarker, resetPendingCompactionMarkers } from "@/runtime/pendingCompaction";
 import { Thread, type ThreadComponents } from "../thread";
 
 beforeAll(() => {
@@ -39,6 +47,8 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   pi.transcript = [];
+  pi.compaction = { active: false };
+  resetPendingCompactionMarkers();
 });
 
 type Msg = {
@@ -202,6 +212,147 @@ describe("Thread working indicator", () => {
     );
     const status = await screen.findByRole("status", { name: "Assistant is working" });
     expect(status).toBeInTheDocument();
+  });
+});
+
+describe("Thread compaction marker", () => {
+  /** A running assistant turn mid-chain (reasoning + tool, nothing answered yet). */
+  const runningChainMsg = (): Msg => ({
+    id: "a1",
+    role: "assistant",
+    status: { type: "running" },
+    content: [
+      { type: "reasoning", text: "Deciding which report to run" },
+      { type: "tool-call", toolCallId: "t1", toolName: "query", args: {}, result: "ok" },
+    ],
+  });
+
+  /** The transcript message pi persists for a finished compaction. */
+  const markerMsg = (): Msg => ({
+    id: "m1",
+    role: "assistant",
+    content: [
+      {
+        type: "data",
+        name: "pi-compaction-summary",
+        data: { summary: "Earlier: reviewed Q1 spending.", tokensBefore: 31000 },
+      },
+    ],
+  });
+
+  describe("while compacting", () => {
+    it("should show the status divider inside the last message when a compaction runs mid-run", async () => {
+      pi.compaction = { active: true };
+      render(
+        <Chrome isRunning messages={[runningChainMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      const label = await screen.findByText("Compacting conversation");
+      const divider = label.closest('[data-slot="aui_compaction-indicator"]') as HTMLElement;
+      expect(divider.getAttribute("role")).toBe("status");
+      // In the last message's content flow: the turn anchor stretches the last
+      // message root, so a stream-level sibling would land below the stretch.
+      expect(divider.closest("[data-role=assistant]")).not.toBeNull();
+    });
+
+    it("should show the status divider when the running last message has no timeline yet", async () => {
+      pi.compaction = { active: true };
+      render(
+        <Chrome isRunning messages={[{ id: "a1", role: "assistant", status: { type: "running" }, content: [] }]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Compacting conversation")).toBeInTheDocument();
+    });
+
+    it("should show the status divider under a finished last message (post-turn threshold compaction)", async () => {
+      pi.compaction = { active: true };
+      render(
+        <Chrome messages={[chainMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Worked through 2 steps")).toBeInTheDocument();
+      expect(screen.getByText("Compacting conversation")).toBeInTheDocument();
+    });
+
+    it("should switch to the settled label in place while the marker is still parked", async () => {
+      // Compaction finished (flag off) but the transcript marker is deferred
+      // until the next prompt — the divider must settle in place, not vanish.
+      addPendingCompactionMarker(pi.threadId, { summary: "s", timestamp: 1000 });
+      render(
+        <Chrome messages={[chainMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Conversation compacted")).toBeInTheDocument();
+      expect(screen.queryByText("Compacting conversation")).toBeNull();
+    });
+
+    it("should show nothing once the parked marker was consumed", async () => {
+      render(
+        <Chrome messages={[chainMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Worked through 2 steps")).toBeInTheDocument();
+      expect(screen.queryByText("Conversation compacted")).toBeNull();
+    });
+
+    it("should not show the status divider when no compaction is running", async () => {
+      render(
+        <Chrome isRunning messages={[runningChainMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Working")).toBeInTheDocument();
+      expect(screen.queryByText("Compacting conversation")).toBeNull();
+    });
+
+    it("should not show the status divider on a message that is not the last one", async () => {
+      pi.compaction = { active: true };
+      render(
+        <Chrome messages={[chainMsg(), userMsg("next question")]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("next question")).toBeInTheDocument();
+      expect(screen.queryByText("Compacting conversation")).toBeNull();
+    });
+  });
+
+  describe("once compacted", () => {
+    it("should render the marker from the transcript message, with no summary details", async () => {
+      render(
+        <Chrome messages={[markerMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect(await screen.findByText("Conversation compacted")).toBeInTheDocument();
+      expect(screen.queryByText("Earlier: reviewed Q1 spending.")).toBeNull();
+    });
+
+    it("should keep the marker between the work before and after it", async () => {
+      render(
+        <Chrome messages={[chainMsg(), markerMsg(), userMsg("next question")]}>
+          <Thread />
+        </Chrome>,
+      );
+      const marker = await screen.findByText("Conversation compacted");
+      const order = [...document.querySelectorAll("[data-role], [data-slot=aui_compaction-summary]")];
+      expect(order.indexOf(marker.closest("[data-slot=aui_compaction-summary]") as Element)).toBeGreaterThan(0);
+      expect(screen.getByText("next question")).toBeInTheDocument();
+    });
+
+    it("should not shimmer once settled", async () => {
+      render(
+        <Chrome messages={[markerMsg()]}>
+          <Thread />
+        </Chrome>,
+      );
+      expect((await screen.findByText("Conversation compacted")).className).not.toContain("shimmer");
+    });
   });
 });
 

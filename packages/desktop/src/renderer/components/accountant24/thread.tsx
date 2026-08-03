@@ -17,6 +17,7 @@ import {
   ChainOfThoughtStep,
   splitReasoningSections,
 } from "@/components/accountant24/chain-of-thought";
+import { CompactionIndicator, CompactionSummary } from "@/components/accountant24/compaction-indicator";
 import { Composer, EditComposer, isNewChatView } from "@/components/accountant24/composer";
 import { MarkdownText } from "@/components/accountant24/markdown-text";
 import { MessageError } from "@/components/accountant24/message-error";
@@ -76,12 +77,13 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
-        // scroll-fade-t-6: fade older messages at the top edge (24px). The
-        // sticky composer lives inside this container, so no bottom fade. The
-        // size is paired with pt-6 on the user-message root: turnAnchor="top"
-        // pins that element's box to the edge, so its padding keeps the just
-        // sent bubble below the fade zone.
-        className="scroll-fade-t scroll-fade-t-6 relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+        // Fade older messages at the top edge. The sticky composer lives
+        // inside this container, so no bottom fade. The fade height and the
+        // user-message root's pt-chat-turn share the chat-turn token (see the
+        // CHAT SPACING block in index.css): turnAnchor="top" pins that
+        // element's box to the edge, and its padding keeps the just sent
+        // bubble below the fade zone.
+        className="scroll-fade-t scroll-fade-t-(length:--spacing-chat-turn) relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
           className={cn(
@@ -93,7 +95,13 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <Welcome />
           </AuiIf>
 
-          <MessageGroup className="mb-14 gap-6 empty:hidden">
+          {/* SPACING CONTRACT (see the CHAT SPACING block in index.css):
+              gap-chat-gap owns ALL vertical spacing between stream elements
+              (messages, markers, status rows). Stream-level children must not
+              add vertical margins of their own; the user message's
+              pt-chat-turn (scroll-fade anchor) is the one deliberate
+              exception. */}
+          <MessageGroup className="mb-14 gap-chat-gap empty:hidden">
             <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
           </MessageGroup>
 
@@ -204,6 +212,7 @@ const AssistantMessage: FC = () => {
                   </ChainOfThoughtStep>
                 );
               case "data":
+                if (part.name === "pi-compaction-summary") return <CompactionSummary />;
                 return part.dataRendererUI;
               case "indicator":
                 return (
@@ -225,6 +234,9 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
+        {/* In the content flow, not the stream: the turn anchor stretches the
+            last message, so a stream sibling would land below the stretch. */}
+        <CompactionIndicator />
         <MessageError />
       </div>
     </MessagePrimitive.Root>
@@ -235,10 +247,11 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      // pt-6 matches the viewport's scroll-fade-t-6: the top anchor pins this
-      // element's box to the viewport edge, so the padding keeps the bubble
-      // out of the fade zone right after sending.
-      className="fade-in slide-in-from-bottom-1 animate-in px-2 pt-6 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto]"
+      // pt-chat-turn matches the viewport's fade-zone height (same token, see
+      // CHAT SPACING in index.css): the top anchor pins this element's box to
+      // the viewport edge, so the padding keeps the bubble out of the fade
+      // zone right after sending.
+      className="fade-in slide-in-from-bottom-1 animate-in px-2 pt-chat-turn duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto]"
       data-role="user"
     >
       <Message align="end">
