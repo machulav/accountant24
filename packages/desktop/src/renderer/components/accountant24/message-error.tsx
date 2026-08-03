@@ -9,7 +9,7 @@ export const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root asChild>
-        <Bubble variant="destructive" className="mt-3">
+        <Bubble variant="destructive" className="mt-chat-rhythm">
           <BubbleContent className="flex items-center gap-2">
             <AlertCircleIcon className="size-4 shrink-0" />
             <ErrorPrimitive.Message className="line-clamp-2" />

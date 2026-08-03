@@ -40,7 +40,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="aui-code-header-root bg-input/50 mt-3 flex items-center justify-between rounded-t-xl px-3.5 py-1.5 text-xs">
+    <div className="aui-code-header-root bg-input/50 mt-chat-rhythm flex items-center justify-between rounded-t-xl px-3.5 py-1.5 text-xs">
       <span className="aui-code-header-language text-muted-foreground font-medium lowercase">{language}</span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
         {!isCopied && <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />}
@@ -82,7 +82,7 @@ const defaultComponents = memoizeMarkdownComponents({
     <h6 className={cn("aui-md-h6 mt-3 mb-1 text-sm font-medium first:mt-0 last:mb-0", className)} {...props} />
   ),
   p: ({ className, ...props }) => (
-    <p className={cn("aui-md-p my-3 leading-relaxed first:mt-0 last:mb-0", className)} {...props} />
+    <p className={cn("aui-md-p my-chat-rhythm leading-relaxed first:mt-0 last:mb-0", className)} {...props} />
   ),
   a: ({ className, ...props }) => (
     <a
@@ -93,7 +93,7 @@ const defaultComponents = memoizeMarkdownComponents({
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "aui-md-blockquote border-muted-foreground/30 text-muted-foreground my-3 border-s-2 ps-4",
+        "aui-md-blockquote border-muted-foreground/30 text-muted-foreground my-chat-rhythm border-s-2 ps-4",
         className,
       )}
       {...props}
@@ -101,18 +101,18 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   ul: ({ className, ...props }) => (
     <ul
-      className={cn("aui-md-ul marker:text-muted-foreground my-3 ms-5 list-disc [&>li]:mt-1", className)}
+      className={cn("aui-md-ul marker:text-muted-foreground my-chat-rhythm ms-5 list-disc [&>li]:mt-1", className)}
       {...props}
     />
   ),
   ol: ({ className, ...props }) => (
     <ol
-      className={cn("aui-md-ol marker:text-muted-foreground my-3 ms-5 list-decimal [&>li]:mt-1", className)}
+      className={cn("aui-md-ol marker:text-muted-foreground my-chat-rhythm ms-5 list-decimal [&>li]:mt-1", className)}
       {...props}
     />
   ),
   hr: ({ className, ...props }) => (
-    <hr className={cn("aui-md-hr border-muted-foreground/20 my-3", className)} {...props} />
+    <hr className={cn("aui-md-hr border-muted-foreground/20 my-chat-rhythm", className)} {...props} />
   ),
   table: MarkdownTable,
   th: ({ className, ...props }) => (
