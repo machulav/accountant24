@@ -1,0 +1,59 @@
+---
+title: "Connect other apps"
+sidebarTitle: "Connect other apps"
+description: "Chat with your ledger from Buzz, Zed, or any other app that speaks the Agent Client Protocol."
+---
+
+Accountant24 speaks the [Agent Client Protocol](https://agentclientprotocol.com) (ACP), the open standard agent apps use to talk to coding agents. Register one command and you can chat with your ledger from Buzz, Zed, Neovim, or anything else that supports ACP.
+
+## Find your command
+
+Open Settings → Connect and copy the command. It looks like this:
+
+```
+/Applications/Accountant24.app/Contents/Resources/accountant24-acp
+```
+
+That path is all any ACP client needs. There are no arguments and no environment variables to set, and Accountant24 itself does not have to be running.
+
+## Buzz
+
+1. Open Add runtimes and choose **Custom harness**.
+2. Set **Name** to `Accountant24`. The ID fills in automatically.
+3. Paste the command into **Command**.
+4. Leave Arguments and Env vars empty.
+5. Save, then pick Accountant24 as the runtime for an agent.
+
+## Zed
+
+Add this to your `settings.json`:
+
+```json
+{
+  "agent_servers": {
+    "Accountant24": {
+      "type": "custom",
+      "command": "/Applications/Accountant24.app/Contents/Resources/accountant24-acp",
+      "args": []
+    }
+  }
+}
+```
+
+## What to expect
+
+Everything points at the same `~/Accountant24` workspace, so a chat you start in another app shows up in your Accountant24 chat list, and the ledger stays the single source of truth.
+
+The model picker in the other app lists the models you enabled in Settings → Models, and starts on your default model. Switching models there affects that chat only.
+
+A few things worth knowing:
+
+- **Accountant24 ignores the working directory the client sends.** It is a ledger agent, not a coding agent, so it always works on your ledger rather than on whatever folder the other app is pointed at.
+- **MCP servers configured in the other app are ignored.** The agent uses its own ledger tools.
+- **Connect a provider first.** If no model provider is set up, the other app reports that authentication is required. Open Settings → Providers in Accountant24 to connect one.
+
+## Troubleshooting
+
+**The client reports that the command was not found.** Check the exact path in Settings → Connect. If you moved Accountant24 out of your Applications folder, the path changed with it.
+
+**Nothing happens after connecting.** Most clients keep a log of what the agent wrote to its error stream. Accountant24 reports startup problems there, prefixed with `[accountant24-acp]`.

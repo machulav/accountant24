@@ -14,6 +14,7 @@
 
 import { join } from "node:path";
 import {
+  type AgentSessionRuntime,
   AuthStorage,
   type CreateAgentSessionRuntimeFactory,
   createAgentSessionFromServices,
@@ -27,12 +28,40 @@ import type { AgentHostConfig } from "../../../shared/agentHost";
 import { enabledSkillPaths } from "../skills-store";
 import type { RuntimeFactory, UiBridge } from "./host";
 
+/** Same factory as {@link createRuntimeFactory}, typed as the real pi runtime.
+ *  The agent host only needs the narrowed `HostRuntime` slice (so its tests can
+ *  drive fakes), but the ACP entrypoint talks to the session directly and needs
+ *  the full type. */
+export type PiRuntimeFactory = (sessionPath: string, ui: UiBridge) => Promise<AgentSessionRuntime>;
+
+/** One auth/models registry pair, reading the workspace files the
+ *  llm-providers/ modules write. Shared by every session in a host — killing
+ *  the host (the agent_restart flow) is what picks up credential changes. The
+ *  ACP entrypoint creates its own and passes it in, so its model list and its
+ *  sessions agree. */
+export function createRegistries(workspaceDir: string): Registries {
+  const authStorage = AuthStorage.create(join(workspaceDir, "auth.json"));
+  return {
+    authStorage,
+    modelRegistry: ModelRegistry.create(authStorage, join(workspaceDir, "models.json")),
+  };
+}
+
+export interface Registries {
+  authStorage: AuthStorage;
+  modelRegistry: ModelRegistry;
+}
+
+/** The narrowed view the agent host consumes. */
 export function createRuntimeFactory(cfg: AgentHostConfig): RuntimeFactory {
-  // One auth/models registry shared by every session in this host — reading
-  // the workspace files the llm-providers/ modules write. Killing the host (the
-  // agent_restart flow) is what picks up credential changes.
-  const authStorage = AuthStorage.create(join(cfg.workspaceDir, "auth.json"));
-  const modelRegistry = ModelRegistry.create(authStorage, join(cfg.workspaceDir, "models.json"));
+  return createPiRuntimeFactory(cfg);
+}
+
+export function createPiRuntimeFactory(
+  cfg: AgentHostConfig,
+  registries: Registries = createRegistries(cfg.workspaceDir),
+): PiRuntimeFactory {
+  const { authStorage, modelRegistry } = registries;
 
   return async (sessionPath, ui) => {
     const factory: CreateAgentSessionRuntimeFactory = async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {

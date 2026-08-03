@@ -9,7 +9,7 @@ import { Button } from "@/components/shadcn/button";
 import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
 import { useUpdateStatus } from "@/hooks/use-update-status";
 import { appApi, updateApi } from "@/rpc/api";
-import { Section, SettingsRow, SettingsRows } from "./parts";
+import { LinkRow, Section, SettingsRow, SettingsRows } from "./parts";
 
 const RESOURCES = [
   { label: "Documentation", href: "https://accountant24.ai" },
@@ -18,27 +18,6 @@ const RESOURCES = [
   { label: "Source code", href: "https://github.com/machulav/accountant24" },
   { label: "MIT license", href: "https://github.com/machulav/accountant24/blob/main/LICENSE" },
 ];
-
-/** A whole-row external link (the Item renders as an anchor, so the stock
- *  `[a]:hover:bg-muted` affordance applies). SettingsRow strips horizontal
- *  padding to align text with the section header; for an interactive row the
- *  hover bg would then hug the text, so restore padding and pull it back out
- *  with a negative margin (the shadcn menu-item idiom), and swap the stock
- *  rounded-2xl (a pill at this row height) for the rounded-xl the app's other
- *  interactive rows use (sidebar nav, dropdown items). */
-function LinkRow({ label, href }: { label: string; href: string }) {
-  return (
-    // biome-ignore lint/a11y/useAnchorContent: useRender injects the row children (incl. the title) into the anchor at runtime
-    <SettingsRow className="-mx-2 w-auto rounded-xl px-2" render={<a href={href} target="_blank" rel="noreferrer" />}>
-      <ItemContent>
-        <ItemTitle>{label}</ItemTitle>
-      </ItemContent>
-      <ItemActions>
-        <ExternalLinkIcon className="text-muted-foreground size-4" />
-      </ItemActions>
-    </SettingsRow>
-  );
-}
 
 export function AboutSettings() {
   const [version, setVersion] = useState<string>();

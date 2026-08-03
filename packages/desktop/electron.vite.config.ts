@@ -17,6 +17,10 @@ export default defineConfig({
           // The agent-host utilityProcess entry, emitted as out/main/agent-host.js
           // next to the main bundle (see env.ts agentHostEntryPath).
           "agent-host": path.resolve(import.meta.dirname, "src/main/agent/host/index.ts"),
+          // The ACP agent, emitted as out/main/acp.js. Not an Electron process at
+          // all: resources/accountant24-acp runs it under ELECTRON_RUN_AS_NODE so
+          // external ACP clients can drive the agent over stdio.
+          acp: path.resolve(import.meta.dirname, "src/acp/index.ts"),
         },
       },
     },

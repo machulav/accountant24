@@ -1,0 +1,53 @@
+#!/bin/sh
+# Accountant24 as an ACP agent, speaking JSON-RPC over stdio.
+#
+# Register this file's absolute path as the command in any ACP client (Buzz's
+# Custom harness, Zed's agent_servers, ...). No arguments, no env vars needed.
+# The desktop app does not have to be running.
+#
+# Packaged, this sits at Contents/Resources/ with the app tree under app/. In a
+# dev checkout it sits at packages/desktop/resources/.
+#
+# Both layouts run Electron as Node (ELECTRON_RUN_AS_NODE) rather than a `node`
+# from PATH. That is deliberate: ACP clients are GUI apps and spawn us with a
+# minimal PATH, so a system `node` is often not resolvable — and depending on
+# one would also mean the dev and packaged paths run different runtimes.
+set -eu
+
+RES=$(cd -- "$(dirname -- "$0")" && pwd)
+export ACCOUNTANT24_RESOURCES="$RES"
+
+# Packaged layout.
+if [ -f "$RES/app/out/main/acp.js" ]; then
+  CONTENTS=$(cd -- "$RES/.." && pwd)
+  # Resolve the app binary by listing Contents/MacOS rather than hardcoding the
+  # product name, so renaming the app cannot break this launcher.
+  ELECTRON=$(find "$CONTENTS/MacOS" -maxdepth 1 -type f -perm -u+x 2>/dev/null | head -n 1)
+  if [ -n "$ELECTRON" ]; then
+    ELECTRON_RUN_AS_NODE=1 exec "$ELECTRON" "$RES/app/out/main/acp.js" "$@"
+  fi
+  echo "accountant24-acp: no runnable binary in $CONTENTS/MacOS" >&2
+  exit 1
+fi
+
+# Dev layout: packages/desktop/resources/../out/main/acp.js, after `npm run build`.
+if [ -f "$RES/../out/main/acp.js" ]; then
+  ROOT=$(cd -- "$RES/../../.." && pwd)
+  for candidate in \
+    "$ROOT/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" \
+    "$ROOT/packages/desktop/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" \
+    "$ROOT/node_modules/electron/dist/electron"; do
+    if [ -x "$candidate" ]; then
+      ELECTRON_RUN_AS_NODE=1 exec "$candidate" "$RES/../out/main/acp.js" "$@"
+    fi
+  done
+  # Last resort for a checkout with no installed Electron.
+  if command -v node >/dev/null 2>&1; then
+    exec node "$RES/../out/main/acp.js" "$@"
+  fi
+  echo "accountant24-acp: no Electron in node_modules and no node on PATH; run 'npm install'" >&2
+  exit 1
+fi
+
+echo "accountant24-acp: build output not found; run 'npm run build' first" >&2
+exit 1

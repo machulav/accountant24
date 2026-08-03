@@ -78,6 +78,8 @@ export const agentApi = {
 export const appApi = {
   /** The running app's version (packaged metadata; dev shows the repo version). */
   version: () => api.invoke<string>("app_version"),
+  /** Absolute path of the ACP launcher, to register in an external ACP client. */
+  acpCommandPath: () => api.invoke<string>("acp_command_path"),
 };
 
 export const updateApi = {
