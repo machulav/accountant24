@@ -32,6 +32,7 @@ The Electron desktop app:
 - `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
 - `src/renderer/` — the React app, sandboxed; reaches main only through `window.api` (typed wrappers in `rpc/api.ts`).
 - `src/shared/` — IPC payload types used by both main and renderer (and the agent host). Types only, imported with `import type` from both sides; never add runtime code here.
+- `src/acp/` — the Agent Client Protocol server: a second, headless front door that lets external ACP clients (Buzz, Zed, …) drive the same agent over stdio. Built as `out/main/acp.js` and launched by `resources/accountant24-acp`, outside Electron — so nothing here, or in anything it imports, may use Electron APIs.
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 

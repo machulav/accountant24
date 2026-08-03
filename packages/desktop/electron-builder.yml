@@ -50,6 +50,11 @@ extraResources:
   # Static system prompt passed to the agent via `pi --system-prompt`.
   - from: resources/system.md
     to: system.md
+  # The ACP launcher: the command an external ACP client (Buzz, Zed, …) is
+  # pointed at. Lands next to the app tree so it can find both Contents/MacOS
+  # (the Electron binary it runs as Node) and app/out/main/acp.js.
+  - from: resources/accountant24-acp
+    to: accountant24-acp
   # Native (built-in) skills, loaded via `pi --skill <dir>` — embedded so users
   # can't remove or disable them (the workspace skills folder is third-party only).
   - from: resources/skills

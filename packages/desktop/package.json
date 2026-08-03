@@ -12,6 +12,7 @@
     "verify": "npm run typecheck && npm run build"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^1.3.0",
     "@aptabase/electron": "^0.3.1",
     "@assistant-ui/react": "^0.14.24",
     "@assistant-ui/react-lexical": "^0.2.4",

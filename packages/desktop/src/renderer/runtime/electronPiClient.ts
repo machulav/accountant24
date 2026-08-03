@@ -36,6 +36,7 @@ import {
 } from "../lib/analyticsEvents";
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
+import { previewLine } from "../lib/longText";
 import { mentionsToPlainText } from "../lib/mentions";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
 import { agentApi, authApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
@@ -226,18 +227,22 @@ export function createElectronPiClient(): PiClient {
   const client: PiClient = {
     async listThreads() {
       const res = await sessionsApi.list();
-      return (res.sessions ?? []).map(
-        (s: SessionSummary): PiThreadMetadata => ({
+      return (res.sessions ?? []).map((s: SessionSummary): PiThreadMetadata => {
+        // Unnamed sessions fall back to their first message, which for a skill
+        // invocation is pi's expanded block — collapse it first. The result may
+        // still be many lines (a pasted log, or a turn an external ACP client
+        // wrapped in its own context), so keep only the first one: the sidebar
+        // shows a single truncated line either way.
+        const label = mentionsToPlainText(collapseSkillText(s.name || s.firstMessage || baseName(s.path)));
+        return {
           id: s.path,
           status: "idle",
-          // Unnamed sessions fall back to their first message, which for a
-          // skill invocation is pi's expanded block — collapse it first.
-          title: mentionsToPlainText(collapseSkillText(s.name || s.firstMessage || baseName(s.path))),
+          title: previewLine(label) || baseName(s.path),
           sessionFile: s.path,
           messageCount: s.messageCount,
           updatedAt: s.modified,
-        }),
-      );
+        };
+      });
     },
 
     async createThread(input) {

@@ -1,9 +1,9 @@
 // Small building blocks shared across the Settings pages.
 
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, ExternalLinkIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { FieldDescription, FieldLegend, FieldSet } from "@/components/shadcn/field";
-import { Item, ItemGroup } from "@/components/shadcn/item";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/shadcn/item";
 import { cn } from "@/lib/utils";
 
 export function Section({
@@ -13,7 +13,8 @@ export function Section({
 }: {
   title?: string;
   description?: string;
-  children: React.ReactNode;
+  /** Optional: a section may be prose only (a note with no rows). */
+  children?: React.ReactNode;
 }) {
   return (
     // Stock FieldSet spacing is form-scale (gap-6, legend mb-3), which reads as
@@ -63,6 +64,27 @@ export function SettingsRow({ className, ...props }: React.ComponentProps<typeof
       )}
       {...props}
     />
+  );
+}
+
+/** A whole-row external link (the Item renders as an anchor, so the stock
+ *  `[a]:hover:bg-muted` affordance applies). SettingsRow strips horizontal
+ *  padding to align text with the section header; for an interactive row the
+ *  hover bg would then hug the text, so restore padding and pull it back out
+ *  with a negative margin (the shadcn menu-item idiom), and swap the stock
+ *  rounded-2xl (a pill at this row height) for the rounded-xl the app's other
+ *  interactive rows use (sidebar nav, dropdown items). */
+export function LinkRow({ label, href }: { label: string; href: string }) {
+  return (
+    // biome-ignore lint/a11y/useAnchorContent: useRender injects the row children (incl. the title) into the anchor at runtime
+    <SettingsRow className="-mx-2 w-auto rounded-xl px-2" render={<a href={href} target="_blank" rel="noreferrer" />}>
+      <ItemContent>
+        <ItemTitle>{label}</ItemTitle>
+      </ItemContent>
+      <ItemActions>
+        <ExternalLinkIcon className="text-muted-foreground size-4" />
+      </ItemActions>
+    </SettingsRow>
   );
 }
 

@@ -7,6 +7,7 @@ import { killAllAgents, registerAgentIpc } from "./agent/router";
 import { registerSessionsIpc } from "./agent/sessions";
 import { registerSkillsIpc } from "./agent/skills";
 import { initAnalytics, registerAnalyticsIpc, trackAnalyticsToggle, trackLaunch, trackQuit } from "./analytics";
+import { acpCommandPath } from "./env";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
 import { registerAuthIpc } from "./llm-providers/auth";
@@ -45,6 +46,8 @@ app.whenReady().then(() => {
   // Version comes from the packaged app metadata (CI injects the release
   // version via extraMetadata), so it can't be read at renderer build time.
   ipcMain.handle("app_version", () => app.getVersion());
+  // The launcher path an external ACP client is pointed at (Settings, Connect).
+  ipcMain.handle("acp_command_path", () => acpCommandPath());
   registerAgentIpc(getWin);
   registerAuthIpc();
   registerOauthIpc(getWin);

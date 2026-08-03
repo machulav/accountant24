@@ -206,6 +206,19 @@ describe("agentEnv()", () => {
   });
 });
 
+describe("extensionPath()", () => {
+  it("should resolve the bundled extension in the packaged resources dir", async () => {
+    const orig = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    try {
+      const mod = await import("../env");
+      expect(mod.extensionPath()).toBe("/pkg-res/accountant24-extension.js");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
+    }
+  });
+});
+
 describe("systemPromptPath()", () => {
   it("should resolve system.md in the packaged resources dir", async () => {
     const orig = process.resourcesPath;
@@ -226,6 +239,19 @@ describe("nativeSkillsDir()", () => {
     try {
       const mod = await import("../env");
       expect(mod.nativeSkillsDir()).toBe("/pkg-res/skills");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
+    }
+  });
+});
+
+describe("acpCommandPath()", () => {
+  it("should resolve the ACP launcher in the packaged resources dir", async () => {
+    const orig = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    try {
+      const mod = await import("../env");
+      expect(mod.acpCommandPath()).toBe("/pkg-res/accountant24-acp");
     } finally {
       Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
     }

@@ -17,6 +17,7 @@ import {
 } from "@assistant-ui/react";
 import { FileTextIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
+import { CollapsedText } from "@/components/accountant24/collapsed-text";
 import { DirectiveText } from "@/components/accountant24/directive-chips";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import {
@@ -29,6 +30,7 @@ import {
 } from "@/components/shadcn/attachment";
 import { InputGroupAddon } from "@/components/shadcn/input-group";
 import { extractAttachmentRefs } from "@/lib/attachmentMarker";
+import { isLongText } from "@/lib/longText";
 import { cn } from "@/lib/utils";
 
 /** Object-URL preview for a pending image File, revoked on unmount. */
@@ -157,9 +159,14 @@ export const UserMessageImage: ImageMessagePartComponent = ({ image, filename })
  *  the human-written text, with any directives (@-mentions, picked skills)
  *  rendered as inline chips. A manual skill invocation reaches this component
  *  already collapsed to its `:skill[name]` directive (electronPiClient rewrites
- *  pi's expanded block on the way in), so no skill-specific handling lives here. */
+ *  pi's expanded block on the way in), so no skill-specific handling lives here.
+ *
+ *  An overlong message is clamped behind a Show more toggle. That covers a
+ *  pasted log just as much as a message an external ACP client wrapped in its
+ *  own turn scaffolding — the rule is length, not provenance. */
 export const UserMessageText: TextMessagePartComponent = (props) => {
   const { text: visible, refs } = extractAttachmentRefs(props.text);
+  const body = visible ? <DirectiveText {...props} text={visible} /> : null;
   return (
     <>
       {refs.length > 0 && (
@@ -169,7 +176,7 @@ export const UserMessageText: TextMessagePartComponent = (props) => {
           ))}
         </div>
       )}
-      {visible && <DirectiveText {...props} text={visible} />}
+      {body && (isLongText(visible) ? <CollapsedText>{body}</CollapsedText> : body)}
     </>
   );
 };
