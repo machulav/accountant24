@@ -16,6 +16,7 @@
 
 import { type AgentExit, agentApi } from "../rpc/api";
 import type { SessionAgentEvent } from "../rpc/types";
+import { type CompactionMirror, OverflowRecoveryInterceptor } from "./overflowRecovery";
 
 type EventListener = (e: SessionAgentEvent) => void;
 type ErrorListener = (sessionPath: string, message: string) => void;
@@ -47,6 +48,10 @@ class AgentBridge {
   private readonly errorListeners = new Set<ErrorListener>();
   /** In-flight request() promises keyed by their correlation id. */
   private readonly pending = new Map<string, PendingRequest>();
+  /** Holds pi's transient context-overflow error until the stream shows
+   *  whether auto-compaction recovered (then it is dropped) or not (then it is
+   *  replayed) — every listener sees the corrected stream. */
+  private readonly interceptor = new OverflowRecoveryInterceptor((e) => this.fanOut(e));
 
   /** Attach the event/terminate/error subscriptions exactly once — they listen
    *  on the IPC channel, not a specific child, so they survive respawns. */
@@ -65,6 +70,10 @@ class AgentBridge {
    *  Other sessions' children are untouched; the next send to this session
    *  respawns its child. */
   private onStopped(sessionPath: string, message: string): void {
+    // Replay any held overflow error first, so it lands on its message before
+    // listeners mark the thread failed (a later timer replay would overwrite
+    // the failed state with idle).
+    this.interceptor.flush(sessionPath);
     const error = new Error(message);
     for (const p of [...this.pending.values()]) if (p.sessionPath === sessionPath) p.fail(error);
     for (const fn of [...this.errorListeners]) fn(sessionPath, message);
@@ -89,7 +98,17 @@ class AgentBridge {
       agentApi.send(e.sessionPath, response).catch(() => undefined);
       return;
     }
+    this.interceptor.process(e);
+  }
+
+  private fanOut(e: SessionAgentEvent): void {
     for (const fn of [...this.listeners]) fn(e);
+  }
+
+  /** The session's last known compaction state (undefined until one starts).
+   *  `electronPiClient.subscribe()` re-syncs new subscriptions from this. */
+  compactionState(sessionPath: string): CompactionMirror | undefined {
+    return this.interceptor.compactionState(sessionPath);
   }
 
   /** Subscribe to the live event stream (all sessions — filter by

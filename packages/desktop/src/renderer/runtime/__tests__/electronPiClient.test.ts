@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeAttachmentRef } from "../../lib/attachmentMarker";
 import { createElectronPiClient } from "../electronPiClient";
 import { newChatModel } from "../newChatModel";
+import {
+  addPendingCompactionMarker,
+  getPendingCompactionMarkers,
+  resetPendingCompactionMarkers,
+} from "../pendingCompaction";
 
 // electronPiClient bridges the per-session pi RPC streams to the runtime
 // (routing every command and event by threadId = sessionPath) and reports the
@@ -35,6 +40,8 @@ const h = vi.hoisted(() => ({
   deleted: [] as string[],
   /** request types that should reject, to exercise error/edge paths. */
   errorTypes: new Set<string>(),
+  /** compactionState response — per-test override for the heal-on-subscribe. */
+  compaction: undefined as { active: boolean; reason?: string; everCompacted: boolean } | undefined,
   /** skills_list response — feeds the skill_used native/custom lookup. */
   skills: [] as { name: string; description: string; enabled: boolean; native?: boolean }[],
   track: vi.fn(),
@@ -67,6 +74,7 @@ vi.mock("../agentBridge", () => ({
       if (command.type === "get_messages") return { messages: h.messages };
       return {};
     },
+    compactionState: () => h.compaction,
   },
 }));
 vi.mock("../../rpc/api", () => ({
@@ -136,6 +144,8 @@ beforeEach(() => {
   h.settingsThrows = false;
   h.deleted.length = 0;
   h.errorTypes = new Set();
+  h.compaction = undefined;
+  resetPendingCompactionMarkers();
   h.state = { model: { provider: "anthropic", id: "claude-x" }, sessionFile: "/ws/sessions/s1.jsonl" };
   h.skills = [{ name: "subscription-audit", description: "Audit.", enabled: true, native: true }];
   newChatModel.set(undefined);
@@ -539,10 +549,57 @@ describe("createElectronPiClient() event mapping", () => {
     expect(events[0]).toMatchObject({ type: "tool_execution_end", isError: true });
   });
 
-  it("should pass an unrecognized event type through as a bare typed body", () => {
+  it("should forward willRetry on agent_end so the reducer keeps the run alive across recoveries", () => {
     const { events } = captureLive(createElectronPiClient());
-    emitL({ type: "queue_update", queue: [] });
-    expect(events[0]).toMatchObject({ type: "queue_update", threadId: LIVE, seq: 1 });
+    emitL({ type: "agent_end", willRetry: true });
+    expect(events[0]).toMatchObject({ type: "agent_end", willRetry: true });
+  });
+
+  it("should forward the reason on compaction_start", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "compaction_start", reason: "overflow" });
+    expect(events[0]).toMatchObject({ type: "compaction_start", reason: "overflow" });
+  });
+
+  it("should forward aborted, willRetry, errorMessage and result on compaction_end", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const result = { summary: "kept", tokensBefore: 31000 };
+    emitL({ type: "compaction_end", reason: "overflow", aborted: false, willRetry: true, errorMessage: "e", result });
+    expect(events[0]).toMatchObject({
+      type: "compaction_end",
+      aborted: false,
+      willRetry: true,
+      errorMessage: "e",
+      result,
+    });
+  });
+
+  it("should forward auto retry payloads (attempt, delayMs, success)", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "auto_retry_start", attempt: 2, delayMs: 500 });
+    emitL({ type: "auto_retry_end", success: true });
+    expect(events[0]).toMatchObject({ type: "auto_retry_start", attempt: 2, delayMs: 500 });
+    expect(events[1]).toMatchObject({ type: "auto_retry_end", success: true });
+  });
+
+  it("should forward queue_update with its steering and follow-up arrays", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "queue_update", steering: ["s1"], followUp: ["f1"] });
+    expect(events[0]).toMatchObject({ type: "queue_update", steering: ["s1"], followUp: ["f1"] });
+  });
+
+  it("should keep stopReason and errorMessage on a message_end assistant message", () => {
+    const { events } = captureLive(createElectronPiClient());
+    const msg = { role: "assistant", content: [], stopReason: "error", errorMessage: "boom" };
+    emitL({ type: "message_end", message: msg });
+    expect(body(events[0]).message).toEqual(msg);
+  });
+
+  it("should pass an unrecognized event type through with its payload but without the sessionPath tag", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "session_info_changed", name: "My chat" });
+    expect(events[0]).toMatchObject({ type: "session_info_changed", name: "My chat", threadId: LIVE, seq: 1 });
+    expect(body(events[0]).sessionPath).toBeUndefined();
   });
 
   it("should stamp a strictly increasing seq per emitted event", () => {
@@ -565,6 +622,68 @@ describe("createElectronPiClient() event mapping", () => {
     emitL({ type: "agent_start" });
     emitError(LIVE, "boom");
     expect(events).toHaveLength(0);
+  });
+
+  describe("pending marker cleanup on snapshot", () => {
+    // Regression: a compaction parked its marker, then the user switched away
+    // and back BEFORE the next prompt. ThreadController.load() fetches the
+    // snapshot via getThread() directly (not via subscribe), and the snapshot
+    // already contains pi's persisted compactionSummary — without the cleanup
+    // the parked copy was injected later as a duplicate bottom marker.
+    it("should drop parked markers when getThread fetches a snapshot", async () => {
+      addPendingCompactionMarker(LIVE, { summary: "s", timestamp: 1000 });
+      await createElectronPiClient().getThread(LIVE);
+      expect(getPendingCompactionMarkers(LIVE)).toEqual([]);
+    });
+
+    it("should keep other sessions' parked markers when one thread loads", async () => {
+      addPendingCompactionMarker("/ws/sessions/other.jsonl", { summary: "s", timestamp: 1000 });
+      await createElectronPiClient().getThread(LIVE);
+      expect(getPendingCompactionMarkers("/ws/sessions/other.jsonl")).toHaveLength(1);
+    });
+
+    it("should drop parked markers on the subscribe snapshot path too", async () => {
+      addPendingCompactionMarker(LIVE, { summary: "s", timestamp: 1000 });
+      const client = createElectronPiClient();
+      client.subscribe(LIVE, () => {});
+      await flushLookup();
+      expect(getPendingCompactionMarkers(LIVE)).toEqual([]);
+    });
+  });
+
+  describe("compaction heal on subscribe", () => {
+    // react-pi's cached thread controllers unsubscribe ~30s after unmount and
+    // snapshots don't carry compaction, so each new subscription re-syncs from
+    // the bridge's compaction mirror.
+    it("should emit a synthetic compaction_start when subscribing while a compaction is running", () => {
+      h.compaction = { active: true, reason: "overflow", everCompacted: true };
+      const { events } = captureLive(createElectronPiClient());
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ type: "compaction_start", reason: "overflow", threadId: LIVE });
+    });
+
+    it("should emit a synthetic compaction_end when subscribing after a compaction finished", () => {
+      h.compaction = { active: false, reason: "threshold", everCompacted: true };
+      const { events } = captureLive(createElectronPiClient());
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ type: "compaction_end", aborted: false, willRetry: false });
+    });
+
+    it("should emit nothing when the session has never compacted", () => {
+      h.compaction = undefined;
+      resetPendingCompactionMarkers();
+      const { events } = captureLive(createElectronPiClient());
+      expect(events).toHaveLength(0);
+    });
+
+    it("should emit the heal after the snapshot when subscribing with a snapshot", async () => {
+      h.compaction = { active: true, reason: "overflow", everCompacted: true };
+      const client = createElectronPiClient();
+      const events: PiClientEvent[] = [];
+      client.subscribe(LIVE, (e) => events.push(e));
+      await flushLookup();
+      expect(events.map((e) => e.type)).toEqual(["snapshot", "compaction_start"]);
+    });
   });
 });
 

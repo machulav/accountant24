@@ -121,6 +121,15 @@ export type AuthEvent =
 export interface AgentMessage {
   role: string;
   content?: unknown;
+  /** Set on assistant messages: how the turn ended ("stop" | "error" | "aborted" | "length" | ...). */
+  stopReason?: string;
+  /** Provider error text when stopReason is "error". */
+  errorMessage?: string;
+  /** Set on compactionSummary messages: the text pi kept in place of the old history. */
+  summary?: string;
+  /** Set on compactionSummary messages: context size before the compaction. */
+  tokensBefore?: number;
+  timestamp?: number;
 }
 
 export interface ToolResult {
@@ -134,9 +143,22 @@ export interface AssistantDelta {
 
 export type AgentEvent =
   | { type: "agent_start" }
-  | { type: "agent_end" }
+  | { type: "agent_end"; willRetry?: boolean }
+  | { type: "agent_settled" }
   | { type: "turn_start" }
   | { type: "turn_end" }
+  | { type: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
+  | {
+      type: "compaction_end";
+      reason: "manual" | "threshold" | "overflow";
+      result?: { summary?: string; tokensBefore?: number };
+      aborted?: boolean;
+      willRetry?: boolean;
+      errorMessage?: string;
+    }
+  | { type: "auto_retry_start"; attempt: number; delayMs: number; errorMessage?: string }
+  | { type: "auto_retry_end"; success: boolean }
+  | { type: "queue_update"; steering: string[]; followUp: string[] }
   | { type: "message_start"; message: AgentMessage }
   | { type: "message_update"; message: AgentMessage; assistantMessageEvent: AssistantDelta }
   | { type: "message_end"; message: AgentMessage }

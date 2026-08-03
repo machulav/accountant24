@@ -420,6 +420,70 @@ describe("agentBridge", () => {
     });
   });
 
+  describe("overflow recovery interception", () => {
+    const overflowEnd = {
+      type: "message_end",
+      message: {
+        role: "assistant",
+        content: [],
+        stopReason: "error",
+        errorMessage: "prompt is too long: 213462 tokens > 200000 maximum",
+      },
+      sessionPath: A,
+    };
+
+    it("should hide the overflow error from subscribers when auto-compaction recovers", async () => {
+      const bridge = await loadBridge();
+      const seen: { type: string }[] = [];
+      bridge.addEventListener((e) => seen.push(e as { type: string }));
+      await flush();
+
+      emit(overflowEnd);
+      emit({ type: "agent_end", willRetry: false, sessionPath: A });
+      emit({ type: "compaction_start", reason: "overflow", sessionPath: A });
+      emit({ type: "compaction_end", reason: "overflow", aborted: false, willRetry: true, sessionPath: A });
+      emit({ type: "agent_start", sessionPath: A }); // the retry run
+      expect(seen.map((e) => e.type)).toEqual(["compaction_start", "compaction_end", "agent_start"]);
+    });
+
+    it("should replay the held overflow error to subscribers when the hold times out", async () => {
+      vi.useFakeTimers();
+      const bridge = await loadBridge();
+      const seen: { type: string }[] = [];
+      bridge.addEventListener((e) => seen.push(e as { type: string }));
+      await vi.advanceTimersByTimeAsync(0);
+
+      emit(overflowEnd);
+      emit({ type: "agent_end", willRetry: false, sessionPath: A });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(seen.map((e) => e.type)).toEqual(["message_start", "message_end", "agent_end"]);
+    });
+
+    it("should replay held events to subscribers before error listeners when the child crashes", async () => {
+      const bridge = await loadBridge();
+      const log: string[] = [];
+      bridge.addEventListener((e) => log.push(`event:${(e as { type: string }).type}`));
+      bridge.addErrorListener(() => log.push("error"));
+      await flush();
+
+      emit(overflowEnd);
+      emitTerminated({ sessionPath: A, code: 1, signal: null, stderr: "" });
+      expect(log).toEqual(["event:message_start", "event:message_end", "error"]);
+    });
+
+    it("should expose the session's compaction state via compactionState()", async () => {
+      const bridge = await loadBridge();
+      bridge.addEventListener(() => {});
+      await flush();
+
+      expect(bridge.compactionState(A)).toBeUndefined();
+      emit({ type: "compaction_start", reason: "overflow", sessionPath: A });
+      expect(bridge.compactionState(A)).toEqual({ active: true, reason: "overflow", everCompacted: true });
+      emit({ type: "compaction_end", reason: "overflow", aborted: false, willRetry: true, sessionPath: A });
+      expect(bridge.compactionState(A)).toMatchObject({ active: false, everCompacted: true });
+    });
+  });
+
   describe("process errors (addErrorListener)", () => {
     it("should report a restart hint and stderr tail when a child is signal-terminated", async () => {
       const bridge = await loadBridge();
