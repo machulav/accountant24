@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Accountant24 customization for pi: ledger tools, commands, system prompt, scaffolding.",
   "dependencies": {
+    "@accountant24/hledger-journal": "*",
     "@earendil-works/pi-coding-agent": "0.79.8",
     "file-type": "22.0.1",
     "typebox": "1.1.38"
