@@ -46,6 +46,36 @@ describe("toolLabel()", () => {
     });
   });
 
+  describe("built-in pi tool labels", () => {
+    it("should return 'Run Command' when toolName is 'bash'", () => {
+      expect(toolLabel("bash")).toBe("Run Command");
+    });
+
+    it("should return 'Read File' when toolName is 'read'", () => {
+      expect(toolLabel("read")).toBe("Read File");
+    });
+
+    it("should return 'Edit File' when toolName is 'edit'", () => {
+      expect(toolLabel("edit")).toBe("Edit File");
+    });
+
+    it("should return 'Write File' when toolName is 'write'", () => {
+      expect(toolLabel("write")).toBe("Write File");
+    });
+
+    it("should return 'List Files' when toolName is 'ls'", () => {
+      expect(toolLabel("ls")).toBe("List Files");
+    });
+
+    it("should return 'Search Files' when toolName is 'grep'", () => {
+      expect(toolLabel("grep")).toBe("Search Files");
+    });
+
+    it("should return 'Find Files' when toolName is 'find'", () => {
+      expect(toolLabel("find")).toBe("Find Files");
+    });
+  });
+
   describe("fallback for unknown tools", () => {
     it("should return the raw tool name when there is no label entry", () => {
       expect(toolLabel("fetch_exchange_rates")).toBe("fetch_exchange_rates");
@@ -221,9 +251,9 @@ describe("ToolFallback memory updates", () => {
     expect(screen.getByText("Update Memory")).toBeTruthy();
   });
 
-  it("should keep the raw tool name for edits of other files", () => {
+  it("should keep the plain edit label for edits of other files", () => {
     render(<ToolFallback {...partProps({ toolName: "edit", args: { path: "ledger/main.journal", edits: [] } })} />);
-    expect(screen.getByText("edit")).toBeTruthy();
+    expect(screen.getByText("Edit File")).toBeTruthy();
     expect(screen.queryByText("Update Memory")).toBeNull();
   });
 
@@ -232,9 +262,9 @@ describe("ToolFallback memory updates", () => {
     expect(screen.getByText("Read Memory")).toBeTruthy();
   });
 
-  it("should keep the raw tool name for reads of other files", () => {
+  it("should keep the plain read label for reads of other files", () => {
     render(<ToolFallback {...partProps({ toolName: "read", args: { path: "ledger/main.journal" } })} />);
-    expect(screen.getByText("read")).toBeTruthy();
+    expect(screen.getByText("Read File")).toBeTruthy();
     expect(screen.queryByText("Read Memory")).toBeNull();
   });
 });

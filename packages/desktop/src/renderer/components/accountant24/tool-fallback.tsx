@@ -30,7 +30,7 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
   "requires-action": AlertCircleIcon,
 };
 
-// TOOL_LABELS mirrors the pi extension's `label` metadata (the event stream
+// TOOL_LABELS covers the custom tools and pi's built-ins (the event stream
 // only carries tool names). Tools without an entry show their raw name.
 export const toolLabel = (toolName: string) => TOOL_LABELS[toolName] ?? toolName;
 
