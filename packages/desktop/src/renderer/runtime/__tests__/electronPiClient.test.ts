@@ -196,6 +196,44 @@ describe("createElectronPiClient() analytics", () => {
       emit(toolEnd("query"));
       expect(h.track.mock.calls.filter(([event]) => event === "agent_tool_used")).toHaveLength(1);
     });
+
+    it("should track an edit of memory.md as update_memory", () => {
+      createElectronPiClient();
+      emitL({ type: "tool_execution_start", toolCallId: "m1", toolName: "edit", args: { path: "memory.md" } });
+      emitL({ type: "tool_execution_end", toolCallId: "m1", toolName: "edit", isError: false });
+      expect(h.track).toHaveBeenCalledWith("agent_tool_used", { tool: "update_memory", status: "ok" });
+    });
+
+    it("should track a blocked write to memory.md as update_memory with status error", () => {
+      createElectronPiClient();
+      emitL({ type: "tool_execution_start", toolCallId: "m2", toolName: "write", args: { path: "/ws/memory.md" } });
+      emitL({ type: "tool_execution_end", toolCallId: "m2", toolName: "write", isError: true });
+      expect(h.track).toHaveBeenCalledWith("agent_tool_used", { tool: "update_memory", status: "error" });
+    });
+
+    it("should keep tracking edits of other files under the edit name", () => {
+      createElectronPiClient();
+      emitL({
+        type: "tool_execution_start",
+        toolCallId: "m3",
+        toolName: "edit",
+        args: { path: "ledger/main.journal" },
+      });
+      emitL({ type: "tool_execution_end", toolCallId: "m3", toolName: "edit", isError: false });
+      expect(h.track).toHaveBeenCalledWith("agent_tool_used", { tool: "edit", status: "ok" });
+    });
+
+    it("should rename only the correlated tool call id, not later unrelated ends", () => {
+      createElectronPiClient();
+      emitL({ type: "tool_execution_start", toolCallId: "m4", toolName: "edit", args: { path: "memory.md" } });
+      emitL({ type: "tool_execution_end", toolCallId: "m4", toolName: "edit", isError: false });
+      emitL({ type: "tool_execution_end", toolCallId: "m5", toolName: "edit", isError: false });
+      const toolCalls = h.track.mock.calls.filter(([event]) => event === "agent_tool_used");
+      expect(toolCalls).toEqual([
+        ["agent_tool_used", { tool: "update_memory", status: "ok" }],
+        ["agent_tool_used", { tool: "edit", status: "ok" }],
+      ]);
+    });
   });
 
   describe("skill usage", () => {

@@ -11,7 +11,6 @@ export const TOOL_LABELS: Record<string, string> = {
   add_balance_assertions: "Add Balance Assertions",
   add_prices: "Add Prices",
   extract_text: "Extract Text",
-  update_memory: "Update Memory",
   validate: "Validate Ledger",
   commit_and_push: "Commit & Push",
 };

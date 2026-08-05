@@ -36,6 +36,7 @@ import {
 } from "../lib/analyticsEvents";
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
+import { isMemoryUpdateCall } from "../lib/memory-tool";
 import { mentionsToPlainText } from "../lib/mentions";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
 import { agentApi, authApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
@@ -102,11 +103,19 @@ export function createElectronPiClient(): PiClient {
     const native = nativeSkills.has(name);
     trackSkillUsed(native ? name : "custom", native ? "native" : "custom", method);
   };
+  // Memory updates ride on the generic edit/write tools (recognized by path in
+  // the start event); end events carry no args, so the ids are correlated here
+  // to keep the historical "update_memory" analytics name.
+  const memoryToolCallIds = new Set<string>();
   agentBridge.addEventListener((e) => {
     // Tool + reply analytics live on this singleton listener (not mapEvent,
     // which runs once per active subscription) so each is counted exactly once.
+    if (e.type === "tool_execution_start" && isMemoryUpdateCall(e.toolName, e.args)) {
+      memoryToolCallIds.add(e.toolCallId);
+    }
     if (e.type === "tool_execution_end") {
-      trackAgentToolUsed(e.toolName, Boolean(e.isError));
+      const isMemoryUpdate = memoryToolCallIds.delete(e.toolCallId);
+      trackAgentToolUsed(isMemoryUpdate ? "update_memory" : e.toolName, Boolean(e.isError));
       if (e.toolName === "add_transactions" && !e.isError) trackTransactionFirstAdded();
     }
     if (e.type === "tool_execution_start" && e.toolName === "read") {

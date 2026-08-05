@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
@@ -36,18 +36,52 @@ function createMockPi() {
 }
 
 describe("accountant24Extension()", () => {
-  test("should register 8 custom tools (built-ins are pi's own)", () => {
+  test("should register 7 custom tools (built-ins are pi's own)", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.registerTool).toHaveBeenCalledTimes(8);
+    expect(pi.registerTool).toHaveBeenCalledTimes(7);
   });
 
-  test("should register session_start and before_agent_start handlers", () => {
+  test("should register session_start, tool_call, and before_agent_start handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(2);
+    expect(pi.on).toHaveBeenCalledTimes(3);
     expect(pi.handlers.session_start).toBeDefined();
+    expect(pi.handlers.tool_call).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
+  });
+});
+
+describe("tool_call handler (memory guard wiring)", () => {
+  test("should block a write to memory.md when memory has content", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start();
+    writeFileSync(join(BASE, "memory.md"), "## Defaults\n- currency: EUR\n");
+
+    const result = await pi.handlers.tool_call(
+      { type: "tool_call", toolCallId: "t1", toolName: "write", input: { path: "memory.md", content: "rewritten" } },
+      { cwd: BASE },
+    );
+    expect(result).toEqual({ block: true, reason: expect.stringContaining("edit tool") });
+  });
+
+  test("should allow an edit to memory.md", async () => {
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+    await pi.handlers.session_start();
+    writeFileSync(join(BASE, "memory.md"), "## Defaults\n- currency: EUR\n");
+
+    const result = await pi.handlers.tool_call(
+      {
+        type: "tool_call",
+        toolCallId: "t2",
+        toolName: "edit",
+        input: { path: "memory.md", edits: [{ oldText: "EUR", newText: "USD" }] },
+      },
+      { cwd: BASE },
+    );
+    expect(result).toBeUndefined();
   });
 });
 

@@ -80,9 +80,9 @@ describe("buildContextSection()", () => {
     expect(buildContextSection(empty)).not.toContain("<memory>");
   });
 
-  test("should include the memory block when memory has content", () => {
+  test("should include only the raw memory content inside the memory tag", () => {
     const section = buildContextSection({ ...empty, memory: "- Rent is $2100" });
-    expect(section).toContain("<memory>\n- Rent is $2100\n</memory>");
+    expect(section).toContain("\n\n<memory>\n- Rent is $2100\n</memory>");
   });
 
   test("should render fallback messages for empty accounts, payees, and tags", () => {

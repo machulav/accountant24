@@ -1,10 +1,7 @@
 "use client";
 
 import {
-  type ToolApprovalOption,
-  type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
-  type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
   useToolCallElapsed,
 } from "@assistant-ui/react";
@@ -18,13 +15,11 @@ import {
   DisclosureTrigger,
   ShimmerLabel,
 } from "@/components/accountant24/disclosure";
-import { Button } from "@/components/shadcn/button";
 import { Spinner } from "@/components/shadcn/spinner";
 import { formatDuration } from "@/lib/duration";
+import { isMemoryReadCall, isMemoryUpdateCall } from "@/lib/memory-tool";
 import { TOOL_LABELS } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
-
-const pressable = "active:scale-[0.98]";
 
 type ToolStatus = ToolCallMessagePartStatus["type"];
 
@@ -36,9 +31,8 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
 };
 
 // TOOL_LABELS mirrors the pi extension's `label` metadata (the event stream
-// only carries tool names). Unknown tools fall back to a humanized key.
-export const toolLabel = (toolName: string) =>
-  TOOL_LABELS[toolName] ?? `${toolName.charAt(0).toUpperCase()}${toolName.slice(1)}`.replace(/[_-]+/g, " ");
+// only carries tool names). Tools without an entry show their raw name.
+export const toolLabel = (toolName: string) => TOOL_LABELS[toolName] ?? toolName;
 
 function ToolFallbackDuration() {
   const elapsedMs = useToolCallElapsed();
@@ -52,11 +46,11 @@ function ToolFallbackDuration() {
 }
 
 function ToolFallbackTrigger({
-  toolName,
+  label,
   status,
   isError = false,
 }: {
-  toolName: string;
+  label: string;
   status?: ToolCallMessagePartStatus;
   isError?: boolean;
 }) {
@@ -79,7 +73,7 @@ function ToolFallbackTrigger({
         active={isRunning}
         className={cn("text-start font-medium", isCancelled && "text-muted-foreground line-through")}
       >
-        {toolLabel(toolName)}
+        {label}
       </ShimmerLabel>
       <ToolFallbackDuration />
       <DisclosureChevron data-slot="tool-fallback-trigger-chevron" />
@@ -160,185 +154,24 @@ function ToolFallbackError({ status }: { status?: ToolCallMessagePartStatus }) {
   );
 }
 
-const APPROVED_RESULT = "Approved by user";
-const DENIED_RESULT = "User denied tool execution";
-
-const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = {
-  "allow-once": "Allow",
-  "allow-always": "Always allow",
-  "reject-once": "Deny",
-  "reject-always": "Always deny",
-};
-
-const isAllowKind = (kind: string) => kind === "allow-once" || kind === "allow-always";
-
-const approvalOptionLabel = (option: ToolApprovalOption) =>
-  option.label ??
-  (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
-    ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
-    : undefined) ??
-  option.id;
-
-function ToolFallbackApproval({
-  addResult,
-  resume,
-  interrupt,
-  approval,
-  respondToApproval,
-}: Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">> & {
-  interrupt?: ToolCallMessagePart["interrupt"];
-  approval?: ToolCallMessagePart["approval"];
-}) {
-  const [submitted, setSubmitted] = useState(false);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  if (approval != null && (approval.approved !== undefined || approval.resolution !== undefined)) return null;
-
-  // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
-  // hosts using custom kinds render their own bar. A declared option list is
-  // a host constraint: the kit never adds an approval path beyond it, but
-  // always preserves a refusal path.
-  const declaredOptions = respondToApproval ? approval?.options : undefined;
-  const options = declaredOptions?.filter((o) => Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind));
-
-  const respond = (approved: boolean) => {
-    if (submitted) return;
-    if (approval != null && approval.approved === undefined && respondToApproval) {
-      respondToApproval({ approved });
-    } else if (interrupt) {
-      resume?.({ approved });
-    } else {
-      addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
-    }
-    setSubmitted(true);
-  };
-
-  const respondWithOption = (option: ToolApprovalOption) => {
-    if (submitted) return;
-    respondToApproval?.({ optionId: option.id });
-    setSubmitted(true);
-    setConfirmingId(null);
-  };
-
-  const handleOption = (option: ToolApprovalOption) => {
-    if (option.confirm) {
-      setConfirmingId(option.id);
-    } else {
-      respondWithOption(option);
-    }
-  };
-
-  const confirming = confirmingId != null ? options?.find((o) => o.id === confirmingId) : undefined;
-
-  if (confirming) {
-    const confirmMeta = typeof confirming.confirm === "object" ? confirming.confirm : undefined;
-    const confirmDescription = confirmMeta?.description ?? confirming.description;
-    return (
-      <div data-slot="tool-fallback-approval-confirm" className="flex flex-col gap-2 pt-1">
-        <p className="font-semibold">{confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}</p>
-        {confirmDescription && <p className="text-muted-foreground">{confirmDescription}</p>}
-        {confirming.grants && confirming.grants.length > 0 && (
-          <ul className="flex flex-col gap-1">
-            {confirming.grants.map((grant) => (
-              <li key={grant}>
-                <code className="bg-muted rounded px-1.5 py-0.5 text-xs">{grant}</code>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex items-center gap-2">
-          <Button size="sm" className={pressable} onClick={() => respondWithOption(confirming)} disabled={submitted}>
-            Confirm
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className={pressable}
-            onClick={() => setConfirmingId(null)}
-            disabled={submitted}
-          >
-            Back
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (declaredOptions && declaredOptions.length > 0) {
-    const allowOptions = options?.filter((o) => isAllowKind(o.kind)) ?? [];
-    const rejectOptions = options?.filter((o) => !isAllowKind(o.kind)) ?? [];
-    return (
-      <div data-slot="tool-fallback-approval" className="flex flex-wrap items-center gap-2 pt-1">
-        {[...allowOptions, ...rejectOptions].map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={option === allowOptions[0] ? "default" : "outline"}
-            className={pressable}
-            onClick={() => handleOption(option)}
-            disabled={submitted}
-          >
-            {approvalOptionLabel(option)}
-          </Button>
-        ))}
-        {rejectOptions.length === 0 && (
-          <Button size="sm" variant="outline" className={pressable} onClick={() => respond(false)} disabled={submitted}>
-            Deny
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div data-slot="tool-fallback-approval" className="flex items-center gap-2 pt-1">
-      <Button size="sm" className={pressable} onClick={() => respond(true)} disabled={submitted}>
-        Allow
-      </Button>
-      <Button size="sm" variant="outline" className={pressable} onClick={() => respond(false)} disabled={submitted}>
-        Deny
-      </Button>
-    </div>
-  );
-}
-
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
-  toolName,
-  argsText,
-  result,
-  isError,
-  status,
-  addResult,
-  resume,
-  interrupt,
-  approval,
-  respondToApproval,
-}) => {
+const ToolFallbackImpl: ToolCallMessagePartComponent = ({ toolName, args, argsText, result, isError, status }) => {
   const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
-  const isRequiresAction = status?.type === "requires-action";
+  // Memory access rides on the generic file tools; only the step label is
+  // specialized so the user can see when memory is touched.
+  const label = isMemoryUpdateCall(toolName, args)
+    ? "Update Memory"
+    : isMemoryReadCall(toolName, args)
+      ? "Read Memory"
+      : toolLabel(toolName);
 
-  const [open, setOpen] = useState(isRequiresAction);
-  const [prevRequiresAction, setPrevRequiresAction] = useState(isRequiresAction);
-  if (isRequiresAction !== prevRequiresAction) {
-    setPrevRequiresAction(isRequiresAction);
-    if (isRequiresAction) setOpen(true);
-  }
+  const [open, setOpen] = useState(false);
 
   return (
     <Disclosure data-slot="tool-fallback-root" open={open} onOpenChange={setOpen} className="w-full">
-      <ToolFallbackTrigger toolName={toolName} status={status} isError={isError} />
+      <ToolFallbackTrigger label={label} status={status} isError={isError} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs argsText={argsText} className={cn(isCancelled && "opacity-60")} />
-        {isRequiresAction && (
-          <ToolFallbackApproval
-            addResult={addResult}
-            resume={resume}
-            interrupt={interrupt}
-            approval={approval}
-            respondToApproval={respondToApproval}
-          />
-        )}
         {!isCancelled && <ToolFallbackResult result={result} isError={isError} />}
       </ToolFallbackContent>
     </Disclosure>

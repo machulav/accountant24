@@ -1,11 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { generateDiffString } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
 import { MEMORY_PATH } from "../config";
-
-export interface SaveMemoryResult {
-  diff: string;
-}
 
 export async function getMemory(): Promise<string> {
   try {
@@ -13,20 +7,4 @@ export async function getMemory(): Promise<string> {
   } catch {
     return "";
   }
-}
-
-export function saveMemory(content: string): SaveMemoryResult {
-  let oldContent: string;
-  try {
-    oldContent = readFileSync(MEMORY_PATH, "utf-8");
-  } catch {
-    oldContent = "";
-  }
-
-  const newContent = `${content.trim()}\n`;
-  mkdirSync(dirname(MEMORY_PATH), { recursive: true });
-  writeFileSync(MEMORY_PATH, newContent);
-
-  const diff = generateDiffString(oldContent, newContent).diff;
-  return { diff };
 }
