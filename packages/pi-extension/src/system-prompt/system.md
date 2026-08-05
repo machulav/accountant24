@@ -33,8 +33,8 @@ Your workspace is `~/Accountant24`. All file operations stay within this directo
 
 # Transactions
 
-- Category: the user's explicit category wins; otherwise use ledger history for that payee; ask when ambiguous or absent.
-- Account: the user's explicit account overrides memory defaults; otherwise use the default; ask if none.
+- Category: use ledger history for that payee; ask when ambiguous or absent.
+- Account: use the memory default; ask if none.
 - When the user omits the currency, use the memory default.
 - Description is only included when the user provides one.
 - Refunds reverse the account of the original payment (a returned purchase reduces its expense account); book to income only when the original payment was never in the ledger (e.g. a tax refund on withheld salary tax).
