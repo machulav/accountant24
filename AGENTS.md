@@ -40,9 +40,9 @@ The agent itself is `packages/pi-extension`, bundled and loaded into the agent-h
 The agent's system prompt is `packages/pi-extension/src/system-prompt/system.md` (copied to desktop resources at build time; runtime data blocks like `<memory>` and `<accounts>` are appended per turn by the extension).
 
 - Keep it short: every line is sent on every turn. Add a rule only for observed behavior a shorter rule didn't fix.
-- Group rules by topic in tagged sections; a topic's rules live in exactly one section, never duplicated elsewhere.
+- Group rules by topic in Markdown `#` sections; a topic's rules live in exactly one section, never duplicated elsewhere. `# Ground rules` holds the important cross-cutting rules the agent must always follow; a rule that fits neither a topic nor Ground rules goes in `# Other rules` — never force-fit a rule into a section.
 - Severity is carried by wording, not by section: "Never"/"Always"/"Only" for absolute rules, "prefer"/"when" for judgment calls.
-- Runtime data blocks contain only verbatim data; guidance about a block lives in system.md, and section tag names must not collide with data block names (`<memory_rules>` vs `<memory>`).
+- Markdown headers carry authored instructions; XML tags carry runtime-injected data (`<memory>`, `<accounts>`, `<tools>`, …). Data blocks contain only verbatim data; guidance about a block lives in its matching Markdown section (`# Memory` for `<memory>`).
 - Rules the agent must not be able to break get code enforcement (extension hooks), with the prompt rule on top.
 - Prefer positive phrasing: say what to do instead alongside every prohibition.
 

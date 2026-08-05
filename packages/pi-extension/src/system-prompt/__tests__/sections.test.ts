@@ -12,9 +12,9 @@ describe("patchBakedDate()", () => {
   });
 
   test("should leave the rest of the base untouched", () => {
-    const base = "<soul>\nAccountant24\n</soul>\nCurrent date: 2025-12-31\nCurrent working directory: /w";
+    const base = "# Identity\nAccountant24\nCurrent date: 2025-12-31\nCurrent working directory: /w";
     const patched = patchBakedDate(base, "2026-07-12");
-    expect(patched).toContain("<soul>\nAccountant24\n</soul>");
+    expect(patched).toContain("# Identity\nAccountant24");
     expect(patched).toContain("Current working directory: /w");
     expect(patched).not.toContain("2025-12-31");
   });
