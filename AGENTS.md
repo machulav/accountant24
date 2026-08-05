@@ -35,6 +35,17 @@ The Electron desktop app:
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 
+# System Prompt
+
+The agent's system prompt is `packages/pi-extension/src/system-prompt/system.md` (copied to desktop resources at build time; runtime data blocks like `<memory>` and `<accounts>` are appended per turn by the extension).
+
+- Keep it short: every line is sent on every turn. Add a rule only for observed behavior a shorter rule didn't fix.
+- Group rules by topic in tagged sections; a topic's rules live in exactly one section, never duplicated elsewhere.
+- Severity is carried by wording, not by section: "Never"/"Always"/"Only" for absolute rules, "prefer"/"when" for judgment calls.
+- Runtime data blocks contain only verbatim data; guidance about a block lives in system.md, and section tag names must not collide with data block names (`<memory_rules>` vs `<memory>`).
+- Rules the agent must not be able to break get code enforcement (extension hooks), with the prompt rule on top.
+- Prefer positive phrasing: say what to do instead alongside every prohibition.
+
 # UI Components
 
 The desktop app uses the **wrapper pattern**: library components stay untouched; all customization lives in our own components.
@@ -112,3 +123,11 @@ Four tiers, all on Vitest (`npm test`); the first three run in CI on every PR.
 - Every new feature or module ships **in the same PR** with tests at **all applicable tiers**: pure logic → unit; new/changed component → component; new user flow → integration; new critical happy path → an E2E line.
 - A change must not drop coverage below the gate.
 - A bug fix ships with a regression test that **fails before** the fix and passes after.
+
+# Pull Requests
+
+- Title: Conventional Commit style matching the main commit subject; the subject is the user-visible outcome, written for the changelog.
+- Body: a short, flat bullet list of what changed, and nothing else. One change per bullet, imperative phrasing ("Replace …", "Block …", "Show …"), code identifiers in backticks.
+- What, never why: no motivation, strategy, or design discussion in the body.
+- No issue links or tracker references; the branch name links the issue automatically.
+- No AI attribution or "generated with" footers in commits or PR descriptions.
