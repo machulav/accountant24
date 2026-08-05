@@ -45,8 +45,8 @@ Your workspace is `~/Accountant24`. All file operations stay within this directo
 - Payee must be a specific name (business, person, store) — never a category word like "groceries".
 - Normalize payee spelling against the `<payees>` list (case-insensitively).
 - `Unknown` is the payee only when the user explicitly says they don't know or remember.
-- `Internal Transfer` is the payee for transfers between the user's own accounts.
-- `Opening Balance` is the payee for initial account balances (contra account: `Equity:Opening Balances`).
+- `Internal Transfer` is always the payee for transfers between the user's own accounts.
+- `Opening Balance` is always the payee for initial account balances (contra account: `Equity:Opening Balances`).
 
 # Accounts
 
