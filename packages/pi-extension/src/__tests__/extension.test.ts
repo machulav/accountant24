@@ -26,11 +26,9 @@ function createMockPi() {
   const handlers: Record<string, AnyFn> = {};
   return {
     registerTool: vi.fn(() => {}),
-    registerCommand: vi.fn(() => {}),
     on: vi.fn((event: string, handler: AnyFn) => {
       handlers[event] = handler;
     }),
-    sendMessage: vi.fn(() => {}),
     handlers,
   };
 }
