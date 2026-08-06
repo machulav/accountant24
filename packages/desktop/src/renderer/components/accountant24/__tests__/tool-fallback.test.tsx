@@ -41,8 +41,8 @@ describe("toolLabel()", () => {
       expect(toolLabel("validate")).toBe("Validate Ledger");
     });
 
-    it("should return 'Commit & Push' when toolName is 'commit_and_push'", () => {
-      expect(toolLabel("commit_and_push")).toBe("Commit & Push");
+    it("should return 'Commit' when toolName is 'commit_and_push'", () => {
+      expect(toolLabel("commit_and_push")).toBe("Commit");
     });
   });
 

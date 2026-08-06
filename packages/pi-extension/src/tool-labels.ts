@@ -9,5 +9,5 @@ export const TOOL_LABELS: Record<string, string> = {
   add_prices: "Add Prices",
   extract_text: "Extract Text",
   validate: "Validate Ledger",
-  commit_and_push: "Commit & Push",
+  commit_and_push: "Commit",
 };

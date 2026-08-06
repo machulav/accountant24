@@ -11,7 +11,7 @@ export const TOOL_LABELS: Record<string, string> = {
   add_prices: "Add Prices",
   extract_text: "Extract Text",
   validate: "Validate Ledger",
-  commit_and_push: "Commit & Push",
+  commit_and_push: "Commit",
 
   // pi's built-in tools — pi only carries lowercase raw names for these, so
   // they are labeled here, renderer-side only.
