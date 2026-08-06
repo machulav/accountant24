@@ -35,11 +35,14 @@ describe("UserMessageText", () => {
     expect(container.querySelector('[data-directive-type="skill"]')?.textContent).toBe("pdf");
   });
 
-  it("should lift attachment markers and keep the skill chip inline", () => {
+  it("should strip attachment markers and keep the skill chip inline", () => {
     // Markers ride on their own line (the attachment adapter appends them).
+    // The file cards themselves render in the attachment row above the bubble
+    // (UserMessageAttachments), not here.
     const marker = encodeAttachmentRef({ name: "receipt.pdf", path: "files/receipt.pdf" });
     const { container } = renderText(`:skill[pdf] summarize the attached file\n${marker}`);
-    expect(screen.getByText("receipt.pdf")).toBeTruthy();
+    expect(screen.queryByText("receipt.pdf")).toBeNull();
+    expect(container.textContent).not.toContain("[[attachment]]");
     expect(container.querySelector('[data-directive-type="skill"]')?.textContent).toBe("pdf");
     expect(screen.getByText(/summarize the attached file/)).toBeTruthy();
   });

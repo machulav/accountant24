@@ -36,6 +36,7 @@ vi.mock("@assistant-ui/react-pi", async (importOriginal) => ({
 }));
 
 import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRuntime } from "@assistant-ui/react";
+import { encodeAttachmentRef } from "@/lib/attachmentMarker";
 import { addPendingCompactionMarker, resetPendingCompactionMarkers } from "@/runtime/pendingCompaction";
 import { Thread, type ThreadComponents } from "../thread";
 
@@ -137,6 +138,50 @@ describe("Thread welcome vs. messages", () => {
       </Chrome>,
     );
     expect(await screen.findByText("Your balance is 100.")).toBeInTheDocument();
+  });
+});
+
+describe("Thread user message attachments", () => {
+  const marker = encodeAttachmentRef({ name: "07 Beleg.pdf", path: "files/2026/08/20260806120000.pdf" });
+  const attachmentsRow = () => document.querySelector('[data-slot="aui_user-attachments"]');
+  const bubbleContent = () => document.querySelector('[data-role="user"] [data-slot="bubble-content"]');
+
+  it("should render a file-only message as a card in the attachment row with an empty bubble", async () => {
+    render(
+      <Chrome messages={[userMsg(marker)]}>
+        <Thread />
+      </Chrome>,
+    );
+    expect(await screen.findByText("07 Beleg.pdf")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+    // The card lives in the row above the bubble, never inside it.
+    expect(attachmentsRow()?.querySelector('[data-slot="attachment"]')).not.toBeNull();
+    // The bubble has nothing left to say (its CSS hides it when empty).
+    expect(bubbleContent()).toBeEmptyDOMElement();
+  });
+
+  it("should render the card above the bubble and the text inside it for a mixed message", async () => {
+    render(
+      <Chrome messages={[userMsg(`paid this from my checking account\n${marker}`)]}>
+        <Thread />
+      </Chrome>,
+    );
+    expect(await screen.findByText("paid this from my checking account")).toBeInTheDocument();
+    expect(attachmentsRow()?.querySelector('[data-slot="attachment"]')).not.toBeNull();
+    expect(bubbleContent()?.textContent).toBe("paid this from my checking account");
+    // The raw marker line never shows.
+    expect(screen.queryByText(marker)).toBeNull();
+  });
+
+  it("should render a sent image in the attachment row, not in the bubble", async () => {
+    render(
+      <Chrome messages={[{ id: "u1", role: "user", content: [{ type: "image", image: "data:image/png;base64,AA" }] }]}>
+        <Thread />
+      </Chrome>,
+    );
+    expect(await screen.findByAltText("attachment")).toBeInTheDocument();
+    expect(attachmentsRow()?.querySelector("img")).not.toBeNull();
+    expect(bubbleContent()?.querySelector("img")).toBeNull();
   });
 });
 

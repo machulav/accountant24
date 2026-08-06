@@ -11,7 +11,7 @@ import {
 } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 import { type ComponentType, createContext, type FC, memo, useContext } from "react";
-import { UserMessageImage, UserMessageText } from "@/components/accountant24/attachment";
+import { UserMessageAttachments, UserMessageText } from "@/components/accountant24/attachment";
 import {
   ChainOfThoughtRoot,
   ChainOfThoughtStep,
@@ -243,6 +243,10 @@ const AssistantMessage: FC = () => {
   );
 };
 
+/** Suppresses a part in this Parts pass: image parts show only in the
+ *  attachment row above the bubble, never as bubble content. */
+const NoPart: FC = () => null;
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -256,14 +260,22 @@ const UserMessage: FC = () => {
     >
       <Message align="end">
         <MessageContent>
+          {/* Attachments (images, file cards) render above the bubble, not in
+              it — a file-only message is just its card, never a bubble-in-a-
+              bubble. The bubble hides itself when the remaining text is empty. */}
+          <UserMessageAttachments />
           {/* bg-input/50 (same child-selector pattern as the variant, so it wins
               via tailwind-merge): exactly the composer's surface color, per the
               "user input surfaces look identical" rule. */}
-          <Bubble variant="secondary" align="end" className="*:data-[slot=bubble-content]:bg-input/50">
+          <Bubble
+            variant="secondary"
+            align="end"
+            className="*:data-[slot=bubble-content]:bg-input/50 has-[>[data-slot=bubble-content]:empty]:hidden"
+          >
             {/* text-base: conversation content is 16px (composer, assistant
                 replies); the stock 14px would shrink the text after sending. */}
-            <BubbleContent className="text-base empty:hidden">
-              <MessagePrimitive.Parts components={{ Image: UserMessageImage, Text: UserMessageText }} />
+            <BubbleContent className="text-base">
+              <MessagePrimitive.Parts components={{ Image: NoPart, Text: UserMessageText }} />
             </BubbleContent>
           </Bubble>
         </MessageContent>

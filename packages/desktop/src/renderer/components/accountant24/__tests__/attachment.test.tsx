@@ -14,7 +14,13 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { encodeAttachmentRef } from "@/lib/attachmentMarker";
-import { ComposerAddAttachment, ComposerAttachments, UserMessageImage, UserMessageText } from "../attachment";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageFileCards,
+  UserMessageImage,
+  UserMessageText,
+} from "../attachment";
 
 beforeAll(() => {
   window.matchMedia ??= ((query: string) => ({
@@ -70,7 +76,7 @@ describe("ComposerAttachments", () => {
     expect(document.querySelectorAll('[data-slot="attachment"]')).toHaveLength(0);
   });
 
-  it("should show a chip with the file name after attaching", async () => {
+  it("should show a card with the file name after attaching", async () => {
     render(
       <Chrome>
         <ComposerAttachments />
@@ -79,6 +85,17 @@ describe("ComposerAttachments", () => {
     await addImage("receipt.png");
     await screen.findByText("receipt.png");
     expect(document.querySelectorAll('[data-slot="attachment"]')).toHaveLength(1);
+  });
+
+  it("should describe an attached image with its type and size", async () => {
+    render(
+      <Chrome>
+        <ComposerAttachments />
+      </Chrome>,
+    );
+    // addImage writes 3 bytes ([1, 2, 3]).
+    await addImage("receipt.png");
+    expect(await screen.findByText("PNG · 3 B")).toBeInTheDocument();
   });
 
   it("should remove the chip when its remove button is clicked", async () => {
@@ -105,7 +122,7 @@ describe("ComposerAttachments", () => {
     expect(document.querySelectorAll('[data-slot="attachment"]')).toHaveLength(2);
   });
 
-  it("should render a non-image attachment as a file chip (no thumbnail)", async () => {
+  it("should render a non-image attachment as a file card (no thumbnail)", async () => {
     render(
       <Chrome image={false}>
         <ComposerAttachments />
@@ -113,8 +130,19 @@ describe("ComposerAttachments", () => {
     );
     await addTextFile("statement.csv");
     await screen.findByText("statement.csv");
-    // A document attachment shows the file-chip, not an <img> preview.
+    // A document attachment shows the file card, not an <img> preview.
     expect(document.querySelector('[data-slot="attachment"] img')).toBeNull();
+  });
+
+  it("should describe a non-image attachment with its type and size", async () => {
+    render(
+      <Chrome image={false}>
+        <ComposerAttachments />
+      </Chrome>,
+    );
+    // addTextFile writes "hello" (5 bytes).
+    await addTextFile("statement.csv");
+    expect(await screen.findByText("CSV · 5 B")).toBeInTheDocument();
   });
 
   it("should remove a non-image chip when its remove button is clicked", async () => {
@@ -157,23 +185,65 @@ describe("UserMessageImage", () => {
   });
 });
 
+describe("UserMessageFileCards", () => {
+  const Cards = UserMessageFileCards as TextMessagePartComponent;
+  const render_ = (text: string) => render(<Cards {...({ text } as ComponentProps<typeof Cards>)} />);
+
+  it("should render a file card with the name and type for a marker", () => {
+    const marker = encodeAttachmentRef({ name: "statement.pdf", path: "/ws/statement.pdf" });
+    render_(`Here is my file\n${marker}`);
+    expect(screen.getByText("statement.pdf")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+    // Only the cards — the text belongs to UserMessageText.
+    expect(screen.queryByText("Here is my file")).toBeNull();
+  });
+
+  it("should render one card per marker", () => {
+    const a = encodeAttachmentRef({ name: "a.pdf", path: "/ws/a.pdf" });
+    const b = encodeAttachmentRef({ name: "b.csv", path: "/ws/b.csv" });
+    render_(`${a}\n${b}`);
+    expect(document.querySelectorAll('[data-slot="attachment"]')).toHaveLength(2);
+  });
+
+  it("should show the file size when the marker carries one", () => {
+    const marker = encodeAttachmentRef({ name: "statement.pdf", path: "/ws/statement.pdf", size: 245_000 });
+    render_(marker);
+    expect(screen.getByText("PDF · 245 KB")).toBeInTheDocument();
+  });
+
+  it("should render a card without a type line when the name has no extension", () => {
+    const marker = encodeAttachmentRef({ name: "receipt", path: "/ws/receipt" });
+    render_(marker);
+    expect(screen.getByText("receipt")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="attachment-description"]')).toBeNull();
+  });
+
+  it("should render nothing when the text has no markers", () => {
+    render_("just a note");
+    expect(document.querySelector('[data-slot="attachment"]')).toBeNull();
+    expect(screen.queryByText("just a note")).toBeNull();
+  });
+});
+
 describe("UserMessageText", () => {
   const Text = UserMessageText as TextMessagePartComponent;
   const render_ = (text: string) => render(<Text {...({ text } as ComponentProps<typeof Text>)} />);
 
-  it("should lift a file marker into a chip and show only the human text", () => {
+  it("should strip a file marker and show only the human text", () => {
     const marker = encodeAttachmentRef({ name: "statement.pdf", path: "/ws/statement.pdf" });
     render_(`Here is my file\n${marker}`);
-    expect(screen.getByText("statement.pdf")).toBeInTheDocument();
     expect(screen.getByText("Here is my file")).toBeInTheDocument();
-    // The raw marker line is never shown as text.
+    // The marker renders neither as raw text nor as a chip — the attachment
+    // row above the bubble owns the cards.
     expect(screen.queryByText(marker)).toBeNull();
+    expect(screen.queryByText("statement.pdf")).toBeNull();
+    expect(document.querySelector('[data-slot="attachment"]')).toBeNull();
   });
 
-  it("should render only the chips when the message is a bare attachment", () => {
+  it("should render nothing when the message is a bare attachment", () => {
     const marker = encodeAttachmentRef({ name: "photo.png", path: "/ws/photo.png" });
-    render_(marker);
-    expect(screen.getByText("photo.png")).toBeInTheDocument();
+    const { container } = render_(marker);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("should render plain text with no chips when there are no attachments", () => {

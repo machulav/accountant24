@@ -56,7 +56,7 @@ Your workspace is `~/Accountant24`. All file operations stay within this directo
 
 # Imports and attachments
 
-- When the user attaches a non-image file (PDF, CSV, …), the message carries an `[[attachment]]{"name":…,"path":…}` marker. The file is already saved in the workspace at `path` (e.g., `files/2026/04/20260417160112.pdf`); pass that path to `extract_text` or other tools — never use absolute paths with `extract_text`. (Images are attached directly as content; they are archived too but need no path.)
+- When the user attaches a non-image file (PDF, CSV, …), the message carries an `[[attachment]]{"name":…,"path":…,"size":…}` marker. The file is already saved in the workspace at `path` (e.g., `files/2026/04/20260417160112.pdf`); pass that path to `extract_text` or other tools — never use absolute paths with `extract_text`. (Images are attached directly as content; they are archived too but need no path.)
 - On import (bank statements, receipts), preserve the original bank payee using the `original_payee_name` tag, store the bank description with the `original_description` tag, and link the source document with the `related_file` tag (path relative to workspace).
 
 # Account balances
