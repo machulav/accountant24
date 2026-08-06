@@ -6,9 +6,11 @@
 // hledger) with the section's own total, the hledger-computed Net as the
 // closing line, sorting on every column (A-Z on the account path by default,
 // independent per section), search filtering every section by path, the
-// empty state (no journal yet or hledger failed), and the refetch on the
-// agent's running → idle edge. jsdom pins navigator.language to en-US, so
-// formatted expectations are deterministic.
+// two assertion columns hidden by default behind the header's Columns menu
+// (the choice persisted in localStorage), the empty state (no journal yet
+// or hledger failed), and the refetch on the agent's running → idle edge.
+// jsdom pins navigator.language to en-US, so formatted expectations are
+// deterministic.
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,6 +32,8 @@ beforeAll(() => installJsdomPolyfills());
 afterEach(() => cleanup());
 beforeEach(() => {
   vi.mocked(ledgerApi.netWorth).mockReset();
+  // The Columns choice persists here; every spec starts from the default.
+  window.localStorage.clear();
 });
 
 /** Real assistant-ui chrome so the view's `useAuiState` reads an honest
@@ -60,9 +64,17 @@ const DATA: NetWorth = {
           amounts: [A("UAH", 1408.26), A("USD", 100)],
           value: [A("EUR", 115.573, 3)],
           assertedOn: "2026-06-15",
+          // The balance has drifted since the assertion — the realistic case.
+          assertedAmount: A("UAH", 1400),
         },
         { name: "assets:darka:etf:sxr8", amounts: [A("SXR8", 22.45)], value: [A("EUR", 1920.148, 3)] },
-        { name: "assets:bank", amounts: [A("EUR", 50)], value: [A("EUR", 50)], assertedOn: "2026-07-12" },
+        {
+          name: "assets:bank",
+          amounts: [A("EUR", 50)],
+          value: [A("EUR", 50)],
+          assertedOn: "2026-07-12",
+          assertedAmount: A("EUR", 45),
+        },
       ],
       total: {
         amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", 50)],
@@ -94,6 +106,15 @@ const accountOrder = (tableName: string) =>
     .getAllByRole("row")
     .slice(1) // the column-header row
     .map((row) => row.querySelector("td")?.getAttribute("title"));
+
+/** Turn both assertion columns on through the header's Columns menu, then
+ *  close it so the tables are clickable again. */
+const showAssertionColumns = async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+  await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Asserted On" }));
+  await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Asserted Amount" }));
+  await userEvent.keyboard("{Escape}");
+};
 
 describe("<NetWorthView />", () => {
   it("should show the page chrome immediately and skeletons only for the loading data", () => {
@@ -187,18 +208,51 @@ describe("<NetWorthView />", () => {
     expect(screen.queryByText("~50.00 EUR")).not.toBeInTheDocument();
   });
 
-  it("should show each account's last balance assertion date, and an em dash when it was never asserted", async () => {
+  it("should show each account's last asserted date, and an em dash when it was never asserted, when toggled on", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    // Settle on loaded data first — the skeleton also carries the header.
     await screen.findByTitle("assets:cash");
+    await showAssertionColumns();
     // One sortable header per section table.
-    expect(screen.getAllByRole("button", { name: "Last Balance Assertion" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
     // The journal's own ISO dates, verbatim.
     expect(screen.getByText("2026-07-12")).toBeInTheDocument();
     expect(screen.getByText("2026-06-15")).toBeInTheDocument();
-    // Never asserted: the SXR8 account and the liability.
-    expect(screen.getAllByText("\u2014")).toHaveLength(2);
+    // Never asserted (the SXR8 account and the liability): a dash in the
+    // date and in the amount column \u2014 two rows times two columns.
+    expect(screen.getAllByText("\u2014")).toHaveLength(4);
+  });
+
+  it("should show the last asserted amount in the account's own commodity when toggled on", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+    renderView();
+    await screen.findByTitle("assets:cash");
+    await showAssertionColumns();
+    expect(screen.getAllByRole("button", { name: "Asserted Amount" })).toHaveLength(2);
+    // Formatted like Holding: locale digits, commodity suffix, the amount's
+    // own precision \u2014 and distinct from the current holding (the balance
+    // moved since the assertion).
+    expect(screen.getByText("1,400.00 UAH")).toBeInTheDocument();
+    expect(screen.getByText("45.00 EUR")).toBeInTheDocument();
+  });
+
+  it("should show the date but a dash in the amount cell when the assertion carried no amount", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
+      sections: [
+        {
+          name: "Assets",
+          rows: [{ name: "assets:legacy", amounts: [A("EUR", 10)], value: [A("EUR", 10)], assertedOn: "2026-05-01" }],
+          total: { amounts: [A("EUR", 10)], value: [A("EUR", 10)] },
+        },
+      ],
+      net: { amounts: [A("EUR", 10)], value: [A("EUR", 10)] },
+    });
+    renderView();
+    await screen.findByTitle("assets:legacy");
+    await showAssertionColumns();
+    expect(screen.getByText("2026-05-01")).toBeInTheDocument();
+    // Only the amount cell falls back to the dash.
+    expect(screen.getAllByText("\u2014")).toHaveLength(1);
   });
 
   it("should show a multi-commodity holding comma-joined on one line", async () => {
@@ -276,16 +330,31 @@ describe("<NetWorthView />", () => {
       expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:bank", "assets:cash"]);
     });
 
-    it("should sort by assertion date, most recent first, with never-asserted rows last", async () => {
+    it("should sort by asserted date, most recent first, with never-asserted rows last", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
-      await userEvent.click(assetsButton("Last Balance Assertion"));
+      await showAssertionColumns();
+      await userEvent.click(assetsButton("Asserted On"));
       // bank (07-12) > cash (06-15) > darka (never asserted).
       expect(accountOrder("Assets")).toEqual(["assets:bank", "assets:cash", "assets:darka:etf:sxr8"]);
       // A second click flips: never-asserted first, then oldest.
-      await userEvent.click(assetsButton("Last Balance Assertion"));
+      await userEvent.click(assetsButton("Asserted On"));
       expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:cash", "assets:bank"]);
+    });
+
+    it("should sort by the asserted amount, biggest first, with never-asserted rows counting as zero", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await showAssertionColumns();
+      // Asserted quantities: cash=1,400, bank=45, darka=0 (never asserted) —
+      // a plain number sort, like Holding.
+      await userEvent.click(assetsButton("Asserted Amount"));
+      expect(accountOrder("Assets")).toEqual(["assets:cash", "assets:bank", "assets:darka:etf:sxr8"]);
+      // A second click flips to smallest first.
+      await userEvent.click(assetsButton("Asserted Amount"));
+      expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:bank", "assets:cash"]);
     });
 
     it("should keep each section's sorting independent", async () => {
@@ -361,16 +430,31 @@ describe("<NetWorthView />", () => {
       ).toBeInTheDocument();
     });
 
-    it("should explain the Last Balance Assertion column, including the dash", async () => {
+    it("should explain the Asserted On column, including the dash", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
       await screen.findByTitle("assets:cash");
-      await hoverInfo("Last Balance Assertion");
+      await showAssertionColumns();
+      await hoverInfo("Asserted On");
       expect(
         await screen.findByText(/When the ledger balance was last confirmed to match the real account balance/),
       ).toBeInTheDocument();
       expect(screen.getByText(/A dash means it was never confirmed/)).toBeInTheDocument();
       // The tooltip also teaches how to confirm one.
+      expect(screen.getByText(/My cash balance is 200 EUR/)).toBeInTheDocument();
+    });
+
+    it("should explain the Asserted Amount column, including the dash", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await showAssertionColumns();
+      await hoverInfo("Asserted Amount");
+      expect(
+        await screen.findByText(/The ledger balance that was last confirmed to match the real account balance/),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/A dash means it was never confirmed/)).toBeInTheDocument();
+      // The same how-to line as the date column's tooltip.
       expect(screen.getByText(/My cash balance is 200 EUR/)).toBeInTheDocument();
     });
 
@@ -419,6 +503,117 @@ describe("<NetWorthView />", () => {
       expect(screen.getAllByText("No matching accounts")).toHaveLength(2);
       await userEvent.clear(box);
       expect(accountOrder("Assets")).toHaveLength(3);
+    });
+  });
+
+  describe("column visibility", () => {
+    it("should hide both assertion columns by default", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      expect(screen.queryByRole("button", { name: "Asserted On" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
+      expect(screen.queryByText("2026-07-12")).not.toBeInTheDocument();
+      expect(screen.queryByText("1,400.00 UAH")).not.toBeInTheDocument();
+    });
+
+    it("should list only the two assertion columns in the Columns menu, unchecked by default", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+      const items = await screen.findAllByRole("menuitemcheckbox");
+      // Account, Holding, and Value are the page's spine: never listed.
+      expect(items.map((item) => item.textContent)).toEqual(["Asserted On", "Asserted Amount"]);
+      for (const item of items) {
+        expect(item).toHaveAttribute("aria-checked", "false");
+      }
+    });
+
+    it("should show the assertion columns in both section tables when toggled on", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await showAssertionColumns();
+      for (const table of ["Assets", "Liabilities"]) {
+        const scope = within(screen.getByRole("table", { name: table }));
+        expect(scope.getByRole("button", { name: "Asserted On" })).toBeInTheDocument();
+        expect(scope.getByRole("button", { name: "Asserted Amount" })).toBeInTheDocument();
+      }
+    });
+
+    it("should persist the column choice and restore it on remount", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      const { unmount } = renderView();
+      await screen.findByTitle("assets:cash");
+      await showAssertionColumns();
+      expect(window.localStorage.getItem("accountant24.net-worth.columns")).toBe(
+        JSON.stringify({ asserted: true, assertedAmount: true }),
+      );
+      unmount();
+
+      // A fresh mount reads the stored choice: no menu interaction needed.
+      renderView();
+      await screen.findByTitle("assets:cash");
+      expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
+      expect(screen.getByText("1,400.00 UAH")).toBeInTheDocument();
+    });
+
+    it("should reflect the persisted columns in the loading skeleton, hidden by default", async () => {
+      window.localStorage.setItem(
+        "accountant24.net-worth.columns",
+        JSON.stringify({ asserted: true, assertedAmount: true }),
+      );
+      vi.mocked(ledgerApi.netWorth).mockReturnValue(new Promise(() => {}));
+      const { unmount } = renderView();
+      const skeleton = screen.getByRole("status", { name: "Loading accounts" });
+      expect(within(skeleton).getByText("Asserted On")).toBeInTheDocument();
+      expect(within(skeleton).getByText("Asserted Amount")).toBeInTheDocument();
+      unmount();
+
+      // Without a stored choice the skeleton shows only the default columns.
+      window.localStorage.clear();
+      renderView();
+      expect(screen.queryByText("Asserted On")).not.toBeInTheDocument();
+      expect(screen.queryByText("Asserted Amount")).not.toBeInTheDocument();
+    });
+
+    it("should show only the toggled column when just one is enabled", async () => {
+      window.localStorage.setItem(
+        "accountant24.net-worth.columns",
+        JSON.stringify({ asserted: true, assertedAmount: false }),
+      );
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
+      expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
+      expect(screen.getByText("2026-07-12")).toBeInTheDocument();
+      expect(screen.queryByText("1,400.00 UAH")).not.toBeInTheDocument();
+    });
+
+    it("should fall back to hidden columns when the stored value is garbage", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      for (const stored of ["not json", JSON.stringify({ asserted: "yes" }), JSON.stringify(null)]) {
+        window.localStorage.setItem("accountant24.net-worth.columns", stored);
+        const { unmount } = renderView();
+        await screen.findByTitle("assets:cash");
+        expect(screen.queryByRole("button", { name: "Asserted On" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it("should span the empty-search row across only the visible columns", async () => {
+      vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByTitle("assets:cash");
+      await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "zzz");
+      const emptyCell = () => screen.getAllByText("No matching accounts")[0]?.closest("td");
+      expect(emptyCell()?.colSpan).toBe(3);
+      // With the assertion pair on, the row widens to match.
+      await showAssertionColumns();
+      expect(emptyCell()?.colSpan).toBe(5);
     });
   });
 

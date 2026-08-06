@@ -7,6 +7,7 @@
 // boundary is the fake bridge.
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
@@ -56,6 +57,7 @@ const DATA: NetWorth = {
           amounts: [{ quantity: 100, commodity: "USD", precision: 2 }],
           value: [{ quantity: 86, commodity: "EUR", precision: 2 }],
           assertedOn: "2026-07-01",
+          assertedAmount: { quantity: 95, commodity: "USD", precision: 2 },
         },
         {
           name: "assets:checking",
@@ -114,6 +116,8 @@ beforeEach(() => {
   bridge.reset();
   bridge.setHandler("update_pending", () => null);
   bridge.setHandler("ledger_net_worth", () => DATA);
+  // The Columns choice persists here; every spec starts from the default.
+  window.localStorage.clear();
 });
 
 afterEach(() => cleanup());
@@ -139,8 +143,32 @@ describe("Net Worth view flow", () => {
     expect(screen.getByTitle("assets:checking")).toBeInTheDocument();
     expect(screen.getByText("~86.00 EUR")).toBeInTheDocument();
     expect(screen.getByTitle("liabilities:card")).toBeInTheDocument();
-    expect(screen.getByText("2026-07-01")).toBeInTheDocument();
+    // The assertion columns stay hidden until toggled on.
+    expect(screen.queryByText("2026-07-01")).toBeNull();
     expect(bridge.callsFor("ledger_net_worth")).toHaveLength(2);
+  });
+
+  it("should reveal the assertion columns via the Columns menu and keep them when the page is reopened", async () => {
+    render(<ChatLayout />);
+    openSheet();
+    await screen.findByTitle("assets:cash");
+
+    await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Asserted On" }));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Asserted Amount" }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByText("2026-07-01")).toBeInTheDocument();
+    expect(screen.getByText("95.00 USD")).toBeInTheDocument();
+
+    // Leave and reopen: the choice comes back from localStorage, with the
+    // usual per-open fetch and no menu interaction.
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+    expect(screen.queryByTitle("assets:cash")).toBeNull();
+    openSheet();
+    await screen.findByTitle("assets:cash");
+    expect(screen.getByText("2026-07-01")).toBeInTheDocument();
+    expect(screen.getByText("95.00 USD")).toBeInTheDocument();
+    expect(bridge.callsFor("ledger_net_worth")).toHaveLength(3);
   });
 
   it("should mark the sidebar entry active and keep the chat mounted but hidden while open", async () => {

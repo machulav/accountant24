@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   mergeValuedBalanceSheet,
-  parseAssertionDates,
+  parseAssertions,
   parseBalanceSheetJson,
   parseLatestPriceTarget,
   type RawBalanceSheet,
@@ -261,38 +261,72 @@ describe("mergeValuedBalanceSheet()", () => {
   });
 });
 
-// parseAssertionDates turns `hledger print -O json` output (an array of
+// parseAssertions turns `hledger print -O json` output (an array of
 // transactions with postings; a posting carrying `pbalanceassertion` asserts
-// its account's balance on that date) into each account's latest assertion
-// date. Fixtures follow the documented shape.
+// its account's balance on that date) into each account's latest assertion:
+// its date and the asserted amount. Fixtures follow the documented shape.
 
-describe("parseAssertionDates()", () => {
-  const posting = (account: string, asserted: boolean, pdate: string | null = null) => ({
+describe("parseAssertions()", () => {
+  const posting = (
+    account: string,
+    asserted: boolean,
+    pdate: string | null = null,
+    baamount: unknown = amt("EUR", 200),
+  ) => ({
     paccount: account,
     pdate,
-    pbalanceassertion: asserted ? { baamount: {}, batotal: false } : null,
+    pbalanceassertion: asserted ? { baamount, batotal: false } : null,
   });
   const txn = (date: string, postings: unknown[]) => ({ tdate: date, tpostings: postings });
+  // What the default `baamount` fixture must parse to.
+  const EUR200 = { commodity: "EUR", quantity: 200, precision: 2 };
 
   it("should return {} for an empty string, garbage, or a non-array", () => {
-    expect(parseAssertionDates("")).toEqual({});
-    expect(parseAssertionDates("hledger: error")).toEqual({});
-    expect(parseAssertionDates('{"a": 1}')).toEqual({});
+    expect(parseAssertions("")).toEqual({});
+    expect(parseAssertions("hledger: error")).toEqual({});
+    expect(parseAssertions('{"a": 1}')).toEqual({});
   });
 
   it("should return {} when no posting carries an assertion", () => {
     const json = JSON.stringify([txn("2026-06-01", [posting("assets:bank", false)])]);
-    expect(parseAssertionDates(json)).toEqual({});
+    expect(parseAssertions(json)).toEqual({});
   });
 
   it("should record the transaction date of an asserting posting", () => {
     const json = JSON.stringify([txn("2026-06-15", [posting("assets:bank", true), posting("equity", false)])]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-06-15" });
+    expect(parseAssertions(json)).toEqual({ "assets:bank": { date: "2026-06-15", amount: EUR200 } });
+  });
+
+  it("should parse the asserted amount off the asserting posting", () => {
+    const json = JSON.stringify([txn("2026-06-15", [posting("assets:btc", true, null, amt("BTC", 0.16, 8))])]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:btc": { date: "2026-06-15", amount: { commodity: "BTC", quantity: 0.16, precision: 8 } },
+    });
+  });
+
+  it("should default the amount's precision to 2 when the journal declares none", () => {
+    const bare = { acommodity: "EUR", aquantity: { floatingPoint: 77 } };
+    const json = JSON.stringify([txn("2026-06-15", [posting("assets:bank", true, null, bare)])]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-06-15", amount: { commodity: "EUR", quantity: 77, precision: 2 } },
+    });
+  });
+
+  it("should record a null amount when the assertion's amount is missing or malformed, keeping the date", () => {
+    const json = JSON.stringify([
+      // An assertion object with no baamount at all.
+      txn("2026-06-15", [{ paccount: "assets:bare", pdate: null, pbalanceassertion: { batotal: false } }]),
+      txn("2026-06-16", [posting("assets:odd", true, null, { acommodity: 5 })]),
+    ]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bare": { date: "2026-06-15", amount: null },
+      "assets:odd": { date: "2026-06-16", amount: null },
+    });
   });
 
   it("should prefer the posting's own date over the transaction's", () => {
     const json = JSON.stringify([txn("2026-07-10", [posting("assets:bank", true, "2026-07-12")])]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-12" });
+    expect(parseAssertions(json)).toEqual({ "assets:bank": { date: "2026-07-12", amount: EUR200 } });
   });
 
   it("should keep the latest date per account regardless of journal order", () => {
@@ -301,7 +335,22 @@ describe("parseAssertionDates()", () => {
       txn("2026-06-15", [posting("assets:bank", true)]),
       txn("2026-05-01", [posting("assets:cash", true)]),
     ]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-01", "assets:cash": "2026-05-01" });
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-07-01", amount: EUR200 },
+      "assets:cash": { date: "2026-05-01", amount: EUR200 },
+    });
+  });
+
+  it("should carry the amount together with the latest date when assertions repeat", () => {
+    // Journal order deliberately newest-first: the winning record must take
+    // BOTH its date and its amount from the same (latest) posting.
+    const json = JSON.stringify([
+      txn("2026-07-01", [posting("assets:bank", true, null, amt("EUR", 250))]),
+      txn("2026-06-01", [posting("assets:bank", true, null, amt("EUR", 100))]),
+    ]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-07-01", amount: { commodity: "EUR", quantity: 250, precision: 2 } },
+    });
   });
 
   it("should skip malformed transactions and postings but keep the valid ones", () => {
@@ -311,7 +360,7 @@ describe("parseAssertionDates()", () => {
       txn("2026-06-02", ["not a posting", { pbalanceassertion: {}, paccount: "" }, posting("assets:ok", true)]),
       { tpostings: [posting("assets:dateless", true)] },
     ]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:ok": "2026-06-02" });
+    expect(parseAssertions(json)).toEqual({ "assets:ok": { date: "2026-06-02", amount: EUR200 } });
   });
 });
 

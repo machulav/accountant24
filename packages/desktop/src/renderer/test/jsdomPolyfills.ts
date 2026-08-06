@@ -23,4 +23,24 @@ export function installJsdomPolyfills(): void {
   } as unknown as typeof ResizeObserver;
 
   Element.prototype.scrollIntoView ??= () => {};
+
+  // This jsdom build ships without Web Storage; back it with a Map so
+  // components persisting UI preferences (sidebar width, table columns)
+  // work under tests.
+  if (!window.localStorage) {
+    const backing = new Map<string, string>();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => backing.get(k) ?? null,
+        setItem: (k: string, v: string) => void backing.set(k, String(v)),
+        removeItem: (k: string) => void backing.delete(k),
+        clear: () => backing.clear(),
+        key: (i: number) => [...backing.keys()][i] ?? null,
+        get length() {
+          return backing.size;
+        },
+      } satisfies Storage,
+    });
+  }
 }

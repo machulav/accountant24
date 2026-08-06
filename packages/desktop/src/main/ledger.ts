@@ -14,12 +14,7 @@ import path from "node:path";
 import { ipcMain } from "electron";
 import type { LedgerMentions, NetWorth } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
-import {
-  mergeValuedBalanceSheet,
-  parseAssertionDates,
-  parseBalanceSheetJson,
-  parseLatestPriceTarget,
-} from "./ledger-json";
+import { mergeValuedBalanceSheet, parseAssertions, parseBalanceSheetJson, parseLatestPriceTarget } from "./ledger-json";
 
 function hledgerBin(): string {
   const exe = path.join(binDir(), process.platform === "win32" ? "hledger.exe" : "hledger");
@@ -75,10 +70,10 @@ async function resolveBaseCommodity(): Promise<string | null> {
  *  collapses multi-commodity holdings to one base-currency figure wherever
  *  hledger finds any price path (direct, reverse, chained, or cost-
  *  inferred); with no prices declared there is nothing to aim at, and `-V`
- *  lets hledger value what it can. Each row also carries the date of the
- *  account's latest balance assertion (from `print -O json`) — when the
- *  balance was last reconciled. Empty when there's no journal yet or hledger
- *  fails. */
+ *  lets hledger value what it can. Each row also carries the date and amount
+ *  of the account's latest balance assertion (from `print -O json`) — when
+ *  the balance was last reconciled and what it was confirmed to be. Empty
+ *  when there's no journal yet or hledger fails. */
 async function ledgerNetWorth(): Promise<NetWorth> {
   const base = ["bs", "-O", "json", "-f", mainJournalPath()];
   const [native, printed, target] = await Promise.all([
@@ -90,12 +85,18 @@ async function ledgerNetWorth(): Promise<NetWorth> {
   const raw = parseBalanceSheetJson(native);
   if (raw === null) return { sections: [], net: { amounts: [], value: [] } };
   const sheet = mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
-  const asserted = parseAssertionDates(printed);
+  const asserted = parseAssertions(printed);
   return {
     ...sheet,
     sections: sheet.sections.map((section) => ({
       ...section,
-      rows: section.rows.map((row) => (asserted[row.name] ? { ...row, assertedOn: asserted[row.name] } : row)),
+      rows: section.rows.map((row) => {
+        const a = asserted[row.name];
+        if (!a) return row;
+        // Date always; the amount only when the assertion's Amount parsed —
+        // assertedAmount never appears without assertedOn.
+        return a.amount ? { ...row, assertedOn: a.date, assertedAmount: a.amount } : { ...row, assertedOn: a.date };
+      }),
     })),
   };
 }

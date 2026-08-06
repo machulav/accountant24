@@ -235,7 +235,7 @@ describe("ledger_net_worth", () => {
     print: printed([
       {
         tdate: "2026-07-05",
-        tpostings: [{ paccount: "assets:btc", pdate: null, pbalanceassertion: { baamount: {} } }],
+        tpostings: [{ paccount: "assets:btc", pdate: null, pbalanceassertion: { baamount: amt("BTC", 0.16, 8) } }],
       },
     ]),
     // The latest price in the stub journal targets EUR: the derived base.
@@ -254,6 +254,7 @@ describe("ledger_net_worth", () => {
               amounts: [{ quantity: 0.16, commodity: "BTC", precision: 8 }],
               value: [{ quantity: 9990, commodity: "EUR", precision: 2 }],
               assertedOn: "2026-07-05",
+              assertedAmount: { quantity: 0.16, commodity: "BTC", precision: 8 },
             },
           ],
           total: {
@@ -312,10 +313,26 @@ describe("ledger_net_worth", () => {
     expect(argLists).toContainEqual(["bs", "-O", "json", "-f", "/ws/ledger/main.journal", "-V"]);
   });
 
+  it("should graft only the date when the assertion carries no parseable amount", async () => {
+    stubHledger({
+      ...STUBS,
+      print: printed([
+        {
+          tdate: "2026-07-05",
+          tpostings: [{ paccount: "assets:btc", pdate: null, pbalanceassertion: { baamount: {} } }],
+        },
+      ]),
+    });
+    const row = (await netWorth()).sections[0]?.rows[0];
+    expect(row?.assertedOn).toBe("2026-07-05");
+    expect(row?.assertedAmount).toBeUndefined();
+  });
+
   it("should leave rows without assertions untouched when the print run fails", async () => {
     stubHledger({ ...STUBS, print: new Error("boom") });
     const sheet = await netWorth();
     expect(sheet.sections[0]?.rows[0]?.assertedOn).toBeUndefined();
+    expect(sheet.sections[0]?.rows[0]?.assertedAmount).toBeUndefined();
   });
 
   it("should fall back to the raw amounts as the value when the valued run fails", async () => {

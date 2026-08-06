@@ -126,11 +126,19 @@ export function parseLatestPriceTarget(text: string): string | null {
   return symbol.length > 0 ? symbol : null;
 }
 
+/** An account's most recent balance assertion: when, and what balance was
+ *  asserted. The amount is null when the assertion's own Amount didn't parse
+ *  (both fields always come from the same winning posting). */
+export interface Assertion {
+  date: string;
+  amount: LedgerAmount | null;
+}
+
 /** Parse `hledger print -O json` output into each account's most recent
- *  balance-assertion date — the posting's own date when it has one, the
- *  transaction's otherwise. Accounts without assertions are absent; anything
- *  unparseable yields {}. */
-export function parseAssertionDates(json: string): Record<string, string> {
+ *  balance assertion — its date (the posting's own date when it has one, the
+ *  transaction's otherwise) and its asserted amount. Accounts without
+ *  assertions are absent; anything unparseable yields {}. */
+export function parseAssertions(json: string): Record<string, Assertion> {
   let data: unknown;
   try {
     data = JSON.parse(json);
@@ -138,7 +146,7 @@ export function parseAssertionDates(json: string): Record<string, string> {
     return {};
   }
   if (!Array.isArray(data)) return {};
-  const latest: Record<string, string> = {};
+  const latest: Record<string, Assertion> = {};
   for (const txn of data) {
     const t = txn as { tdate?: unknown; tpostings?: unknown };
     if (!Array.isArray(t?.tpostings)) continue;
@@ -148,7 +156,14 @@ export function parseAssertionDates(json: string): Record<string, string> {
       const date = typeof p.pdate === "string" && p.pdate ? p.pdate : t.tdate;
       if (typeof date !== "string" || !date) continue;
       const prev = latest[p.paccount];
-      if (!prev || date > prev) latest[p.paccount] = date;
+      if (!prev || date > prev.date) {
+        latest[p.paccount] = {
+          date,
+          // The asserted amount, when the assertion's Amount parses; an
+          // assertion pins one commodity, so baamount is a single Amount.
+          amount: parseAmount((p.pbalanceassertion as { baamount?: unknown }).baamount),
+        };
+      }
     }
   }
   return latest;

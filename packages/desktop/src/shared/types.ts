@@ -41,6 +41,11 @@ export interface AccountBalance {
    *  (the posting's own date when it has one) — when the balance was last
    *  reconciled. Absent when the account has no assertions. */
   assertedOn?: string;
+  /** The amount of that most recent balance assertion, verbatim from the
+   *  journal. An assertion pins a single commodity's balance, so this is one
+   *  amount, not a list. Absent when the account has no assertions or the
+   *  assertion's amount did not parse; present only alongside `assertedOn`. */
+  assertedAmount?: LedgerAmount;
 }
 
 /** A figure of the report that isn't an account row: a section total or the
