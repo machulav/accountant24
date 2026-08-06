@@ -1,5 +1,5 @@
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { Button } from "@/components/shadcn/button";
+import { HoverActionButton, HoverActions } from "@/components/accountant24/hover-actions";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
@@ -10,54 +10,50 @@ import { cn } from "@/lib/utils";
  * composer. Wide content (hledger reports) scrolls horizontally instead of
  * wrapping, so column alignment survives.
  *
- * A copy button sits in the top-right corner, revealed on hover or keyboard
- * focus (and pinned while the copied state shows). It copies `copyText`, or
- * the children when they are a plain string.
+ * A copy action pill (the shared HoverActions surface, as on markdown tables)
+ * sits in the top-right corner, revealed on hover or keyboard focus (and
+ * pinned while the copied state shows). It copies `copyText`, or the children
+ * when they are a plain string.
  */
 export function CodeBlock({
   className,
+  preClassName,
   children,
   copyText,
   ...props
-}: React.ComponentProps<"pre"> & { copyText?: string }) {
+}: React.ComponentProps<"pre"> & { copyText?: string; preClassName?: string }) {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
   const textToCopy = copyText ?? (typeof children === "string" ? children : "");
 
   return (
-    <div className={cn("group/code-block relative", className)}>
+    <div className={cn("group/hover-actions relative", className)}>
       <pre
         // text-muted-foreground: these blocks live inside the muted
         // chain-of-thought log; full-strength foreground reads too heavy there.
+        // preClassName lets other surfaces (chat markdown) restyle the pre.
         className={cn(
           "bg-input/30 text-muted-foreground overflow-x-auto rounded-3xl px-4 py-3 text-xs leading-relaxed",
+          preClassName,
         )}
         {...props}
       >
         {children}
       </pre>
       {textToCopy && (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={isCopied ? "Copied" : "Copy"}
-          onClick={() => {
-            if (!isCopied) copyToClipboard(textToCopy);
-          }}
-          className={cn(
-            // Aligned with the block's py-3/px-4 padding; size-5 keeps the
-            // button inside the first line's box.
-            "text-muted-foreground hover:text-foreground absolute top-2 right-2.5 size-5 p-1 active:scale-90",
-            "opacity-0 transition-opacity duration-150",
-            "group-hover/code-block:opacity-100 focus-visible:opacity-100",
-            isCopied && "opacity-100",
-          )}
-        >
-          {isCopied ? (
-            <CheckIcon className="animate-in zoom-in-50 fade-in size-3 duration-200 ease-out" />
-          ) : (
-            <CopyIcon className="animate-in zoom-in-75 fade-in size-3 duration-150" />
-          )}
-        </Button>
+        <HoverActions className={cn(isCopied && "opacity-100")}>
+          <HoverActionButton
+            tooltip={isCopied ? "Copied" : "Copy"}
+            onClick={() => {
+              if (!isCopied) copyToClipboard(textToCopy);
+            }}
+          >
+            {isCopied ? (
+              <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+            ) : (
+              <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+            )}
+          </HoverActionButton>
+        </HoverActions>
       )}
     </div>
   );

@@ -3,19 +3,16 @@
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import {
-  type CodeHeaderProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, memo } from "react";
+import { isValidElement, memo, type ReactNode } from "react";
 import remarkGfm from "remark-gfm";
 
+import { CodeBlock } from "@/components/accountant24/code-block";
 import { DirectivePill } from "@/components/accountant24/directive-chips";
 import { MarkdownTable } from "@/components/accountant24/markdown-table";
-import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { remarkMentions } from "@/lib/remark-mentions";
 import { cn } from "@/lib/utils";
 
@@ -32,22 +29,12 @@ const MarkdownTextImpl = () => {
 
 export const MarkdownText = memo(MarkdownTextImpl);
 
-const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
-  const { isCopied, copyToClipboard } = useCopyToClipboard();
-  const onCopy = () => {
-    if (!code || isCopied) return;
-    copyToClipboard(code);
-  };
-
-  return (
-    <div className="aui-code-header-root bg-input/50 mt-chat-rhythm flex items-center justify-between rounded-t-xl px-3.5 py-1.5 text-xs">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">{language}</span>
-      <TooltipIconButton tooltip="Copy" onClick={onCopy}>
-        {!isCopied && <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />}
-        {isCopied && <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />}
-      </TooltipIconButton>
-    </div>
-  );
+/** Raw source of a fenced block: the pre's child is the rendered <code>
+ *  element whose only child is the code string (absent for an empty block). */
+const codeText = (node: ReactNode): string => {
+  if (typeof node === "string") return node;
+  if (isValidElement<{ children?: ReactNode }>(node)) return codeText(node.props.children);
+  return "";
 };
 
 const defaultComponents = memoizeMarkdownComponents({
@@ -153,14 +140,17 @@ const defaultComponents = memoizeMarkdownComponents({
   sup: ({ className, ...props }) => (
     <sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />
   ),
-  pre: ({ className, ...props }) => (
-    <pre
-      className={cn(
-        "aui-md-pre bg-input/30 overflow-x-auto rounded-t-none rounded-b-xl p-3.5 text-[13px] leading-relaxed",
-        className,
-      )}
+  // Headerless code block: the shared CodeBlock surface (hover copy button),
+  // restyled for the chat body (full foreground, chat type size).
+  pre: ({ className, children, ...props }) => (
+    <CodeBlock
+      className="my-chat-rhythm first:mt-0 last:mb-0"
+      copyText={codeText(children)}
+      preClassName={cn("aui-md-pre text-foreground rounded-xl p-3.5 text-[13px]", className)}
       {...props}
-    />
+    >
+      {children}
+    </CodeBlock>
   ),
   // Mention directives (`:account[…]` etc.) are rewritten by remarkMentions into
   // `<span data-mention-type data-mention-label>`; render those as the shared
@@ -185,5 +175,4 @@ const defaultComponents = memoizeMarkdownComponents({
       />
     );
   },
-  CodeHeader,
 });

@@ -4,7 +4,7 @@ import { DownloadIcon, Maximize2Icon } from "lucide-react";
 import { type ComponentPropsWithoutRef, useCallback, useRef, useState } from "react";
 
 import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
-import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
+import { HoverActionButton, HoverActions } from "@/components/accountant24/hover-actions";
 import { Dialog, DialogContent } from "@/components/shadcn/dialog";
 import { tableToCsv } from "@/lib/table-csv";
 import { cn } from "@/lib/utils";
@@ -39,34 +39,21 @@ export function MarkdownTable({ className, children, ...props }: ComponentPropsW
   }, []);
 
   return (
-    <div className="aui-md-table-wrapper group/md-table relative my-3 w-full">
+    <div className="aui-md-table-wrapper group/hover-actions relative my-3 w-full">
       <div ref={scrollRef} className="scroll-fade-x w-full overflow-x-auto">
         <table className={cn(tableClassName, className)} {...props}>
           {children}
         </table>
       </div>
 
-      {/* Actions hug the table's top-right corner and fade in on hover (or
-          keyboard focus), so the table stays clean at rest. Styled as a
-          floating surface with the same tokens as popovers/menus so it reads
-          as part of the app; sits on the non-scrolling wrapper so it stays put
-          as the table scrolls. */}
-      <div className="bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 absolute end-2 top-2 z-10 flex items-center gap-0.5 rounded-full p-1 opacity-0 shadow-lg ring-1 transition-opacity group-hover/md-table:opacity-100 focus-within:opacity-100">
-        <TooltipIconButton
-          tooltip="Expand table"
-          onClick={() => setExpanded(true)}
-          className="text-muted-foreground hover:text-foreground"
-        >
+      <HoverActions>
+        <HoverActionButton tooltip="Expand table" onClick={() => setExpanded(true)}>
           <Maximize2Icon />
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip="Download CSV"
-          onClick={downloadCsv}
-          className="text-muted-foreground hover:text-foreground"
-        >
+        </HoverActionButton>
+        <HoverActionButton tooltip="Download CSV" onClick={downloadCsv}>
           <DownloadIcon />
-        </TooltipIconButton>
-      </div>
+        </HoverActionButton>
+      </HoverActions>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
         {/* The dialog sizes to the table's natural width and height, so a
