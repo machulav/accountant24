@@ -280,7 +280,7 @@ const DateFilterChip: FC<{
   const set = (range: DateRange) => column.setFilterValue(range.from === null && range.to === null ? undefined : range);
   return (
     <Popover>
-      <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+      <PopoverTrigger render={<Button variant="outline" size="sm" className="border-dashed" />}>
         <CalendarIcon />
         Date
         {active && (

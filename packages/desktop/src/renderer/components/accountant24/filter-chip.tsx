@@ -66,7 +66,10 @@ export const FilterChip: FC<{
         if (next) setQuery("");
       }}
     >
-      <ComboboxPrimitive.Trigger aria-label={title} render={<Button variant="outline" size="sm" />}>
+      <ComboboxPrimitive.Trigger
+        aria-label={title}
+        render={<Button variant="outline" size="sm" className="border-dashed" />}
+      >
         <CirclePlusIcon className="size-4" />
         {title}
         {selected.length > 0 && (
