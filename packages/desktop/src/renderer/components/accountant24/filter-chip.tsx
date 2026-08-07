@@ -10,7 +10,7 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { CirclePlusIcon } from "lucide-react";
 import { type FC, useState } from "react";
-import { MentionPill } from "@/components/accountant24/mentions";
+import { iconFor, MentionPill } from "@/components/accountant24/mentions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -39,16 +39,21 @@ export const FilterChip: FC<{
   /** Plural noun for the popup's search field: "Search {subject}". */
   subject: string;
   /** Render values as the chat's mention pills of this type ("account",
-   *  "tag", "payee") — in the options and, smaller, on the trigger. Unset
-   *  values render as plain text/badges. */
+   *  "tag", "payee") — in the options and, smaller, on the trigger. Also
+   *  picks the trigger icon (the same one the pills carry). Unset values
+   *  render as plain text/badges. */
   mentionType?: string;
+  /** Trigger icon for chips without a mention type; defaults to the mention
+   *  type's pill icon, or the generic ⊕. */
+  icon?: FC<{ className?: string }>;
   options: FilterChipOption[];
   /** Picked values; empty = the filter is off. */
   values: string[];
   onValuesChange: (values: string[]) => void;
   /** Per-value match counts, shown muted next to each option. */
   counts?: Map<string, number>;
-}> = ({ title, subject, mentionType, options, values, onValuesChange, counts }) => {
+}> = ({ title, subject, mentionType, icon, options, values, onValuesChange, counts }) => {
+  const Icon = icon ?? (mentionType ? iconFor(mentionType) : CirclePlusIcon);
   const [open, setOpen] = useState(false);
   // The popup's search text, owned here so the field's clear X is a plain
   // state reset; every open starts with a fresh, empty search.
@@ -83,7 +88,7 @@ export const FilterChip: FC<{
           />
         }
       >
-        <CirclePlusIcon className="size-4" />
+        <Icon className="size-4" />
         {title}
         {selected.length > 0 && (
           <>

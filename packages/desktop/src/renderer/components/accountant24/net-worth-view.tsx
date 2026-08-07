@@ -15,24 +15,19 @@
 // here. Data refreshes when the agent finishes a turn.
 
 import { type Column, type ColumnDef, flexRender, type SortingState, useTable } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Columns3Icon, InfoIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
 // The shared TanStack v9 feature bundle (row models + sort/filter/visibility
 // features); v9 tables must declare their features up front.
 import { type DataGridFeatures, dataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { Button } from "@/components/shadcn/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/shadcn/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
+import { ColumnsMenu } from "./columns-menu";
 import { SearchField } from "./search-field";
 import { useNetWorth } from "./use-net-worth";
 
@@ -497,38 +492,16 @@ export const NetWorthView: FC = () => {
           // field gives way so the Columns button never clips.
           <div className="flex min-w-0 items-center gap-2">
             <SearchField subject="accounts" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="outline" className="shrink-0">
-                    <Columns3Icon />
-                    Columns
-                  </Button>
-                }
-              />
-              {/* min-w-44: at the stock popup width the longest label wraps
-                  to two lines. */}
-              <DropdownMenuContent align="end" className="min-w-44">
-                {/* Only the assertion pair toggles; Account, Holding, and
-                    Value are the page's spine and never leave. closeOnClick
-                    stays off so checking one box doesn't dismiss the menu
-                    mid-choice. */}
-                <DropdownMenuCheckboxItem
-                  closeOnClick={false}
-                  checked={columnVisibility.asserted}
-                  onCheckedChange={(checked) => setColumnShown("asserted", checked)}
-                >
-                  {ASSERTED_ON_LABEL}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  closeOnClick={false}
-                  checked={columnVisibility.assertedAmount}
-                  onCheckedChange={(checked) => setColumnShown("assertedAmount", checked)}
-                >
-                  {ASSERTED_AMOUNT_LABEL}
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Only the assertion pair toggles; Account, Holding, and Value
+                are the page's spine and never leave. */}
+            <ColumnsMenu
+              columns={[
+                { id: "asserted", label: ASSERTED_ON_LABEL },
+                { id: "assertedAmount", label: ASSERTED_AMOUNT_LABEL },
+              ]}
+              visibility={columnVisibility}
+              onToggle={(id, shown) => setColumnShown(id as "asserted" | "assertedAmount", shown)}
+            />
           </div>
         )}
       </div>

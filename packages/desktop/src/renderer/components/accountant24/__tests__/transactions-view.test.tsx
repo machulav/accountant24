@@ -195,10 +195,11 @@ describe("<TransactionsView />", () => {
     expect(screen.getByRole("combobox", { name: "Payee" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Account" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Status" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Commodity" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tags" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Date" }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Sort" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Amount" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Columns" })).toBeInTheDocument();
     // But no figures yet — the grid shows shaped loading skeletons instead.
     expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
     expect(document.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(0);
@@ -352,45 +353,43 @@ describe("<TransactionsView />", () => {
         "Bookshop",
       ]);
     });
-  });
 
-  describe("toolbar Sort menu", () => {
-    it("should sort by the picked field in its natural direction, with a direction toggle", async () => {
+    it("should sort by the signed shown amount through the stock header cycle", async () => {
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
-      await userEvent.click(screen.getByRole("button", { name: "Sort" }));
-      // Amount starts descending (money reads biggest first).
-      await userEvent.click(await screen.findByRole("menuitemradio", { name: "Amount" }));
+      // Ascending by the signed leading amount: the -900 rent is the
+      // smallest, the 3000 salary inflow the biggest.
+      await userEvent.click(headerButton("Amount"));
       expect(rowOrder()).toEqual([
-        "Employer",
-        "Cafe Aroma",
-        "Grocery Store",
-        "Bookshop",
-        "Currency Exchange",
         "Landlord",
+        "Currency Exchange",
+        "Bookshop",
+        "Grocery Store",
+        "Cafe Aroma",
+        "Employer",
       ]);
-      // The menu stays open; flipping the direction reverses the rows.
-      await userEvent.click(screen.getByRole("menuitemradio", { name: "Asc" }));
+      // The second click reverses to biggest first.
+      await userEvent.click(headerButton("Amount"));
       expect(rowOrder()).toEqual([
-        "Landlord",
-        "Currency Exchange",
-        "Bookshop",
-        "Grocery Store",
-        "Cafe Aroma",
         "Employer",
+        "Cafe Aroma",
+        "Grocery Store",
+        "Bookshop",
+        "Currency Exchange",
+        "Landlord",
       ]);
     });
   });
 
-  describe("columns menu (View)", () => {
+  describe("Columns menu", () => {
     it("should toggle Tags and Status on without reopening, and persist the choice", async () => {
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
-      await userEvent.click(screen.getByRole("button", { name: "View" }));
-      // The chrome-only expander is not offered; the seven data columns are.
-      expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(7);
+      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+      // The chrome-only expander is not offered; the eight data columns are.
+      expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(8);
       // Two toggles in one visit: the menu must stay open between them.
       await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Tags" }));
       await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Status" }));
@@ -406,9 +405,25 @@ describe("<TransactionsView />", () => {
         note: false,
         account: true,
         amount: true,
+        commodity: false,
         tags: true,
         status: true,
       });
+    });
+
+    it("should drop the auto-sized Account width from storage when the config persists", async () => {
+      // Regression: the grid grows the Account column to fill the page and
+      // that growth once got persisted, overflowing any narrower page. A
+      // stale stored width must wash out on the next config write.
+      window.localStorage.setItem(TRANSACTIONS_TABLE_KEY, JSON.stringify({ sizing: { account: 740, date: 100 } }));
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+      await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Tags" }));
+      const stored = JSON.parse(window.localStorage.getItem(TRANSACTIONS_TABLE_KEY) ?? "{}");
+      // The user-owned Date width survives; the derived Account width does not.
+      expect(stored.sizing).toEqual({ date: 100 });
     });
 
     it("should restore the persisted column visibility on mount", async () => {
@@ -563,6 +578,45 @@ describe("<TransactionsView />", () => {
       fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-10" } });
       fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-10" } });
       expect(rowOrder()).toEqual(["Grocery Store"]);
+      await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+      expect(rowOrder()).toHaveLength(6);
+    });
+
+    it("should filter by commodity, matching any leg, options carrying counts", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Commodity"));
+      // Distinct commodities with any-leg counts: EUR everywhere but the
+      // exchange, whose two legs carry UAH and USD.
+      expect(within(await screen.findByRole("option", { name: /^EUR/ })).getByText("5")).toBeInTheDocument();
+      expect(within(screen.getByRole("option", { name: /^UAH/ })).getByText("1")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("option", { name: /^USD/ }));
+      expect(rowOrder()).toEqual(["Currency Exchange"]);
+      // The UAH leg of the same exchange: multi-select stays one row, not two.
+      await userEvent.click(screen.getByRole("option", { name: /^UAH/ }));
+      expect(rowOrder()).toEqual(["Currency Exchange"]);
+    });
+
+    it("should filter by the Amount chip's inclusive absolute bounds, badge reflecting the open side", async () => {
+      // Shown-leg absolute amounts in the fixture: 3000 (Employer, an
+      // inflow), 900 (Landlord), 50 (Currency Exchange), 18 (Bookshop),
+      // 12.50 (Grocery Store), 4 (Cafe Aroma).
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(screen.getAllByRole("button", { name: "Amount" })[0] as HTMLElement);
+      fireEvent.change(await screen.findByLabelText("Minimum amount"), { target: { value: "100" } });
+      // Sign-blind: the 3000 income matches alongside the 900 expense.
+      expect(rowOrder()).toEqual(["Landlord", "Employer"]);
+      expect(screen.getByText("≥ 100")).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("Maximum amount"), { target: { value: "1000" } });
+      expect(rowOrder()).toEqual(["Landlord"]);
+      expect(screen.getByText("100 - 1000")).toBeInTheDocument();
+      // Emptying Min leaves an open lower bound.
+      fireEvent.change(screen.getByLabelText("Minimum amount"), { target: { value: "" } });
+      expect(screen.getByText("≤ 1000")).toBeInTheDocument();
+      expect(rowOrder()).toEqual(["Bookshop", "Cafe Aroma", "Grocery Store", "Currency Exchange", "Landlord"]);
       await userEvent.click(screen.getByRole("button", { name: "Clear" }));
       expect(rowOrder()).toHaveLength(6);
     });

@@ -11,8 +11,8 @@ import {
 // The Transactions table's shape (column visibility, drag order, resized
 // widths) persists across app restarts via localStorage; loading must
 // survive absent, garbled, or stale entries by falling back to the defaults
-// (date, payee, account, amount on; comment, tags, status off; definition
-// order; no custom widths).
+// (date, payee, account, amount on; commodity, comment, tags, status off;
+// definition order; no custom widths).
 
 beforeAll(() => {
   if (!window.localStorage) {
@@ -44,6 +44,7 @@ const DEFAULTS = {
     note: false,
     account: true,
     amount: true,
+    commodity: false,
     tags: false,
     status: false,
   },

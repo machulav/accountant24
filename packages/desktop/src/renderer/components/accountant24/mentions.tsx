@@ -19,7 +19,10 @@ import { ledgerApi } from "@/rpc/api";
 import type { LedgerMentions } from "@/rpc/types";
 import { ComposerMentionsPopover } from "./composer-mentions-popover";
 
-const iconFor = (type: string): FC<{ className?: string }> => ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
+/** The canonical icon for a mention type — the one its pills carry; shared
+ *  so other UI naming the same entity (filter chips) matches the pills. */
+export const iconFor = (type: string): FC<{ className?: string }> =>
+  ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
 
 // Per-type colors (static strings so Tailwind keeps them). account=blue,
 // payee=green, tag=yellow. Muted/desaturated dusty tones rather than Tailwind's

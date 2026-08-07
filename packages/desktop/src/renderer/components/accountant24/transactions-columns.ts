@@ -15,6 +15,7 @@ export const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   note: false,
   account: true,
   amount: true,
+  commodity: false,
   tags: false,
   status: false,
 };
@@ -22,7 +23,7 @@ export const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
 /** Every leaf column id (the expander gutter included) — the known-ids list
  *  the sizing validation checks against. Column order itself is fixed by
  *  the column definitions; it is neither user-changeable nor persisted. */
-const KNOWN_COLUMNS = ["expand", "date", "payee", "account", "amount", "status", "note", "tags"];
+const KNOWN_COLUMNS = ["expand", "date", "payee", "account", "amount", "commodity", "status", "note", "tags"];
 
 export interface TransactionsTableConfig {
   visibility: Record<string, boolean>;

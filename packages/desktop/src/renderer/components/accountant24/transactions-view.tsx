@@ -6,19 +6,19 @@
 // visibility in localStorage), the
 // faceted filter chips, loading skeletons, empty states, and pagination.
 // The toolbar mirrors the classic data-table bar: search + filter chips
-// (Account, Status, Tags, Date) with a Reset on the left, Sort + View on
-// the right — the chips are ReUI's own DataGridColumnFilter; only the Date
-// chip and the Sort menu are local (ReUI ships no date filter or sort
-// dropdown), both assembled from stock shadcn parts. The page adds what the
-// grid cannot know: the search haystack (every leg of every transaction),
+// (Date, Payee, Account, Amount, Status, Tags) with a Reset on the left,
+// View on the right; sorting lives in the column headers alone. The page
+// adds what the grid cannot know: the search haystack (every leg of every
+// transaction),
 // the collapsed-row rule (lead with the legs money left from, unfold the
 // rest YNAB-style via the grid's expander), and the chat's mention pills.
 // Data refreshes when the agent finishes a turn.
 
-import type { Column, ColumnDef, ExpandedState, ReactTable, SortingState } from "@tanstack/react-table";
+import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
-import { ArrowUpDownIcon, CalendarIcon, Settings2Icon, XIcon } from "lucide-react";
+import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
+import { ColumnsMenu } from "@/components/accountant24/columns-menu";
 import { FilterChip } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
 import {
@@ -29,21 +29,11 @@ import {
   useDataGrid,
 } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
-import { DataGridColumnVisibility } from "@/components/reui/data-grid/data-grid-column-visibility";
 import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagination";
 import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
 import { DataGridTable, DataGridTableRowExpand } from "@/components/reui/data-grid/data-grid-table";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/shadcn/dropdown-menu";
 import { Input } from "@/components/shadcn/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
 import { Skeleton } from "@/components/shadcn/skeleton";
@@ -109,6 +99,27 @@ const HiddenLegs: FC<{ transaction: LedgerTransaction }> = ({ transaction }) => 
 /** A faceted-filter value list: an array of picked strings, empty = off. */
 const picked = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : []);
 
+/** Inclusive amount bounds; either side open. Matches absolute amounts. */
+type AmountRange = { min: number | null; max: number | null };
+
+/** The distinct commodities a transaction touches, in leg order —
+ *  hledger's own term: currencies, stock tickers, and crypto alike. */
+const rowCommodities = (t: LedgerTransaction): string[] => [
+  ...new Set(t.postings.flatMap((p) => p.amounts.map((a) => a.commodity))),
+];
+
+/** The Columns menu's entries: every hideable column, in display order. */
+const TOGGLEABLE_COLUMNS: { id: string; label: string }[] = [
+  { id: "date", label: "Date" },
+  { id: "payee", label: "Payee" },
+  { id: "account", label: "Account" },
+  { id: "amount", label: "Amount" },
+  { id: "commodity", label: "Commodity" },
+  { id: "status", label: "Status" },
+  { id: "note", label: "Comment" },
+  { id: "tags", label: "Tags" },
+];
+
 /** The register columns. The leading expander is chrome (not hideable, not
  *  sortable) and carries the row's unfolded content. Sort keys:
  *  - Date: with a payee tiebreak, so one descending day reads payee A-Z
@@ -138,7 +149,6 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       const byDate = compareText(a.original.date, b.original.date);
       return byDate !== 0 ? byDate : -compareText(a.original.payee.toLowerCase(), b.original.payee.toLowerCase());
     },
-    sortDescFirst: true,
     filterFn: (row, _columnId, value) => {
       const range = value as DateRange | undefined;
       return !range || inRange(row.original.date, range);
@@ -158,7 +168,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       const payees = picked(value);
       return payees.length === 0 || payees.includes(row.original.payee);
     },
-    size: 180,
+    size: 250,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
@@ -179,10 +189,13 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts for the filter chip count EVERY leg, matching the
     // filter's any-leg semantics (the accessor covers only the shown leg).
     getUniqueValues: (row) => row.postings.map((p) => p.account),
-    size: 260,
+    // The base width; as the page's one `autoSize` column it absorbs the
+    // leftover page width, landing a notch wider than Payee by default.
+    size: 200,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; the rest
-    // live in the row's unfolded block.
+    // live in the row's unfolded block. Deep paths truncate inside the pill
+    // (full path in the tooltip), so the column stays compact by default.
     cell: ({ row }) => (
       <div className="flex flex-col items-start gap-0.5">
         {splitPostings(row.original.postings).shown.map((posting, i) => (
@@ -199,7 +212,19 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     id: "amount",
     accessorFn: (row) => splitPostings(row.postings).shown[0]?.amounts[0]?.quantity ?? 0,
     sortFn: "basic",
-    sortDescFirst: true,
+    // Inclusive bounds against the shown legs' ABSOLUTE amounts: "50 to 300"
+    // finds a 200.00 EUR expense and a 200.00 EUR income alike — the filter
+    // asks "how big", the sign stays a display concern.
+    filterFn: (row, _columnId, value) => {
+      const range = value as AmountRange | undefined;
+      if (!range) return true;
+      return splitPostings(row.original.postings).shown.some((posting) =>
+        posting.amounts.some((a) => {
+          const q = Math.abs(a.quantity);
+          return (range.min === null || q >= range.min) && (range.max === null || q <= range.max);
+        }),
+      );
+    },
     size: 140,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => (
@@ -216,6 +241,26 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       headerClassName: "justify-end",
       cellClassName: "text-right",
       skeleton: <Skeleton className="ms-auto h-4 w-24" />,
+    },
+  },
+  {
+    id: "commodity",
+    accessorFn: (row) => rowCommodities(row).join(", "),
+    sortFn: "text",
+    // Any leg's commodity matches, so a EUR->USD exchange shows up under
+    // both commodities.
+    filterFn: (row, _columnId, value) => {
+      const currencies = picked(value);
+      return currencies.length === 0 || rowCommodities(row.original).some((c) => currencies.includes(c));
+    },
+    getUniqueValues: (row) => rowCommodities(row),
+    size: 110,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Commodity" />,
+    cell: ({ row }) => rowCommodities(row.original).join(", "),
+    meta: {
+      headerTitle: "Commodity",
+      cellClassName: "text-muted-foreground",
+      skeleton: <Skeleton className="h-4 w-12" />,
     },
   },
   {
@@ -270,6 +315,84 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     meta: { headerTitle: "Tags", skeleton: <Skeleton className="h-6 w-24 rounded-3xl" /> },
   },
 ];
+
+/** The grid grows `meta.autoSize` columns to fill the page, so their width
+ *  is derived, not owned: persisting it would freeze one page width's result
+ *  and overflow every narrower page. Storage drops these ids; the live table
+ *  state keeps them so the fill still applies. */
+const AUTO_SIZED = new Set(columns.flatMap((c) => (c.meta?.autoSize && c.id ? [c.id] : [])));
+
+/** The Amount filter chip: a stock popover with inclusive Min/Max bounds
+ *  over the shown legs' absolute amounts, writing a plain column filter like
+ *  every other chip. */
+const AmountFilterChip: FC<{
+  column: Column<DataGridFeatures, LedgerTransaction, unknown> | undefined;
+}> = ({ column }) => {
+  if (!column) return null;
+  const value = (column.getFilterValue() as AmountRange | undefined) ?? { min: null, max: null };
+  const active = value.min !== null || value.max !== null;
+  const set = (range: AmountRange) =>
+    column.setFilterValue(range.min === null && range.max === null ? undefined : range);
+  const parse = (raw: string): number | null => {
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            // With the range badge shown, the trailing padding matches the
+            // badge's vertical inset so the space reads even on all sides.
+            className={cn("border-dashed", active && "pr-1.5")}
+          />
+        }
+      >
+        <CoinsIcon />
+        Amount
+        {active && (
+          <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
+            {value.min !== null && value.max !== null
+              ? `${value.min} - ${value.max}`
+              : value.min !== null
+                ? `≥ ${value.min}`
+                : `≤ ${value.max}`}
+          </Badge>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "p-3")}>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              aria-label="Minimum amount"
+              placeholder="Min"
+              className="h-8"
+              value={value.min ?? ""}
+              onChange={(e) => set({ ...value, min: parse(e.target.value) })}
+            />
+            <Input
+              type="number"
+              aria-label="Maximum amount"
+              placeholder="Max"
+              className="h-8"
+              value={value.max ?? ""}
+              onChange={(e) => set({ ...value, max: parse(e.target.value) })}
+            />
+          </div>
+          {active && (
+            <Button variant="ghost" size="sm" onClick={() => column.setFilterValue(undefined)}>
+              Clear
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 /** The Date filter chip — the one filter ReUI has no component for. A stock
  *  popover with the period presets and inclusive From/To bounds, writing a
@@ -339,66 +462,15 @@ const DateFilterChip: FC<{
   );
 };
 
-const SORT_FIELDS: [id: string, label: string][] = [
-  ["date", "Date"],
-  ["payee", "Payee"],
-  ["account", "Account"],
-  ["amount", "Amount"],
-  ["status", "Status"],
-  ["note", "Comment"],
-  ["tags", "Tags"],
-];
-
-/** The toolbar's Sort menu (ReUI has no sort dropdown): pick the field and
- *  the direction; picking a field starts in its natural first direction
- *  (money and dates newest/biggest first). */
-const SortMenu: FC<{ table: ReactTable<DataGridFeatures, LedgerTransaction> }> = ({ table }) => {
-  const current = table.state.sorting?.[0];
-  const pickField = (id: string) => {
-    const desc = current?.id === id ? current.desc : (table.getColumn(id)?.columnDef.sortDescFirst ?? false);
-    table.setSorting([{ id, desc }]);
-  };
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-        <ArrowUpDownIcon />
-        Sort
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuRadioGroup value={current?.id} onValueChange={(id) => pickField(String(id))}>
-          <DropdownMenuLabel className="font-medium">Sort by</DropdownMenuLabel>
-          {SORT_FIELDS.map(([id, label]) => (
-            <DropdownMenuRadioItem key={id} value={id} closeOnClick={false}>
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup
-          value={current?.desc ? "desc" : "asc"}
-          onValueChange={(dir) => current && table.setSorting([{ id: current.id, desc: dir === "desc" }])}
-        >
-          <DropdownMenuRadioItem value="asc" closeOnClick={false}>
-            Asc
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="desc" closeOnClick={false}>
-            Desc
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
-
 /** The Transactions page, shown in place of the chat thread: pinned title
- *  over the data-table toolbar (search, filter chips, Reset, Sort, View)
- *  and the stock data grid at full width. `now` anchors the Date chip's
- *  presets (injectable so tests pin the calendar). */
+ *  over the data-table toolbar (search, filter chips, Reset, View) and the
+ *  stock data grid. `now` anchors the Date chip's presets (injectable so
+ *  tests pin the calendar). */
 export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
   const data = useTransactions();
   const [search, setSearch] = useState("");
   // Newest first by default (the payee tiebreak lives in the date column's
-  // comparator); the Sort menu and header menus drive every other order.
+  // comparator); the column headers drive every other order.
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
   const [config, setConfig] = useState<TransactionsTableConfig>(loadTableConfig);
   const [expanded, setExpanded] = useState<ExpandedState>({});
@@ -418,12 +490,16 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
     return texts;
   }, [data]);
 
-  /** Persist one config field and update state in a single move. */
+  /** Persist one config field and update state in a single move. The stored
+   *  copy drops the auto-sized columns' widths (see AUTO_SIZED). */
   const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: unknown) => {
     setConfig((prev) => {
       const value = typeof updater === "function" ? updater(prev[key]) : updater;
       const next = { ...prev, [key]: value };
-      saveTableConfig(next);
+      saveTableConfig({
+        ...next,
+        sizing: Object.fromEntries(Object.entries(next.sizing).filter(([id]) => !AUTO_SIZED.has(id))),
+      });
       return next;
     });
   };
@@ -478,6 +554,14 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
       .map((v) => ({ label: v, value: v }));
   }, [data]);
 
+  const commodityOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of data ?? []) for (const c of rowCommodities(t)) names.add(c);
+    return [...names]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+      .map((name) => ({ label: name, value: name }));
+  }, [data]);
+
   const tagOptions = useMemo(() => {
     const names = new Set<string>();
     for (const t of data ?? []) for (const tag of t.tags) names.add(tagText(tag));
@@ -494,15 +578,32 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
 
   const recordCount = table.getFilteredRowModel().rows.length;
 
+  // Same recipe as the Net Worth page: a centered page cap, widened one step
+  // for each optional column toggled on (Status, Comment, Tags) so nothing
+  // gets clipped where the window has the room. Narrow windows still fall
+  // back to the grid's own horizontal scroll.
+  const extraColumns = ["commodity", "status", "note", "tags"].filter((id) => config.visibility[id]).length;
+  const pageWidth = ["max-w-4xl", "max-w-5xl", "max-w-6xl", "max-w-7xl"][extraColumns] ?? "max-w-7xl";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="w-full shrink-0 px-8 pt-16 pb-4">
-        <h1 className="text-3xl font-semibold">Transactions</h1>
-        {/* The classic data-table toolbar: search + filter chips + Reset on
-            the left, Sort + View on the right. */}
+      <div className={`mx-auto w-full ${pageWidth} shrink-0 px-8 pt-16 pb-4`}>
+        <div className="flex items-center justify-between gap-8">
+          <h1 className="whitespace-nowrap text-3xl font-semibold">Transactions</h1>
+          {/* min-w-0 (not shrink-0): when the window narrows, the search
+              field gives way so the Columns button never clips. */}
+          <div className="flex min-w-0 items-center gap-2">
+            <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
+            <ColumnsMenu
+              columns={TOGGLEABLE_COLUMNS}
+              visibility={config.visibility}
+              onToggle={(id, shown) => table.getColumn(id)?.toggleVisibility(shown)}
+            />
+          </div>
+        </div>
+        {/* The filter chips on their own row, following the column order:
+            Date, Payee, Account, Amount, Commodity, Status, Tags. */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64" />
-          {/* Chips follow the column order: Date, Payee, Account, Status, Tags. */}
           <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />
           <FilterChip
             title="Payee"
@@ -522,9 +623,20 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
             counts={table.getColumn("account")?.getFacetedUniqueValues()}
           />
+          <AmountFilterChip column={table.getColumn("amount")} />
+          <FilterChip
+            title="Commodity"
+            subject="commodities"
+            icon={DollarSignIcon}
+            options={commodityOptions}
+            values={picked(table.getColumn("commodity")?.getFilterValue())}
+            onValuesChange={(v) => table.getColumn("commodity")?.setFilterValue(v.length ? v : undefined)}
+            counts={table.getColumn("commodity")?.getFacetedUniqueValues()}
+          />
           <FilterChip
             title="Status"
             subject="statuses"
+            icon={CircleCheckIcon}
             options={statusOptions}
             values={picked(table.getColumn("status")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("status")?.setFilterValue(v.length ? v : undefined)}
@@ -545,23 +657,12 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
               Reset
             </Button>
           )}
-          <div className="flex-1" />
-          <SortMenu table={table} />
-          <DataGridColumnVisibility
-            table={table}
-            trigger={
-              <Button variant="outline" size="sm">
-                <Settings2Icon />
-                View
-              </Button>
-            }
-          />
         </div>
       </div>
       {/* scroll-fade-t-6: content dissolves over 24px as it slides under the
           pinned controls, same as the chat viewport's top fade. */}
       <div className="scroll-fade-t scroll-fade-t-6 min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full px-5 pb-12">
+        <div className={`mx-auto w-full ${pageWidth} px-8 pb-12`}>
           <DataGrid
             table={table}
             recordCount={recordCount}
