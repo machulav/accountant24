@@ -604,7 +604,7 @@ describe("<TransactionsView />", () => {
       fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-10" } });
       fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-10" } });
       expect(rowOrder()).toEqual(["Grocery Store"]);
-      await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+      await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
       expect(rowOrder()).toHaveLength(6);
     });
 
@@ -643,7 +643,7 @@ describe("<TransactionsView />", () => {
       fireEvent.change(screen.getByLabelText("Minimum amount"), { target: { value: "" } });
       expect(screen.getByText("≤ 1000")).toBeInTheDocument();
       expect(rowOrder()).toEqual(["Bookshop", "Cafe Aroma", "Grocery Store", "Currency Exchange", "Landlord"]);
-      await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+      await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
       expect(rowOrder()).toHaveLength(6);
     });
 
@@ -652,7 +652,11 @@ describe("<TransactionsView />", () => {
       renderView();
       await screen.findByText("Bookshop");
       await userEvent.click(screen.getAllByRole("button", { name: "Date" })[0] as HTMLElement);
-      fireEvent.change(await screen.findByLabelText("From date"), { target: { value: "2026-03-01" } });
+      // Half-typed input never filters; the bound applies once it is a full
+      // ISO date, matching the Date column's format.
+      fireEvent.change(await screen.findByLabelText("From date"), { target: { value: "2026-0" } });
+      expect(rowOrder()).toHaveLength(6);
+      fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-01" } });
       // One bound filters on its own; the badge spells the open end out.
       expect(rowOrder()).toEqual(["Bookshop", "Cafe Aroma", "Grocery Store"]);
       expect(screen.getByText("2026-03-01 - now")).toBeInTheDocument();

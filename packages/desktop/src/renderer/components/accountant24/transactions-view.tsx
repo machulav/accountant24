@@ -37,6 +37,7 @@ import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
+import { Separator } from "@/components/shadcn/separator";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { formatAmounts } from "@/lib/amountFormat";
 import { type DateRange, type DateRangePreset, inRange, PRESET_LABELS, presetRange } from "@/lib/dateRange";
@@ -336,17 +337,20 @@ const AmountFilterChip: FC<{
         <CoinsIcon />
         Amount
         {active && (
-          <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
-            {value.min !== null && value.max !== null
-              ? `${value.min} - ${value.max}`
-              : value.min !== null
-                ? `≥ ${value.min}`
-                : `≤ ${value.max}`}
-          </Badge>
+          <>
+            <Separator orientation="vertical" className="mx-0.5 h-4" />
+            <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
+              {value.min !== null && value.max !== null
+                ? `${value.min} - ${value.max}`
+                : value.min !== null
+                  ? `≥ ${value.min}`
+                  : `≤ ${value.max}`}
+            </Badge>
+          </>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "p-3")}>
-        <div className="flex flex-col gap-3">
+      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "gap-0 p-0")}>
+        <div className="flex flex-col gap-1.5 p-3">
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -365,12 +369,14 @@ const AmountFilterChip: FC<{
               onChange={(e) => set({ ...value, max: parse(e.target.value) })}
             />
           </div>
-          {active && (
-            <Button variant="ghost" size="sm" onClick={() => column.setFilterValue(undefined)}>
-              Clear
-            </Button>
-          )}
         </div>
+        {active && (
+          <div className="border-t p-1.5">
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => column.setFilterValue(undefined)}>
+              Clear filters
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -383,12 +389,21 @@ const DateFilterChip: FC<{
   column: Column<DataGridFeatures, LedgerTransaction, unknown> | undefined;
   now: Date;
 }> = ({ column, now }) => {
+  // Free-typed bound texts; committed to the filter only once they are a
+  // full ISO date (or empty), so half-typed input never filters. Plain text
+  // fields, not type="date": the native control renders the OS locale's
+  // format, which can never match the Date column's ISO dates.
+  const [draft, setDraft] = useState({ from: "", to: "" });
   if (!column) return null;
   const value = (column.getFilterValue() as DateRange | undefined) ?? { from: null, to: null };
   const active = value.from !== null || value.to !== null;
   const set = (range: DateRange) => column.setFilterValue(range.from === null && range.to === null ? undefined : range);
+  const setBound = (bound: "from" | "to", text: string) => {
+    setDraft((prev) => ({ ...prev, [bound]: text }));
+    if (text === "" || /^\d{4}-\d{2}-\d{2}$/.test(text)) set({ ...value, [bound]: text || null });
+  };
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => open && setDraft({ from: value.from ?? "", to: value.to ?? "" })}>
       <PopoverTrigger
         render={
           <Button
@@ -403,42 +418,64 @@ const DateFilterChip: FC<{
         <CalendarIcon />
         Date
         {active && (
-          <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
-            {`${value.from ?? "start"} - ${value.to ?? "now"}`}
-          </Badge>
+          <>
+            <Separator orientation="vertical" className="mx-0.5 h-4" />
+            <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
+              {`${value.from ?? "start"} - ${value.to ?? "now"}`}
+            </Badge>
+          </>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "p-3")}>
-        <div className="flex flex-col gap-3">
+      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "gap-0 p-0")}>
+        <div className="flex flex-col gap-1.5 p-3">
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.keys(PRESET_LABELS) as DateRangePreset[]).map((preset) => (
-              <Button key={preset} variant="outline" size="sm" onClick={() => set(presetRange(preset, now))}>
+              <Button
+                key={preset}
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const range = presetRange(preset, now);
+                  set(range);
+                  setDraft({ from: range.from ?? "", to: range.to ?? "" });
+                }}
+              >
                 {PRESET_LABELS[preset]}
               </Button>
             ))}
           </div>
           <div className="flex items-center gap-2">
             <Input
-              type="date"
               aria-label="From date"
-              className="h-8"
-              value={value.from ?? ""}
-              onChange={(e) => set({ ...value, from: e.target.value || null })}
+              placeholder="YYYY-MM-DD"
+              className="h-8 tabular-nums"
+              value={draft.from}
+              onChange={(e) => setBound("from", e.target.value)}
             />
             <Input
-              type="date"
               aria-label="To date"
-              className="h-8"
-              value={value.to ?? ""}
-              onChange={(e) => set({ ...value, to: e.target.value || null })}
+              placeholder="YYYY-MM-DD"
+              className="h-8 tabular-nums"
+              value={draft.to}
+              onChange={(e) => setBound("to", e.target.value)}
             />
           </div>
-          {active && (
-            <Button variant="ghost" size="sm" onClick={() => column.setFilterValue(undefined)}>
-              Clear
-            </Button>
-          )}
         </div>
+        {active && (
+          <div className="border-t p-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                column.setFilterValue(undefined);
+                setDraft({ from: "", to: "" });
+              }}
+            >
+              Clear filters
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

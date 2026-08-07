@@ -10,6 +10,14 @@ describe("presetRange()", () => {
   // neighbors, so a wrong month-end computation cannot pass.
   const feb = new Date(2026, 1, 15);
 
+  it("should roll last 7 days across a month edge, today included, on 2026-03-04", () => {
+    expect(presetRange("last-7-days", new Date(2026, 2, 4))).toEqual({ from: "2026-02-26", to: "2026-03-04" });
+  });
+
+  it("should roll last 30 days across a year edge on 2026-01-15", () => {
+    expect(presetRange("last-30-days", new Date(2026, 0, 15))).toEqual({ from: "2025-12-17", to: "2026-01-15" });
+  });
+
   it("should return 2026-02-01..2026-02-28 for this month on 2026-02-15", () => {
     expect(presetRange("this-month", feb)).toEqual({ from: "2026-02-01", to: "2026-02-28" });
   });

@@ -3,9 +3,14 @@
 // timers. Bounds and journal dates are ISO strings, which order
 // lexicographically, so range checks are plain string compares.
 
-export type DateRangePreset = "this-month" | "last-month" | "this-year" | "last-year";
+export type DateRangePreset = "last-7-days" | "last-30-days" | "this-month" | "last-month" | "this-year" | "last-year";
 
+/** In use-case order: the rolling recency windows banking apps lead with
+ *  ("what did I spend lately"), the budget-cycle months, the year views for
+ *  reviews and taxes. Doubles as the preset grid's render order. */
 export const PRESET_LABELS: Record<DateRangePreset, string> = {
+  "last-7-days": "Last 7 days",
+  "last-30-days": "Last 30 days",
   "this-month": "This month",
   "last-month": "Last month",
   "this-year": "This year",
@@ -29,7 +34,14 @@ const iso = (year: number, monthIndex: number, day: number): string =>
 export function presetRange(preset: DateRangePreset, today: Date): DateRange {
   const y = today.getFullYear();
   const m = today.getMonth();
+  const d = today.getDate();
   switch (preset) {
+    // Rolling windows include today: "last 7 days" reads as "this past
+    // week, today included".
+    case "last-7-days":
+      return { from: iso(y, m, d - 6), to: iso(y, m, d) };
+    case "last-30-days":
+      return { from: iso(y, m, d - 29), to: iso(y, m, d) };
     case "this-month":
       return { from: iso(y, m, 1), to: iso(y, m + 1, 0) };
     case "last-month":
