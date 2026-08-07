@@ -64,14 +64,43 @@ export function formatValue(figure: ValuedFigure, locale?: string): string {
   return `${isConverted(figure) ? "~" : ""}${formatAmounts(figure.value, "value", locale)}`;
 }
 
+/** Split a figure's market-value line for the page's summary bands: the
+ *  base commodity's leg leads (carrying the "~" marker) and the legs the
+ *  valuation left in other commodities trail separately, so the band can
+ *  mute them. No split — the whole formatValue line as the lead, empty
+ *  tail — when the figure has one leg, no base is named, or no leg matches
+ *  it. */
+export function splitValueLead(
+  figure: ValuedFigure,
+  locale?: string,
+  baseCommodity?: string | null,
+): { lead: string; tail: string } {
+  const i = baseCommodity ? figure.value.findIndex((a) => a.commodity === baseCommodity) : -1;
+  if (figure.value.length <= 1 || i < 0) return { lead: formatValue(figure, locale), tail: "" };
+  return {
+    lead: `${isConverted(figure) ? "~" : ""}${formatAmount(figure.value[i], "value", locale)}`,
+    tail: formatAmounts(
+      figure.value.filter((_, j) => j !== i),
+      "value",
+      locale,
+    ),
+  };
+}
+
 /** The market-value line for tight chrome (the sidebar badge): the same "~"
  *  semantics as formatValue, the number in Intl's compact notation
- *  ("~334K EUR"). Empty when there is no value to show. */
-export function formatValueCompact(figure: ValuedFigure, locale?: string): string {
+ *  ("~334K EUR"). A figure that still holds several commodities shows one
+ *  leg plus the count of the elided rest ("~3K EUR +3") — the exact figure
+ *  lives on the page. The leading leg is the one matching `baseCommodity`;
+ *  hledger orders legs alphabetically, so the base leg is not
+ *  necessarily first. Empty when there is no value to show. */
+export function formatValueCompact(figure: ValuedFigure, locale?: string, baseCommodity?: string | null): string {
   if (figure.value.length === 0) return "";
   const compact = new Intl.NumberFormat(locale, { notation: "compact" });
-  const joined = figure.value
-    .map((a) => (a.commodity ? `${compact.format(a.quantity)} ${a.commodity}` : compact.format(a.quantity)))
-    .join(", ");
-  return `${isConverted(figure) ? "~" : ""}${joined}`;
+  const one = (a: LedgerAmount) =>
+    a.commodity ? `${compact.format(a.quantity)} ${a.commodity}` : compact.format(a.quantity);
+  const marker = isConverted(figure) ? "~" : "";
+  if (figure.value.length === 1) return `${marker}${one(figure.value[0])}`;
+  const lead = figure.value.find((a) => a.commodity === baseCommodity) ?? figure.value[0];
+  return `${marker}${one(lead)} +${figure.value.length - 1}`;
 }

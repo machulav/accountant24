@@ -88,9 +88,10 @@ const DATA: NetWorth = {
     },
   ],
   net: { amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", -296.75)], value: [A("EUR", 1738.97)] },
+  baseCommodity: "EUR",
 };
 
-const EMPTY: NetWorth = { sections: [], net: { amounts: [], value: [] } };
+const EMPTY: NetWorth = { sections: [], net: { amounts: [], value: [] }, baseCommodity: null };
 
 const renderView = (isRunning = false) =>
   render(
@@ -246,6 +247,7 @@ describe("<NetWorthView />", () => {
         },
       ],
       net: { amounts: [A("EUR", 10)], value: [A("EUR", 10)] },
+      baseCommodity: null,
     });
     renderView();
     await screen.findByTitle("assets:legacy");
@@ -267,10 +269,65 @@ describe("<NetWorthView />", () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue({
       ...DATA,
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
+      baseCommodity: null,
     });
     renderView();
     expect(await screen.findByText("7,796.25 EUR, 1,000.00 UAH")).toBeInTheDocument();
     expect(screen.queryByText("~7,796.25 EUR, 1,000.00 UAH")).not.toBeInTheDocument();
+    // Unsplit bands carry no info marker.
+    expect(screen.queryByRole("button", { name: "About other currencies" })).not.toBeInTheDocument();
+  });
+
+  it("should lead the Net band with the base leg and mute the unconvertible rest", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
+      ...DATA,
+      net: {
+        amounts: [A("EUR", 2537.5), A("UAH", 2050), A("USD", -50), A("WRLD", 2, 0)],
+        value: [A("EUR", 3033.5), A("UAH", 2050), A("USD", -50)],
+      },
+    });
+    renderView();
+    // The base leg and the leftover legs are separate elements, not one line.
+    expect(await screen.findByText("~3,033.50 EUR")).toBeInTheDocument();
+    expect(screen.getByText("2,050.00 UAH, -50.00 USD")).toBeInTheDocument();
+    expect(screen.queryByText("~3,033.50 EUR, 2,050.00 UAH, -50.00 USD")).not.toBeInTheDocument();
+  });
+
+  it("should split a section band the same way as the Net band", async () => {
+    const section = DATA.sections[0] as NetWorth["sections"][number];
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
+      ...DATA,
+      sections: [
+        {
+          ...section,
+          total: {
+            amounts: [A("UAH", 1408.26), A("USD", 100), A("EUR", 50)],
+            value: [A("EUR", 165.57), A("USD", 100)],
+          },
+        },
+      ],
+    });
+    renderView();
+    expect(await screen.findByText("~165.57 EUR")).toBeInTheDocument();
+    expect(screen.getByText("100.00 USD")).toBeInTheDocument();
+  });
+
+  it("should explain the muted legs behind their own info marker", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue({
+      ...DATA,
+      net: {
+        amounts: [A("EUR", 2537.5), A("UAH", 2050)],
+        value: [A("EUR", 3033.5), A("UAH", 2050)],
+      },
+    });
+    renderView();
+    await screen.findByText("2,050.00 UAH");
+    await userEvent.hover(screen.getByRole("button", { name: "About other currencies" }));
+    expect(await screen.findByText("No rate recorded yet to value these in your main currency.")).toBeInTheDocument();
+    // The same how-to line as the Value column help: the fix, not just the fact.
+    expect(
+      screen.getByText(/To update a rate, tell the agent what one unit of the holding is worth/),
+    ).toBeInTheDocument();
   });
 
   it("should show no ~ anywhere when nothing was converted, totals included", async () => {
@@ -287,6 +344,7 @@ describe("<NetWorthView />", () => {
         },
       ],
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
+      baseCommodity: null,
     });
     renderView();
     await screen.findByTitle("assets:bank:mono");
@@ -400,6 +458,7 @@ describe("<NetWorthView />", () => {
           },
         ],
         net: { amounts: [], value: [A("EUR", 170)] },
+        baseCommodity: null,
       });
       renderView();
       await screen.findByTitle("assets:closed");

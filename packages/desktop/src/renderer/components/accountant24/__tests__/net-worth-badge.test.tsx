@@ -39,7 +39,11 @@ function Chrome({ children, isRunning = false }: { children: ReactNode; isRunnin
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 
-const sheet = (net: NetWorth["net"]): NetWorth => ({ sections: [], net });
+const sheet = (net: NetWorth["net"], baseCommodity: NetWorth["baseCommodity"] = null): NetWorth => ({
+  sections: [],
+  net,
+  baseCommodity,
+});
 
 const CONVERTED = sheet({
   amounts: [{ quantity: 1408.26, commodity: "UAH", precision: 2 }],
@@ -75,6 +79,39 @@ describe("<NetWorthBadge />", () => {
     );
     renderBadge();
     expect(await screen.findByText("2.7K EUR")).toBeInTheDocument();
+  });
+
+  it("should lead with the base leg and count the rest when the value spans several commodities", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(
+      sheet(
+        {
+          amounts: [
+            { quantity: 2050, commodity: "UAH", precision: 2 },
+            { quantity: -50, commodity: "USD", precision: 2 },
+            { quantity: 2537.5, commodity: "EUR", precision: 2 },
+          ],
+          // hledger orders legs alphabetically: the EUR base leg is not first.
+          value: [
+            { quantity: 3033.5, commodity: "EUR", precision: 2 },
+            { quantity: 2050, commodity: "UAH", precision: 2 },
+            { quantity: -50, commodity: "USD", precision: 2 },
+          ],
+        },
+        "EUR",
+      ),
+    );
+    renderBadge();
+    expect(await screen.findByText("~3K EUR +2")).toBeInTheDocument();
+  });
+
+  it("should lead with the first leg when no base commodity is resolved", async () => {
+    const amounts = [
+      { quantity: 1200, commodity: "EUR", precision: 2 },
+      { quantity: 5000, commodity: "UAH", precision: 2 },
+    ];
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(sheet({ amounts, value: amounts }));
+    renderBadge();
+    expect(await screen.findByText("1.2K EUR +1")).toBeInTheDocument();
   });
 
   it("should render nothing when the report has no value (empty journal)", async () => {

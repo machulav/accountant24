@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerAmount } from "@/rpc/types";
-import { formatAmount, formatAmounts, formatValue, formatValueCompact, isConverted } from "../amountFormat";
+import {
+  formatAmount,
+  formatAmounts,
+  formatValue,
+  formatValueCompact,
+  isConverted,
+  splitValueLead,
+} from "../amountFormat";
 
 // Spec for the Net Worth view's number presentation. Every commodity
 // reads the same way: locale-formatted number, commodity code as a suffix
@@ -157,6 +164,54 @@ describe("formatValue()", () => {
   });
 });
 
+describe("splitValueLead()", () => {
+  it("should split the base leg from the unconvertible rest, marking the lead as an estimate", () => {
+    const figure = {
+      amounts: [a("EUR", 2537.5), a("UAH", 2050), a("USD", -50), a("WRLD", 2, 0)],
+      value: [a("EUR", 3033.5), a("UAH", 2050), a("USD", -50)],
+    };
+    expect(splitValueLead(figure, "en-US", "EUR")).toEqual({
+      lead: "~3,033.50 EUR",
+      tail: "2,050.00 UAH, -50.00 USD",
+    });
+  });
+
+  it("should lead with the base leg, without ~, when nothing was converted", () => {
+    const amounts = [a("UAH", 5000), a("EUR", 1200)];
+    expect(splitValueLead({ amounts, value: amounts }, "en-US", "EUR")).toEqual({
+      lead: "1,200.00 EUR",
+      tail: "5,000.00 UAH",
+    });
+  });
+
+  it("should keep the whole line as the lead when no base is resolved", () => {
+    const amounts = [a("EUR", 1200), a("UAH", 5000)];
+    expect(splitValueLead({ amounts, value: amounts }, "en-US", null)).toEqual({
+      lead: "1,200.00 EUR, 5,000.00 UAH",
+      tail: "",
+    });
+  });
+
+  it("should keep the whole line as the lead when no leg matches the base", () => {
+    const amounts = [a("UAH", 5000), a("USD", 100)];
+    expect(splitValueLead({ amounts, value: amounts }, "en-US", "EUR")).toEqual({
+      lead: "5,000.00 UAH, 100.00 USD",
+      tail: "",
+    });
+  });
+
+  it("should not split a single-commodity figure", () => {
+    expect(splitValueLead({ amounts: [a("UAH", 1408.26)], value: [a("EUR", 333534.3)] }, "en-US", "EUR")).toEqual({
+      lead: "~333,534.30 EUR",
+      tail: "",
+    });
+  });
+
+  it("should render an empty figure as an empty lead", () => {
+    expect(splitValueLead({ amounts: [], value: [] }, "en-US", "EUR")).toEqual({ lead: "", tail: "" });
+  });
+});
+
 describe("formatValueCompact()", () => {
   it("should render a converted figure as ~ plus the compact number and code", () => {
     expect(
@@ -172,9 +227,36 @@ describe("formatValueCompact()", () => {
     expect(formatValueCompact({ amounts: [a("EUR", 988.54)], value: [a("EUR", 988.54)] }, "en-US")).toBe("989 EUR");
   });
 
-  it("should comma-join a multi-commodity figure compactly", () => {
+  it("should render the base leg plus the count of elided legs for a multi-commodity figure", () => {
+    const figure = {
+      amounts: [a("EUR", 2537.5), a("UAH", 2050), a("USD", -50), a("WRLD", 2, 0)],
+      value: [a("EUR", 3033.5), a("UAH", 2050), a("USD", -50), a("WRLD", 2, 0)],
+    };
+    expect(formatValueCompact(figure, "en-US", "EUR")).toBe("~3K EUR +3");
+  });
+
+  it("should lead with the base leg even when it is not first", () => {
+    const amounts = [a("UAH", 5000), a("EUR", 1200)];
+    expect(formatValueCompact({ amounts, value: amounts }, "en-US", "EUR")).toBe("1.2K EUR +1");
+  });
+
+  it("should lead with the first leg when no base is resolved", () => {
     const amounts = [a("EUR", 1200), a("UAH", 5000)];
-    expect(formatValueCompact({ amounts, value: [a("EUR", 1200), a("UAH", 5000)] }, "en-US")).toBe("1.2K EUR, 5K UAH");
+    expect(formatValueCompact({ amounts, value: amounts }, "en-US", null)).toBe("1.2K EUR +1");
+  });
+
+  it("should lead with the first leg when no leg matches the base", () => {
+    const amounts = [a("EUR", 1200), a("UAH", 5000)];
+    expect(formatValueCompact({ amounts, value: amounts }, "en-US", "USD")).toBe("1.2K EUR +1");
+  });
+
+  it("should format a negative leading leg with its minus", () => {
+    const amounts = [a("EUR", -1200), a("UAH", 5000)];
+    expect(formatValueCompact({ amounts, value: amounts }, "en-US", "EUR")).toBe("-1.2K EUR +1");
+  });
+
+  it("should format a commodity-less leg as a bare number", () => {
+    expect(formatValueCompact({ amounts: [a("", 42, 0)], value: [a("", 42, 0)] }, "en-US")).toBe("42");
   });
 
   it("should render an empty figure as an empty string", () => {

@@ -55,11 +55,16 @@ async function ledgerMentions(): Promise<LedgerMentions> {
 /** The report's base commodity — the target of the journal's latest
  *  declared market price. The agent records prices toward the user's
  *  currency, so the journal itself answers "which currency is home" and no
- *  currency is hardcoded. Seam for the future default-currency setting: once
- *  it exists, resolve it here first and fall back to the derivation. Null
- *  when the journal declares no prices. */
+ *  currency is hardcoded. When the journal declares no prices, the latest
+ *  cost-inferred price (`--infer-market-prices`, e.g. `2 WRLD @ 210.00 EUR`)
+ *  answers instead. The probes stay sequential so a later-dated cost can
+ *  never out-rank a declared price. Seam for the future default-currency
+ *  setting: once it exists, resolve it here first and fall back to the
+ *  derivation. Null when the journal yields no prices at all. */
 async function resolveBaseCommodity(): Promise<string | null> {
-  return parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath()]));
+  const declared = parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath()]));
+  if (declared !== null) return declared;
+  return parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath(), "--infer-market-prices"]));
 }
 
 /** The classic balance sheet, straight from `hledger bs`: Assets and
@@ -69,11 +74,13 @@ async function resolveBaseCommodity(): Promise<string | null> {
  *  base commodity the valued run is `-X <base> --infer-market-prices`, which
  *  collapses multi-commodity holdings to one base-currency figure wherever
  *  hledger finds any price path (direct, reverse, chained, or cost-
- *  inferred); with no prices declared there is nothing to aim at, and `-V`
- *  lets hledger value what it can. Each row also carries the date and amount
- *  of the account's latest balance assertion (from `print -O json`) — when
- *  the balance was last reconciled and what it was confirmed to be. Empty
- *  when there's no journal yet or hledger fails. */
+ *  inferred); with no prices at all there is nothing to aim at, and `-V`
+ *  lets hledger value what it can. The payload carries the base commodity
+ *  (the `-X` target; null on the `-V` path) so the renderer can lead a
+ *  multi-commodity figure with the home-currency leg. Each row also carries
+ *  the date and amount of the account's latest balance assertion (from
+ *  `print -O json`) — when the balance was last reconciled and what it was
+ *  confirmed to be. Empty when there's no journal yet or hledger fails. */
 async function ledgerNetWorth(): Promise<NetWorth> {
   const base = ["bs", "-O", "json", "-f", mainJournalPath()];
   const [native, printed, target] = await Promise.all([
@@ -83,11 +90,12 @@ async function ledgerNetWorth(): Promise<NetWorth> {
   ]);
   const valued = await hledgerRaw(target ? [...base, "-X", target, "--infer-market-prices"] : [...base, "-V"]);
   const raw = parseBalanceSheetJson(native);
-  if (raw === null) return { sections: [], net: { amounts: [], value: [] } };
+  if (raw === null) return { sections: [], net: { amounts: [], value: [] }, baseCommodity: null };
   const sheet = mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
   const asserted = parseAssertions(printed);
   return {
     ...sheet,
+    baseCommodity: target,
     sections: sheet.sections.map((section) => ({
       ...section,
       rows: section.rows.map((row) => {

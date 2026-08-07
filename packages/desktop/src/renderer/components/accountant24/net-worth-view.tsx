@@ -39,8 +39,8 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadc
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
-import { formatAmount, formatAmounts, formatValue } from "@/lib/amountFormat";
-import type { AccountBalance, NetWorthSection } from "@/rpc/types";
+import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
+import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { useNetWorth } from "./use-net-worth";
 
 /** Clickable column header driving the table's sorting; the icon mirrors
@@ -67,6 +67,16 @@ const ASSERTED_AMOUNT_LABEL = "Asserted Amount";
 
 /** What each money/meta column means, keyed by its label; shown behind the
  *  little info marker next to the header (the Account column needs none). */
+/** The how-to line for anything valued at a recorded rate — shared by the
+ *  Value column help and the bands' unpriced-legs tooltip so the copy stays
+ *  identical in both. */
+const RATE_HELP = (
+  <p className="mt-1.5">
+    To update a rate, tell the agent what one unit of the holding is worth now in your main currency, for example: "1
+    USD is 0.92 EUR."
+  </p>
+);
+
 const COLUMN_HELP: Record<string, ReactNode> = {
   Holding:
     "What the account actually holds: cash in its own currency, shares, or crypto. Exactly as recorded in the ledger, before any conversion.",
@@ -98,18 +108,16 @@ const COLUMN_HELP: Record<string, ReactNode> = {
         What the holding is worth in your main currency, at the latest rate recorded in the ledger. A ~ means the value
         was converted and is an estimate.
       </p>
-      <p className="mt-1.5">
-        To update a rate, tell the agent what one unit of the holding is worth now in your main currency, for example:
-        "1 USD is 0.92 EUR."
-      </p>
+      {RATE_HELP}
     </div>
   ),
 };
 
-/** A visible little info marker; hovering it explains the column. A separate
- *  target from the sort button, so the help is discoverable and sorting
- *  stays a plain click. */
-const InfoTip: FC<{ label: string }> = ({ label }) => (
+/** A visible little info marker; hovering it explains the spot it marks —
+ *  the column help for its label by default, or the given children. A
+ *  separate target from the text it explains, so the help is discoverable
+ *  and the text stays inert. */
+const InfoTip: FC<{ label: string; children?: ReactNode }> = ({ label, children }) => (
   <TooltipProvider>
     <Tooltip>
       <TooltipTrigger
@@ -125,7 +133,7 @@ const InfoTip: FC<{ label: string }> = ({ label }) => (
         <InfoIcon className="size-3.5" />
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-60">
-        {COLUMN_HELP[label]}
+        {children ?? COLUMN_HELP[label]}
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
@@ -317,22 +325,51 @@ const AccountsTable: FC<{
 };
 
 /** The soft summary-band surface shared by the section headers and the Net
- *  line: label left, hledger's figure right, on the app's muted panel. px-5
- *  inside mx-3 keeps the text on the px-8 line of the page title. */
-const BAND_CLASS = "mx-3 flex items-baseline justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
+ *  line: label left, hledger's figure right, on the app's muted panel. The
+ *  label centers on the figure block, so it stays mid-band when the figure
+ *  grows a second (muted) line. px-5 inside mx-3 keeps the text on the px-8
+ *  line of the page title. */
+const BAND_CLASS = "mx-3 flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
+
+/** A summary band's figure. When the valuation could not fold every leg
+ *  into the base currency, the base leg leads at the band's weight and the
+ *  leftover legs sit smaller and muted on their own line under it, marked
+ *  with the same info icon as the column help. A figure with no split
+ *  renders exactly as before. */
+const BandValue: FC<{ figure: NetWorthTotal; baseCommodity: string | null }> = ({ figure, baseCommodity }) => {
+  const { lead, tail } = splitValueLead(figure, navigator.language, baseCommodity);
+  if (!tail) return <div className="shrink-0 text-right text-lg font-semibold tabular-nums">{lead}</div>;
+  return (
+    <div className="min-w-0 text-right tabular-nums">
+      <div className="text-lg font-semibold">{lead}</div>
+      {/* gap-1.5 + the icon button's own padding lands the icon-to-text
+          distance on the column headers' rhythm. */}
+      <div className="flex items-center justify-end gap-1.5">
+        <InfoTip label="other currencies">
+          {/* One wrapper like every COLUMN_HELP entry: the tooltip content
+              lays its direct children out in a row. */}
+          <div>
+            <p>No rate recorded yet to value these in your main currency.</p>
+            {RATE_HELP}
+          </div>
+        </InfoTip>
+        <span className="text-sm font-medium text-muted-foreground">{tail}</span>
+      </div>
+    </div>
+  );
+};
 
 /** One `bs` section: its hledger name and total over its accounts table. */
-const SheetSection: FC<{ section: NetWorthSection; search: string; columnVisibility: VisibilityState }> = ({
-  section,
-  search,
-  columnVisibility,
-}) => (
+const SheetSection: FC<{
+  section: NetWorthSection;
+  baseCommodity: string | null;
+  search: string;
+  columnVisibility: VisibilityState;
+}> = ({ section, baseCommodity, search, columnVisibility }) => (
   <section>
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
       <h2 className="text-xl font-semibold">{section.name}</h2>
-      <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
-        {formatValue(section.total, navigator.language)}
-      </div>
+      <BandValue figure={section.total} baseCommodity={baseCommodity} />
     </div>
     {/* px-5: with the cells' own px-3, the table text lines up with the px-8
         headings. */}
@@ -405,7 +442,7 @@ const SheetSkeleton: FC<{ columnVisibility: VisibilityState }> = ({ columnVisibi
       </div>
       <div className={`mt-8 ${BAND_CLASS}`}>
         <div className="text-xl font-semibold">Net Worth</div>
-        <Skeleton className="h-5 w-32 self-center" />
+        <Skeleton className="h-5 w-32" />
       </div>
     </div>
   );
@@ -454,10 +491,12 @@ export const NetWorthView: FC = () => {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={`mx-auto flex w-full ${pageWidth} shrink-0 items-center justify-between gap-8 px-8 pt-16 pb-4`}>
-        <h1 className="text-3xl font-semibold">Net Worth</h1>
+        <h1 className="whitespace-nowrap text-3xl font-semibold">Net Worth</h1>
         {(sheet === null || sections.length > 0) && (
-          <div className="flex shrink-0 items-center gap-2">
-            <InputGroup className="w-64">
+          // min-w-0 (not shrink-0): when the window narrows, the search
+          // field gives way so the Columns button never clips.
+          <div className="flex min-w-0 items-center gap-2">
+            <InputGroup className="w-64 min-w-0">
               <InputGroupInput
                 type="search"
                 placeholder="Search accounts"
@@ -472,7 +511,7 @@ export const NetWorthView: FC = () => {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="outline">
+                  <Button variant="outline" className="shrink-0">
                     <Columns3Icon />
                     Columns
                   </Button>
@@ -518,6 +557,7 @@ export const NetWorthView: FC = () => {
                 <SheetSection
                   key={section.name}
                   section={section}
+                  baseCommodity={sheet.baseCommodity}
                   search={search}
                   columnVisibility={columnVisibility}
                 />
@@ -525,9 +565,7 @@ export const NetWorthView: FC = () => {
               {/* The closing Net band, straight from hledger's own net. */}
               <div className={`mt-8 ${BAND_CLASS}`}>
                 <div className="text-xl font-semibold">Net Worth</div>
-                <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
-                  {formatValue(sheet.net, navigator.language)}
-                </div>
+                <BandValue figure={sheet.net} baseCommodity={sheet.baseCommodity} />
               </div>
             </>
           )}

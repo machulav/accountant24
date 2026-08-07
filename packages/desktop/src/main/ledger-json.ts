@@ -172,8 +172,12 @@ export function parseAssertions(json: string): Record<string, Assertion> {
 /** Merge the raw and market-value (`-X`) runs of the same `bs` report. Both
  *  runs cover the identical sections and account lists, so everything pairs
  *  by position; if the valued run is missing or disagrees (partial hledger
- *  failure), the raw amounts stand in for the value. */
-export function mergeValuedBalanceSheet(raw: RawBalanceSheet, valued: RawBalanceSheet | null): NetWorth {
+ *  failure), the raw amounts stand in for the value. The base commodity is
+ *  the caller's to add — it comes from price resolution, not the merge. */
+export function mergeValuedBalanceSheet(
+  raw: RawBalanceSheet,
+  valued: RawBalanceSheet | null,
+): Omit<NetWorth, "baseCommodity"> {
   const orRaw = (amounts: LedgerAmount[], candidate: LedgerAmount[] | undefined): LedgerAmount[] =>
     candidate ?? amounts;
   const sections: NetWorthSection[] = raw.sections.map((section, s) => {

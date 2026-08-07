@@ -15,7 +15,7 @@ import { useNetWorth } from "./use-net-worth";
 export const NetWorthBadge: FC = () => {
   const sheet = useNetWorth();
   if (sheet === null) return null;
-  const text = formatValueCompact(sheet.net, navigator.language);
+  const text = formatValueCompact(sheet.net, navigator.language, sheet.baseCommodity);
   if (!text) return null;
   // aria-hidden keeps the button's accessible name a stable "Net Worth"
   // instead of one that shifts with every ledger change.

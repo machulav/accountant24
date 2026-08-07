@@ -157,7 +157,7 @@ export function ChatLayout() {
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
                     <LandmarkIcon className="size-4" />
-                    Net Worth
+                    <span className="whitespace-nowrap">Net Worth</span>
                     <NetWorthBadge />
                   </SidebarMenuButton>
                 </SidebarMenuItem>

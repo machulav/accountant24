@@ -89,6 +89,7 @@ const DATA: NetWorth = {
     amounts: [{ quantity: 2736, commodity: "EUR", precision: 2 }],
     value: [{ quantity: 2736, commodity: "EUR", precision: 2 }],
   },
+  baseCommodity: "EUR",
 };
 
 beforeAll(() => {
@@ -208,7 +209,11 @@ describe("Net Worth view flow", () => {
   });
 
   it("should show the empty state when the report has no accounts", async () => {
-    bridge.setHandler("ledger_net_worth", () => ({ sections: [], net: { amounts: [], value: [] } }));
+    bridge.setHandler("ledger_net_worth", () => ({
+      sections: [],
+      net: { amounts: [], value: [] },
+      baseCommodity: null,
+    }));
     render(<ChatLayout />);
     openSheet();
 

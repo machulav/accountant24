@@ -70,6 +70,11 @@ export interface NetWorthSection {
 export interface NetWorth {
   sections: NetWorthSection[];
   net: NetWorthTotal;
+  /** The valuation's base commodity: the `-X` target resolved from the
+   *  journal's declared or cost-inferred prices. Null when valuation fell
+   *  back to `-V`. Lets the renderer lead a multi-commodity figure with the
+   *  home-currency leg. */
+  baseCommodity: string | null;
 }
 
 // ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---

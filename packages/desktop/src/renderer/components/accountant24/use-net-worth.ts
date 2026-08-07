@@ -21,7 +21,7 @@ export function useNetWorth(): NetWorth | null {
         if (!cancelled) setData(d);
       })
       .catch(() => {
-        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] } });
+        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
       });
     return () => {
       cancelled = true;
