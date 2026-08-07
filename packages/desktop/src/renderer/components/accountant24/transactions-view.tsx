@@ -10,14 +10,14 @@
 // View on the right; sorting lives in the column headers alone. The page
 // adds what the grid cannot know: the search haystack (every leg of every
 // transaction),
-// the collapsed-row rule (lead with the legs money left from, unfold the
-// rest YNAB-style via the grid's expander), and the chat's mention pills.
+// the collapsed-row rule (lead with the legs money left from, the expander
+// unfolds the rest in place), and the chat's mention pills.
 // Data refreshes when the agent finishes a turn.
 
 import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
 import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
-import { type FC, useMemo, useState } from "react";
+import { type FC, useMemo, useRef, useState } from "react";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
 import { FilterChip } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
@@ -26,12 +26,13 @@ import {
   DataGridContainer,
   type DataGridFeatures,
   dataGridFeatures,
-  useDataGrid,
 } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
-import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagination";
-import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
 import { DataGridTable, DataGridTableRowExpand } from "@/components/reui/data-grid/data-grid-table";
+import {
+  DataGridTableVirtual,
+  type DataGridTableVirtualizerOptions,
+} from "@/components/reui/data-grid/data-grid-table-virtual";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
@@ -58,44 +59,6 @@ const LINE = "flex h-6 items-center";
 
 const postingAmount = (posting: LedgerPosting): string => formatAmounts(posting.amounts, "native", navigator.language);
 
-/** The unfolded legs of a row: the categorization side (and a transfer's
- *  receiving side), rendered by the grid's expandedContent slot. Each leg
- *  lays out under the live columns — account under Account, amount under
- *  Amount — by mirroring the grid's own `--col-<id>-size` width variables
- *  (they track resizes without re-renders) and the dense cell padding, so
- *  the unfolded lines read as extra rows of the table. */
-const HiddenLegs: FC<{ transaction: LedgerTransaction }> = ({ transaction }) => {
-  const { table } = useDataGrid<LedgerTransaction>();
-  const legs = splitPostings(transaction.postings).hidden;
-  return (
-    <div className="flex flex-col">
-      {legs.map((posting, i) => (
-        // py-1.5 matches the dense body cells' vertical rhythm, so every
-        // unfolded leg reads as a row of the same table.
-        <div key={i} className="flex py-1.5">
-          {table.getVisibleLeafColumns().map((column) => (
-            <div
-              key={column.id}
-              className="shrink-0 px-2"
-              style={{ width: `calc(var(--col-${column.id}-size) * 1px)` }}
-            >
-              {column.id === "account" ? (
-                <div className={LINE}>
-                  <MentionPill truncate type="account" label={posting.account} />
-                </div>
-              ) : column.id === "amount" ? (
-                <div className={cn(LINE, "justify-end tabular-nums text-muted-foreground")}>
-                  {postingAmount(posting)}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-};
-
 /** A faceted-filter value list: an array of picked strings, empty = off. */
 const picked = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : []);
 
@@ -114,7 +77,6 @@ const TOGGLEABLE_COLUMNS: { id: string; label: string }[] = [
   { id: "payee", label: "Payee" },
   { id: "account", label: "Account" },
   { id: "amount", label: "Amount" },
-  { id: "commodity", label: "Commodity" },
   { id: "status", label: "Status" },
   { id: "note", label: "Comment" },
   { id: "tags", label: "Tags" },
@@ -128,7 +90,10 @@ const TOGGLEABLE_COLUMNS: { id: string; label: string }[] = [
  *  - Amount: the first shown leg's quantity; Tags: joined pill text.
  *  Filters run against the underlying transaction, not the cell: Account
  *  matches EVERY leg (folded ones included), Tags any tag, Date the
- *  inclusive range — so a chip works even while its column is hidden. */
+ *  inclusive range. Each chip shows only while its column does (hiding a
+ *  column also clears its filter, so nothing filters invisibly).
+ *  Every cell is align-top with an h-6 first line, so expanding a row adds
+ *  legs below the first line without re-centering it. */
 const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
   {
     id: "expand",
@@ -138,9 +103,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     size: 36,
     header: () => null,
     cell: ({ row }) => <DataGridTableRowExpand row={row} />,
-    meta: {
-      expandedContent: (transaction: LedgerTransaction) => <HiddenLegs transaction={transaction} />,
-    },
+    meta: { cellClassName: "align-top" },
   },
   {
     id: "date",
@@ -157,8 +120,8 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     header: ({ column }) => <DataGridColumnHeader column={column} title="Date" />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by.
-    cell: ({ row }) => row.original.date,
-    meta: { headerTitle: "Date", cellClassName: "tabular-nums", skeleton: <Skeleton className="h-4 w-20" /> },
+    cell: ({ row }) => <div className={LINE}>{row.original.date}</div>,
+    meta: { headerTitle: "Date", cellClassName: "align-top tabular-nums", skeleton: <Skeleton className="h-4 w-20" /> },
   },
   {
     id: "payee",
@@ -176,7 +139,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
           <MentionPill truncate type="payee" label={row.original.payee} />
         </div>
       ) : null,
-    meta: { headerTitle: "Payee", skeleton: <Skeleton className="h-6 w-28 rounded-3xl" /> },
+    meta: { headerTitle: "Payee", cellClassName: "align-top", skeleton: <Skeleton className="h-6 w-28 rounded-3xl" /> },
   },
   {
     id: "account",
@@ -189,24 +152,31 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts for the filter chip count EVERY leg, matching the
     // filter's any-leg semantics (the accessor covers only the shown leg).
     getUniqueValues: (row) => row.postings.map((p) => p.account),
-    // The base width; as the page's one `autoSize` column it absorbs the
-    // leftover page width, landing a notch wider than Payee by default.
-    size: 200,
+    size: 286,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Account" />,
-    // The leading legs only (splitPostings) — one pill per line; the rest
-    // live in the row's unfolded block. Deep paths truncate inside the pill
-    // (full path in the tooltip), so the column stays compact by default.
-    cell: ({ row }) => (
-      <div className="flex flex-col items-start gap-0.5">
-        {splitPostings(row.original.postings).shown.map((posting, i) => (
-          <div key={i} className={LINE}>
-            <MentionPill truncate type="account" label={posting.account} />
-          </div>
-        ))}
-      </div>
-    ),
+    // The leading legs only (splitPostings) — one pill per line; expanding
+    // the row appends the folded legs to the same stack, so the unfolded
+    // lines read as part of the row (the virtual table measures the growth).
+    // Deep paths truncate inside the pill (full path in the tooltip).
+    cell: ({ row }) => {
+      const { shown, hidden } = splitPostings(row.original.postings);
+      const legs = row.getIsExpanded() ? [...shown, ...hidden] : shown;
+      return (
+        <div className="flex flex-col items-start gap-1.5">
+          {legs.map((posting, i) => (
+            <div key={i} className={LINE}>
+              <MentionPill truncate type="account" label={posting.account} />
+            </div>
+          ))}
+        </div>
+      );
+    },
     // Absorbs a wide window's free width, so amounts stay next to accounts.
-    meta: { headerTitle: "Account", autoSize: true, skeleton: <Skeleton className="h-6 w-52 rounded-3xl" /> },
+    meta: {
+      headerTitle: "Account",
+      cellClassName: "align-top",
+      skeleton: <Skeleton className="h-6 w-52 rounded-3xl" />,
+    },
   },
   {
     id: "amount",
@@ -227,26 +197,37 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 140,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Amount" className="justify-end" />,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        {splitPostings(row.original.postings).shown.map((posting, i) => (
-          <div key={i} className={cn(LINE, "justify-end tabular-nums")}>
-            {postingAmount(posting)}
-          </div>
-        ))}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const { shown, hidden } = splitPostings(row.original.postings);
+      return (
+        <div className="flex flex-col gap-1.5">
+          {shown.map((posting, i) => (
+            <div key={i} className={cn(LINE, "justify-end tabular-nums")}>
+              {postingAmount(posting)}
+            </div>
+          ))}
+          {row.getIsExpanded() &&
+            hidden.map((posting, i) => (
+              <div key={`folded-${i}`} className={cn(LINE, "justify-end tabular-nums text-muted-foreground")}>
+                {postingAmount(posting)}
+              </div>
+            ))}
+        </div>
+      );
+    },
     meta: {
       headerTitle: "Amount",
       headerClassName: "justify-end",
-      cellClassName: "text-right",
+      cellClassName: "align-top text-right",
       skeleton: <Skeleton className="ms-auto h-4 w-24" />,
     },
   },
+  // Filter-only column: it never renders (the Amount figures already carry
+  // their commodity) but holds the Commodity chip's filter and facet
+  // counts. Its visibility is forced off in the table state.
   {
     id: "commodity",
     accessorFn: (row) => rowCommodities(row).join(", "),
-    sortFn: "text",
     // Any leg's commodity matches, so a EUR->USD exchange shows up under
     // both commodities.
     filterFn: (row, _columnId, value) => {
@@ -254,14 +235,6 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return currencies.length === 0 || rowCommodities(row.original).some((c) => currencies.includes(c));
     },
     getUniqueValues: (row) => rowCommodities(row),
-    size: 110,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Commodity" />,
-    cell: ({ row }) => rowCommodities(row.original).join(", "),
-    meta: {
-      headerTitle: "Commodity",
-      cellClassName: "text-muted-foreground",
-      skeleton: <Skeleton className="h-4 w-12" />,
-    },
   },
   {
     id: "status",
@@ -273,10 +246,10 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 110,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => row.original.status,
+    cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
       headerTitle: "Status",
-      cellClassName: "text-muted-foreground",
+      cellClassName: "align-top text-muted-foreground",
       skeleton: <Skeleton className="h-4 w-16" />,
     },
   },
@@ -286,10 +259,10 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     sortFn: "text",
     size: 200,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" />,
-    cell: ({ row }) => row.original.note,
+    cell: ({ row }) => <div className={LINE}>{row.original.note}</div>,
     meta: {
       headerTitle: "Comment",
-      cellClassName: "text-muted-foreground",
+      cellClassName: "align-top text-muted-foreground",
       skeleton: <Skeleton className="h-4 w-32" />,
     },
   },
@@ -297,30 +270,39 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     id: "tags",
     accessorFn: (row) => row.tags.map(tagText).join(" "),
     sortFn: "text",
+    // The chip filters by tag NAME (values vary per transaction — the name
+    // is the dimension worth filtering on).
     filterFn: (row, _columnId, value) => {
       const tags = picked(value);
-      return tags.length === 0 || row.original.tags.some((tag) => tags.includes(tagText(tag)));
+      return tags.length === 0 || row.original.tags.some((tag) => tags.includes(tag.name));
     },
-    // Facet counts per tag pill (the accessor is the joined sort text).
-    getUniqueValues: (row) => row.tags.map(tagText),
+    // Facet counts per tag name, one per row (the accessor is sort text).
+    getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 180,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" />,
     cell: ({ row }) => (
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex min-h-6 flex-wrap items-center gap-1">
         {row.original.tags.map((tag, i) => (
           <MentionPill truncate key={i} type="tag" label={tagText(tag)} />
         ))}
       </div>
     ),
-    meta: { headerTitle: "Tags", skeleton: <Skeleton className="h-6 w-24 rounded-3xl" /> },
+    meta: { headerTitle: "Tags", cellClassName: "align-top", skeleton: <Skeleton className="h-6 w-24 rounded-3xl" /> },
   },
 ];
 
-/** The grid grows `meta.autoSize` columns to fill the page, so their width
- *  is derived, not owned: persisting it would freeze one page width's result
- *  and overflow every narrower page. Storage drops these ids; the live table
- *  state keeps them so the fill still applies. */
-const AUTO_SIZED = new Set(columns.flatMap((c) => (c.meta?.autoSize && c.id ? [c.id] : [])));
+/** Measured row heights for the virtual scroller: multi-leg and expanded
+ *  rows are taller than the estimate, and exact offsets need real sizes.
+ *  The cast: the vendored options type keeps TanStack's internals
+ *  (scrollToFn, element observers) required even though the component
+ *  supplies them itself — only our customizations live here. */
+const VIRTUALIZER_OPTIONS = {
+  measureElement: (el: HTMLTableRowElement) => el.getBoundingClientRect().height,
+} as unknown as DataGridTableVirtualizerOptions<LedgerTransaction>;
+
+/** Registers up to this many rows render directly; the virtualizer's
+ *  spacer-and-measure machinery only pays off past it. */
+const VIRTUALIZE_AFTER = 100;
 
 /** The Amount filter chip: a stock popover with inclusive Min/Max bounds
  *  over the shown legs' absolute amounts, writing a plain column filter like
@@ -474,7 +456,6 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
   const [config, setConfig] = useState<TransactionsTableConfig>(loadTableConfig);
   const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 100 });
 
   // One lowercased haystack per transaction (payee, comment, every leg's
   // account, tag pills), computed once per fetch — keystrokes only
@@ -490,16 +471,12 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
     return texts;
   }, [data]);
 
-  /** Persist one config field and update state in a single move. The stored
-   *  copy drops the auto-sized columns' widths (see AUTO_SIZED). */
+  /** Persist one config field and update state in a single move. */
   const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: unknown) => {
     setConfig((prev) => {
       const value = typeof updater === "function" ? updater(prev[key]) : updater;
       const next = { ...prev, [key]: value };
-      saveTableConfig({
-        ...next,
-        sizing: Object.fromEntries(Object.entries(next.sizing).filter(([id]) => !AUTO_SIZED.has(id))),
-      });
+      saveTableConfig(next);
       return next;
     });
   };
@@ -513,17 +490,19 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
     getRowId: (t) => String(t.index),
     state: {
       sorting,
-      columnVisibility: config.visibility,
+      // commodity is filter-only: never rendered, whatever storage says.
+      columnVisibility: { ...config.visibility, commodity: false },
       columnSizing: config.sizing,
       globalFilter: search,
       expanded,
-      pagination,
     },
     onSortingChange: setSorting,
     onColumnVisibilityChange: (updater) => applyConfig("visibility", updater),
     onColumnSizingChange: (updater) => applyConfig("sizing", updater),
     onExpandedChange: setExpanded,
-    onPaginationChange: setPagination,
+    // The registered pagination feature would otherwise cap the row model at
+    // its default 10-row page; the register is one unpaginated list.
+    manualPagination: true,
     getRowCanExpand: (row) => splitPostings(row.original.postings).hidden.length > 0,
     globalFilterFn: (row, _columnId, value) =>
       (searchTexts.get(row.original.index) ?? "").includes(String(value).toLowerCase()),
@@ -562,9 +541,10 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
       .map((name) => ({ label: name, value: name }));
   }, [data]);
 
+  // Tag NAMES only — values stay in the table pills, not in the filter.
   const tagOptions = useMemo(() => {
     const names = new Set<string>();
-    for (const t of data ?? []) for (const tag of t.tags) names.add(tagText(tag));
+    for (const t of data ?? []) for (const tag of t.tags) names.add(tag.name);
     return [...names]
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
       .map((name) => ({ label: name, value: name }));
@@ -578,16 +558,21 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
 
   const recordCount = table.getFilteredRowModel().rows.length;
 
-  // Same recipe as the Net Worth page: a centered page cap, widened one step
-  // for each optional column toggled on (Status, Comment, Tags) so nothing
-  // gets clipped where the window has the room. Narrow windows still fall
-  // back to the grid's own horizontal scroll.
-  const extraColumns = ["commodity", "status", "note", "tags"].filter((id) => config.visibility[id]).length;
-  const pageWidth = ["max-w-4xl", "max-w-5xl", "max-w-6xl", "max-w-7xl"][extraColumns] ?? "max-w-7xl";
+  // The page body is the scroll element (the scrollbar sits at the window
+  // edge like on every page); the virtualizer windows rows against it.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizerOptions = useMemo(
+    () => ({
+      ...VIRTUALIZER_OPTIONS,
+      getScrollElement: () => scrollRef.current,
+      enabled: recordCount > VIRTUALIZE_AFTER,
+    }),
+    [recordCount],
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className={`mx-auto w-full ${pageWidth} shrink-0 px-8 pt-16 pb-4`}>
+      <div className="mx-auto w-full max-w-4xl shrink-0 px-8 pt-16 pb-4">
         <div className="flex items-center justify-between gap-8">
           <h1 className="whitespace-nowrap text-3xl font-semibold">Transactions</h1>
           {/* min-w-0 (not shrink-0): when the window narrows, the search
@@ -597,60 +582,82 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             <ColumnsMenu
               columns={TOGGLEABLE_COLUMNS}
               visibility={config.visibility}
-              onToggle={(id, shown) => table.getColumn(id)?.toggleVisibility(shown)}
+              onToggle={(id, shown) => {
+                table.getColumn(id)?.toggleVisibility(shown);
+                // A hidden column takes its filter chip with it; clearing
+                // the filter keeps rows from being filtered invisibly.
+                if (!shown) {
+                  table.getColumn(id)?.setFilterValue(undefined);
+                  // The Commodity chip rides with the Amount column.
+                  if (id === "amount") table.getColumn("commodity")?.setFilterValue(undefined);
+                }
+              }}
             />
           </div>
         </div>
         {/* The filter chips on their own row, following the column order:
-            Date, Payee, Account, Amount, Commodity, Status, Tags. */}
+            Date, Payee, Account, Amount, Commodity, Status, Tags. Each chip
+            shows only while its column does. */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />
-          <FilterChip
-            title="Payee"
-            subject="payees"
-            mentionType="payee"
-            options={payeeOptions}
-            values={picked(table.getColumn("payee")?.getFilterValue())}
-            onValuesChange={(v) => table.getColumn("payee")?.setFilterValue(v.length ? v : undefined)}
-            counts={table.getColumn("payee")?.getFacetedUniqueValues()}
-          />
-          <FilterChip
-            title="Account"
-            subject="accounts"
-            mentionType="account"
-            options={accountOptions}
-            values={picked(table.getColumn("account")?.getFilterValue())}
-            onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
-            counts={table.getColumn("account")?.getFacetedUniqueValues()}
-          />
-          <AmountFilterChip column={table.getColumn("amount")} />
-          <FilterChip
-            title="Commodity"
-            subject="commodities"
-            icon={DollarSignIcon}
-            options={commodityOptions}
-            values={picked(table.getColumn("commodity")?.getFilterValue())}
-            onValuesChange={(v) => table.getColumn("commodity")?.setFilterValue(v.length ? v : undefined)}
-            counts={table.getColumn("commodity")?.getFacetedUniqueValues()}
-          />
-          <FilterChip
-            title="Status"
-            subject="statuses"
-            icon={CircleCheckIcon}
-            options={statusOptions}
-            values={picked(table.getColumn("status")?.getFilterValue())}
-            onValuesChange={(v) => table.getColumn("status")?.setFilterValue(v.length ? v : undefined)}
-            counts={table.getColumn("status")?.getFacetedUniqueValues()}
-          />
-          <FilterChip
-            title="Tags"
-            subject="tags"
-            mentionType="tag"
-            options={tagOptions}
-            values={picked(table.getColumn("tags")?.getFilterValue())}
-            onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}
-            counts={table.getColumn("tags")?.getFacetedUniqueValues()}
-          />
+          {config.visibility.date && <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />}
+          {config.visibility.payee && (
+            <FilterChip
+              title="Payee"
+              subject="payees"
+              mentionType="payee"
+              options={payeeOptions}
+              values={picked(table.getColumn("payee")?.getFilterValue())}
+              onValuesChange={(v) => table.getColumn("payee")?.setFilterValue(v.length ? v : undefined)}
+              counts={table.getColumn("payee")?.getFacetedUniqueValues()}
+            />
+          )}
+          {config.visibility.account && (
+            <FilterChip
+              title="Account"
+              subject="accounts"
+              mentionType="account"
+              options={accountOptions}
+              values={picked(table.getColumn("account")?.getFilterValue())}
+              onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
+              counts={table.getColumn("account")?.getFacetedUniqueValues()}
+            />
+          )}
+          {config.visibility.amount && (
+            <>
+              <AmountFilterChip column={table.getColumn("amount")} />
+              <FilterChip
+                title="Commodity"
+                subject="commodities"
+                icon={DollarSignIcon}
+                options={commodityOptions}
+                values={picked(table.getColumn("commodity")?.getFilterValue())}
+                onValuesChange={(v) => table.getColumn("commodity")?.setFilterValue(v.length ? v : undefined)}
+                counts={table.getColumn("commodity")?.getFacetedUniqueValues()}
+              />
+            </>
+          )}
+          {config.visibility.status && (
+            <FilterChip
+              title="Status"
+              subject="statuses"
+              icon={CircleCheckIcon}
+              options={statusOptions}
+              values={picked(table.getColumn("status")?.getFilterValue())}
+              onValuesChange={(v) => table.getColumn("status")?.setFilterValue(v.length ? v : undefined)}
+              counts={table.getColumn("status")?.getFacetedUniqueValues()}
+            />
+          )}
+          {config.visibility.tags && (
+            <FilterChip
+              title="Tags"
+              subject="tags"
+              mentionType="tag"
+              options={tagOptions}
+              values={picked(table.getColumn("tags")?.getFilterValue())}
+              onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}
+              counts={table.getColumn("tags")?.getFacetedUniqueValues()}
+            />
+          )}
           {filtersActive && (
             <Button variant="outline" size="sm" onClick={resetFilters}>
               <XIcon />
@@ -659,10 +666,19 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
           )}
         </div>
       </div>
-      {/* scroll-fade-t-6: content dissolves over 24px as it slides under the
-          pinned controls, same as the chat viewport's top fade. */}
-      <div className="scroll-fade-t scroll-fade-t-6 min-h-0 flex-1 overflow-y-auto">
-        <div className={`mx-auto w-full ${pageWidth} px-8 pb-12`}>
+      {/* No top scroll-fade here: the sticky column header sits at the very
+          top of the scroller and would be eaten by the mask; its own
+          backdrop covers the rows sliding beneath instead. */}
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+        {/* The table area is exactly as wide as its columns (never below
+            the header's content width, so the default view stays aligned);
+            past the window width the PAGE scrolls horizontally (both
+            scrollbars live at the window edge), so a scrollbar appears only
+            once the window truly has no room left. No side padding: while
+            scrolling, gutters would read as torn white bands at the ends.
+            Width comes from the column sizes, not the DOM, so the grid's
+            fill machinery cannot feed back into it. */}
+        <div className="mx-auto" style={{ width: `max(52rem, ${table.getTotalSize()}px)` }}>
           <DataGrid
             table={table}
             recordCount={recordCount}
@@ -677,21 +693,30 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
               columnsResizable: true,
               columnsResizeMode: "onChange",
               columnsVisibility: true,
+              headerSticky: true,
               width: "fixed",
             }}
           >
-            <DataGridContainer>
-              {/* A table wider than the page (many columns, wide accounts)
-                  scrolls horizontally inside the grid instead of clipping. */}
-              <DataGridScrollArea orientation="horizontal">
-                <DataGridTable />
-              </DataGridScrollArea>
-            </DataGridContainer>
-            {recordCount > pagination.pageSize && (
-              <div className="pt-4">
-                <DataGridPagination sizes={[50, 100, 200]} />
+            {/* One virtualized list for the whole register — no pagination.
+                The page body scrolls it; rows are measured, so multi-leg
+                and expanded rows keep exact offsets. A table wider than the
+                page still scrolls horizontally inside the grid. */}
+            {/* overflow-visible + the scroll-area-viewport marker present
+                the page body as this grid's external scroll area: the table
+                viewport then adds no overflow of its own, so the sticky
+                column header sticks against the page scroll. */}
+            <DataGridContainer className="overflow-visible">
+              <div data-slot="scroll-area-viewport">
+                {data === null ? (
+                  // The virtual list has no skeleton mode; the plain renderer
+                  // shows the shaped per-column skeletons and swaps out with
+                  // the first real rows.
+                  <DataGridTable />
+                ) : (
+                  <DataGridTableVirtual estimateSize={37} virtualizerOptions={virtualizerOptions} />
+                )}
               </div>
-            )}
+            </DataGridContainer>
           </DataGrid>
         </div>
       </div>

@@ -269,6 +269,9 @@ const AccountsTable: FC<{
     columns,
     state: { sorting, globalFilter: search, columnVisibility },
     onSortingChange: setSorting,
+    // The registered pagination feature would otherwise cap the row model at
+    // its default 10-row page; a section always lists every account.
+    manualPagination: true,
     enableSortingRemoval: false,
     // The account path is the only searchable field; substring match,
     // case-insensitive.

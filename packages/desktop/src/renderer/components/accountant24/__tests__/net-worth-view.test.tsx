@@ -351,6 +351,30 @@ describe("<NetWorthView />", () => {
     expect(screen.queryByText(/~/)).not.toBeInTheDocument();
   });
 
+  it("should list every account row, never a 10-row page", async () => {
+    // Regression: the shared v9 feature bundle registers pagination, whose
+    // default page size silently capped sections at 10 rows.
+    const many: NetWorth = {
+      sections: [
+        {
+          name: "Assets",
+          rows: Array.from({ length: 14 }, (_, i) => ({
+            name: `assets:bucket:${String(i + 1).padStart(2, "0")}`,
+            amounts: [A("EUR", i + 1)],
+            value: [A("EUR", i + 1)],
+          })),
+          total: { amounts: [A("EUR", 105)], value: [A("EUR", 105)] },
+        },
+      ],
+      net: { amounts: [A("EUR", 105)], value: [A("EUR", 105)] },
+      baseCommodity: "EUR",
+    };
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(many);
+    renderView();
+    await screen.findByText("assets:bucket:01");
+    expect(screen.getByText("assets:bucket:14")).toBeInTheDocument();
+  });
+
   describe("sorting", () => {
     const assetsButton = (name: string) =>
       within(screen.getByRole("table", { name: "Assets" })).getByRole("button", { name });

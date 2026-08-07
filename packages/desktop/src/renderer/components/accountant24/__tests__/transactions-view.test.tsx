@@ -194,11 +194,13 @@ describe("<TransactionsView />", () => {
     expect(screen.getByRole("searchbox", { name: "Search transactions" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Payee" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Account" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Commodity" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Tags" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Date" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Amount" }).length).toBeGreaterThan(0);
+    // Commodity has no column of its own; its chip rides with Amount.
+    expect(screen.getByRole("combobox", { name: "Commodity" })).toBeInTheDocument();
+    // Chips follow their columns: the hidden-by-default pair has no chip.
+    expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Tags" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Columns" })).toBeInTheDocument();
     // But no figures yet — the grid shows shaped loading skeletons instead.
     expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
@@ -388,8 +390,9 @@ describe("<TransactionsView />", () => {
       renderView();
       await screen.findByText("Bookshop");
       await userEvent.click(screen.getByRole("button", { name: "Columns" }));
-      // The chrome-only expander is not offered; the eight data columns are.
-      expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(8);
+      // The chrome-only expander and the filter-only commodity column are
+      // not offered; the seven data columns are.
+      expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(7);
       // Two toggles in one visit: the menu must stay open between them.
       await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Tags" }));
       await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Status" }));
@@ -405,25 +408,9 @@ describe("<TransactionsView />", () => {
         note: false,
         account: true,
         amount: true,
-        commodity: false,
         tags: true,
         status: true,
       });
-    });
-
-    it("should drop the auto-sized Account width from storage when the config persists", async () => {
-      // Regression: the grid grows the Account column to fill the page and
-      // that growth once got persisted, overflowing any narrower page. A
-      // stale stored width must wash out on the next config write.
-      window.localStorage.setItem(TRANSACTIONS_TABLE_KEY, JSON.stringify({ sizing: { account: 740, date: 100 } }));
-      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
-      renderView();
-      await screen.findByText("Bookshop");
-      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
-      await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Tags" }));
-      const stored = JSON.parse(window.localStorage.getItem(TRANSACTIONS_TABLE_KEY) ?? "{}");
-      // The user-owned Date width survives; the derived Account width does not.
-      expect(stored.sizing).toEqual({ date: 100 });
     });
 
     it("should restore the persisted column visibility on mount", async () => {
@@ -516,7 +503,8 @@ describe("<TransactionsView />", () => {
       expect(rowOrder()).toHaveLength(6);
     });
 
-    it("should filter by status from the toolbar while the column is hidden, and Reset clears", async () => {
+    it("should filter by status once its column is shown, and Reset clears", async () => {
+      window.localStorage.setItem(TRANSACTIONS_TABLE_KEY, JSON.stringify({ visibility: { status: true } }));
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
@@ -532,13 +520,16 @@ describe("<TransactionsView />", () => {
       expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
     });
 
-    it("should filter by tag text", async () => {
+    it("should filter by tag name, values aside — one option per name", async () => {
+      window.localStorage.setItem(TRANSACTIONS_TABLE_KEY, JSON.stringify({ visibility: { tags: true } }));
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
       await userEvent.click(chip("Tags"));
-      await userEvent.click(await screen.findByRole("option", { name: /^category: groceries/ }));
-      expect(rowOrder()).toEqual(["Grocery Store"]);
+      // Both category tags (housing, groceries values) fold into one name.
+      expect(await screen.findAllByRole("option")).toHaveLength(1);
+      await userEvent.click(screen.getByRole("option", { name: /^category/ }));
+      expect(rowOrder()).toEqual(["Grocery Store", "Landlord"]);
     });
 
     it("should filter by picked payees, multi-select, skipping payee-less entries in the options", async () => {
@@ -565,6 +556,41 @@ describe("<TransactionsView />", () => {
       expect(rowOrder()).toEqual(["Cafe Aroma"]);
       await userEvent.click(screen.getByRole("option", { name: /^Employer/ }));
       expect(rowOrder()).toEqual(["Cafe Aroma", "Employer"]);
+    });
+
+    it("should drop a chip with its hidden column and clear that filter", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Payee"));
+      await userEvent.click(await screen.findByRole("option", { name: /^Cafe Aroma/ }));
+      expect(rowOrder()).toEqual(["Cafe Aroma"]);
+      await userEvent.keyboard("{Escape}");
+      // Hiding the Payee column takes the chip away and un-filters the rows
+      // (nothing may keep filtering invisibly).
+      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+      await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Payee" }));
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("combobox", { name: "Payee" })).not.toBeInTheDocument();
+      expect(screen.getAllByRole("row").length).toBeGreaterThan(6);
+      expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    });
+
+    it("should take the Commodity chip away with the Amount column, clearing its filter", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Commodity"));
+      await userEvent.click(await screen.findByRole("option", { name: /^USD/ }));
+      expect(rowOrder()).toEqual(["Currency Exchange"]);
+      await userEvent.keyboard("{Escape}");
+      await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+      await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Amount" }));
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("combobox", { name: "Commodity" })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("button", { name: "Amount" })).toHaveLength(0);
+      // The commodity filter cleared with it — nothing filters invisibly.
+      expect(rowOrder()).toHaveLength(6);
     });
 
     it("should filter by the Date chip's presets and inclusive custom bounds", async () => {
@@ -686,30 +712,30 @@ describe("<TransactionsView />", () => {
     });
   });
 
-  describe("pagination", () => {
+  describe("virtual scroll", () => {
     const MANY = Array.from({ length: 205 }, (_, i) =>
       T({ index: i + 1, payee: `Payee ${String(i + 1).padStart(3, "0")}` }),
     );
 
-    it("should page long results at 100 rows and reset to the first page on a filter change", async () => {
-      vi.mocked(ledgerApi.transactions).mockResolvedValue(MANY);
-      renderView();
-      await screen.findByText("Payee 001");
-      expect(rowOrder()).toHaveLength(100);
-      expect(screen.getByText(/1 - 100 of 205/)).toBeInTheDocument();
-      await userEvent.click(screen.getByRole("button", { name: "Go to next page" }));
-      expect(rowOrder()).toHaveLength(100);
-      expect(screen.getByText(/101 - 200 of 205/)).toBeInTheDocument();
-      // A search change snaps back to the first page.
-      await userEvent.type(screen.getByRole("searchbox", { name: "Search transactions" }), "payee");
-      expect(screen.getByText(/1 - 100 of 205/)).toBeInTheDocument();
-    });
-
-    it("should show no pagination bar when one page fits everything", async () => {
+    it("should keep a short register fully rendered, with no pagination chrome", async () => {
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
+      expect(rowOrder()).toHaveLength(6);
       expect(screen.queryByText(/Rows per page/)).not.toBeInTheDocument();
+    });
+
+    it("should hand a long register to the virtualized scroll instead of pages", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(MANY);
+      renderView();
+      // Loading settles (skeletons gone) without any empty state: the 205
+      // rows are in the list, windowed by the virtualizer. jsdom reports a
+      // zero-height viewport, so the rendered window itself can't be
+      // asserted here — the e2e smoke covers real scrolling.
+      await waitFor(() => expect(document.querySelectorAll("[data-slot=skeleton]").length).toBe(0));
+      expect(screen.queryByText("No matching transactions")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Rows per page/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Go to next page" })).not.toBeInTheDocument();
     });
   });
 
