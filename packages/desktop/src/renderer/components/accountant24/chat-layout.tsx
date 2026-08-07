@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { LandmarkIcon, ReceiptTextIcon, SettingsIcon } from "lucide-react";
+import { ReceiptTextIcon, SettingsIcon, WalletIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sidebar,
@@ -163,7 +163,7 @@ export function ChatLayout() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
-                    <LandmarkIcon className="size-4" />
+                    <WalletIcon className="size-4" />
                     <span className="whitespace-nowrap">Net Worth</span>
                     <NetWorthBadge />
                   </SidebarMenuButton>
