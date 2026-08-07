@@ -479,6 +479,8 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             the left, Sort + View on the right. */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
           <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64" />
+          {/* Chips follow the column order: Date, Account, Status, Tags. */}
+          <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />
           <FilterChip
             title="Account"
             subject="accounts"
@@ -503,7 +505,6 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}
             counts={table.getColumn("tags")?.getFacetedUniqueValues()}
           />
-          <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />
           {filtersActive && (
             <Button variant="outline" size="sm" onClick={resetFilters}>
               <XIcon />
