@@ -10,6 +10,7 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { CirclePlusIcon } from "lucide-react";
 import { type FC, useState } from "react";
+import { MentionPill } from "@/components/accountant24/mentions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -37,13 +38,17 @@ export const FilterChip: FC<{
   title: string;
   /** Plural noun for the popup's search field: "Search {subject}". */
   subject: string;
+  /** Render values as the chat's mention pills of this type ("account",
+   *  "tag", "payee") — in the options and, smaller, on the trigger. Unset
+   *  values render as plain text/badges. */
+  mentionType?: string;
   options: FilterChipOption[];
   /** Picked values; empty = the filter is off. */
   values: string[];
   onValuesChange: (values: string[]) => void;
   /** Per-value match counts, shown muted next to each option. */
   counts?: Map<string, number>;
-}> = ({ title, subject, options, values, onValuesChange, counts }) => {
+}> = ({ title, subject, mentionType, options, values, onValuesChange, counts }) => {
   const [open, setOpen] = useState(false);
   // The popup's search text, owned here so the field's clear X is a plain
   // state reset; every open starts with a fresh, empty search.
@@ -68,7 +73,15 @@ export const FilterChip: FC<{
     >
       <ComboboxPrimitive.Trigger
         aria-label={title}
-        render={<Button variant="outline" size="sm" className="border-dashed" />}
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            // With a value chip shown, the trailing padding matches the value
+            // chip's vertical inset so the space reads even on all sides.
+            className={cn("border-dashed", selected.length > 0 && "pr-1.5")}
+          />
+        }
       >
         <CirclePlusIcon className="size-4" />
         {title}
@@ -80,13 +93,25 @@ export const FilterChip: FC<{
                 {selected.length} selected
               </Badge>
             ) : (
-              selected.map((option) => (
-                <Badge key={option.value} variant="secondary" className="max-w-40 px-1.5 font-normal">
-                  <span className="truncate" title={option.label}>
-                    {option.label}
+              selected.map((option) =>
+                mentionType ? (
+                  // text-xs shrinks the em-scaled pill a step below the
+                  // trigger label so it reads as the chip's value. The pill
+                  // truncates its own text, keeping its rounded edge.
+                  // flex wrapper: as a flex item the pill loses its inline
+                  // box, dodging the inline-block/overflow baseline quirk
+                  // that floats it off the row's center.
+                  <span key={option.value} className="flex items-center text-xs" title={option.label}>
+                    <MentionPill truncate type={mentionType} label={option.label} className="max-w-40" />
                   </span>
-                </Badge>
-              ))
+                ) : (
+                  <Badge key={option.value} variant="secondary" className="max-w-40 px-1.5 font-normal">
+                    <span className="truncate" title={option.label}>
+                      {option.label}
+                    </span>
+                  </Badge>
+                ),
+              )
             )}
           </>
         )}
@@ -114,9 +139,17 @@ export const FilterChip: FC<{
                 )}
               >
                 <Checkbox checked={values.includes(option.value)} tabIndex={-1} className="pointer-events-none" />
-                <span className="truncate" title={option.label}>
-                  {option.label}
-                </span>
+                {mentionType ? (
+                  // flex wrapper: see the trigger note — keeps the pill on
+                  // the row's center line.
+                  <span className="flex min-w-0 items-center" title={option.label}>
+                    <MentionPill truncate type={mentionType} label={option.label} />
+                  </span>
+                ) : (
+                  <span className="truncate" title={option.label}>
+                    {option.label}
+                  </span>
+                )}
                 {counts?.get(option.value) !== undefined && (
                   <span className="ms-auto text-xs font-normal text-muted-foreground tabular-nums">
                     {counts.get(option.value)}

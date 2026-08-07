@@ -36,7 +36,18 @@ const TYPE_COLORS: Record<string, string> = {
  *  all look identical. Renders the stock shadcn Badge so shape/sizing (rounded
  *  pill, text-xs, gap-1, size-3 icon) stays in sync with the rest of the app,
  *  with a per-type color layered on top of the secondary variant. */
-export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }) => {
+export const MentionPill: FC<{
+  type: string;
+  label: string;
+  /** Cut a long label with an ellipsis INSIDE the pill, keeping the rounded
+   *  edge (clipping the pill from outside cuts the corner off). Caps at the
+   *  parent's width; tighten further via `className` (e.g. `max-w-40`). Off
+   *  by default: in flowing chat text pills wrap with the prose, and the
+   *  truncating display mode would break the inline baseline alignment. */
+  truncate?: boolean;
+  /** Extra classes, merged last. */
+  className?: string;
+}> = ({ type, label, truncate = false, className }) => {
   const Icon = iconFor(type);
   return (
     <Badge
@@ -54,6 +65,8 @@ export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }
         "mx-px inline h-auto px-[0.55em] py-[0.15em] align-baseline text-[0.9em] leading-[1.3]",
         "[&>svg]:mr-[0.25em] [&>svg]:inline-block [&>svg]:size-[1.1em]! [&>svg]:align-[-0.125em]",
         TYPE_COLORS[type] ?? TYPE_COLORS.account,
+        truncate && "inline-block max-w-full truncate",
+        className,
       )}
     >
       <Icon />

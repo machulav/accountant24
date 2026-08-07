@@ -192,6 +192,7 @@ describe("<TransactionsView />", () => {
     // title and the full toolbar (search, chips, Sort, View).
     expect(screen.getByRole("heading", { level: 1, name: "Transactions" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search transactions" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Payee" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Account" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Status" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tags" })).toBeInTheDocument();
@@ -523,6 +524,32 @@ describe("<TransactionsView />", () => {
       await userEvent.click(chip("Tags"));
       await userEvent.click(await screen.findByRole("option", { name: /^category: groceries/ }));
       expect(rowOrder()).toEqual(["Grocery Store"]);
+    });
+
+    it("should filter by picked payees, multi-select, skipping payee-less entries in the options", async () => {
+      // A payee-less transfer: legal in the journal, pointless as an option.
+      vi.mocked(ledgerApi.transactions).mockResolvedValue([
+        ...DATA,
+        T({
+          index: 7,
+          date: "2026-03-15",
+          payee: "",
+          postings: [
+            { account: "assets:cash", amounts: [A("EUR", 50)] },
+            { account: "assets:bank:checking", amounts: [A("EUR", -50)] },
+          ],
+        }),
+      ]);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Payee"));
+      expect(await screen.findByRole("option", { name: /^Cafe Aroma/ })).toBeInTheDocument();
+      // 6 payees from the fixture; no option for the payee-less transfer.
+      expect(screen.getAllByRole("option")).toHaveLength(6);
+      await userEvent.click(screen.getByRole("option", { name: /^Cafe Aroma/ }));
+      expect(rowOrder()).toEqual(["Cafe Aroma"]);
+      await userEvent.click(screen.getByRole("option", { name: /^Employer/ }));
+      expect(rowOrder()).toEqual(["Cafe Aroma", "Employer"]);
     });
 
     it("should filter by the Date chip's presets and inclusive custom bounds", async () => {

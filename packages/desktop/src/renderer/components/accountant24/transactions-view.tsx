@@ -91,7 +91,7 @@ const HiddenLegs: FC<{ transaction: LedgerTransaction }> = ({ transaction }) => 
             >
               {column.id === "account" ? (
                 <div className={LINE}>
-                  <MentionPill type="account" label={posting.account} />
+                  <MentionPill truncate type="account" label={posting.account} />
                 </div>
               ) : column.id === "amount" ? (
                 <div className={cn(LINE, "justify-end tabular-nums text-muted-foreground")}>
@@ -154,12 +154,16 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     id: "payee",
     accessorFn: (row) => row.payee,
     sortFn: "text",
+    filterFn: (row, _columnId, value) => {
+      const payees = picked(value);
+      return payees.length === 0 || payees.includes(row.original.payee);
+    },
     size: 180,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
         <div className={LINE}>
-          <MentionPill type="payee" label={row.original.payee} />
+          <MentionPill truncate type="payee" label={row.original.payee} />
         </div>
       ) : null,
     meta: { headerTitle: "Payee", skeleton: <Skeleton className="h-6 w-28 rounded-3xl" /> },
@@ -183,7 +187,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       <div className="flex flex-col items-start gap-0.5">
         {splitPostings(row.original.postings).shown.map((posting, i) => (
           <div key={i} className={LINE}>
-            <MentionPill type="account" label={posting.account} />
+            <MentionPill truncate type="account" label={posting.account} />
           </div>
         ))}
       </div>
@@ -259,7 +263,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     cell: ({ row }) => (
       <div className="flex flex-wrap items-center gap-1">
         {row.original.tags.map((tag, i) => (
-          <MentionPill key={i} type="tag" label={tagText(tag)} />
+          <MentionPill truncate key={i} type="tag" label={tagText(tag)} />
         ))}
       </div>
     ),
@@ -280,7 +284,17 @@ const DateFilterChip: FC<{
   const set = (range: DateRange) => column.setFilterValue(range.from === null && range.to === null ? undefined : range);
   return (
     <Popover>
-      <PopoverTrigger render={<Button variant="outline" size="sm" className="border-dashed" />}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            // With the range badge shown, the trailing padding matches the
+            // badge's vertical inset so the space reads even on all sides.
+            className={cn("border-dashed", active && "pr-1.5")}
+          />
+        }
+      >
         <CalendarIcon />
         Date
         {active && (
@@ -439,6 +453,15 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
       (searchTexts.get(row.original.index) ?? "").includes(String(value).toLowerCase()),
   });
 
+  // Distinct payees only — payee-less transfers add no option.
+  const payeeOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of data ?? []) if (t.payee) names.add(t.payee);
+    return [...names]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+      .map((name) => ({ label: name, value: name }));
+  }, [data]);
+
   const accountOptions = useMemo(() => {
     const names = new Set<string>();
     for (const t of data ?? []) for (const p of t.postings) names.add(p.account);
@@ -479,11 +502,21 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             the left, Sort + View on the right. */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
           <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64" />
-          {/* Chips follow the column order: Date, Account, Status, Tags. */}
+          {/* Chips follow the column order: Date, Payee, Account, Status, Tags. */}
           <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />
+          <FilterChip
+            title="Payee"
+            subject="payees"
+            mentionType="payee"
+            options={payeeOptions}
+            values={picked(table.getColumn("payee")?.getFilterValue())}
+            onValuesChange={(v) => table.getColumn("payee")?.setFilterValue(v.length ? v : undefined)}
+            counts={table.getColumn("payee")?.getFacetedUniqueValues()}
+          />
           <FilterChip
             title="Account"
             subject="accounts"
+            mentionType="account"
             options={accountOptions}
             values={picked(table.getColumn("account")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
@@ -500,6 +533,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
           <FilterChip
             title="Tags"
             subject="tags"
+            mentionType="tag"
             options={tagOptions}
             values={picked(table.getColumn("tags")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}
