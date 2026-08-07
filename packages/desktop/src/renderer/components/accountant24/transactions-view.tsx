@@ -19,7 +19,7 @@ import { useTable } from "@tanstack/react-table";
 import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
 import { type FC, useMemo, useRef, useState } from "react";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
-import { FilterChip } from "@/components/accountant24/filter-chip";
+import { FilterChip, FilterChipSeparator } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
 import {
   DataGrid,
@@ -37,7 +37,6 @@ import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
-import { Separator } from "@/components/shadcn/separator";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { formatAmounts } from "@/lib/amountFormat";
 import { type DateRange, type DateRangePreset, inRange, PRESET_LABELS, presetRange } from "@/lib/dateRange";
@@ -338,8 +337,8 @@ const AmountFilterChip: FC<{
         Amount
         {active && (
           <>
-            <Separator orientation="vertical" className="mx-0.5 h-4" />
-            <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
+            <FilterChipSeparator />
+            <Badge variant="secondary" className="bg-muted px-1.5 font-normal tabular-nums">
               {value.min !== null && value.max !== null
                 ? `${value.min} - ${value.max}`
                 : value.min !== null
@@ -419,8 +418,8 @@ const DateFilterChip: FC<{
         Date
         {active && (
           <>
-            <Separator orientation="vertical" className="mx-0.5 h-4" />
-            <Badge variant="secondary" className="px-1.5 font-normal tabular-nums">
+            <FilterChipSeparator />
+            <Badge variant="secondary" className="bg-muted px-1.5 font-normal tabular-nums">
               {`${value.from ?? "start"} - ${value.to ?? "now"}`}
             </Badge>
           </>

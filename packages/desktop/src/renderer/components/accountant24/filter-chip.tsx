@@ -21,10 +21,15 @@ import {
   ComboboxEmpty,
   ComboboxList,
 } from "@/components/shadcn/combobox";
-import { Separator } from "@/components/shadcn/separator";
 import { cn } from "@/lib/utils";
 import { POPOVER_ROW, POPOVER_WIDTH } from "./popover";
 import { SearchField } from "./search-field";
+
+/** The trigger's title/value divider: a full-height dashed rule in the
+ *  chip's own border style, so it reads as part of the chip's frame. */
+export const FilterChipSeparator: FC = () => (
+  <span aria-hidden="true" className="mx-0.5 w-0 self-stretch border-l border-dashed border-border" />
+);
 
 export interface FilterChipOption {
   label: string;
@@ -92,9 +97,9 @@ export const FilterChip: FC<{
         {title}
         {selected.length > 0 && (
           <>
-            <Separator orientation="vertical" className="mx-0.5 h-4" />
+            <FilterChipSeparator />
             {selected.length > MAX_BADGES ? (
-              <Badge variant="secondary" className="px-1.5 font-normal">
+              <Badge variant="secondary" className="bg-muted px-1.5 font-normal">
                 {selected.length} selected
               </Badge>
             ) : (
@@ -110,7 +115,7 @@ export const FilterChip: FC<{
                     <MentionPill truncate type={mentionType} label={option.label} className="max-w-40" />
                   </span>
                 ) : (
-                  <Badge key={option.value} variant="secondary" className="max-w-40 px-1.5 font-normal">
+                  <Badge key={option.value} variant="secondary" className="max-w-40 bg-muted px-1.5 font-normal">
                     <span className="truncate" title={option.label}>
                       {option.label}
                     </span>
