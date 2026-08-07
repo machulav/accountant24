@@ -13,7 +13,15 @@
 // row — so amounts are aggregated per commodity here, exactly what
 // hledger's own display does.
 
-import type { AccountBalance, LedgerAmount, NetWorth, NetWorthSection } from "../shared/types";
+import type {
+  AccountBalance,
+  LedgerAmount,
+  LedgerPosting,
+  LedgerTransaction,
+  LedgerTransactionStatus,
+  NetWorth,
+  NetWorthSection,
+} from "../shared/types";
 
 /** A parsed balance row before the market-value report is merged in. */
 export type RawBalanceRow = Omit<AccountBalance, "value">;
@@ -167,6 +175,94 @@ export function parseAssertions(json: string): Record<string, Assertion> {
     }
   }
   return latest;
+}
+
+/** The description's payee and note halves: hledger keeps "Payee | note" as
+ *  one string and splits it only in dedicated subcommands, so the split on
+ *  the first pipe happens here. No pipe = the whole string is the payee. */
+function splitDescription(description: string): { payee: string; note: string } {
+  const pipe = description.indexOf("|");
+  if (pipe === -1) return { payee: description.trim(), note: "" };
+  return { payee: description.slice(0, pipe).trim(), note: description.slice(pipe + 1).trim() };
+}
+
+/** Transaction-level tags (`ttags`: [name, value] pairs, journal order). */
+function parseTags(tags: unknown): { name: string; value: string }[] {
+  if (!Array.isArray(tags)) return [];
+  const parsed: { name: string; value: string }[] = [];
+  for (const tag of tags) {
+    if (!Array.isArray(tag) || typeof tag[0] !== "string" || !tag[0]) continue;
+    parsed.push({ name: tag[0], value: typeof tag[1] === "string" ? tag[1] : "" });
+  }
+  return parsed;
+}
+
+/** A transaction's postings. hledger fills in elided amounts, so every
+ *  posting arrives with one; `pamount` keeps cost lots separate like the
+ *  balance report, so amounts are aggregated per commodity the same way. */
+function parsePostings(postings: unknown): LedgerPosting[] {
+  if (!Array.isArray(postings)) return [];
+  const parsed: LedgerPosting[] = [];
+  for (const posting of postings) {
+    const p = posting as { paccount?: unknown; pamount?: unknown };
+    if (typeof p?.paccount !== "string" || !p.paccount) continue;
+    const amounts = Array.isArray(p.pamount)
+      ? p.pamount.map(parseAmount).filter((a): a is LedgerAmount => a !== null)
+      : [];
+    parsed.push({ account: p.paccount, amounts: aggregateAmounts(amounts) });
+  }
+  return parsed;
+}
+
+/** An assertion-only entry: every posting zero and at least one carrying a
+ *  balance assertion — the agent's standalone "Balance Assertion" rows. A
+ *  reconciliation mark, not money movement, so the register hides it (for
+ *  now; a future toggle may resurface these). A real transaction that also
+ *  asserts a balance moves money, so it stays. */
+function isAssertionEntry(rawPostings: unknown, postings: LedgerPosting[]): boolean {
+  if (!Array.isArray(rawPostings)) return false;
+  const asserts = rawPostings.some((p) => Boolean((p as { pbalanceassertion?: unknown })?.pbalanceassertion));
+  return asserts && postings.every((p) => p.amounts.every((a) => a.quantity === 0));
+}
+
+/** Parse `hledger print -O json` output into the Transactions view's rows,
+ *  preserving journal order. Statuses outside hledger's three words read as
+ *  Unmarked; assertion-only entries are hidden; malformed entries are
+ *  skipped; anything unparseable yields [] — the caller's empty-state path.
+ *  (Price declarations never appear here: `print` reports transactions only.) */
+export function parseTransactionsJson(json: string): LedgerTransaction[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  const transactions: LedgerTransaction[] = [];
+  for (const txn of data) {
+    const t = txn as {
+      tindex?: unknown;
+      tdate?: unknown;
+      tdescription?: unknown;
+      tstatus?: unknown;
+      ttags?: unknown;
+      tpostings?: unknown;
+    };
+    if (typeof t?.tindex !== "number" || typeof t.tdate !== "string" || !t.tdate) continue;
+    if (typeof t.tdescription !== "string") continue;
+    const postings = parsePostings(t.tpostings);
+    if (isAssertionEntry(t.tpostings, postings)) continue;
+    const status: LedgerTransactionStatus = t.tstatus === "Cleared" || t.tstatus === "Pending" ? t.tstatus : "Unmarked";
+    transactions.push({
+      index: t.tindex,
+      date: t.tdate,
+      ...splitDescription(t.tdescription),
+      status,
+      tags: parseTags(t.ttags),
+      postings,
+    });
+  }
+  return transactions;
 }
 
 /** Merge the raw and market-value (`-X`) runs of the same `bs` report. Both

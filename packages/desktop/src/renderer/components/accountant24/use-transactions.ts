@@ -1,27 +1,26 @@
 "use client";
 
-// The net worth report feed, shared by the page and the sidebar badge.
+// The journal register feed for the Transactions page.
 
 import { useCallback, useEffect, useState } from "react";
 import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { ledgerApi } from "@/rpc/api";
-import type { NetWorth } from "@/rpc/types";
+import type { LedgerTransaction } from "@/rpc/types";
 
-/** null = first load in flight; no section rows = loaded but empty (no
- *  journal yet or hledger failed — both render the empty state pointing at
- *  the agent). */
-export function useNetWorth(): NetWorth | null {
-  const [data, setData] = useState<NetWorth | null>(null);
+/** null = first load in flight; [] = loaded but empty (no journal yet or
+ *  hledger failed — both render the empty state pointing at the agent). */
+export function useTransactions(): LedgerTransaction[] | null {
+  const [data, setData] = useState<LedgerTransaction[] | null>(null);
 
   const refresh = useCallback(() => {
     let cancelled = false;
     ledgerApi
-      .netWorth()
+      .transactions()
       .then((d) => {
         if (!cancelled) setData(d);
       })
       .catch(() => {
-        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
+        if (!cancelled) setData([]);
       });
     return () => {
       cancelled = true;

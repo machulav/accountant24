@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { LandmarkIcon, SettingsIcon } from "lucide-react";
+import { LandmarkIcon, ReceiptTextIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sidebar,
@@ -29,6 +29,7 @@ import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
 import { ThreadList, ThreadListNew } from "./thread-list";
+import { TransactionsView } from "./transactions-view";
 import { UpdateBanner } from "./update-banner";
 
 /** Hide/show toggle. Offset clear of the macOS traffic lights whenever the
@@ -70,8 +71,8 @@ export function ChatLayout() {
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which view fills the inset. The chat is never unmounted (see below); the
-  // The Net Worth page mounts fresh on each open so it always shows current data.
-  const [view, setView] = useState<"chat" | "net-worth">("chat");
+  // report pages mount fresh on each open so they always show current data.
+  const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
@@ -155,6 +156,12 @@ export function ChatLayout() {
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
+                  <SidebarMenuButton isActive={view === "transactions"} onClick={() => setView("transactions")}>
+                    <ReceiptTextIcon className="size-4" />
+                    Transactions
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
                     <LandmarkIcon className="size-4" />
                     <span className="whitespace-nowrap">Net Worth</span>
@@ -174,12 +181,13 @@ export function ChatLayout() {
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
-            {/* The chat stays mounted (display:none) while the Net Worth is open:
+            {/* The chat stays mounted (display:none) while a report page is open:
                 the composer's editor state, scroll position, and any in-flight
                 streaming all survive the round trip. */}
             <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
               <Thread />
             </div>
+            {view === "transactions" && <TransactionsView />}
             {view === "net-worth" && <NetWorthView />}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />

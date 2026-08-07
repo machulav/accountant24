@@ -3,8 +3,8 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { type LaunchedApp, launchApp } from "./helpers";
 
-// E2 — the Net Worth view over the real wiring: the preload allowlist,
-// the ledger_net_worth IPC round trip, and the sidebar view switch. A
+// E3 — the Transactions view over the real wiring: the preload allowlist,
+// the ledger_transactions IPC round trip, and the sidebar view switch. A
 // stored API key makes the app boot into the chat layout (the pi agent only
 // spawns on the first send, which never happens here). The temp home has no
 // journal, so the view deterministically shows the empty state whether or
@@ -24,20 +24,19 @@ test.afterEach(async () => {
   await launched?.close();
 });
 
-test("opens the Net Worth view from the sidebar and returns to the chat", async () => {
+test("opens the Transactions view from the sidebar and returns to the chat", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
   // Booted past onboarding into the chat layout (composer present).
   await expect(window.getByLabel("Message input")).toBeVisible();
 
-  await window.getByRole("button", { name: "Net Worth" }).click();
-  await expect(window.getByRole("heading", { name: "Net Worth" })).toBeVisible();
-  await expect(window.getByText("No accounts yet")).toBeVisible();
+  await window.getByRole("button", { name: "Transactions" }).click();
+  await expect(window.getByRole("heading", { name: "Transactions" })).toBeVisible();
+  await expect(window.getByText("No transactions yet")).toBeVisible();
 
-  // New Chat brings the composer back (sidebar entries select, not toggle —
-  // a second click on the active entry is a no-op).
+  // New Chat brings the composer back (sidebar entries select, not toggle).
   await window.getByRole("button", { name: "New Chat" }).click();
-  await expect(window.getByRole("heading", { name: "Net Worth" })).not.toBeVisible();
+  await expect(window.getByRole("heading", { name: "Transactions" })).not.toBeVisible();
   await expect(window.getByLabel("Message input")).toBeVisible();
 });

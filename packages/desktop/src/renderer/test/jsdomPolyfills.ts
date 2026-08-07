@@ -43,4 +43,9 @@ export function installJsdomPolyfills(): void {
       } satisfies Storage,
     });
   }
+
+  // Web Animations API: Base UI's scroll area polls viewport.getAnimations()
+  // on a timer; without the stub every grid test run drowns in unhandled
+  // TypeErrors after unmount.
+  Element.prototype.getAnimations ??= () => [];
 }

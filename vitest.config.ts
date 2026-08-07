@@ -52,6 +52,7 @@ export default defineConfig({
         "**/*.d.ts",
         "**/index.ts",
         "**/components/shadcn/**",
+        "**/components/reui/**",
         "packages/pi-extension/src/entry.ts",
         "packages/pi-extension/src/spawn.ts",
         "packages/desktop/src/renderer/main.tsx",

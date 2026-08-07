@@ -12,6 +12,7 @@ import type {
   AuthProviders,
   AuthStatus,
   LedgerMentions,
+  LedgerTransaction,
   NetWorth,
   OllamaInfo,
   SessionAgentEvent,
@@ -129,6 +130,8 @@ export const ledgerApi = {
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
   /** Fetch the `hledger bs` report (sections + net) for the Net Worth view. */
   netWorth: () => api.invoke<NetWorth>("ledger_net_worth"),
+  /** Fetch the `hledger print` register (journal order) for the Transactions view. */
+  transactions: () => api.invoke<LedgerTransaction[]>("ledger_transactions"),
 };
 
 export const skillsApi = {

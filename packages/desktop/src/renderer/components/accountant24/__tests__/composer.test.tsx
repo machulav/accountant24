@@ -200,6 +200,18 @@ describe("<Composer />", () => {
     expect(screen.queryByRole("button", { name: "Stop generating" })).not.toBeInTheDocument();
   });
 
+  it("should stay usable when the mention data query fails (no journal yet)", async () => {
+    const { ledgerApi } = await import("@/rpc/api");
+    vi.mocked(ledgerApi.mentions).mockRejectedValueOnce(new Error("hledger missing"));
+    render(
+      <Chrome isRunning={false}>
+        <Composer />
+      </Chrome>,
+    );
+    expect(await screen.findByLabelText("Message input")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
+  });
+
   it("should swap the send button for a stop button while the thread is running", () => {
     render(
       <Chrome isRunning={true}>

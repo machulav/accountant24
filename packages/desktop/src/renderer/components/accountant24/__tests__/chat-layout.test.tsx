@@ -23,6 +23,9 @@ const h = vi.hoisted(() => ({
   agentListeners: new Set<(e: { type: string }) => void>(),
   // updateApi state the update banner reads.
   update: { pendingValue: null as string | null, downloadedCb: null as ((v: string) => void) | null },
+  // The archiving image adapter's report callback (ChatLayout wires it so
+  // image-only sends can be titled).
+  onImage: null as ((name: string) => void) | null,
   install: vi.fn(),
 }));
 
@@ -58,7 +61,11 @@ vi.mock("@/runtime/electronPiClient", () => ({
 }));
 
 vi.mock("@/runtime/fileAttachmentAdapter", () => ({
-  ArchivingImageAttachmentAdapter: class {},
+  ArchivingImageAttachmentAdapter: class {
+    constructor(onImage: (name: string) => void) {
+      h.onImage = onImage;
+    }
+  },
   WorkspaceFileAttachmentAdapter: class {},
 }));
 
@@ -122,6 +129,7 @@ vi.mock("../thread-list", () => ({
 }));
 vi.mock("../net-worth-view", () => ({ NetWorthView: () => <div data-testid="net-worth-view" /> }));
 vi.mock("../net-worth-badge", () => ({ NetWorthBadge: () => null }));
+vi.mock("../transactions-view", () => ({ TransactionsView: () => <div data-testid="transactions-view" /> }));
 // The Settings dialog is a real dialog elsewhere; here a light stub that mirrors
 // the `open` prop, so we can assert ChatLayout opens/closes it.
 vi.mock("../settings/settings", () => ({
@@ -172,6 +180,7 @@ beforeEach(() => {
   h.getThread.mockImplementation(async (id: string) => ({ messages: h.transcripts[id] ?? [] }));
   h.update.pendingValue = null;
   h.update.downloadedCb = null;
+  h.onImage = null;
   h.agentListeners.clear();
 });
 
@@ -222,6 +231,55 @@ describe("ChatLayout Settings dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+  });
+});
+
+describe("ChatLayout Transactions view", () => {
+  const pageButton = () => screen.getByRole("button", { name: "Transactions" });
+  const threadWrapper = () => screen.getByTestId("thread").parentElement as HTMLElement;
+
+  it("should not show the Transactions view initially", () => {
+    render(<ChatLayout />);
+    expect(screen.queryByTestId("transactions-view")).toBeNull();
+    expect(pageButton()).not.toHaveAttribute("data-active");
+  });
+
+  it("should show the Transactions view and keep the chat mounted but hidden when Transactions is clicked", () => {
+    render(<ChatLayout />);
+    fireEvent.click(pageButton());
+
+    expect(screen.getByTestId("transactions-view")).toBeInTheDocument();
+    expect(screen.getByTestId("thread")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(pageButton()).toHaveAttribute("data-active");
+  });
+
+  it("should swap directly between the Transactions and Net Worth views", () => {
+    render(<ChatLayout />);
+    fireEvent.click(pageButton());
+    fireEvent.click(screen.getByRole("button", { name: "Net Worth" }));
+
+    expect(screen.queryByTestId("transactions-view")).toBeNull();
+    expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
+    expect(pageButton()).not.toHaveAttribute("data-active");
+  });
+
+  it("should keep the Transactions view open when the active entry is clicked again", () => {
+    render(<ChatLayout />);
+    fireEvent.click(pageButton());
+    fireEvent.click(pageButton());
+
+    expect(screen.getByTestId("transactions-view")).toBeInTheDocument();
+    expect(pageButton()).toHaveAttribute("data-active");
+  });
+
+  it("should return to the chat on the Cmd/Ctrl+N shortcut", () => {
+    render(<ChatLayout />);
+    fireEvent.click(pageButton());
+    fireEvent.keyDown(document.body, { key: "n", metaKey: true });
+
+    expect(screen.queryByTestId("transactions-view")).toBeNull();
+    expect(threadWrapper().className).not.toContain("hidden");
   });
 });
 
@@ -353,6 +411,22 @@ describe("ChatLayout auto-titling of new chats", () => {
 
     expect(h.rename).toHaveBeenCalledTimes(1);
     expect(h.rename).toHaveBeenCalledWith("what is my balance");
+  });
+
+  it("should title an image-only chat from the attached image names", async () => {
+    h.thread.title = null;
+    // A send with no text at all: the transcript's user message carries only
+    // image parts, which pi strips of their filenames.
+    h.transcripts[h.MAIN] = [{ role: "user", content: [] }];
+    render(<ChatLayout />);
+
+    // The adapter reported this image's name during the send.
+    act(() => h.onImage?.("receipt.png"));
+    emit("agent_start");
+    emit("agent_end");
+    await flushTitling();
+
+    expect(h.rename).toHaveBeenCalledWith("receipt.png");
   });
 
   it("should truncate a long first message to 60 characters with an ellipsis", async () => {

@@ -14,19 +14,12 @@
 // section. All figures are hledger-computed; only the presentation happens
 // here. Data refreshes when the agent finishes a turn.
 
-import {
-  type Column,
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  type SortingState,
-  useReactTable,
-  type VisibilityState,
-} from "@tanstack/react-table";
+import { type Column, type ColumnDef, flexRender, type SortingState, useTable } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Columns3Icon, InfoIcon, SearchIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
+// The shared TanStack v9 feature bundle (row models + sort/filter/visibility
+// features); v9 tables must declare their features up front.
+import { type DataGridFeatures, dataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { Button } from "@/components/shadcn/button";
 import {
   DropdownMenu,
@@ -43,9 +36,13 @@ import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { useNetWorth } from "./use-net-worth";
 
+/** Column visibility map (id -> shown); TanStack v9 no longer exports a
+ *  dedicated state type for it. */
+type ColumnVisibility = Record<string, boolean>;
+
 /** Clickable column header driving the table's sorting; the icon mirrors
  *  the current direction, neutral chevrons while the column is unsorted. */
-const SortHeader: FC<{ column: Column<AccountBalance>; label: string; className?: string }> = ({
+const SortHeader: FC<{ column: Column<DataGridFeatures, AccountBalance>; label: string; className?: string }> = ({
   column,
   label,
   className,
@@ -153,17 +150,19 @@ const InfoTip: FC<{ label: string; children?: ReactNode }> = ({ label, children 
  *  assertion columns hide by default (the tables stay narrow) and toggle on
  *  via the header's Columns menu; the other three are the page's spine and
  *  cannot be hidden. */
-const columns: ColumnDef<AccountBalance>[] = [
+const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
   {
     id: "account",
     accessorFn: (row) => row.name,
     enableHiding: false,
+    sortFn: "text",
     header: ({ column }) => <SortHeader column={column} label="Account" className="-ml-3" />,
     cell: ({ row }) => row.original.name,
   },
   {
     id: "asserted",
     accessorFn: (row) => row.assertedOn ?? "",
+    sortFn: "text",
     sortDescFirst: true,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
@@ -179,6 +178,7 @@ const columns: ColumnDef<AccountBalance>[] = [
   {
     id: "assertedAmount",
     accessorFn: (row) => row.assertedAmount?.quantity ?? 0,
+    sortFn: "basic",
     sortDescFirst: true,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
@@ -195,6 +195,7 @@ const columns: ColumnDef<AccountBalance>[] = [
   {
     id: "holding",
     accessorFn: (row) => row.amounts[0]?.quantity ?? 0,
+    sortFn: "basic",
     sortDescFirst: true,
     enableHiding: false,
     header: ({ column }) => (
@@ -208,6 +209,7 @@ const columns: ColumnDef<AccountBalance>[] = [
   {
     id: "value",
     accessorFn: (row) => row.value[0]?.quantity ?? 0,
+    sortFn: "basic",
     sortDescFirst: true,
     enableHiding: false,
     header: ({ column }) => (
@@ -235,9 +237,9 @@ const CELL_CLASS: Record<string, string> = {
  *  menu. The choice is remembered per user in localStorage and validated
  *  key-by-key on load, so garbage or stale entries fall back to hidden. */
 const COLUMNS_STORAGE_KEY = "accountant24.net-worth.columns";
-const DEFAULT_COLUMN_VISIBILITY: VisibilityState = { asserted: false, assertedAmount: false };
+const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = { asserted: false, assertedAmount: false };
 
-export function loadColumnVisibility(): VisibilityState {
+export function loadColumnVisibility(): ColumnVisibility {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(COLUMNS_STORAGE_KEY) ?? "");
     const pick = (key: string) => (parsed as Record<string, unknown>)[key] === true;
@@ -247,7 +249,7 @@ export function loadColumnVisibility(): VisibilityState {
   }
 }
 
-function saveColumnVisibility(visibility: VisibilityState): void {
+function saveColumnVisibility(visibility: ColumnVisibility): void {
   try {
     window.localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibility));
   } catch {
@@ -259,14 +261,15 @@ const AccountsTable: FC<{
   rows: AccountBalance[];
   search: string;
   label: string;
-  columnVisibility: VisibilityState;
+  columnVisibility: ColumnVisibility;
 }> = ({ rows, search, label, columnVisibility }) => {
   // A-Z on the account path until the user picks another column; a click
   // always leaves some direction active (no unsorted third state).
   const [sorting, setSorting] = useState<SortingState>([{ id: "account", desc: false }]);
   // Visibility is owned by the page (one Columns menu drives every section
   // table) and fully controlled: nothing in here mutates it.
-  const table = useReactTable({
+  const table = useTable({
+    features: dataGridFeatures,
     data: rows,
     columns,
     state: { sorting, globalFilter: search, columnVisibility },
@@ -275,9 +278,6 @@ const AccountsTable: FC<{
     // The account path is the only searchable field; substring match,
     // case-insensitive.
     globalFilterFn: (row, _columnId, value) => row.original.name.toLowerCase().includes(String(value).toLowerCase()),
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (
@@ -364,7 +364,7 @@ const SheetSection: FC<{
   section: NetWorthSection;
   baseCommodity: string | null;
   search: string;
-  columnVisibility: VisibilityState;
+  columnVisibility: ColumnVisibility;
 }> = ({ section, baseCommodity, search, columnVisibility }) => (
   <section>
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
@@ -388,7 +388,7 @@ const SKELETON_ROWS = ["s1", "s2", "s3", "s4", "s5", "s6"];
  *  before any data arrives), so the header doesn't jump when rows land.
  *  Assets and Net always exist on a balance sheet; Liabilities may not, so
  *  no placeholder for it. */
-const SheetSkeleton: FC<{ columnVisibility: VisibilityState }> = ({ columnVisibility }) => {
+const SheetSkeleton: FC<{ columnVisibility: ColumnVisibility }> = ({ columnVisibility }) => {
   const metaLabels = [
     ...(columnVisibility.asserted ? [ASSERTED_ON_LABEL] : []),
     ...(columnVisibility.assertedAmount ? [ASSERTED_AMOUNT_LABEL] : []),
@@ -470,7 +470,7 @@ export const NetWorthView: FC = () => {
   // The Columns choice, shared by every section table and the loading
   // skeleton; owned here so one menu drives the whole page, saved on every
   // toggle and restored on the next visit.
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(loadColumnVisibility);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
   const setColumnShown = (id: "asserted" | "assertedAmount", shown: boolean) =>
     setColumnVisibility((prev) => {
       const next = { ...prev, [id]: shown };

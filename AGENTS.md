@@ -55,6 +55,7 @@ The desktop app uses the **wrapper pattern**: library components stay untouched;
 `packages/desktop/src/renderer/components/`:
 
 - `shadcn/` — stock shadcn/ui components (Base UI-based). **Never edit**; add/update only via `scripts/shadcn.sh`. The whole shadcn catalog (select, tabs, card, dropdown-menu, table, …) is available on demand: `sh packages/desktop/scripts/shadcn.sh add <component>` — install before building custom UI.
+- `reui/` — vendored ReUI registry components (Base UI flavor; today the data grid on TanStack Table v9). **Never edit** beyond mechanical vendoring transforms (import aliases, unused-symbol strips); re-vendor from the reui.io registry JSON to update. `icon-placeholder.tsx` is the one local file: a lucide adapter for the registry's icon indirection.
 - `accountant24/` — all our components: wrappers around shadcn, customized assistant-ui components, app UI.
 
 ## Rules

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { NetWorth } from "../../shared/types";
+import type { LedgerTransaction, NetWorth } from "../../shared/types";
 
 // ledger.ts answers the composer's @-mention query (`hledger
-// accounts|payees|tags`) and the Net Worth view's report query
-// (`hledger bs`) against the workspace journal. child_process (the real
-// hledger binary), node:fs, Electron IPC, and env paths are the faked
-// boundaries; the line-shaping, the JSON parse, and the
-// empty-on-any-failure contract run for real.
+// accounts|payees|tags`), the Net Worth view's report query (`hledger bs`),
+// and the Transactions view's register query (`hledger print`) against the
+// workspace journal. child_process (the real hledger binary), node:fs,
+// Electron IPC, and env paths are the faked boundaries; the line-shaping,
+// the JSON parse, and the empty-on-any-failure contract run for real.
 type Handler = (event: unknown, payload?: unknown) => unknown;
 type ExecCb = (err: Error | null, stdout: string, stderr: string) => void;
 
@@ -67,6 +67,7 @@ async function invoke<T>(channel: string): Promise<T> {
 
 const mentions = () => invoke<{ accounts: string[]; payees: string[]; tags: string[] }>("ledger_mentions");
 const netWorth = () => invoke<NetWorth>("ledger_net_worth");
+const transactions = () => invoke<LedgerTransaction[]>("ledger_transactions");
 
 beforeEach(() => {
   h.handlers.clear();
@@ -404,5 +405,86 @@ describe("ledger_net_worth", () => {
     for (const call of h.execFile.mock.calls) {
       expect(call[0]).toBe("hledger");
     }
+  });
+});
+
+describe("ledger_transactions", () => {
+  const amt = (commodity: string, floatingPoint: number, decimalPlaces = 2) => ({
+    acommodity: commodity,
+    aquantity: { decimalMantissa: 0, decimalPlaces, floatingPoint },
+    astyle: { asprecision: decimalPlaces },
+  });
+  const PRINT = [
+    JSON.stringify([
+      {
+        tindex: 1,
+        tdate: "2026-01-05",
+        tdescription: "Grocery Store | weekly shop",
+        tstatus: "Cleared",
+        ttags: [["category", "groceries"]],
+        tpostings: [
+          { paccount: "expenses:food", pamount: [amt("EUR", 12.5)] },
+          { paccount: "assets:cash", pamount: [amt("EUR", -12.5)] },
+        ],
+      },
+    ]),
+  ];
+
+  it("should return the parsed journal register", async () => {
+    stubHledger({ print: PRINT });
+    expect(await transactions()).toEqual([
+      {
+        index: 1,
+        date: "2026-01-05",
+        payee: "Grocery Store",
+        note: "weekly shop",
+        status: "Cleared",
+        tags: [{ name: "category", value: "groceries" }],
+        postings: [
+          { account: "expenses:food", amounts: [{ quantity: 12.5, commodity: "EUR", precision: 2 }] },
+          { account: "assets:cash", amounts: [{ quantity: -12.5, commodity: "EUR", precision: 2 }] },
+        ],
+      },
+    ]);
+  });
+
+  it("should run one print as JSON with assertions ignored, against the workspace journal, in the workspace cwd, with the agent env", async () => {
+    // -I: a failed balance assertion must not blank the register — the page
+    // matters most when the ledger is in a broken state.
+    stubHledger({ print: PRINT });
+    await transactions();
+
+    expect(h.execFile.mock.calls).toHaveLength(1);
+    const call = h.execFile.mock.calls[0] as unknown[];
+    expect(call[1]).toEqual(["print", "-O", "json", "-I", "-f", "/ws/ledger/main.journal"]);
+    const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
+    expect(opts.cwd).toBe("/ws");
+    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+    expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
+  });
+
+  it("should return [] when hledger fails (no journal yet)", async () => {
+    stubHledger({ print: new Error("hledger: no journal") });
+    expect(await transactions()).toEqual([]);
+  });
+
+  it("should return [] when hledger is missing entirely", async () => {
+    const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
+    stubHledger({ print: enoent });
+    expect(await transactions()).toEqual([]);
+  });
+
+  it("should run the vendored hledger binary when it exists in binDir", async () => {
+    h.existsSync.mockReturnValue(true);
+    stubHledger({ print: PRINT });
+    await transactions();
+    expect(h.execFile.mock.calls[0]?.[0]).toBe("/vendored/bin/hledger");
+  });
+
+  it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {
+    h.existsSync.mockReturnValue(false);
+    stubHledger({ print: PRINT });
+    await transactions();
+    expect(h.execFile.mock.calls[0]?.[0]).toBe("hledger");
   });
 });

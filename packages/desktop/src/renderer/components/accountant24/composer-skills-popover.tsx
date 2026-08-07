@@ -10,9 +10,10 @@
 // (hoistSkillDirective in electronPiClient). Rows always carry the skill glyph
 // and a description subtitle.
 //
-// Styling note: as in composer-mentions-popover.tsx, the popup/row recipes are
-// copied verbatim from the stock shadcn files (dropdown-menu content/item,
-// combobox list, command empty state). When the stock recipes change, resync.
+// Styling note: as in composer-mentions-popover.tsx, the popup chrome and row
+// core come from the shared popover recipes (./popover.ts); the list and empty
+// state are copied from the stock shadcn files (combobox list, command empty
+// state). When the stock recipes change, resync.
 
 import {
   ComposerPrimitive,
@@ -24,6 +25,7 @@ import {
 import { ZapIcon } from "lucide-react";
 import { type ComponentPropsWithoutRef, type FC, Fragment, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { COMPOSER_POPOVER_CHROME, POPOVER_ROW, POPOVER_WIDTH } from "./popover";
 
 /** The trigger adapter shape the popover primitive expects (derived from the
  *  primitive's props — the type itself lives in @assistant-ui/core). */
@@ -106,7 +108,7 @@ const SkillRows: FC<{ emptyLabel: string }> = ({ emptyLabel }) => {
                 <ComposerPrimitive.Unstable_TriggerPopoverItem
                   item={item}
                   index={index}
-                  className="hover:bg-accent hover:text-accent-foreground focus:bg-accent data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full flex-col items-start gap-0.5 rounded-2xl px-3 py-2 text-start outline-none"
+                  className={cn(POPOVER_ROW, "flex w-full flex-col items-start gap-0.5 text-start")}
                 >
                   <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
                     <ZapIcon className="text-muted-foreground size-4 shrink-0" />
@@ -143,12 +145,7 @@ export const ComposerSkillsPopover: FC<ComposerSkillsPopoverProps> = ({ adapter,
     char="/"
     adapter={adapter}
     data-slot="composer-skills-popover"
-    className={cn(
-      // Popup chrome copied from the stock dropdown-menu/combobox popup so all
-      // popups in the app share one look (same recipe as the mentions popover).
-      "aui-composer-skills-popover bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 animate-in fade-in-0 zoom-in-95 absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-3xl shadow-lg ring-1 duration-100",
-      className,
-    )}
+    className={cn("aui-composer-skills-popover", COMPOSER_POPOVER_CHROME, POPOVER_WIDTH, className)}
   >
     {/* Replaces the typed trigger with a `:skill[name]` chip in one runtime
         write (the default formatter serializes exactly that for our items),

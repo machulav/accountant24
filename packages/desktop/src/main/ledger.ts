@@ -1,5 +1,6 @@
 // Ledger data served straight from the main process: the @-mention picker's
-// entity lists and the Accounts view's balance report.
+// entity lists, the Net Worth view's balance report, and the Transactions
+// view's journal register.
 //
 // Runs the same `hledger` queries the pi-extension uses, but directly so the
 // renderer gets its data without round-tripping through the agent's RPC stream.
@@ -12,9 +13,15 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
-import type { LedgerMentions, NetWorth } from "../shared/types";
+import type { LedgerMentions, LedgerTransaction, NetWorth } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
-import { mergeValuedBalanceSheet, parseAssertions, parseBalanceSheetJson, parseLatestPriceTarget } from "./ledger-json";
+import {
+  mergeValuedBalanceSheet,
+  parseAssertions,
+  parseBalanceSheetJson,
+  parseLatestPriceTarget,
+  parseTransactionsJson,
+} from "./ledger-json";
 
 function hledgerBin(): string {
   const exe = path.join(binDir(), process.platform === "win32" ? "hledger.exe" : "hledger");
@@ -109,8 +116,18 @@ async function ledgerNetWorth(): Promise<NetWorth> {
   };
 }
 
+/** The journal register, straight from `hledger print`: every transaction
+ *  with its postings, in journal order. `-I` keeps the report alive when a
+ *  balance assertion fails — a broken ledger is exactly when the user needs
+ *  to see its transactions. Empty when there's no journal yet or hledger
+ *  fails. */
+async function ledgerTransactions(): Promise<LedgerTransaction[]> {
+  return parseTransactionsJson(await hledgerRaw(["print", "-O", "json", "-I", "-f", mainJournalPath()]));
+}
+
 /** Register the ledger IPC handlers. */
 export function registerLedgerIpc(): void {
   ipcMain.handle("ledger_mentions", () => ledgerMentions());
   ipcMain.handle("ledger_net_worth", () => ledgerNetWorth());
+  ipcMain.handle("ledger_transactions", () => ledgerTransactions());
 }

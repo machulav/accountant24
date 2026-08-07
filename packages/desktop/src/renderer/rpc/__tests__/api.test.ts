@@ -333,6 +333,20 @@ describe("ledgerApi", () => {
       expect(bridge.callsFor("ledger_mentions")).toEqual([undefined]);
     });
   });
+
+  describe("transactions()", () => {
+    it("should invoke 'ledger_transactions' and resolve the register payload", async () => {
+      const register = [
+        { index: 1, date: "2026-01-05", payee: "ACME", note: "", status: "Cleared", tags: [], postings: [] },
+      ];
+      bridge.setHandler("ledger_transactions", () => register);
+
+      const result = await ledgerApi.transactions();
+
+      expect(result).toEqual(register);
+      expect(bridge.callsFor("ledger_transactions")).toEqual([undefined]);
+    });
+  });
 });
 
 describe("skillsApi", () => {
