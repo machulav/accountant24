@@ -18,12 +18,12 @@ import {
   ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxInput,
   ComboboxList,
 } from "@/components/shadcn/combobox";
 import { Separator } from "@/components/shadcn/separator";
 import { cn } from "@/lib/utils";
 import { POPOVER_ROW, POPOVER_WIDTH } from "./popover";
+import { SearchField } from "./search-field";
 
 export interface FilterChipOption {
   label: string;
@@ -35,14 +35,19 @@ const MAX_BADGES = 2;
 
 export const FilterChip: FC<{
   title: string;
+  /** Plural noun for the popup's search field: "Search {subject}". */
+  subject: string;
   options: FilterChipOption[];
   /** Picked values; empty = the filter is off. */
   values: string[];
   onValuesChange: (values: string[]) => void;
   /** Per-value match counts, shown muted next to each option. */
   counts?: Map<string, number>;
-}> = ({ title, options, values, onValuesChange, counts }) => {
+}> = ({ title, subject, options, values, onValuesChange, counts }) => {
   const [open, setOpen] = useState(false);
+  // The popup's search text, owned here so the field's clear X is a plain
+  // state reset; every open starts with a fresh, empty search.
+  const [query, setQuery] = useState("");
   const selected = options.filter((option) => values.includes(option.value));
 
   return (
@@ -53,8 +58,13 @@ export const FilterChip: FC<{
       onValueChange={(next: FilterChipOption[]) => onValuesChange(next.map((option) => option.value))}
       isItemEqualToValue={(a: FilterChipOption, b: FilterChipOption) => a.value === b.value}
       itemToStringLabel={(option: FilterChipOption) => option.label}
+      inputValue={query}
+      onInputValueChange={setQuery}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next: boolean) => {
+        setOpen(next);
+        if (next) setQuery("");
+      }}
     >
       <ComboboxPrimitive.Trigger aria-label={title} render={<Button variant="outline" size="sm" />}>
         <CirclePlusIcon className="size-4" />
@@ -79,13 +89,7 @@ export const FilterChip: FC<{
         )}
       </ComboboxPrimitive.Trigger>
       <ComboboxContent className={POPOVER_WIDTH}>
-        {/* No focus ring: the search field is the popup's only focusable
-            control and is focused on open, so the stock ring is pure noise. */}
-        <ComboboxInput
-          placeholder={`Search ${title.toLowerCase()}`}
-          showTrigger={false}
-          className="has-[[data-slot=input-group-control]:focus-visible]:border-input/30 has-[[data-slot=input-group-control]:focus-visible]:ring-0"
-        />
+        <SearchField combobox subject={subject} value={query} onValueChange={setQuery} />
         <ComboboxList className="scroll-fade">
           <ComboboxEmpty>Nothing found</ComboboxEmpty>
           <ComboboxCollection>

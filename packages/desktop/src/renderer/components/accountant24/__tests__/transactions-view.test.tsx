@@ -453,6 +453,32 @@ describe("<TransactionsView />", () => {
       await userEvent.clear(box);
       expect(rowOrder()).toHaveLength(6);
     });
+
+    it("should restore all rows from the search field's clear X", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      const box = screen.getByRole("searchbox", { name: "Search transactions" });
+      await userEvent.type(box, "aroma");
+      expect(rowOrder()).toEqual(["Cafe Aroma"]);
+      await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      expect(box).toHaveValue("");
+      expect(rowOrder()).toHaveLength(6);
+    });
+
+    it("should narrow a filter chip's options from its popup search, and clear from its X", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Account"));
+      const box = await screen.findByRole("combobox", { name: "Search accounts" });
+      await userEvent.type(box, "cash");
+      expect(await screen.findByRole("option", { name: /^assets:cash(?!:)/ })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /^income:salary/ })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      expect(box).toHaveValue("");
+      expect(await screen.findByRole("option", { name: /^income:salary/ })).toBeInTheDocument();
+    });
   });
 
   describe("filter chips", () => {

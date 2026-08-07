@@ -17,7 +17,7 @@
 
 import type { Column, ColumnDef, ExpandedState, ReactTable, SortingState } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
-import { ArrowUpDownIcon, CalendarIcon, SearchIcon, Settings2Icon, XIcon } from "lucide-react";
+import { ArrowUpDownIcon, CalendarIcon, Settings2Icon, XIcon } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
 import { FilterChip } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
@@ -45,7 +45,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/shadcn/dropdown-menu";
 import { Input } from "@/components/shadcn/input";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { formatAmounts } from "@/lib/amountFormat";
@@ -54,6 +53,7 @@ import { splitPostings } from "@/lib/postings";
 import { cn } from "@/lib/utils";
 import type { LedgerPosting, LedgerTransaction } from "@/rpc/types";
 import { POPOVER_WIDTH } from "./popover";
+import { SearchField } from "./search-field";
 import { loadTableConfig, saveTableConfig, type TransactionsTableConfig } from "./transactions-columns";
 import { useTransactions } from "./use-transactions";
 
@@ -478,20 +478,10 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
         {/* The classic data-table toolbar: search + filter chips + Reset on
             the left, Sort + View on the right. */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          <InputGroup className="w-64">
-            <InputGroupInput
-              type="search"
-              placeholder="Search transactions"
-              aria-label="Search transactions"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <InputGroupAddon>
-              <SearchIcon />
-            </InputGroupAddon>
-          </InputGroup>
+          <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64" />
           <FilterChip
             title="Account"
+            subject="accounts"
             options={accountOptions}
             values={picked(table.getColumn("account")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
@@ -499,6 +489,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
           />
           <FilterChip
             title="Status"
+            subject="statuses"
             options={statusOptions}
             values={picked(table.getColumn("status")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("status")?.setFilterValue(v.length ? v : undefined)}
@@ -506,6 +497,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
           />
           <FilterChip
             title="Tags"
+            subject="tags"
             options={tagOptions}
             values={picked(table.getColumn("tags")?.getFilterValue())}
             onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}

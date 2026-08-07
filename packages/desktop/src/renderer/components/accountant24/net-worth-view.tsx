@@ -15,7 +15,7 @@
 // here. Data refreshes when the agent finishes a turn.
 
 import { type Column, type ColumnDef, flexRender, type SortingState, useTable } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Columns3Icon, InfoIcon, SearchIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Columns3Icon, InfoIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
 // The shared TanStack v9 feature bundle (row models + sort/filter/visibility
 // features); v9 tables must declare their features up front.
@@ -28,12 +28,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/shadcn/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
+import { SearchField } from "./search-field";
 import { useNetWorth } from "./use-net-worth";
 
 /** Column visibility map (id -> shown); TanStack v9 no longer exports a
@@ -496,18 +496,7 @@ export const NetWorthView: FC = () => {
           // min-w-0 (not shrink-0): when the window narrows, the search
           // field gives way so the Columns button never clips.
           <div className="flex min-w-0 items-center gap-2">
-            <InputGroup className="w-64 min-w-0">
-              <InputGroupInput
-                type="search"
-                placeholder="Search accounts"
-                aria-label="Search accounts"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
-            </InputGroup>
+            <SearchField subject="accounts" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
