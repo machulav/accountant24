@@ -810,11 +810,16 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
                   ? "No transactions yet. Ask the agent to record your first transaction and it will show up here."
                   : "No matching transactions"
             }
+            // No columnsVisibility flag: it would only arm the header
+            // dropdown's own hide submenu (and even then each header must
+            // opt in), which toggles columns behind ColumnsMenu's back —
+            // bypassing its filter-clearing, so a hidden column could keep
+            // filtering invisibly. The toolbar's Columns menu is the one
+            // visibility control.
             tableLayout={{
               dense: true,
               columnsResizable: true,
               columnsResizeMode: "onChange",
-              columnsVisibility: true,
               headerSticky: true,
               width: "fixed",
             }}
