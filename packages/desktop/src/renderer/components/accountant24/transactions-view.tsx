@@ -53,6 +53,11 @@ const tagText = (tag: { name: string; value: string }): string => (tag.value ? `
 
 const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+/** App-styled sort header: the vendored default hovers a small rounded-lg
+ *  secondary box; ours is the ghost-button recipe (muted pill) every other
+ *  hoverable control uses. Merged over the vendored classes via cn. */
+const HEADER_CLASS = "rounded-4xl hover:bg-muted data-[state=open]:bg-muted";
+
 /** One posting line inside a cell: a fixed-height line box so the Account
  *  pills and the Amount figures line up row by row across the two columns. */
 const LINE = "flex h-6 items-center";
@@ -120,7 +125,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Unlike the other minimums (header-fit), dates are fixed-width data:
     // the minimum keeps the full ISO date readable.
     minSize: 104,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Date" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Date" className={HEADER_CLASS} />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by.
     cell: ({ row }) => <div className={LINE}>{row.original.date}</div>,
@@ -136,7 +141,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 200,
     minSize: 90,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" className={HEADER_CLASS} />,
     cell: ({ row }) =>
       row.original.payee ? (
         <div className={LINE}>
@@ -158,7 +163,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     getUniqueValues: (row) => row.postings.map((p) => p.account),
     size: 250,
     minSize: 104,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Account" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Account" className={HEADER_CLASS} />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
     // lines read as part of the row (the virtual table measures the growth).
@@ -205,7 +210,9 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 150,
     minSize: 100,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Amount" className="justify-end" />,
+    header: ({ column }) => (
+      <DataGridColumnHeader column={column} title="Amount" className={cn(HEADER_CLASS, "justify-end")} />
+    ),
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);
       return (
@@ -255,7 +262,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 100,
     minSize: 94,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Status" className={HEADER_CLASS} />,
     cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
       headerTitle: "Status",
@@ -269,7 +276,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     sortFn: "text",
     size: 300,
     minSize: 108,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" className={HEADER_CLASS} />,
     // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
     // the whole comment, wrapping at the h-6 line rhythm.
     cell: ({ row }) =>
@@ -302,7 +309,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 300,
     minSize: 80,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" />,
+    header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" className={HEADER_CLASS} />,
     // Collapsed: every tag on one line, sharing the width (each pill
     // ellipsizes on its own). Expanded: one tag per line, on the same
     // rhythm as the unfolded account legs.
