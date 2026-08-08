@@ -574,7 +574,18 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
       globalFilter: search,
       expanded,
     },
-    onSortingChange: setSorting,
+    // Two-state sort headers (asc <-> desc), matching Net Worth. The
+    // vendored header's third click clears the sort (journal order — near
+    // enough to the date default to read as a dead click); map that clear
+    // to ascending so a header always just flips direction.
+    onSortingChange: (updater) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        const cleared = prev[0];
+        if (next.length === 0 && cleared) return [{ id: cleared.id, desc: false }];
+        return next;
+      });
+    },
     onColumnVisibilityChange: (updater) => applyConfig("visibility", updater),
     onColumnSizingChange: (updater) => applyConfig("sizing", updater),
     onExpandedChange: setExpanded,

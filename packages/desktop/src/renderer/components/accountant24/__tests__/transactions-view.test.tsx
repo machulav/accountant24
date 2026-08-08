@@ -180,8 +180,8 @@ const grid = () => within(screen.getByRole("table"));
 /** A toolbar filter chip (a multi-select combobox trigger). */
 const chip = (name: string) => screen.getByRole("combobox", { name });
 
-/** A column's plain click-to-sort header button (stock cycle: first click
- *  ascending, second descending, third back to journal order). */
+/** A column's plain click-to-sort header button (two states: a click flips
+ *  between ascending and descending, never "unsorted"). */
 const headerButton = (name: string) => grid().getByRole("button", { name });
 
 describe("<TransactionsView />", () => {
@@ -305,7 +305,7 @@ describe("<TransactionsView />", () => {
   });
 
   describe("sorting via the header buttons", () => {
-    it("should cycle a header click through ascending, descending, and journal order", async () => {
+    it("should flip a header click between ascending and descending, never unsorted", async () => {
       vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
       renderView();
       await screen.findByText("Bookshop");
@@ -314,16 +314,10 @@ describe("<TransactionsView />", () => {
       expect(rowOrder()).toEqual(alphabetical);
       await userEvent.click(headerButton("Payee"));
       expect(rowOrder()).toEqual([...alphabetical].reverse());
-      // The stock third click clears the sort: journal order.
+      // The third click flips back to ascending — two states, no
+      // "unsorted" stop (matching the Net Worth tables).
       await userEvent.click(headerButton("Payee"));
-      expect(rowOrder()).toEqual([
-        "Employer",
-        "Landlord",
-        "Currency Exchange",
-        "Grocery Store",
-        "Cafe Aroma",
-        "Bookshop",
-      ]);
+      expect(rowOrder()).toEqual(alphabetical);
     });
 
     it("should restore newest-first with payee ties when Date is sorted descending again", async () => {
