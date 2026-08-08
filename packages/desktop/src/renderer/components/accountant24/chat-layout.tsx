@@ -73,6 +73,9 @@ export function ChatLayout() {
   // Which view fills the inset. The chat is never unmounted (see below); the
   // report pages mount fresh on each open so they always show current data.
   const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
+  // Latches once Transactions is first opened; the view then stays mounted.
+  const transactionsMounted = useRef(false);
+  if (view === "transactions") transactionsMounted.current = true;
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
@@ -187,7 +190,28 @@ export function ChatLayout() {
             <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
               <Thread />
             </div>
-            {view === "transactions" && <TransactionsView />}
+            {/* Mounted on first open and kept alive after: filters, sort,
+                expansion, and scroll survive view switches, and the
+                idle-edge refetch keeps data fresh in the background. Hidden
+                with visibility (not display): the box keeps its size, so
+                the virtualized list never tears down, remeasures, or loses
+                its scroll position. Absolute so the out-of-flow box never
+                pushes the visible view. A fresh app start still opens
+                clean. */}
+            {transactionsMounted.current && (
+              <div
+                className={cn(
+                  "absolute inset-0 flex flex-col",
+                  // opacity-0 alongside invisible: opacity flips on the
+                  // compositor immediately, so the big table layer vanishes
+                  // in one frame instead of smearing stale tiles over the
+                  // next view while visibility waits for a repaint.
+                  view !== "transactions" && "pointer-events-none invisible opacity-0",
+                )}
+              >
+                <TransactionsView />
+              </div>
+            )}
             {view === "net-worth" && <NetWorthView />}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />

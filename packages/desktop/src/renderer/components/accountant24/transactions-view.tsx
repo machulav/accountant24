@@ -633,6 +633,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
   // The page body is the scroll element (the scrollbar sits at the window
   // edge like on every page); the virtualizer windows rows against it.
   const scrollRef = useRef<HTMLDivElement>(null);
+
   const virtualizerOptions = useMemo(
     () => ({
       ...VIRTUALIZER_OPTIONS,

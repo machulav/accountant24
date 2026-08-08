@@ -160,17 +160,20 @@ describe("Transactions view flow", () => {
     expect(bridge.callsFor("ledger_transactions")).toHaveLength(1);
   });
 
-  it("should fetch a fresh register on every open", async () => {
+  it("should keep the page alive across view switches: no refetch, state intact", async () => {
     render(<ChatLayout />);
     openPage();
     await screen.findByText("Grocery Store");
     // Returning to the chat goes through new chat (Cmd/Ctrl+N), not the entry.
     fireEvent.keyDown(document.body, { key: "n", metaKey: true });
-    expect(screen.queryByText("Grocery Store")).toBeNull();
+    // Hidden, not unmounted: the rows are still in the tree.
+    expect(screen.getByText("Grocery Store")).toBeInTheDocument();
 
     openPage();
     await screen.findByText("Grocery Store");
-    expect(bridge.callsFor("ledger_transactions")).toHaveLength(2);
+    // One fetch total — the register survives the round trip (the agent's
+    // running -> idle edge still refreshes it in the background).
+    expect(bridge.callsFor("ledger_transactions")).toHaveLength(1);
   });
 
   it("should show the empty state when the journal has no transactions", async () => {

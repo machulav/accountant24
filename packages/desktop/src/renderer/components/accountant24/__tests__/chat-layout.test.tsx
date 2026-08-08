@@ -259,7 +259,9 @@ describe("ChatLayout Transactions view", () => {
     fireEvent.click(pageButton());
     fireEvent.click(screen.getByRole("button", { name: "Net Worth" }));
 
-    expect(screen.queryByTestId("transactions-view")).toBeNull();
+    // Once opened, Transactions stays mounted (hidden) so its state
+    // survives the switch.
+    expect((screen.getByTestId("transactions-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(screen.getByTestId("net-worth-view")).toBeInTheDocument();
     expect(pageButton()).not.toHaveAttribute("data-active");
   });
@@ -278,7 +280,7 @@ describe("ChatLayout Transactions view", () => {
     fireEvent.click(pageButton());
     fireEvent.keyDown(document.body, { key: "n", metaKey: true });
 
-    expect(screen.queryByTestId("transactions-view")).toBeNull();
+    expect((screen.getByTestId("transactions-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(threadWrapper().className).not.toContain("hidden");
   });
 });
