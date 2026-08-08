@@ -191,13 +191,14 @@ export function ChatLayout() {
               <Thread />
             </div>
             {/* Mounted on first open and kept alive after: filters, sort,
-                expansion, and scroll survive view switches, and the
-                idle-edge refetch keeps data fresh in the background. Hidden
-                with visibility (not display): the box keeps its size, so
-                the virtualized list never tears down, remeasures, or loses
-                its scroll position. Absolute so the out-of-flow box never
-                pushes the visible view. A fresh app start still opens
-                clean. */}
+                expansion, and scroll survive view switches. A turn that
+                finishes while the page is hidden only marks it dirty (no
+                register query runs behind a hidden page); it refreshes on
+                the next show. Hidden with visibility (not display): the box
+                keeps its size, so the virtualized list never tears down,
+                remeasures, or loses its scroll position. Absolute so the
+                out-of-flow box never pushes the visible view. A fresh app
+                start still opens clean. */}
             {transactionsMounted.current && (
               <div
                 className={cn(
@@ -209,7 +210,7 @@ export function ChatLayout() {
                   view !== "transactions" && "pointer-events-none invisible opacity-0",
                 )}
               >
-                <TransactionsView />
+                <TransactionsView active={view === "transactions"} />
               </div>
             )}
             {view === "net-worth" && <NetWorthView />}

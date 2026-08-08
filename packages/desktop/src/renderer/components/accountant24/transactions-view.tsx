@@ -525,9 +525,11 @@ const DateFilterChip: FC<{
 /** The Transactions page, shown in place of the chat thread: pinned title
  *  over the data-table toolbar (search, filter chips, Reset, View) and the
  *  stock data grid. `now` anchors the Date chip's presets (injectable so
- *  tests pin the calendar). */
-export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
-  const { transactions: data, failed } = useTransactions();
+ *  tests pin the calendar). `active` = the page is the visible view; the
+ *  layout keeps it mounted while hidden, and a hidden page defers its
+ *  idle-edge refetches to the next show. */
+export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, active = true }) => {
+  const { transactions: data, failed } = useTransactions(active);
   const [search, setSearch] = useState("");
   // Newest first by default (the payee tiebreak lives in the date column's
   // comparator); the column headers drive every other order.

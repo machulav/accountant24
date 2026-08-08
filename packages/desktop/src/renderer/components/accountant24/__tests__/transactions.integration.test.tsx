@@ -171,8 +171,8 @@ describe("Transactions view flow", () => {
 
     openPage();
     await screen.findByText("Grocery Store");
-    // One fetch total — the register survives the round trip (the agent's
-    // running -> idle edge still refreshes it in the background).
+    // One fetch total — the register survives the round trip (a turn that
+    // finishes while the page is hidden defers its refresh to the next show).
     expect(bridge.callsFor("ledger_transactions")).toHaveLength(1);
   });
 

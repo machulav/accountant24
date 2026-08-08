@@ -16,7 +16,9 @@ export interface TransactionsFeed {
   failed: boolean;
 }
 
-export function useTransactions(): TransactionsFeed {
+/** `active` = the page is the visible view; while false, the idle-edge
+ *  refresh defers to the next show (see useAgentIdleRefresh). */
+export function useTransactions(active = true): TransactionsFeed {
   const [feed, setFeed] = useState<TransactionsFeed>({ transactions: null, failed: false });
 
   const refresh = useCallback(() => {
@@ -35,10 +37,11 @@ export function useTransactions(): TransactionsFeed {
   }, []);
 
   useEffect(() => refresh(), [refresh]);
-  // Refetch when a turn finishes (it may have posted transactions). Existing
-  // rows stay up while the refresh is in flight, so the list never flickers
-  // back to the skeleton.
-  useAgentIdleRefresh(refresh);
+  // Refetch when a turn finishes (it may have posted transactions) — while
+  // the page is visible; hidden, the refetch waits for the next show.
+  // Existing rows stay up while the refresh is in flight, so the list never
+  // flickers back to the skeleton.
+  useAgentIdleRefresh(refresh, active);
 
   return feed;
 }

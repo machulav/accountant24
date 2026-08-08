@@ -803,6 +803,58 @@ describe("<TransactionsView />", () => {
     await waitFor(() => expect(ledgerApi.transactions).toHaveBeenCalledTimes(2));
   });
 
+  it("should defer the idle-edge refetch while hidden and refresh once on the next show", async () => {
+    vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+    const { rerender } = render(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} active={false} />
+      </Chrome>,
+    );
+    await screen.findByText("Bookshop");
+    expect(ledgerApi.transactions).toHaveBeenCalledTimes(1);
+
+    // A whole turn passes behind the hidden page: no register query runs.
+    rerender(
+      <Chrome isRunning={true}>
+        <TransactionsView now={NOW} active={false} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    rerender(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} active={false} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    expect(ledgerApi.transactions).toHaveBeenCalledTimes(1);
+
+    // The show pays the deferred refresh, once.
+    rerender(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} active={true} />
+      </Chrome>,
+    );
+    await waitFor(() => expect(ledgerApi.transactions).toHaveBeenCalledTimes(2));
+  });
+
+  it("should not refetch on show when no turn finished while hidden", async () => {
+    vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+    const { rerender } = render(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} active={false} />
+      </Chrome>,
+    );
+    await screen.findByText("Bookshop");
+
+    rerender(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} active={true} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    expect(ledgerApi.transactions).toHaveBeenCalledTimes(1);
+  });
+
   it("should keep the current rows visible while a refetch is in flight", async () => {
     vi.mocked(ledgerApi.transactions)
       .mockResolvedValueOnce(DATA)
