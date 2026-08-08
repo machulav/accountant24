@@ -769,10 +769,14 @@ describe("<TransactionsView />", () => {
     expect(screen.getByText(/Ask the agent to record your first transaction/)).toBeInTheDocument();
   });
 
-  it("should fall back to the empty message when the register query rejects", async () => {
-    vi.mocked(ledgerApi.transactions).mockRejectedValue(new Error("bridge down"));
+  it("should show the unreadable-journal message, not the empty state, when the register query rejects", async () => {
+    // The main process rejects when the journal exists but hledger fails
+    // (e.g. a syntax error, or output past the stdout cap): an unreadable
+    // journal must never read as "no transactions yet".
+    vi.mocked(ledgerApi.transactions).mockRejectedValue(new Error("register query failed"));
     renderView();
-    expect(await screen.findByText(/No transactions yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/The journal could not be read/)).toBeInTheDocument();
+    expect(screen.queryByText(/No transactions yet/)).not.toBeInTheDocument();
   });
 
   it("should refetch the register when the agent goes from running to idle", async () => {

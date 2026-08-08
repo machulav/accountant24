@@ -6,7 +6,9 @@ import type { LedgerTransaction, NetWorth } from "../../shared/types";
 // and the Transactions view's register query (`hledger print`) against the
 // workspace journal. child_process (the real hledger binary), node:fs,
 // Electron IPC, and env paths are the faked boundaries; the line-shaping,
-// the JSON parse, and the empty-on-any-failure contract run for real.
+// the JSON parse, and the failure contracts run for real (empty on any
+// failure — except the register, which rejects when the journal exists but
+// cannot be read).
 type Handler = (event: unknown, payload?: unknown) => unknown;
 type ExecCb = (err: Error | null, stdout: string, stderr: string) => void;
 
@@ -460,15 +462,26 @@ describe("ledger_transactions", () => {
     const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
     expect(opts.cwd).toBe("/ws");
     expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
-    expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
+    // A journal of ~6k transactions overflows the 16 MB default; the register
+    // needs the raised cap so years of history don't render as "empty".
+    expect(opts.maxBuffer).toBe(256 * 1024 * 1024);
   });
 
-  it("should return [] when hledger fails (no journal yet)", async () => {
+  it("should return [] when hledger fails and no journal exists yet", async () => {
     stubHledger({ print: new Error("hledger: no journal") });
     expect(await transactions()).toEqual([]);
   });
 
-  it("should return [] when hledger is missing entirely", async () => {
+  it("should reject when hledger fails against an existing journal", async () => {
+    // An unreadable journal must not masquerade as an empty one: the reject
+    // is the renderer's cue for the error message instead of "no
+    // transactions yet".
+    h.existsSync.mockImplementation((p) => p === "/ws/ledger/main.journal");
+    stubHledger({ print: new Error("stdout maxBuffer length exceeded") });
+    await expect(transactions()).rejects.toThrow();
+  });
+
+  it("should return [] when hledger is missing entirely and no journal exists", async () => {
     const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
     stubHledger({ print: enoent });
     expect(await transactions()).toEqual([]);

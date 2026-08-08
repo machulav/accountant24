@@ -7,20 +7,27 @@ import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { ledgerApi } from "@/rpc/api";
 import type { LedgerTransaction } from "@/rpc/types";
 
-/** null = first load in flight; [] = loaded but empty (no journal yet or
- *  hledger failed — both render the empty state pointing at the agent). */
-export function useTransactions(): LedgerTransaction[] | null {
-  const [data, setData] = useState<LedgerTransaction[] | null>(null);
+export interface TransactionsFeed {
+  /** null = first load in flight; [] = loaded but empty (no journal yet). */
+  transactions: LedgerTransaction[] | null;
+  /** The last fetch failed: the journal exists but could not be read (the
+   *  main process rejects the register query then, so an unreadable journal
+   *  never renders as "no transactions yet"). */
+  failed: boolean;
+}
+
+export function useTransactions(): TransactionsFeed {
+  const [feed, setFeed] = useState<TransactionsFeed>({ transactions: null, failed: false });
 
   const refresh = useCallback(() => {
     let cancelled = false;
     ledgerApi
       .transactions()
-      .then((d) => {
-        if (!cancelled) setData(d);
+      .then((transactions) => {
+        if (!cancelled) setFeed({ transactions, failed: false });
       })
       .catch(() => {
-        if (!cancelled) setData([]);
+        if (!cancelled) setFeed({ transactions: [], failed: true });
       });
     return () => {
       cancelled = true;
@@ -33,5 +40,5 @@ export function useTransactions(): LedgerTransaction[] | null {
   // back to the skeleton.
   useAgentIdleRefresh(refresh);
 
-  return data;
+  return feed;
 }

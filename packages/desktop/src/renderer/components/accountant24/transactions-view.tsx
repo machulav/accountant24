@@ -527,7 +527,7 @@ const DateFilterChip: FC<{
  *  stock data grid. `now` anchors the Date chip's presets (injectable so
  *  tests pin the calendar). */
 export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
-  const data = useTransactions();
+  const { transactions: data, failed } = useTransactions();
   const [search, setSearch] = useState("");
   // Newest first by default (the payee tiebreak lives in the date column's
   // comparator); the column headers drive every other order.
@@ -789,9 +789,11 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             recordCount={recordCount}
             isLoading={data === null}
             emptyMessage={
-              data !== null && data.length === 0
-                ? "No transactions yet. Ask the agent to record your first transaction and it will show up here."
-                : "No matching transactions"
+              failed
+                ? "The journal could not be read. Ask the agent to check it."
+                : data !== null && data.length === 0
+                  ? "No transactions yet. Ask the agent to record your first transaction and it will show up here."
+                  : "No matching transactions"
             }
             tableLayout={{
               dense: true,

@@ -28,15 +28,20 @@ function hledgerBin(): string {
   return existsSync(exe) ? exe : "hledger";
 }
 
-/** Run one `hledger` subcommand and return its raw stdout, untouched (the
- *  balance report's JSON must not be line-shaped). Any failure (missing
- *  binary, no journal yet, parse error) yields "". */
-function hledgerRaw(args: string[]): Promise<string> {
+/** Run one `hledger` subcommand and return its raw stdout, or null on any
+ *  failure (missing binary, no journal yet, parse error). */
+function hledgerResult(args: string[], maxBuffer = 16 * 1024 * 1024): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(hledgerBin(), args, { cwd: workspaceDir(), env: agentEnv(), maxBuffer: 16 * 1024 * 1024 }, (err, stdout) =>
-      resolve(err ? "" : stdout),
+    execFile(hledgerBin(), args, { cwd: workspaceDir(), env: agentEnv(), maxBuffer }, (err, stdout) =>
+      resolve(err ? null : stdout),
     );
   });
+}
+
+/** Run one `hledger` subcommand and return its raw stdout, untouched (the
+ *  balance report's JSON must not be line-shaped). Any failure yields "". */
+async function hledgerRaw(args: string[]): Promise<string> {
+  return (await hledgerResult(args)) ?? "";
 }
 
 /** Run one `hledger` subcommand and return its sorted, non-empty output lines. */
@@ -116,13 +121,24 @@ async function ledgerNetWorth(): Promise<NetWorth> {
   };
 }
 
+/** The register JSON runs ~2.6 KB per plain transaction, so the default
+ *  16 MB stdout cap dies around 6k transactions; 256 MB covers ~100k. */
+const REGISTER_MAX_BUFFER = 256 * 1024 * 1024;
+
 /** The journal register, straight from `hledger print`: every transaction
  *  with its postings, in journal order. `-I` keeps the report alive when a
  *  balance assertion fails — a broken ledger is exactly when the user needs
- *  to see its transactions. Empty when there's no journal yet or hledger
- *  fails. */
+ *  to see its transactions. Empty when there's no journal yet; unlike the
+ *  other queries, a failure against an EXISTING journal rejects (the empty
+ *  register and an unreadable one must not look alike on this page). */
 async function ledgerTransactions(): Promise<LedgerTransaction[]> {
-  return parseTransactionsJson(await hledgerRaw(["print", "-O", "json", "-I", "-f", mainJournalPath()]));
+  const journal = mainJournalPath();
+  const stdout = await hledgerResult(["print", "-O", "json", "-I", "-f", journal], REGISTER_MAX_BUFFER);
+  if (stdout === null) {
+    if (existsSync(journal)) throw new Error("the register query failed against an existing journal");
+    return [];
+  }
+  return parseTransactionsJson(stdout);
 }
 
 /** Register the ledger IPC handlers. */
