@@ -6,8 +6,12 @@
  * with the full text in a title tooltip.
  */
 
-/** Fixed popup width; content never resizes it. */
-export const POPOVER_WIDTH = "w-96";
+/** Fixed popup width; content never resizes it. min-w-96 is load-bearing:
+ *  the stock combobox popup's min-width tracks its anchor (the trigger plus
+ *  a margin), so without the override a filter chip grown wide by two value
+ *  pills stretches its popup past w-96 — and back, once a third pick
+ *  collapses the pills to an "N selected" badge. */
+export const POPOVER_WIDTH = "w-96 min-w-96";
 
 /**
  * Popup chrome for the composer's assistant-ui popovers, which can't render
