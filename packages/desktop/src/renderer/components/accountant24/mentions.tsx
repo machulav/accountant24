@@ -10,11 +10,12 @@
 // refreshed whenever the agent finishes a turn so newly-added
 // payees/accounts/tags show up.
 
-import { unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
+import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
 import type { LedgerMentions } from "@/rpc/types";
@@ -137,17 +138,10 @@ function useLedgerMentions(): LedgerMentions {
   }, []);
 
   useEffect(() => refresh(), [refresh]);
-
-  // Refetch on the running → idle edge (a turn just finished).
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const wasRunning = useRef(isRunning);
-  useEffect(() => {
-    const justFinished = wasRunning.current && !isRunning;
-    wasRunning.current = isRunning;
-    // Return refresh()'s cancel like the mount effect does, so a fetch that
-    // resolves after unmount (or after the next turn starts) can't setData.
-    if (justFinished) return refresh();
-  }, [isRunning, refresh]);
+  // Refetch on the running → idle edge (a turn just finished). The hook
+  // returns refresh()'s cancel like the mount effect does, so a fetch that
+  // resolves after unmount (or after the next turn starts) can't setData.
+  useAgentIdleRefresh(refresh);
 
   return data;
 }

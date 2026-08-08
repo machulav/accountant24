@@ -9,7 +9,7 @@
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { CirclePlusIcon } from "lucide-react";
-import { type FC, useState } from "react";
+import { type FC, type ReactNode, useMemo, useState } from "react";
 import { iconFor, MentionPill } from "@/components/accountant24/mentions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
@@ -29,6 +29,50 @@ import { SearchField } from "./search-field";
  *  chip's own border style, so it reads as part of the chip's frame. */
 export const FilterChipSeparator: FC = () => (
   <span aria-hidden="true" className="mx-0.5 w-0 self-stretch border-l border-dashed border-border" />
+);
+
+/** The chip trigger's own look, shared by every chip (faceted or range) so
+ *  the family restyles in one place. Rendered INTO the surrounding
+ *  primitive's trigger (Combobox.Trigger, PopoverTrigger), which supplies
+ *  the behavior. With a value shown, the trailing padding matches the value
+ *  chip's vertical inset so the space reads even on all sides. */
+export const filterChipTriggerClass = (active: boolean): string => cn("border-dashed", active && "pr-1.5");
+
+/** A chip trigger's contents: icon, title, and — once the filter is on —
+ *  the divider plus whatever spells out the picked value(s). */
+export const FilterChipLabel: FC<{
+  icon: FC<{ className?: string }>;
+  title: string;
+  active: boolean;
+  children?: ReactNode;
+}> = ({ icon: Icon, title, active, children }) => (
+  <>
+    <Icon className="size-4" />
+    {title}
+    {active && (
+      <>
+        <FilterChipSeparator />
+        {children}
+      </>
+    )}
+  </>
+);
+
+/** A chip's value badge: the plain-text spelling of a picked value or range
+ *  ("3 selected", "≥ 100", "2026-03-01 - now"). */
+export const FilterChipValue: FC<{ children: ReactNode; className?: string }> = ({ children, className }) => (
+  <Badge variant="secondary" className={cn("bg-muted px-1.5 font-normal", className)}>
+    {children}
+  </Badge>
+);
+
+/** The popup's footer: clears the chip's filter without closing the popup. */
+export const FilterChipClear: FC<{ onClear: () => void }> = ({ onClear }) => (
+  <div className="border-t p-1.5">
+    <Button variant="ghost" size="sm" className="w-full" onClick={onClear}>
+      Clear filters
+    </Button>
+  </div>
 );
 
 export interface FilterChipOption {
@@ -63,7 +107,11 @@ export const FilterChip: FC<{
   // The popup's search text, owned here so the field's clear X is a plain
   // state reset; every open starts with a fresh, empty search.
   const [query, setQuery] = useState("");
-  const selected = options.filter((option) => values.includes(option.value));
+  // Picked options, looked up by value: the option lists run to thousands of
+  // entries on a real journal, and this recomputes on every page render (a
+  // keystroke, a resize drag), so it must not rescan the whole list.
+  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options]);
+  const selected = useMemo(() => values.flatMap((value) => byValue.get(value) ?? []), [values, byValue]);
 
   return (
     <Combobox
@@ -90,50 +138,35 @@ export const FilterChip: FC<{
     >
       <ComboboxPrimitive.Trigger
         aria-label={title}
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            // With a value chip shown, the trailing padding matches the value
-            // chip's vertical inset so the space reads even on all sides.
-            className={cn("border-dashed", selected.length > 0 && "pr-1.5")}
-          />
-        }
+        render={<Button variant="outline" size="sm" className={filterChipTriggerClass(selected.length > 0)} />}
       >
-        <Icon className="size-4" />
-        {title}
-        {selected.length > 0 && (
-          <>
-            <FilterChipSeparator />
-            {selected.length > MAX_BADGES ? (
-              <Badge variant="secondary" className="bg-muted px-1.5 font-normal">
-                {selected.length} selected
-              </Badge>
-            ) : (
-              selected.map((option) =>
-                mentionType ? (
-                  // text-xs shrinks the em-scaled pill a step below the
-                  // trigger label so it reads as the chip's value. The pill
-                  // truncates its own text, keeping its rounded edge.
-                  // flex wrapper: as a flex item the pill loses its inline
-                  // box, dodging the inline-block/overflow baseline quirk
-                  // that floats it off the row's center.
-                  // No native title: the pill brings its own clip-aware
-                  // tooltip in truncate mode.
-                  <span key={option.value} className="flex items-center text-xs">
-                    <MentionPill truncate type={mentionType} label={option.label} className="max-w-40" />
+        <FilterChipLabel icon={Icon} title={title} active={selected.length > 0}>
+          {selected.length > MAX_BADGES ? (
+            <FilterChipValue>{selected.length} selected</FilterChipValue>
+          ) : (
+            selected.map((option) =>
+              mentionType ? (
+                // text-xs shrinks the em-scaled pill a step below the
+                // trigger label so it reads as the chip's value. The pill
+                // truncates its own text, keeping its rounded edge.
+                // flex wrapper: as a flex item the pill loses its inline
+                // box, dodging the inline-block/overflow baseline quirk
+                // that floats it off the row's center.
+                // No native title: the pill brings its own clip-aware
+                // tooltip in truncate mode.
+                <span key={option.value} className="flex items-center text-xs">
+                  <MentionPill truncate type={mentionType} label={option.label} className="max-w-40" />
+                </span>
+              ) : (
+                <FilterChipValue key={option.value} className="max-w-40">
+                  <span className="truncate" title={option.label}>
+                    {option.label}
                   </span>
-                ) : (
-                  <Badge key={option.value} variant="secondary" className="max-w-40 bg-muted px-1.5 font-normal">
-                    <span className="truncate" title={option.label}>
-                      {option.label}
-                    </span>
-                  </Badge>
-                ),
-              )
-            )}
-          </>
-        )}
+                </FilterChipValue>
+              ),
+            )
+          )}
+        </FilterChipLabel>
       </ComboboxPrimitive.Trigger>
       <ComboboxContent className={POPOVER_WIDTH}>
         <SearchField combobox subject={subject} value={query} onValueChange={setQuery} />
@@ -179,13 +212,7 @@ export const FilterChip: FC<{
             )}
           </ComboboxCollection>
         </ComboboxList>
-        {selected.length > 0 && (
-          <div className="border-t p-1.5">
-            <Button variant="ghost" size="sm" className="w-full" onClick={() => onValuesChange([])}>
-              Clear filters
-            </Button>
-          </div>
-        )}
+        {selected.length > 0 && <FilterChipClear onClear={() => onValuesChange([])} />}
       </ComboboxContent>
     </Combobox>
   );

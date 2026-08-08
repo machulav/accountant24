@@ -12,19 +12,22 @@
 // unfolds the rest in place), and the chat's mention pills.
 // Data refreshes when the agent finishes a turn while the page is visible.
 
-import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
-import { useTable } from "@tanstack/react-table";
+import type { Column, ColumnDef, ExpandedState, SortingState, Updater } from "@tanstack/react-table";
+import { functionalUpdate } from "@tanstack/react-table";
 import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
-import { type FC, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, type FC, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
-import { FilterChip, FilterChipSeparator } from "@/components/accountant24/filter-chip";
-import { MentionPill } from "@/components/accountant24/mentions";
 import {
-  DataGrid,
-  DataGridContainer,
-  type DataGridFeatures,
-  dataGridFeatures,
-} from "@/components/reui/data-grid/data-grid";
+  FilterChip,
+  FilterChipClear,
+  FilterChipLabel,
+  type FilterChipOption,
+  FilterChipValue,
+  filterChipTriggerClass,
+} from "@/components/accountant24/filter-chip";
+import { MentionPill } from "@/components/accountant24/mentions";
+import { useAppTable } from "@/components/accountant24/use-app-table";
+import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
 import { DataGridTable, DataGridTableRowExpand } from "@/components/reui/data-grid/data-grid-table";
 import {
@@ -40,7 +43,7 @@ import { formatAmounts } from "@/lib/amountFormat";
 import { type DateRange, type DateRangePreset, inRange, isIsoDate, PRESET_LABELS, presetRange } from "@/lib/dateRange";
 import { splitPostings } from "@/lib/postings";
 import { cn } from "@/lib/utils";
-import type { LedgerPosting, LedgerTransaction } from "@/rpc/types";
+import type { LedgerPosting, LedgerTransaction, LedgerTransactionStatus } from "@/rpc/types";
 import { POPOVER_WIDTH } from "./popover";
 import { SearchField } from "./search-field";
 import { loadTableConfig, saveTableConfig, type TransactionsTableConfig } from "./transactions-columns";
@@ -64,6 +67,12 @@ const postingAmount = (posting: LedgerPosting): string => formatAmounts(posting.
 
 /** A faceted-filter value list: an array of picked strings, empty = off. */
 const picked = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : []);
+
+/** A chip's option list: the distinct values, A-Z, case-insensitively. */
+const toOptions = (values: Iterable<string>): FilterChipOption[] =>
+  [...new Set(values)]
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    .map((value) => ({ label: value, value }));
 
 /** Inclusive amount bounds; either side open. Matches absolute amounts. */
 type AmountRange = { min: number | null; max: number | null };
@@ -182,7 +191,8 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
         </div>
       );
     },
-    // Absorbs a wide window's free width, so amounts stay next to accounts.
+    // The widest default: account paths are the page's longest text, and the
+    // table sizes itself from the column widths (see getTotalSize below).
     meta: {
       headerTitle: "Account",
       cellClassName: "align-top",
@@ -333,12 +343,20 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
 
 /** Measured row heights for the virtual scroller: multi-leg and expanded
  *  rows are taller than the estimate, and exact offsets need real sizes.
+ *  Supplying measureElement is what makes the vendored table observe rows at
+ *  all; the body mirrors the virtualizer's own default, preferring the box
+ *  the ResizeObserver already computed over a fresh layout read.
  *  The cast: the vendored options type keeps TanStack's internals
  *  (scrollToFn, element observers) required even though the component
  *  supplies them itself — only our customizations live here. */
 const VIRTUALIZER_OPTIONS = {
-  measureElement: (el: HTMLTableRowElement) => el.getBoundingClientRect().height,
+  measureElement: (el: HTMLTableRowElement, entry: ResizeObserverEntry | undefined) =>
+    entry?.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height,
 } as unknown as DataGridTableVirtualizerOptions<LedgerTransaction>;
+
+/** Stable empty register, so a fetch in flight doesn't hand the table a
+ *  fresh array (and a fresh row model) on every render. */
+const NO_ROWS: LedgerTransaction[] = [];
 
 /** Registers up to this many rows render directly; the virtualizer's
  *  spacer-and-measure machinery only pays off past it. */
@@ -348,15 +366,58 @@ const VIRTUALIZE_AFTER = 100;
  *  pointer move) the table config is written to localStorage. */
 const SAVE_CONFIG_DELAY_MS = 250;
 
-/** The Amount filter chip: a stock popover with inclusive Min/Max bounds
- *  over the shown legs' absolute amounts, writing a plain column filter like
- *  every other chip. */
+/** A faceted chip wired to its column: reads the picked values and the facet
+ *  counts off the column, and writes the filter back. Holds the
+ *  empty-means-off convention (an empty array left in place would keep
+ *  `columnFilters` non-empty, so Reset would never go away), so no call site
+ *  has to remember it. FilterChip itself stays table-agnostic. */
+const ColumnChip: FC<
+  { column: Column<DataGridFeatures, LedgerTransaction, unknown> | undefined } & Pick<
+    ComponentProps<typeof FilterChip>,
+    "title" | "subject" | "mentionType" | "icon" | "options"
+  >
+> = ({ column, ...rest }) => (
+  <FilterChip
+    {...rest}
+    values={picked(column?.getFilterValue())}
+    onValuesChange={(values) => column?.setFilterValue(values.length ? values : undefined)}
+    counts={column?.getFacetedUniqueValues()}
+  />
+);
+
+/** A range chip: same trigger, popup, and clear footer as the faceted
+ *  FilterChip, but its popup body is a pair of bounds rather than an option
+ *  list. Holds the chrome so the Amount and Date chips carry only their own
+ *  inputs and their own spelling of the active range. */
+const RangeFilterChip: FC<{
+  icon: FC<{ className?: string }>;
+  title: string;
+  /** The active range spelled out for the trigger badge; null = filter off. */
+  summary: string | null;
+  onOpen?: () => void;
+  onClear: () => void;
+  children: ReactNode;
+}> = ({ icon, title, summary, onOpen, onClear, children }) => (
+  <Popover onOpenChange={(open) => open && onOpen?.()}>
+    <PopoverTrigger render={<Button variant="outline" size="sm" className={filterChipTriggerClass(!!summary)} />}>
+      <FilterChipLabel icon={icon} title={title} active={!!summary}>
+        <FilterChipValue className="tabular-nums">{summary}</FilterChipValue>
+      </FilterChipLabel>
+    </PopoverTrigger>
+    <PopoverContent align="start" className={cn(POPOVER_WIDTH, "gap-0 p-0")}>
+      <div className="flex flex-col gap-1.5 p-3">{children}</div>
+      {summary && <FilterChipClear onClear={onClear} />}
+    </PopoverContent>
+  </Popover>
+);
+
+/** The Amount filter chip: inclusive Min/Max bounds over the shown legs'
+ *  absolute amounts, writing a plain column filter like every other chip. */
 const AmountFilterChip: FC<{
   column: Column<DataGridFeatures, LedgerTransaction, unknown> | undefined;
 }> = ({ column }) => {
   if (!column) return null;
   const value = (column.getFilterValue() as AmountRange | undefined) ?? { min: null, max: null };
-  const active = value.min !== null || value.max !== null;
   const set = (range: AmountRange) =>
     column.setFilterValue(range.min === null && range.max === null ? undefined : range);
   const parse = (raw: string): number | null => {
@@ -364,70 +425,41 @@ const AmountFilterChip: FC<{
     const n = Number(raw);
     return Number.isFinite(n) ? n : null;
   };
+  const summary =
+    value.min !== null && value.max !== null
+      ? `${value.min} - ${value.max}`
+      : value.min !== null
+        ? `≥ ${value.min}`
+        : value.max !== null
+          ? `≤ ${value.max}`
+          : null;
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            // With the range badge shown, the trailing padding matches the
-            // badge's vertical inset so the space reads even on all sides.
-            className={cn("border-dashed", active && "pr-1.5")}
-          />
-        }
-      >
-        <CoinsIcon />
-        Amount
-        {active && (
-          <>
-            <FilterChipSeparator />
-            <Badge variant="secondary" className="bg-muted px-1.5 font-normal tabular-nums">
-              {value.min !== null && value.max !== null
-                ? `${value.min} - ${value.max}`
-                : value.min !== null
-                  ? `≥ ${value.min}`
-                  : `≤ ${value.max}`}
-            </Badge>
-          </>
-        )}
-      </PopoverTrigger>
-      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "gap-0 p-0")}>
-        <div className="flex flex-col gap-1.5 p-3">
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              aria-label="Minimum amount"
-              placeholder="Min"
-              className="h-8"
-              value={value.min ?? ""}
-              onChange={(e) => set({ ...value, min: parse(e.target.value) })}
-            />
-            <Input
-              type="number"
-              aria-label="Maximum amount"
-              placeholder="Max"
-              className="h-8"
-              value={value.max ?? ""}
-              onChange={(e) => set({ ...value, max: parse(e.target.value) })}
-            />
-          </div>
-        </div>
-        {active && (
-          <div className="border-t p-1.5">
-            <Button variant="ghost" size="sm" className="w-full" onClick={() => column.setFilterValue(undefined)}>
-              Clear filters
-            </Button>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+    <RangeFilterChip icon={CoinsIcon} title="Amount" summary={summary} onClear={() => column.setFilterValue(undefined)}>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          aria-label="Minimum amount"
+          placeholder="Min"
+          className="h-8"
+          value={value.min ?? ""}
+          onChange={(e) => set({ ...value, min: parse(e.target.value) })}
+        />
+        <Input
+          type="number"
+          aria-label="Maximum amount"
+          placeholder="Max"
+          className="h-8"
+          value={value.max ?? ""}
+          onChange={(e) => set({ ...value, max: parse(e.target.value) })}
+        />
+      </div>
+    </RangeFilterChip>
   );
 };
 
-/** The Date filter chip — the one filter ReUI has no component for. A stock
- *  popover with the period presets and inclusive From/To bounds, writing a
- *  plain column filter like every other chip. */
+/** The Date filter chip — the one filter ReUI has no component for. The
+ *  period presets and inclusive From/To bounds, writing a plain column
+ *  filter like every other chip. */
 const DateFilterChip: FC<{
   column: Column<DataGridFeatures, LedgerTransaction, unknown> | undefined;
   now: Date;
@@ -447,81 +479,49 @@ const DateFilterChip: FC<{
     if (text === "" || isIsoDate(text)) set({ ...value, [bound]: text || null });
   };
   return (
-    <Popover onOpenChange={(open) => open && setDraft({ from: value.from ?? "", to: value.to ?? "" })}>
-      <PopoverTrigger
-        render={
+    <RangeFilterChip
+      icon={CalendarIcon}
+      title="Date"
+      summary={active ? `${value.from ?? "start"} - ${value.to ?? "now"}` : null}
+      onOpen={() => setDraft({ from: value.from ?? "", to: value.to ?? "" })}
+      onClear={() => {
+        column.setFilterValue(undefined);
+        setDraft({ from: "", to: "" });
+      }}
+    >
+      <div className="grid grid-cols-2 gap-1.5">
+        {(Object.keys(PRESET_LABELS) as DateRangePreset[]).map((preset) => (
           <Button
+            key={preset}
             variant="outline"
             size="sm"
-            // With the range badge shown, the trailing padding matches the
-            // badge's vertical inset so the space reads even on all sides.
-            className={cn("border-dashed", active && "pr-1.5")}
-          />
-        }
-      >
-        <CalendarIcon />
-        Date
-        {active && (
-          <>
-            <FilterChipSeparator />
-            <Badge variant="secondary" className="bg-muted px-1.5 font-normal tabular-nums">
-              {`${value.from ?? "start"} - ${value.to ?? "now"}`}
-            </Badge>
-          </>
-        )}
-      </PopoverTrigger>
-      <PopoverContent align="start" className={cn(POPOVER_WIDTH, "gap-0 p-0")}>
-        <div className="flex flex-col gap-1.5 p-3">
-          <div className="grid grid-cols-2 gap-1.5">
-            {(Object.keys(PRESET_LABELS) as DateRangePreset[]).map((preset) => (
-              <Button
-                key={preset}
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const range = presetRange(preset, now);
-                  set(range);
-                  setDraft({ from: range.from ?? "", to: range.to ?? "" });
-                }}
-              >
-                {PRESET_LABELS[preset]}
-              </Button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              aria-label="From date"
-              placeholder="YYYY-MM-DD"
-              className="h-8 tabular-nums"
-              value={draft.from}
-              onChange={(e) => setBound("from", e.target.value)}
-            />
-            <Input
-              aria-label="To date"
-              placeholder="YYYY-MM-DD"
-              className="h-8 tabular-nums"
-              value={draft.to}
-              onChange={(e) => setBound("to", e.target.value)}
-            />
-          </div>
-        </div>
-        {active && (
-          <div className="border-t p-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                column.setFilterValue(undefined);
-                setDraft({ from: "", to: "" });
-              }}
-            >
-              Clear filters
-            </Button>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+            onClick={() => {
+              const range = presetRange(preset, now);
+              set(range);
+              setDraft({ from: range.from ?? "", to: range.to ?? "" });
+            }}
+          >
+            {PRESET_LABELS[preset]}
+          </Button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label="From date"
+          placeholder="YYYY-MM-DD"
+          className="h-8 tabular-nums"
+          value={draft.from}
+          onChange={(e) => setBound("from", e.target.value)}
+        />
+        <Input
+          aria-label="To date"
+          placeholder="YYYY-MM-DD"
+          className="h-8 tabular-nums"
+          value={draft.to}
+          onChange={(e) => setBound("to", e.target.value)}
+        />
+      </div>
+    </RangeFilterChip>
   );
 };
 
@@ -555,9 +555,8 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
   }, [data]);
 
   /** Update one config field; persistence follows debounced (below). */
-  const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: unknown) => {
-    setConfig((prev) => ({ ...prev, [key]: typeof updater === "function" ? updater(prev[key]) : updater }));
-  };
+  const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: Updater<TransactionsTableConfig[K]>) =>
+    setConfig((prev) => ({ ...prev, [key]: functionalUpdate(updater, prev[key]) }));
 
   // Persist the config debounced: an onChange column resize updates state on
   // every pointer move, and a synchronous localStorage write per move would
@@ -573,17 +572,24 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
     return () => clearTimeout(timer);
   }, [config]);
 
-  const rows = useMemo(() => data ?? [], [data]);
+  const rows = data ?? NO_ROWS;
 
-  const table = useTable({
-    features: dataGridFeatures,
+  // commodity is filter-only: never rendered, whatever storage says. Memoized
+  // because the grid keys its own memos (header groups, visible cells, the
+  // provider's context value) on this object's identity — a fresh one per
+  // render would re-render every row on every pointer move of a resize drag.
+  const columnVisibility = useMemo(() => ({ ...config.visibility, commodity: false }), [config.visibility]);
+
+  // The needle, lowercased once per keystroke rather than per row.
+  const needle = useMemo(() => search.toLowerCase(), [search]);
+
+  const table = useAppTable({
     data: rows,
     columns,
     getRowId: (t) => String(t.index),
     state: {
       sorting,
-      // commodity is filter-only: never rendered, whatever storage says.
-      columnVisibility: { ...config.visibility, commodity: false },
+      columnVisibility,
       columnSizing: config.sizing,
       globalFilter: search,
       expanded,
@@ -603,55 +609,30 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
     onColumnVisibilityChange: (updater) => applyConfig("visibility", updater),
     onColumnSizingChange: (updater) => applyConfig("sizing", updater),
     onExpandedChange: setExpanded,
-    // The registered pagination feature would otherwise cap the row model at
-    // its default 10-row page; the register is one unpaginated list.
-    manualPagination: true,
     getRowCanExpand: (row) => splitPostings(row.original.postings).hidden.length > 0,
-    globalFilterFn: (row, _columnId, value) =>
-      (searchTexts.get(row.original.index) ?? "").includes(String(value).toLowerCase()),
+    // The search matches the whole transaction at once (see searchTexts), so
+    // it needs exactly one column to hang off: the filtered row model calls
+    // the global filter once per globally-filterable column per row, and our
+    // filter would give the same answer every time. (Zero columns would turn
+    // global filtering off entirely.)
+    getColumnCanGlobalFilter: (column) => column.id === "date",
+    globalFilterFn: (row) => (searchTexts.get(row.original.index) ?? "").includes(needle),
   });
 
   // Distinct payees only — payee-less transfers add no option.
-  const payeeOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of data ?? []) if (t.payee) names.add(t.payee);
-    return [...names]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((name) => ({ label: name, value: name }));
-  }, [data]);
-
-  const accountOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of data ?? []) for (const p of t.postings) names.add(p.account);
-    return [...names]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((name) => ({ label: name, value: name }));
-  }, [data]);
-
-  // Only statuses the journal actually uses — no dead options.
-  const statusOptions = useMemo(() => {
-    const present = new Set((data ?? []).map((t) => t.status));
-    return ["Cleared", "Pending", "Unmarked"]
-      .filter((v) => present.has(v as LedgerTransaction["status"]))
-      .map((v) => ({ label: v, value: v }));
-  }, [data]);
-
-  const commodityOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of data ?? []) for (const c of rowCommodities(t)) names.add(c);
-    return [...names]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((name) => ({ label: name, value: name }));
-  }, [data]);
-
+  const payeeOptions = useMemo(() => toOptions(rows.flatMap((t) => (t.payee ? [t.payee] : []))), [rows]);
+  const accountOptions = useMemo(() => toOptions(rows.flatMap((t) => t.postings.map((p) => p.account))), [rows]);
+  const commodityOptions = useMemo(() => toOptions(rows.flatMap(rowCommodities)), [rows]);
   // Tag NAMES only — values stay in the table pills, not in the filter.
-  const tagOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of data ?? []) for (const tag of t.tags) names.add(tag.name);
-    return [...names]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((name) => ({ label: name, value: name }));
-  }, [data]);
+  const tagOptions = useMemo(() => toOptions(rows.flatMap((t) => t.tags.map((tag) => tag.name))), [rows]);
+
+  // Only statuses the journal actually uses — no dead options, in hledger's
+  // own order rather than A-Z.
+  const statusOptions = useMemo(() => {
+    const present = new Set(rows.map((t) => t.status));
+    const all: LedgerTransactionStatus[] = ["Cleared", "Pending", "Unmarked"];
+    return all.filter((status) => present.has(status)).map((status) => ({ label: status, value: status }));
+  }, [rows]);
 
   const filtersActive = search !== "" || table.state.columnFilters.length > 0;
   const resetFilters = () => {
@@ -720,61 +701,51 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
         <div className="flex flex-wrap items-center gap-2 pt-4">
           {config.visibility.date && <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />}
           {config.visibility.payee && (
-            <FilterChip
+            <ColumnChip
+              column={table.getColumn("payee")}
               title="Payee"
               subject="payees"
               mentionType="payee"
               options={payeeOptions}
-              values={picked(table.getColumn("payee")?.getFilterValue())}
-              onValuesChange={(v) => table.getColumn("payee")?.setFilterValue(v.length ? v : undefined)}
-              counts={table.getColumn("payee")?.getFacetedUniqueValues()}
             />
           )}
           {config.visibility.account && (
-            <FilterChip
+            <ColumnChip
+              column={table.getColumn("account")}
               title="Account"
               subject="accounts"
               mentionType="account"
               options={accountOptions}
-              values={picked(table.getColumn("account")?.getFilterValue())}
-              onValuesChange={(v) => table.getColumn("account")?.setFilterValue(v.length ? v : undefined)}
-              counts={table.getColumn("account")?.getFacetedUniqueValues()}
             />
           )}
           {config.visibility.amount && (
             <>
               <AmountFilterChip column={table.getColumn("amount")} />
-              <FilterChip
+              <ColumnChip
+                column={table.getColumn("commodity")}
                 title="Commodity"
                 subject="commodities"
                 icon={DollarSignIcon}
                 options={commodityOptions}
-                values={picked(table.getColumn("commodity")?.getFilterValue())}
-                onValuesChange={(v) => table.getColumn("commodity")?.setFilterValue(v.length ? v : undefined)}
-                counts={table.getColumn("commodity")?.getFacetedUniqueValues()}
               />
             </>
           )}
           {config.visibility.status && (
-            <FilterChip
+            <ColumnChip
+              column={table.getColumn("status")}
               title="Status"
               subject="statuses"
               icon={CircleCheckIcon}
               options={statusOptions}
-              values={picked(table.getColumn("status")?.getFilterValue())}
-              onValuesChange={(v) => table.getColumn("status")?.setFilterValue(v.length ? v : undefined)}
-              counts={table.getColumn("status")?.getFacetedUniqueValues()}
             />
           )}
           {config.visibility.tags && (
-            <FilterChip
+            <ColumnChip
+              column={table.getColumn("tags")}
               title="Tags"
               subject="tags"
               mentionType="tag"
               options={tagOptions}
-              values={picked(table.getColumn("tags")?.getFilterValue())}
-              onValuesChange={(v) => table.getColumn("tags")?.setFilterValue(v.length ? v : undefined)}
-              counts={table.getColumn("tags")?.getFacetedUniqueValues()}
             />
           )}
           {filtersActive && (

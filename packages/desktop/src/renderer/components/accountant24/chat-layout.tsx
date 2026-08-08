@@ -74,8 +74,11 @@ export function ChatLayout() {
   // report pages mount fresh on each open so they always show current data.
   const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
   // Latches once Transactions is first opened; the view then stays mounted.
-  const transactionsMounted = useRef(false);
-  if (view === "transactions") transactionsMounted.current = true;
+  const [transactionsMounted, setTransactionsMounted] = useState(false);
+  const showTransactions = useCallback(() => {
+    setView("transactions");
+    setTransactionsMounted(true);
+  }, []);
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
@@ -159,7 +162,7 @@ export function ChatLayout() {
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={view === "transactions"} onClick={() => setView("transactions")}>
+                  <SidebarMenuButton isActive={view === "transactions"} onClick={showTransactions}>
                     <ReceiptTextIcon className="size-4" />
                     Transactions
                   </SidebarMenuButton>
@@ -199,7 +202,7 @@ export function ChatLayout() {
                 remeasures, or loses its scroll position. Absolute so the
                 out-of-flow box never pushes the visible view. A fresh app
                 start still opens clean. */}
-            {transactionsMounted.current && (
+            {transactionsMounted && (
               <div
                 className={cn(
                   "absolute inset-0 flex flex-col",

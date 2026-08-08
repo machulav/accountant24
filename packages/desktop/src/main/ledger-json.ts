@@ -51,6 +51,12 @@ function parseAmount(a: unknown): LedgerAmount | null {
  *  output does the same), then drop zero legs unless the whole balance is
  *  zero — a zeroed account keeps a single zero amount. */
 function aggregateAmounts(amounts: LedgerAmount[]): LedgerAmount[] {
+  // The overwhelmingly common case (every plain posting, most balance rows):
+  // nothing to merge, so skip the map-and-rebuild and only normalize a
+  // rounding-dust quantity to a clean zero.
+  const single = amounts.length === 1 ? amounts[0] : undefined;
+  if (amounts.length === 0) return amounts;
+  if (single) return isZero(single.quantity) ? [{ ...single, quantity: 0 }] : amounts;
   const byCommodity = new Map<string, LedgerAmount>();
   for (const a of amounts) {
     const prev = byCommodity.get(a.commodity);

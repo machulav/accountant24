@@ -14,12 +14,11 @@
 // section. All figures are hledger-computed; only the presentation happens
 // here. Data refreshes when the agent finishes a turn.
 
-import { type Column, type ColumnDef, flexRender, type SortingState, useTable } from "@tanstack/react-table";
+import { type Column, type ColumnDef, flexRender, type SortingState } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
-// The shared TanStack v9 feature bundle (row models + sort/filter/visibility
-// features); v9 tables must declare their features up front.
-import { type DataGridFeatures, dataGridFeatures } from "@/components/reui/data-grid/data-grid";
+import { useAppTable } from "@/components/accountant24/use-app-table";
+import type { DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { Button } from "@/components/shadcn/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
 import { Skeleton } from "@/components/shadcn/skeleton";
@@ -34,6 +33,10 @@ import { useNetWorth } from "./use-net-worth";
 /** Column visibility map (id -> shown); TanStack v9 no longer exports a
  *  dedicated state type for it. */
 type ColumnVisibility = Record<string, boolean>;
+
+/** The two columns the Columns menu can toggle; the other three are the
+ *  page's spine and never leave. */
+type OptionalColumnId = "asserted" | "assertedAmount";
 
 /** Clickable column header driving the table's sorting; the icon mirrors
  *  the current direction, neutral chevrons while the column is unsorted. */
@@ -263,15 +266,11 @@ const AccountsTable: FC<{
   const [sorting, setSorting] = useState<SortingState>([{ id: "account", desc: false }]);
   // Visibility is owned by the page (one Columns menu drives every section
   // table) and fully controlled: nothing in here mutates it.
-  const table = useTable({
-    features: dataGridFeatures,
+  const table = useAppTable({
     data: rows,
     columns,
     state: { sorting, globalFilter: search, columnVisibility },
     onSortingChange: setSorting,
-    // The registered pagination feature would otherwise cap the row model at
-    // its default 10-row page; a section always lists every account.
-    manualPagination: true,
     enableSortingRemoval: false,
     // The account path is the only searchable field; substring match,
     // case-insensitive.
@@ -469,7 +468,7 @@ export const NetWorthView: FC = () => {
   // skeleton; owned here so one menu drives the whole page, saved on every
   // toggle and restored on the next visit.
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
-  const setColumnShown = (id: "asserted" | "assertedAmount", shown: boolean) =>
+  const setColumnShown = (id: OptionalColumnId, shown: boolean) =>
     setColumnVisibility((prev) => {
       const next = { ...prev, [id]: shown };
       saveColumnVisibility(next);
@@ -497,13 +496,13 @@ export const NetWorthView: FC = () => {
             <SearchField subject="accounts" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
             {/* Only the assertion pair toggles; Account, Holding, and Value
                 are the page's spine and never leave. */}
-            <ColumnsMenu
+            <ColumnsMenu<OptionalColumnId>
               columns={[
                 { id: "asserted", label: ASSERTED_ON_LABEL },
                 { id: "assertedAmount", label: ASSERTED_AMOUNT_LABEL },
               ]}
               visibility={columnVisibility}
-              onToggle={(id, shown) => setColumnShown(id as "asserted" | "assertedAmount", shown)}
+              onToggle={setColumnShown}
             />
           </div>
         )}

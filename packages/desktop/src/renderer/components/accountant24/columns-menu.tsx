@@ -6,7 +6,6 @@
 // multi-column choice happens in one visit.
 
 import { Columns3Icon } from "lucide-react";
-import type { FC } from "react";
 import { Button } from "@/components/shadcn/button";
 import {
   DropdownMenu,
@@ -15,13 +14,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/shadcn/dropdown-menu";
 
-export const ColumnsMenu: FC<{
+/** Generic in the column id so a page with a narrow id union (Net Worth's
+ *  two optional columns) keeps it end to end, instead of casting the id back
+ *  in its handler. */
+export const ColumnsMenu = <Id extends string>({
+  columns,
+  visibility,
+  onToggle,
+}: {
   /** Toggleable columns in display order; anything not listed never leaves. */
-  columns: { id: string; label: string }[];
+  columns: { id: Id; label: string }[];
   /** Visibility by column id; a missing id counts as hidden. */
-  visibility: Record<string, boolean>;
-  onToggle: (id: string, shown: boolean) => void;
-}> = ({ columns, visibility, onToggle }) => (
+  visibility: Partial<Record<Id, boolean>>;
+  onToggle: (id: Id, shown: boolean) => void;
+}) => (
   <DropdownMenu>
     <DropdownMenuTrigger
       render={

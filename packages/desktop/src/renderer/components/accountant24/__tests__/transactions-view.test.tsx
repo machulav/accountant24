@@ -37,22 +37,6 @@ beforeAll(() => {
   Element.prototype.hasPointerCapture ??= () => false;
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};
-  if (!window.localStorage) {
-    // This jsdom build ships without Web Storage; back it with a Map.
-    const backing = new Map<string, string>();
-    Object.defineProperty(window, "localStorage", {
-      value: {
-        getItem: (k: string) => backing.get(k) ?? null,
-        setItem: (k: string, v: string) => void backing.set(k, String(v)),
-        removeItem: (k: string) => void backing.delete(k),
-        clear: () => backing.clear(),
-        key: (i: number) => [...backing.keys()][i] ?? null,
-        get length() {
-          return backing.size;
-        },
-      } satisfies Storage,
-    });
-  }
 });
 afterEach(() => cleanup());
 beforeEach(() => {
@@ -185,6 +169,13 @@ const chip = (name: string) => screen.getByRole("combobox", { name });
 /** A column's plain click-to-sort header button (two states: a click flips
  *  between ascending and descending, never "unsorted"). */
 const headerButton = (name: string) => grid().getByRole("button", { name });
+
+/** Turn on one of the opt-in columns through the Columns menu, then close it. */
+const showColumn = async (label: string) => {
+  await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+  await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: label }));
+  await userEvent.keyboard("{Escape}");
+};
 
 describe("<TransactionsView />", () => {
   it("should show the toolbar and column labels while the register loads", () => {
@@ -384,6 +375,36 @@ describe("<TransactionsView />", () => {
         "Currency Exchange",
         "Landlord",
       ]);
+    });
+
+    it("should sort by comment text once the Comment column is shown", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await showColumn("Comment");
+
+      await userEvent.click(headerButton("Comment"));
+      // A-Z on the comment ("February rent" < "January salary" < "weekly
+      // shop"), the comment-less entries first (empty sorts before any text).
+      expect(rowOrder().slice(-3)).toEqual(["Landlord", "Employer", "Grocery Store"]);
+
+      await userEvent.click(headerButton("Comment"));
+      expect(rowOrder().slice(0, 3)).toEqual(["Grocery Store", "Employer", "Landlord"]);
+    });
+
+    it("should sort by the tag pills' text once the Tags column is shown", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await showColumn("Tags");
+
+      // "category: groceries" before "category: housing"; the untagged rows
+      // sort as empty text.
+      await userEvent.click(headerButton("Tags"));
+      expect(rowOrder().slice(-2)).toEqual(["Grocery Store", "Landlord"]);
+
+      await userEvent.click(headerButton("Tags"));
+      expect(rowOrder().slice(0, 2)).toEqual(["Landlord", "Grocery Store"]);
     });
   });
 
