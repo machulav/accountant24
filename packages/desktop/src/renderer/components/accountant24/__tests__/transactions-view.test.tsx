@@ -483,6 +483,21 @@ describe("<TransactionsView />", () => {
       expect(box).toHaveValue("");
       expect(await screen.findByRole("option", { name: /^income:salary/ })).toBeInTheDocument();
     });
+
+    it("should keep the popup search after a pick, so one search serves several picks", async () => {
+      vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
+      renderView();
+      await screen.findByText("Bookshop");
+      await userEvent.click(chip("Account"));
+      const box = await screen.findByRole("combobox", { name: "Search accounts" });
+      await userEvent.type(box, "cash");
+      await userEvent.click(await screen.findByRole("option", { name: /^assets:cash(?!:)/ }));
+      // The query survives the pick: the narrowed list is still up and a
+      // second result of the same search is one click away.
+      expect(box).toHaveValue("cash");
+      await userEvent.click(await screen.findByRole("option", { name: /^assets:cash:uah/ }));
+      expect(rowOrder()).toEqual(["Cafe Aroma", "Grocery Store", "Currency Exchange"]);
+    });
   });
 
   describe("filter chips", () => {

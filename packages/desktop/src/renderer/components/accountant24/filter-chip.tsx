@@ -74,7 +74,14 @@ export const FilterChip: FC<{
       isItemEqualToValue={(a: FilterChipOption, b: FilterChipOption) => a.value === b.value}
       itemToStringLabel={(option: FilterChipOption) => option.label}
       inputValue={query}
-      onInputValueChange={setQuery}
+      // Base UI wipes the query on every pick ('input-clear'); in a
+      // multi-select that kills picking several results of one search, so
+      // programmatic clears are ignored — the search only changes by typing,
+      // our clear X, or the fresh-open reset.
+      onInputValueChange={(next: string, details: { reason?: string }) => {
+        if (next === "" && details?.reason === "input-clear") return;
+        setQuery(next);
+      }}
       open={open}
       onOpenChange={(next: boolean) => {
         setOpen(next);
