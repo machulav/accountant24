@@ -680,6 +680,10 @@ describe("<TransactionsView />", () => {
       // ISO date, matching the Date column's format.
       fireEvent.change(await screen.findByLabelText("From date"), { target: { value: "2026-0" } });
       expect(rowOrder()).toHaveLength(6);
+      // Neither does an impossible date that matches the shape: committing
+      // 2026-13-45 would silently empty the table.
+      fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-13-45" } });
+      expect(rowOrder()).toHaveLength(6);
       fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-01" } });
       // One bound filters on its own; the badge spells the open end out.
       expect(rowOrder()).toEqual(["Bookshop", "Cafe Aroma", "Grocery Store"]);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { inRange, presetRange } from "../dateRange";
+import { inRange, isIsoDate, presetRange } from "../dateRange";
 
 // presetRange turns a preset + a fixed "today" into inclusive ISO bounds;
-// inRange is a plain lexicographic check against them. Expected bounds are
-// hardcoded calendar facts, never derived from the functions.
+// inRange is a plain lexicographic check against them; isIsoDate gates what
+// the Date chip commits as a bound. Expected bounds are hardcoded calendar
+// facts, never derived from the functions.
 
 describe("presetRange()", () => {
   // Mid-February 2026: a month whose end (28) differs from its length-31
@@ -68,5 +69,36 @@ describe("inRange()", () => {
   it("should treat a null to as open-ended into the future", () => {
     expect(inRange("2999-12-31", { from: "2026-02-01", to: null })).toBe(true);
     expect(inRange("2026-01-31", { from: "2026-02-01", to: null })).toBe(false);
+  });
+});
+
+describe("isIsoDate()", () => {
+  it("should accept a real calendar date", () => {
+    expect(isIsoDate("2026-01-05")).toBe(true);
+    expect(isIsoDate("2026-12-31")).toBe(true);
+  });
+
+  it("should reject an impossible month or day that matches the shape", () => {
+    expect(isIsoDate("2026-13-45")).toBe(false);
+    expect(isIsoDate("2026-00-10")).toBe(false);
+    expect(isIsoDate("2026-01-32")).toBe(false);
+    expect(isIsoDate("2026-01-00")).toBe(false);
+  });
+
+  it("should reject a day the month does not have (overflow must not normalize)", () => {
+    expect(isIsoDate("2026-02-31")).toBe(false);
+    expect(isIsoDate("2026-04-31")).toBe(false);
+  });
+
+  it("should apply the leap-year rule to February 29", () => {
+    expect(isIsoDate("2028-02-29")).toBe(true);
+    expect(isIsoDate("2026-02-29")).toBe(false);
+  });
+
+  it("should reject partial or non-ISO shapes", () => {
+    expect(isIsoDate("")).toBe(false);
+    expect(isIsoDate("2026-1-05")).toBe(false);
+    expect(isIsoDate("05.01.2026")).toBe(false);
+    expect(isIsoDate("2026-01-05x")).toBe(false);
   });
 });

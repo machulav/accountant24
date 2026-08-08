@@ -37,7 +37,7 @@ import { Input } from "@/components/shadcn/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { formatAmounts } from "@/lib/amountFormat";
-import { type DateRange, type DateRangePreset, inRange, PRESET_LABELS, presetRange } from "@/lib/dateRange";
+import { type DateRange, type DateRangePreset, inRange, isIsoDate, PRESET_LABELS, presetRange } from "@/lib/dateRange";
 import { splitPostings } from "@/lib/postings";
 import { cn } from "@/lib/utils";
 import type { LedgerPosting, LedgerTransaction } from "@/rpc/types";
@@ -433,9 +433,10 @@ const DateFilterChip: FC<{
   now: Date;
 }> = ({ column, now }) => {
   // Free-typed bound texts; committed to the filter only once they are a
-  // full ISO date (or empty), so half-typed input never filters. Plain text
-  // fields, not type="date": the native control renders the OS locale's
-  // format, which can never match the Date column's ISO dates.
+  // real ISO calendar date (or empty), so half-typed input and impossible
+  // dates like 2026-13-45 never filter. Plain text fields, not type="date":
+  // the native control renders the OS locale's format, which can never
+  // match the Date column's ISO dates.
   const [draft, setDraft] = useState({ from: "", to: "" });
   if (!column) return null;
   const value = (column.getFilterValue() as DateRange | undefined) ?? { from: null, to: null };
@@ -443,7 +444,7 @@ const DateFilterChip: FC<{
   const set = (range: DateRange) => column.setFilterValue(range.from === null && range.to === null ? undefined : range);
   const setBound = (bound: "from" | "to", text: string) => {
     setDraft((prev) => ({ ...prev, [bound]: text }));
-    if (text === "" || /^\d{4}-\d{2}-\d{2}$/.test(text)) set({ ...value, [bound]: text || null });
+    if (text === "" || isIsoDate(text)) set({ ...value, [bound]: text || null });
   };
   return (
     <Popover onOpenChange={(open) => open && setDraft({ from: value.from ?? "", to: value.to ?? "" })}>

@@ -57,3 +57,13 @@ export function presetRange(preset: DateRangePreset, today: Date): DateRange {
 export function inRange(date: string, range: DateRange): boolean {
   return (range.from === null || date >= range.from) && (range.to === null || date <= range.to);
 }
+
+/** Whether the text is a real calendar date in ISO form: the YYYY-MM-DD
+ *  shape alone admits 2026-13-45, and Date.UTC's overflow normalization
+ *  turns 2026-02-31 into March 3rd — so the round trip through Date must
+ *  land back on the same string. */
+export function isIsoDate(text: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const parsed = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text;
+}
