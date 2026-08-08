@@ -202,8 +202,10 @@ describe("<TransactionsView />", () => {
     expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Tags" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Columns" })).toBeInTheDocument();
-    // But no figures yet — the grid shows shaped loading skeletons instead.
+    // But no figures yet — the grid shows shaped loading skeletons instead,
+    // and the title's counter waits for the register.
     expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
+    expect(screen.queryByText("6")).not.toBeInTheDocument();
     expect(document.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(0);
   });
 
@@ -220,6 +222,8 @@ describe("<TransactionsView />", () => {
     expect(grid().queryByRole("button", { name: "Comment" })).not.toBeInTheDocument();
     expect(grid().queryByRole("button", { name: "Tags" })).not.toBeInTheDocument();
     expect(grid().queryByRole("button", { name: "Status" })).not.toBeInTheDocument();
+    // The title carries the register count.
+    expect(screen.getByText("6")).toBeInTheDocument();
     // 2026-03-14 is a date tie: Bookshop beats Cafe Aroma alphabetically
     // even though the journal has them the other way around.
     expect(rowOrder()).toEqual([
@@ -514,10 +518,13 @@ describe("<TransactionsView />", () => {
       expect(screen.queryByRole("option", { name: /^Unmarked/ })).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("option", { name: /^Pending/ }));
       expect(rowOrder()).toEqual(["Bookshop"]);
+      // The title's counter switches to filter feedback.
+      expect(screen.getByText("1 of 6")).toBeInTheDocument();
       // The toolbar Reset appears once a filter is active and clears it.
       await userEvent.click(screen.getByRole("button", { name: "Reset" }));
       expect(rowOrder()).toHaveLength(6);
       expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+      expect(screen.getByText("6")).toBeInTheDocument();
     });
 
     it("should filter by tag name, values aside — one option per name", async () => {

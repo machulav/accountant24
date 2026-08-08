@@ -593,6 +593,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
   };
 
   const recordCount = table.getFilteredRowModel().rows.length;
+  const totalCount = rows.length;
 
   // The page body is the scroll element (the scrollbar sits at the window
   // edge like on every page); the virtualizer windows rows against it.
@@ -610,7 +611,19 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mx-auto w-full max-w-4xl shrink-0 px-8 pt-16 pb-4">
         <div className="flex items-center justify-between gap-8">
-          <h1 className="whitespace-nowrap text-3xl font-semibold">Transactions</h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className="whitespace-nowrap text-3xl font-semibold">Transactions</h1>
+            {/* The register count, switching to "X of Y" filter feedback; by
+                the title (the Linear/GitHub pattern) so chip-row wrapping
+                can never orphan it onto its own line. */}
+            {data !== null && (
+              <Badge variant="secondary" className="bg-muted px-1.5 font-normal text-muted-foreground tabular-nums">
+                {filtersActive
+                  ? `${recordCount.toLocaleString(navigator.language)} of ${totalCount.toLocaleString(navigator.language)}`
+                  : totalCount.toLocaleString(navigator.language)}
+              </Badge>
+            )}
+          </div>
           {/* min-w-0 (not shrink-0): when the window narrows, the search
               field gives way so the Columns button never clips. */}
           <div className="flex min-w-0 items-center gap-2">
