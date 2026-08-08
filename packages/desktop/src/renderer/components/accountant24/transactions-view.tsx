@@ -2,17 +2,15 @@
 
 // Full-page Transactions view: the `hledger print` register on the ReUI
 // data grid (TanStack v9), used stock. The grid owns the table mechanics:
-// column header menus (sort, hide) and resizable columns (persisted with
-// visibility in localStorage), the
-// faceted filter chips, loading skeletons, empty states, and pagination.
-// The toolbar mirrors the classic data-table bar: search + filter chips
-// (Date, Payee, Account, Amount, Status, Tags) with a Reset on the left,
-// View on the right; sorting lives in the column headers alone. The page
-// adds what the grid cannot know: the search haystack (every leg of every
-// transaction),
-// the collapsed-row rule (lead with the legs money left from, the expander
+// the two-state sort headers, resizable columns (widths persisted with the
+// column visibility in localStorage), the virtualized row list, loading
+// skeletons, and empty states. The page owns the rest: the toolbar (title +
+// register count, search and the shared Columns menu, and the filter chips
+// — Date, Payee, Account, Amount, Commodity, Status, Tags, with Reset — on
+// their own row), the search haystack (every leg of every transaction), the
+// collapsed-row rule (lead with the legs money left from, the expander
 // unfolds the rest in place), and the chat's mention pills.
-// Data refreshes when the agent finishes a turn.
+// Data refreshes when the agent finishes a turn while the page is visible.
 
 import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";

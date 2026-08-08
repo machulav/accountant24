@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 
 // Spec for the Transactions view on the stock ReUI data grid with the
-// classic data-table toolbar: search + filter chips (Account, Status, Tags,
-// Date) and Reset on the left, Sort + View on the right. The grid owns the
-// table mechanics (header menus, resizing, drag reorder, pagination, empty
-// states); the page owns the search haystack (every leg searchable), the
+// data-table toolbar: title + register count, search and the Columns menu,
+// and the filter chips (Date, Payee, Account, Amount, Commodity, Status,
+// Tags) with Reset on their own row. The grid owns the table mechanics
+// (two-state sort headers, resizing, the virtualized list, empty states);
+// the page owns the search haystack (every leg searchable), the
 // collapsed-row rule (lead with the legs money left from, unfold the rest
 // on the grid's expander), the chat's mention pills, and the persisted
-// column config. Chip filters run against the whole transaction, so they
-// work while their column is hidden. Data refetches on the agent's
-// running → idle edge. jsdom pins navigator.language to en-US, so formatted
+// column config. Chip filters run against the whole transaction (folded
+// legs included); hiding a column takes its chip away and clears its
+// filter. Data refetches on the agent's running → idle edge while the page
+// is visible. jsdom pins navigator.language to en-US, so formatted
 // expectations are deterministic.
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
