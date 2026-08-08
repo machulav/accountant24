@@ -117,6 +117,9 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return !range || inRange(row.original.date, range);
     },
     size: 120,
+    // Unlike the other minimums (header-fit), dates are fixed-width data:
+    // the minimum keeps the full ISO date readable.
+    minSize: 104,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Date" />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by.
@@ -132,6 +135,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return payees.length === 0 || payees.includes(row.original.payee);
     },
     size: 200,
+    minSize: 90,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
@@ -153,6 +157,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // filter's any-leg semantics (the accessor covers only the shown leg).
     getUniqueValues: (row) => row.postings.map((p) => p.account),
     size: 250,
+    minSize: 104,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
@@ -199,6 +204,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       );
     },
     size: 150,
+    minSize: 100,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);
@@ -248,6 +254,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return statuses.length === 0 || statuses.includes(row.original.status);
     },
     size: 100,
+    minSize: 94,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
     cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
@@ -261,6 +268,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     accessorFn: (row) => row.note,
     sortFn: "text",
     size: 300,
+    minSize: 108,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" />,
     // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
     // the whole comment, wrapping at the h-6 line rhythm.
@@ -293,6 +301,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts per tag name, one per row (the accessor is sort text).
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 300,
+    minSize: 80,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" />,
     // Collapsed: every tag on one line, sharing the width (each pill
     // ellipsizes on its own). Expanded: one tag per line, on the same
