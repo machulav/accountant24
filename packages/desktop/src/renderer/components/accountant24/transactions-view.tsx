@@ -259,7 +259,18 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     sortFn: "text",
     size: 200,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" />,
-    cell: ({ row }) => <div className={LINE}>{row.original.note}</div>,
+    // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
+    // the whole comment, wrapping at the h-6 line rhythm.
+    cell: ({ row }) =>
+      row.getIsExpanded() ? (
+        <div className="min-h-6 py-0.5 leading-6 whitespace-normal break-words">{row.original.note}</div>
+      ) : (
+        <div className={LINE}>
+          <span className="truncate" title={row.original.note || undefined}>
+            {row.original.note}
+          </span>
+        </div>
+      ),
     meta: {
       headerTitle: "Comment",
       cellClassName: "align-top text-muted-foreground",
@@ -280,13 +291,25 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 180,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" />,
-    cell: ({ row }) => (
-      <div className="flex min-h-6 flex-wrap items-center gap-1">
-        {row.original.tags.map((tag, i) => (
-          <MentionPill truncate key={i} type="tag" label={tagText(tag)} />
-        ))}
-      </div>
-    ),
+    // Collapsed: every tag on one line, sharing the width (each pill
+    // ellipsizes on its own). Expanded: one tag per line, on the same
+    // rhythm as the unfolded account legs.
+    cell: ({ row }) =>
+      row.getIsExpanded() ? (
+        <div className="flex flex-col items-start gap-1.5">
+          {row.original.tags.map((tag, i) => (
+            <div key={i} className={LINE}>
+              <MentionPill truncate type="tag" label={tagText(tag)} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-6 items-center gap-1 overflow-hidden">
+          {row.original.tags.map((tag, i) => (
+            <MentionPill truncate key={i} type="tag" label={tagText(tag)} />
+          ))}
+        </div>
+      ),
     meta: { headerTitle: "Tags", cellClassName: "align-top", skeleton: <Skeleton className="h-6 w-24 rounded-3xl" /> },
   },
 ];
@@ -616,7 +639,9 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             {/* The register count, switching to "X of Y" filter feedback; by
                 the title (the Linear/GitHub pattern) so chip-row wrapping
                 can never orphan it onto its own line. */}
-            {data !== null && (
+            {data === null ? (
+              <Skeleton className="h-5 w-10 rounded-3xl" />
+            ) : (
               <Badge variant="secondary" className="bg-muted px-1.5 font-normal text-muted-foreground tabular-nums">
                 {filtersActive
                   ? `${recordCount.toLocaleString(navigator.language)} of ${totalCount.toLocaleString(navigator.language)}`

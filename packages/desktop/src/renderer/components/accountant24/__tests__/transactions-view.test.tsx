@@ -207,6 +207,9 @@ describe("<TransactionsView />", () => {
     expect(screen.queryByText(/EUR/)).not.toBeInTheDocument();
     expect(screen.queryByText("6")).not.toBeInTheDocument();
     expect(document.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(0);
+    // The count chip has its own skeleton next to the title.
+    const heading = screen.getByRole("heading", { level: 1, name: "Transactions" });
+    expect(heading.parentElement?.querySelector("[data-slot=skeleton]")).toBeInTheDocument();
   });
 
   it("should render only the default columns, sorted date-descending with payee A-Z ties", async () => {
