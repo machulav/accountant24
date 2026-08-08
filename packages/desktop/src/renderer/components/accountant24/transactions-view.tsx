@@ -17,7 +17,7 @@
 import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
 import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
-import { type FC, useMemo, useRef, useState } from "react";
+import { type FC, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
 import { FilterChip, FilterChipSeparator } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
@@ -346,6 +346,10 @@ const VIRTUALIZER_OPTIONS = {
  *  spacer-and-measure machinery only pays off past it. */
 const VIRTUALIZE_AFTER = 100;
 
+/** How long after the last column change (a resize drag emits one per
+ *  pointer move) the table config is written to localStorage. */
+const SAVE_CONFIG_DELAY_MS = 250;
+
 /** The Amount filter chip: a stock popover with inclusive Min/Max bounds
  *  over the shown legs' absolute amounts, writing a plain column filter like
  *  every other chip. */
@@ -551,15 +555,24 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
     return texts;
   }, [data]);
 
-  /** Persist one config field and update state in a single move. */
+  /** Update one config field; persistence follows debounced (below). */
   const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: unknown) => {
-    setConfig((prev) => {
-      const value = typeof updater === "function" ? updater(prev[key]) : updater;
-      const next = { ...prev, [key]: value };
-      saveTableConfig(next);
-      return next;
-    });
+    setConfig((prev) => ({ ...prev, [key]: typeof updater === "function" ? updater(prev[key]) : updater }));
   };
+
+  // Persist the config debounced: an onChange column resize updates state on
+  // every pointer move, and a synchronous localStorage write per move would
+  // put disk I/O on the drag frame path. One write lands shortly after the
+  // last change; the just-loaded initial config never writes back.
+  const savedConfig = useRef(config);
+  useEffect(() => {
+    if (savedConfig.current === config) return;
+    const timer = setTimeout(() => {
+      savedConfig.current = config;
+      saveTableConfig(config);
+    }, SAVE_CONFIG_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [config]);
 
   const rows = useMemo(() => data ?? [], [data]);
 

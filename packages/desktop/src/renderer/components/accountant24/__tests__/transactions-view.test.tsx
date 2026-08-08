@@ -402,16 +402,19 @@ describe("<TransactionsView />", () => {
       // Tag pills and status words render for the rows that carry them.
       expect(screen.getByText("category: groceries")).toBeInTheDocument();
       expect(screen.getByText("Pending")).toBeInTheDocument();
-      // The choice is persisted for the next mount.
-      expect(JSON.parse(window.localStorage.getItem(TRANSACTIONS_TABLE_KEY) ?? "{}").visibility).toEqual({
-        date: true,
-        payee: true,
-        note: false,
-        account: true,
-        amount: true,
-        tags: true,
-        status: true,
-      });
+      // The choice is persisted for the next mount (debounced, so a resize
+      // drag never writes to disk per pointer move).
+      await waitFor(() =>
+        expect(JSON.parse(window.localStorage.getItem(TRANSACTIONS_TABLE_KEY) ?? "{}").visibility).toEqual({
+          date: true,
+          payee: true,
+          note: false,
+          account: true,
+          amount: true,
+          tags: true,
+          status: true,
+        }),
+      );
     });
 
     it("should restore the persisted column visibility on mount", async () => {
