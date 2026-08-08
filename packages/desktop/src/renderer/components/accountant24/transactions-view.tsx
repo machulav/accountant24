@@ -131,7 +131,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       const payees = picked(value);
       return payees.length === 0 || payees.includes(row.original.payee);
     },
-    size: 250,
+    size: 200,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
@@ -152,7 +152,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts for the filter chip count EVERY leg, matching the
     // filter's any-leg semantics (the accessor covers only the shown leg).
     getUniqueValues: (row) => row.postings.map((p) => p.account),
-    size: 286,
+    size: 250,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
@@ -164,7 +164,10 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return (
         <div className="flex flex-col items-start gap-1.5">
           {legs.map((posting, i) => (
-            <div key={i} className={LINE}>
+            // max-w-full: items-start sizes each line to its content, so
+            // without the cap the pill never meets the cell edge and gets
+            // hard-clipped by the cell instead of ellipsizing itself.
+            <div key={i} className={cn(LINE, "max-w-full")}>
               <MentionPill truncate type="account" label={posting.account} />
             </div>
           ))}
@@ -195,7 +198,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
         }),
       );
     },
-    size: 140,
+    size: 150,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);
@@ -244,7 +247,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       const statuses = picked(value);
       return statuses.length === 0 || statuses.includes(row.original.status);
     },
-    size: 110,
+    size: 100,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
     cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
@@ -257,13 +260,13 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     id: "note",
     accessorFn: (row) => row.note,
     sortFn: "text",
-    size: 200,
+    size: 300,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" />,
     // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
     // the whole comment, wrapping at the h-6 line rhythm.
     cell: ({ row }) =>
       row.getIsExpanded() ? (
-        <div className="min-h-6 py-0.5 leading-6 whitespace-normal break-words">{row.original.note}</div>
+        <div className="min-h-6 leading-6 whitespace-normal break-words">{row.original.note}</div>
       ) : (
         <div className={LINE}>
           <span className="truncate" title={row.original.note || undefined}>
@@ -289,7 +292,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     // Facet counts per tag name, one per row (the accessor is sort text).
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
-    size: 180,
+    size: 300,
     header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" />,
     // Collapsed: every tag on one line, sharing the width (each pill
     // ellipsizes on its own). Expanded: one tag per line, on the same
@@ -298,7 +301,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       row.getIsExpanded() ? (
         <div className="flex flex-col items-start gap-1.5">
           {row.original.tags.map((tag, i) => (
-            <div key={i} className={LINE}>
+            <div key={i} className={cn(LINE, "max-w-full")}>
               <MentionPill truncate type="tag" label={tagText(tag)} />
             </div>
           ))}
@@ -733,7 +736,7 @@ export const TransactionsView: FC<{ now?: Date }> = ({ now }) => {
             />
           )}
           {filtersActive && (
-            <Button variant="outline" size="sm" onClick={resetFilters}>
+            <Button variant="outline" size="sm" className="border-dashed" onClick={resetFilters}>
               <XIcon />
               Reset
             </Button>

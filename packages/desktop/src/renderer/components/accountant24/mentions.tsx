@@ -14,6 +14,7 @@ import { unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
 import type { LedgerMentions } from "@/rpc/types";
@@ -52,7 +53,12 @@ export const MentionPill: FC<{
   className?: string;
 }> = ({ type, label, truncate = false, className }) => {
   const Icon = iconFor(type);
-  return (
+  const pillRef = useRef<HTMLButtonElement>(null);
+  // The full-label tooltip opens only when the pill is actually clipped
+  // (tooltips on untruncated text are noise); measured at open time, so
+  // column resizes need no observers.
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const badge = (
     <Badge
       variant="secondary"
       data-directive-type={type}
@@ -68,13 +74,30 @@ export const MentionPill: FC<{
         "mx-px inline h-auto px-[0.55em] py-[0.15em] align-baseline text-[0.9em] leading-[1.3]",
         "[&>svg]:mr-[0.25em] [&>svg]:inline-block [&>svg]:size-[1.1em]! [&>svg]:align-[-0.125em]",
         TYPE_COLORS[type] ?? TYPE_COLORS.account,
-        truncate && "inline-block max-w-full truncate",
+        truncate && "inline-block max-w-full shrink truncate",
         className,
       )}
     >
       <Icon />
       {label}
     </Badge>
+  );
+  if (!truncate) return badge;
+  return (
+    <TooltipProvider delay={500}>
+      <Tooltip
+        open={tooltipOpen}
+        onOpenChange={(open) => {
+          const el = pillRef.current;
+          setTooltipOpen(open && !!el && el.scrollWidth > el.clientWidth);
+        }}
+      >
+        <TooltipTrigger ref={pillRef} render={badge} />
+        <TooltipContent side="top" className="max-w-80 break-words">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

@@ -111,7 +111,9 @@ export const FilterChip: FC<{
                   // flex wrapper: as a flex item the pill loses its inline
                   // box, dodging the inline-block/overflow baseline quirk
                   // that floats it off the row's center.
-                  <span key={option.value} className="flex items-center text-xs" title={option.label}>
+                  // No native title: the pill brings its own clip-aware
+                  // tooltip in truncate mode.
+                  <span key={option.value} className="flex items-center text-xs">
                     <MentionPill truncate type={mentionType} label={option.label} className="max-w-40" />
                   </span>
                 ) : (
@@ -151,8 +153,9 @@ export const FilterChip: FC<{
                 <Checkbox checked={values.includes(option.value)} tabIndex={-1} className="pointer-events-none" />
                 {mentionType ? (
                   // flex wrapper: see the trigger note — keeps the pill on
-                  // the row's center line.
-                  <span className="flex min-w-0 items-center" title={option.label}>
+                  // the row's center line. No native title: the pill brings
+                  // its own clip-aware tooltip.
+                  <span className="flex min-w-0 items-center">
                     <MentionPill truncate type={mentionType} label={option.label} />
                   </span>
                 ) : (
