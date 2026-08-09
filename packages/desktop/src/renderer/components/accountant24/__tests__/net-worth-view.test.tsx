@@ -700,11 +700,15 @@ describe("<NetWorthView />", () => {
     });
   });
 
-  it("should show the empty state when the report has no accounts", async () => {
+  it("should show the empty state when the report has no balances", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(EMPTY);
     renderView();
-    expect(await screen.findByText("No accounts yet")).toBeInTheDocument();
-    expect(screen.getByText(/Ask the agent to record your first transaction/)).toBeInTheDocument();
+    // "No transactions yet", not "no accounts": the default workspace
+    // already declares accounts — transactions are what's missing.
+    expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ask the agent to record your first transactions and your net worth will show up here"),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     // No rows — nothing to search either.
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
@@ -713,7 +717,7 @@ describe("<NetWorthView />", () => {
   it("should fall back to the empty state when the report query rejects", async () => {
     vi.mocked(ledgerApi.netWorth).mockRejectedValue(new Error("bridge down"));
     renderView();
-    expect(await screen.findByText("No accounts yet")).toBeInTheDocument();
+    expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
   });
 
   it("should refetch the report when the agent goes from running to idle", async () => {

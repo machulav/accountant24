@@ -15,12 +15,12 @@
 // here. Data refreshes when the agent finishes a turn.
 
 import { type Column, type ColumnDef, flexRender, type SortingState } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon, WalletIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
+import { PageEmpty } from "@/components/accountant24/page-empty";
 import { useAppTable } from "@/components/accountant24/use-app-table";
 import type { DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { Button } from "@/components/shadcn/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/shadcn/empty";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
@@ -445,15 +445,15 @@ const SheetSkeleton: FC<{ columnVisibility: ColumnVisibility }> = ({ columnVisib
   );
 };
 
+// "No transactions yet", not "no accounts": the default workspace already
+// declares accounts on first start — what an empty report is missing is
+// postings to give them balances.
 const SheetEmpty: FC = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyTitle>No accounts yet</EmptyTitle>
-      <EmptyDescription>
-        Ask the agent to record your first transaction and your accounts will show up here
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <PageEmpty
+    icon={WalletIcon}
+    title="No transactions yet"
+    description="Ask the agent to record your first transactions and your net worth will show up here"
+  />
 );
 
 /** The Net Worth page, shown in place of the chat thread. Laid out like
@@ -510,30 +510,34 @@ export const NetWorthView: FC = () => {
       {/* scroll-fade-t-6: content dissolves over 24px as it slides under the
           pinned search field, same as the chat viewport's top fade. */}
       <div className="scroll-fade-t scroll-fade-t-6 min-h-0 flex-1 overflow-y-auto">
-        <div className={`mx-auto w-full ${pageWidth} pb-12`}>
-          {sheet === null ? (
-            <SheetSkeleton columnVisibility={columnVisibility} />
-          ) : sections.length === 0 ? (
-            <SheetEmpty />
-          ) : (
-            <>
-              {sections.map((section) => (
-                <SheetSection
-                  key={section.name}
-                  section={section}
-                  baseCommodity={sheet.baseCommodity}
-                  search={search}
-                  columnVisibility={columnVisibility}
-                />
-              ))}
-              {/* The closing Net band, straight from hledger's own net. */}
-              <div className={`mt-8 ${BAND_CLASS}`}>
-                <div className="text-xl font-semibold">Net Worth</div>
-                <BandValue figure={sheet.net} baseCommodity={sheet.baseCommodity} />
-              </div>
-            </>
-          )}
-        </div>
+        {/* The empty view sits directly in the scroll container (not the
+            width column) so it can center itself in the body's height. */}
+        {sheet !== null && sections.length === 0 ? (
+          <SheetEmpty />
+        ) : (
+          <div className={`mx-auto w-full ${pageWidth} pb-12`}>
+            {sheet === null ? (
+              <SheetSkeleton columnVisibility={columnVisibility} />
+            ) : (
+              <>
+                {sections.map((section) => (
+                  <SheetSection
+                    key={section.name}
+                    section={section}
+                    baseCommodity={sheet.baseCommodity}
+                    search={search}
+                    columnVisibility={columnVisibility}
+                  />
+                ))}
+                {/* The closing Net band, straight from hledger's own net. */}
+                <div className={`mt-8 ${BAND_CLASS}`}>
+                  <div className="text-xl font-semibold">Net Worth</div>
+                  <BandValue figure={sheet.net} baseCommodity={sheet.baseCommodity} />
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

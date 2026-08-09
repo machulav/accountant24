@@ -208,7 +208,7 @@ describe("Net Worth view flow", () => {
     expect(bridge.callsFor("ledger_net_worth")).toHaveLength(3);
   });
 
-  it("should show the empty state when the report has no accounts", async () => {
+  it("should show the empty state when the report has no balances", async () => {
     bridge.setHandler("ledger_net_worth", () => ({
       sections: [],
       net: { amounts: [], value: [] },
@@ -217,7 +217,7 @@ describe("Net Worth view flow", () => {
     render(<ChatLayout />);
     openSheet();
 
-    expect(await screen.findByText("No accounts yet")).toBeInTheDocument();
+    expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
   });
 });

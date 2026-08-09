@@ -4,17 +4,27 @@
 // data grid (TanStack v9), used stock. The grid owns the table mechanics:
 // the two-state sort headers, resizable columns (widths persisted with the
 // column visibility in localStorage), the virtualized row list, loading
-// skeletons, and empty states. The page owns the rest: the toolbar (title +
-// register count, search and the shared Columns menu, and the filter chips
-// — Date, Payee, Account, Amount, Commodity, Status, Tags, with Reset — on
-// their own row), the search haystack (every leg of every transaction), the
-// collapsed-row rule (lead with the legs money left from, the expander
-// unfolds the rest in place), and the chat's mention pills.
+// skeletons, and the filtered-out empty state. The page owns the rest: the
+// toolbar (title + register count, search and the shared Columns menu, and
+// the filter chips — Date, Payee, Account, Amount, Commodity, Status, Tags,
+// with Reset — on their own row), the search haystack (every leg of every
+// transaction), the collapsed-row rule (lead with the legs money left from,
+// the expander unfolds the rest in place), the chat's mention pills, and
+// the dedicated empty view that stands in for the toolbar and the grid
+// while the register has nothing to show.
 // Data refreshes when the agent finishes a turn while the page is visible.
 
 import type { Column, ColumnDef, ExpandedState, SortingState, Updater } from "@tanstack/react-table";
 import { functionalUpdate } from "@tanstack/react-table";
-import { CalendarIcon, CircleCheckIcon, CoinsIcon, DollarSignIcon, XIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  CircleCheckIcon,
+  CoinsIcon,
+  DollarSignIcon,
+  FileWarningIcon,
+  ReceiptTextIcon,
+  XIcon,
+} from "lucide-react";
 import { type ComponentProps, type FC, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
 import {
@@ -26,6 +36,7 @@ import {
   filterChipTriggerClass,
 } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
+import { PageEmpty } from "@/components/accountant24/page-empty";
 import { useAppTable } from "@/components/accountant24/use-app-table";
 import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
@@ -525,6 +536,26 @@ const DateFilterChip: FC<{
   );
 };
 
+/** The register's empty view, shown in place of the toolbar and the grid
+ *  while there is nothing to show: search, chips, and column headers say
+ *  nothing about an empty journal, so they step aside — the same treatment
+ *  as the Net Worth page. An unreadable journal reports an empty register
+ *  too, so it lands here with its own wording. */
+const RegisterEmpty: FC<{ failed: boolean }> = ({ failed }) =>
+  failed ? (
+    <PageEmpty
+      icon={FileWarningIcon}
+      title="The journal could not be read"
+      description="Ask the agent to check the journal"
+    />
+  ) : (
+    <PageEmpty
+      icon={ReceiptTextIcon}
+      title="No transactions yet"
+      description="Ask the agent to record your first transactions and they will show up here"
+    />
+  );
+
 /** The Transactions page, shown in place of the chat thread: pinned title
  *  over the data-table toolbar (search, filter chips, Reset, View) and the
  *  stock data grid. `now` anchors the Date chip's presets (injectable so
@@ -573,6 +604,10 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
   }, [config]);
 
   const rows = data ?? NO_ROWS;
+
+  // Loaded with nothing to show (an unreadable journal also reports an
+  // empty register): the toolbar and the grid step aside for RegisterEmpty.
+  const empty = data !== null && data.length === 0;
 
   // commodity is filter-only: never rendered, whatever storage says. Memoized
   // because the grid keys its own memos (header groups, visible cells, the
@@ -668,99 +703,110 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
             {data === null ? (
               <Skeleton className="h-5 w-10 rounded-3xl" />
             ) : (
-              <Badge variant="secondary" className="bg-muted px-1.5 font-normal text-muted-foreground tabular-nums">
-                {filtersActive
-                  ? `${recordCount.toLocaleString(navigator.language)} of ${totalCount.toLocaleString(navigator.language)}`
-                  : totalCount.toLocaleString(navigator.language)}
-              </Badge>
+              // No "0" alongside the empty view — its title already says so.
+              !empty && (
+                <Badge variant="secondary" className="bg-muted px-1.5 font-normal text-muted-foreground tabular-nums">
+                  {filtersActive
+                    ? `${recordCount.toLocaleString(navigator.language)} of ${totalCount.toLocaleString(navigator.language)}`
+                    : totalCount.toLocaleString(navigator.language)}
+                </Badge>
+              )
             )}
           </div>
           {/* min-w-0 (not shrink-0): when the window narrows, the search
               field gives way so the Columns button never clips. */}
-          <div className="flex min-w-0 items-center gap-2">
-            <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
-            <ColumnsMenu
-              columns={TOGGLEABLE_COLUMNS}
-              visibility={config.visibility}
-              onToggle={(id, shown) => {
-                table.getColumn(id)?.toggleVisibility(shown);
-                // A hidden column takes its filter chip with it; clearing
-                // the filter keeps rows from being filtered invisibly.
-                if (!shown) {
-                  table.getColumn(id)?.setFilterValue(undefined);
-                  // The Commodity chip rides with the Amount column.
-                  if (id === "amount") table.getColumn("commodity")?.setFilterValue(undefined);
-                }
-              }}
-            />
-          </div>
+          {!empty && (
+            <div className="flex min-w-0 items-center gap-2">
+              <SearchField subject="transactions" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
+              <ColumnsMenu
+                columns={TOGGLEABLE_COLUMNS}
+                visibility={config.visibility}
+                onToggle={(id, shown) => {
+                  table.getColumn(id)?.toggleVisibility(shown);
+                  // A hidden column takes its filter chip with it; clearing
+                  // the filter keeps rows from being filtered invisibly.
+                  if (!shown) {
+                    table.getColumn(id)?.setFilterValue(undefined);
+                    // The Commodity chip rides with the Amount column.
+                    if (id === "amount") table.getColumn("commodity")?.setFilterValue(undefined);
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
         {/* The filter chips on their own row, following the column order:
             Date, Payee, Account, Amount, Commodity, Status, Tags. Each chip
             shows only while its column does. */}
-        <div className="flex flex-wrap items-center gap-2 pt-4">
-          {config.visibility.date && <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />}
-          {config.visibility.payee && (
-            <ColumnChip
-              column={table.getColumn("payee")}
-              title="Payee"
-              subject="payees"
-              mentionType="payee"
-              options={payeeOptions}
-            />
-          )}
-          {config.visibility.account && (
-            <ColumnChip
-              column={table.getColumn("account")}
-              title="Account"
-              subject="accounts"
-              mentionType="account"
-              options={accountOptions}
-            />
-          )}
-          {config.visibility.amount && (
-            <>
-              <AmountFilterChip column={table.getColumn("amount")} />
+        {!empty && (
+          <div className="flex flex-wrap items-center gap-2 pt-4">
+            {config.visibility.date && <DateFilterChip column={table.getColumn("date")} now={now ?? new Date()} />}
+            {config.visibility.payee && (
               <ColumnChip
-                column={table.getColumn("commodity")}
-                title="Commodity"
-                subject="commodities"
-                icon={DollarSignIcon}
-                options={commodityOptions}
+                column={table.getColumn("payee")}
+                title="Payee"
+                subject="payees"
+                mentionType="payee"
+                options={payeeOptions}
               />
-            </>
-          )}
-          {config.visibility.status && (
-            <ColumnChip
-              column={table.getColumn("status")}
-              title="Status"
-              subject="statuses"
-              icon={CircleCheckIcon}
-              options={statusOptions}
-            />
-          )}
-          {config.visibility.tags && (
-            <ColumnChip
-              column={table.getColumn("tags")}
-              title="Tags"
-              subject="tags"
-              mentionType="tag"
-              options={tagOptions}
-            />
-          )}
-          {filtersActive && (
-            <Button variant="outline" size="sm" className="border-dashed" onClick={resetFilters}>
-              <XIcon />
-              Reset
-            </Button>
-          )}
-        </div>
+            )}
+            {config.visibility.account && (
+              <ColumnChip
+                column={table.getColumn("account")}
+                title="Account"
+                subject="accounts"
+                mentionType="account"
+                options={accountOptions}
+              />
+            )}
+            {config.visibility.amount && (
+              <>
+                <AmountFilterChip column={table.getColumn("amount")} />
+                <ColumnChip
+                  column={table.getColumn("commodity")}
+                  title="Commodity"
+                  subject="commodities"
+                  icon={DollarSignIcon}
+                  options={commodityOptions}
+                />
+              </>
+            )}
+            {config.visibility.status && (
+              <ColumnChip
+                column={table.getColumn("status")}
+                title="Status"
+                subject="statuses"
+                icon={CircleCheckIcon}
+                options={statusOptions}
+              />
+            )}
+            {config.visibility.tags && (
+              <ColumnChip
+                column={table.getColumn("tags")}
+                title="Tags"
+                subject="tags"
+                mentionType="tag"
+                options={tagOptions}
+              />
+            )}
+            {filtersActive && (
+              <Button variant="outline" size="sm" className="border-dashed" onClick={resetFilters}>
+                <XIcon />
+                Reset
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       {/* No top scroll-fade here: the sticky column header sits at the very
           top of the scroller and would be eaten by the mask; its own
           backdrop covers the rows sliding beneath instead. */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-        {/* The table area is exactly as wide as its columns (never below
+        {empty ? (
+          <RegisterEmpty failed={failed} />
+        ) : (
+          <>
+            {/* The table area is exactly as wide as its columns (never below
             the header's content width, so the default view stays aligned);
             past the window width the PAGE scrolls horizontally (both
             scrollbars live at the window edge), so a scrollbar appears only
@@ -768,54 +814,53 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
             scrolling, gutters would read as torn white bands at the ends.
             Width comes from the column sizes, not the DOM, so the grid's
             fill machinery cannot feed back into it. */}
-        <div className="mx-auto" style={{ width: `max(52rem, ${table.getTotalSize()}px)` }}>
-          <DataGrid
-            table={table}
-            recordCount={recordCount}
-            isLoading={data === null}
-            emptyMessage={
-              failed
-                ? "The journal could not be read. Ask the agent to check it."
-                : data !== null && data.length === 0
-                  ? "No transactions yet. Ask the agent to record your first transaction and it will show up here."
-                  : "No matching transactions"
-            }
-            // No columnsVisibility flag: it would only arm the header
-            // dropdown's own hide submenu (and even then each header must
-            // opt in), which toggles columns behind ColumnsMenu's back —
-            // bypassing its filter-clearing, so a hidden column could keep
-            // filtering invisibly. The toolbar's Columns menu is the one
-            // visibility control.
-            tableLayout={{
-              dense: true,
-              columnsResizable: true,
-              columnsResizeMode: "onChange",
-              headerSticky: true,
-              width: "fixed",
-            }}
-          >
-            {/* One virtualized list for the whole register — no pagination.
+            <div className="mx-auto" style={{ width: `max(52rem, ${table.getTotalSize()}px)` }}>
+              <DataGrid
+                table={table}
+                recordCount={recordCount}
+                isLoading={data === null}
+                // The loaded-and-empty cases never reach the grid (RegisterEmpty
+                // replaces it), so the only empty state left is a filtered-out
+                // register.
+                emptyMessage="No matching transactions"
+                // No columnsVisibility flag: it would only arm the header
+                // dropdown's own hide submenu (and even then each header must
+                // opt in), which toggles columns behind ColumnsMenu's back —
+                // bypassing its filter-clearing, so a hidden column could keep
+                // filtering invisibly. The toolbar's Columns menu is the one
+                // visibility control.
+                tableLayout={{
+                  dense: true,
+                  columnsResizable: true,
+                  columnsResizeMode: "onChange",
+                  headerSticky: true,
+                  width: "fixed",
+                }}
+              >
+                {/* One virtualized list for the whole register — no pagination.
                 The page body scrolls it; rows are measured, so multi-leg
                 and expanded rows keep exact offsets. A table wider than the
                 page still scrolls horizontally inside the grid. */}
-            {/* overflow-visible + the scroll-area-viewport marker present
+                {/* overflow-visible + the scroll-area-viewport marker present
                 the page body as this grid's external scroll area: the table
                 viewport then adds no overflow of its own, so the sticky
                 column header sticks against the page scroll. */}
-            <DataGridContainer className="overflow-visible">
-              <div data-slot="scroll-area-viewport">
-                {data === null ? (
-                  // The virtual list has no skeleton mode; the plain renderer
-                  // shows the shaped per-column skeletons and swaps out with
-                  // the first real rows.
-                  <DataGridTable />
-                ) : (
-                  <DataGridTableVirtual estimateSize={37} virtualizerOptions={virtualizerOptions} />
-                )}
-              </div>
-            </DataGridContainer>
-          </DataGrid>
-        </div>
+                <DataGridContainer className="overflow-visible">
+                  <div data-slot="scroll-area-viewport">
+                    {data === null ? (
+                      // The virtual list has no skeleton mode; the plain renderer
+                      // shows the shaped per-column skeletons and swaps out with
+                      // the first real rows.
+                      <DataGridTable />
+                    ) : (
+                      <DataGridTableVirtual estimateSize={37} virtualizerOptions={virtualizerOptions} />
+                    )}
+                  </div>
+                </DataGridContainer>
+              </DataGrid>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

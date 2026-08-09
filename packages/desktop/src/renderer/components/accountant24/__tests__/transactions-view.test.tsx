@@ -792,21 +792,66 @@ describe("<TransactionsView />", () => {
     });
   });
 
-  it("should show the stock empty message when the journal has no transactions", async () => {
+  it("should show the dedicated empty view when the journal has no transactions", async () => {
     vi.mocked(ledgerApi.transactions).mockResolvedValue([]);
     renderView();
-    expect(await screen.findByText(/No transactions yet/)).toBeInTheDocument();
-    expect(screen.getByText(/Ask the agent to record your first transaction/)).toBeInTheDocument();
+    expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ask the agent to record your first transactions and they will show up here"),
+    ).toBeInTheDocument();
   });
 
-  it("should show the unreadable-journal message, not the empty state, when the register query rejects", async () => {
+  it("should hide the toolbar, the grid, and the count while the register is empty", async () => {
+    // Nothing to search, filter, sort, or count: the table chrome steps
+    // aside for the empty view, and the title carries no "0" (the empty
+    // view's title already says so).
+    vi.mocked(ledgerApi.transactions).mockResolvedValue([]);
+    renderView();
+    await screen.findByText("No transactions yet");
+    expect(screen.queryByRole("searchbox", { name: "Search transactions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Columns" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Payee" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("should replace the empty view with the register once a refetch returns rows", async () => {
+    // The first transaction usually lands mid-session (the agent records
+    // it): the running -> idle refetch must swap the empty view for the
+    // full page, chrome and all.
+    vi.mocked(ledgerApi.transactions).mockResolvedValueOnce([]).mockResolvedValueOnce(DATA);
+    const { rerender } = renderView(false);
+    await screen.findByText("No transactions yet");
+
+    rerender(
+      <Chrome isRunning={true}>
+        <TransactionsView now={NOW} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    rerender(
+      <Chrome isRunning={false}>
+        <TransactionsView now={NOW} />
+      </Chrome>,
+    );
+
+    await screen.findByText("Bookshop");
+    expect(screen.queryByText("No transactions yet")).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search transactions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Columns" })).toBeInTheDocument();
+    expect(screen.getByText("6")).toBeInTheDocument();
+  });
+
+  it("should show the unreadable-journal view, not the empty state, when the register query rejects", async () => {
     // The main process rejects when the journal exists but hledger fails
     // (e.g. a syntax error, or output past the stdout cap): an unreadable
     // journal must never read as "no transactions yet".
     vi.mocked(ledgerApi.transactions).mockRejectedValue(new Error("register query failed"));
     renderView();
-    expect(await screen.findByText(/The journal could not be read/)).toBeInTheDocument();
+    expect(await screen.findByText("The journal could not be read")).toBeInTheDocument();
+    expect(screen.getByText("Ask the agent to check the journal")).toBeInTheDocument();
     expect(screen.queryByText(/No transactions yet/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("should refetch the register when the agent goes from running to idle", async () => {
