@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 
 // Spec for the Net Worth view: skeleton while the first load is in
-// flight, a pinned title and search box, one data table per `hledger bs`
-// section (Assets, Liabilities — the latter already sign-flipped positive by
-// hledger) with the section's own total, the hledger-computed Net as the
-// closing line, sorting on every column (A-Z on the account path by default,
-// independent per section), search filtering every section by path, the
-// two assertion columns hidden by default behind the header's Columns menu
-// (the choice persisted in localStorage), the empty state (no journal yet
-// or hledger failed), and the refetch on the agent's running → idle edge.
-// jsdom pins navigator.language to en-US, so formatted expectations are
-// deterministic.
+// flight, a pinned title and search box, one stock data grid per `hledger
+// bs` section (Assets, Liabilities — the latter already sign-flipped
+// positive by hledger, each a labeled region) with the section's own
+// total, the hledger-computed Net as the closing line, sorting on every
+// column (A-Z on the account path by default, independent per section),
+// search filtering every section by path, the two assertion columns hidden
+// by default behind the header's Columns menu (the choice persisted in
+// localStorage with the shared table-config shape), the empty state (no
+// journal yet or hledger failed), and the refetch on the agent's running →
+// idle edge. jsdom pins navigator.language to en-US, so formatted
+// expectations are deterministic.
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,13 +101,17 @@ const renderView = (isRunning = false) =>
     </Chrome>,
   );
 
-/** The rendered account order of one section's table: each body row's
- *  account-cell title. */
-const accountOrder = (tableName: string) =>
-  within(screen.getByRole("table", { name: tableName }))
+/** One section's rendered scope: the labeled region around its band and
+ *  grid (the vendored grid's own <table> carries no accessible name). */
+const section = (name: string) => within(screen.getByRole("region", { name }));
+
+/** The rendered account order of one section's grid: each body row's
+ *  account-cell title (the full path, also the truncation tooltip). */
+const accountOrder = (sectionName: string) =>
+  section(sectionName)
     .getAllByRole("row")
     .slice(1) // the column-header row
-    .map((row) => row.querySelector("td")?.getAttribute("title"));
+    .map((row) => row.querySelector("[title]")?.getAttribute("title"));
 
 /** Turn both assertion columns on through the header's Columns menu, then
  *  close it so the tables are clickable again. */
@@ -151,8 +156,8 @@ describe("<NetWorthView />", () => {
     expect(screen.getByText("~2,085.72 EUR")).toBeInTheDocument();
     // The liabilities total is exact EUR: no marker.
     expect(screen.getByText("346.75 EUR", { selector: "div" })).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Assets" })).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Liabilities" })).toBeInTheDocument();
+    expect(section("Assets").getByRole("table")).toBeInTheDocument();
+    expect(section("Liabilities").getByRole("table")).toBeInTheDocument();
   });
 
   it("should show liabilities with hledger's positive sign", async () => {
@@ -376,8 +381,7 @@ describe("<NetWorthView />", () => {
   });
 
   describe("sorting", () => {
-    const assetsButton = (name: string) =>
-      within(screen.getByRole("table", { name: "Assets" })).getByRole("button", { name });
+    const assetsButton = (name: string) => section("Assets").getByRole("button", { name });
 
     it("should sort Z-A when the Account header is clicked", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
@@ -456,9 +460,7 @@ describe("<NetWorthView />", () => {
       });
       renderView();
       await screen.findByTitle("assets:cash");
-      const liabilitiesValue = within(screen.getByRole("table", { name: "Liabilities" })).getByRole("button", {
-        name: "Value",
-      });
+      const liabilitiesValue = section("Liabilities").getByRole("button", { name: "Value" });
       await userEvent.click(liabilitiesValue);
       // Liabilities re-sorted by value, biggest first...
       expect(accountOrder("Liabilities")).toEqual(["liabilities:loan", "liabilities:card"]);
@@ -497,10 +499,7 @@ describe("<NetWorthView />", () => {
 
   describe("column explanations", () => {
     const hoverInfo = async (label: string) => {
-      const marker = within(screen.getByRole("table", { name: "Assets" })).getByRole("button", {
-        name: `About ${label}`,
-      });
-      await userEvent.hover(marker);
+      await userEvent.hover(section("Assets").getByRole("button", { name: `About ${label}` }));
     };
 
     it("should explain the Holding column behind its info marker", async () => {
@@ -572,9 +571,7 @@ describe("<NetWorthView />", () => {
       await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "CASH");
       expect(accountOrder("Assets")).toEqual(["assets:cash"]);
       // The liabilities table has no matching account.
-      expect(
-        within(screen.getByRole("table", { name: "Liabilities" })).getByText("No matching accounts"),
-      ).toBeInTheDocument();
+      expect(section("Liabilities").getByText("No matching accounts")).toBeInTheDocument();
     });
 
     it("should show empty messages when nothing matches, and restore rows when cleared", async () => {
@@ -618,10 +615,9 @@ describe("<NetWorthView />", () => {
       renderView();
       await screen.findByTitle("assets:cash");
       await showAssertionColumns();
-      for (const table of ["Assets", "Liabilities"]) {
-        const scope = within(screen.getByRole("table", { name: table }));
-        expect(scope.getByRole("button", { name: "Asserted On" })).toBeInTheDocument();
-        expect(scope.getByRole("button", { name: "Asserted Amount" })).toBeInTheDocument();
+      for (const name of ["Assets", "Liabilities"]) {
+        expect(section(name).getByRole("button", { name: "Asserted On" })).toBeInTheDocument();
+        expect(section(name).getByRole("button", { name: "Asserted Amount" })).toBeInTheDocument();
       }
     });
 
@@ -630,8 +626,12 @@ describe("<NetWorthView />", () => {
       const { unmount } = renderView();
       await screen.findByTitle("assets:cash");
       await showAssertionColumns();
-      expect(window.localStorage.getItem("accountant24.net-worth.columns")).toBe(
-        JSON.stringify({ asserted: true, assertedAmount: true }),
+      // The write is debounced (a resize drag never writes per pointer move).
+      await waitFor(() =>
+        expect(JSON.parse(window.localStorage.getItem("accountant24.net-worth-table") ?? "{}").visibility).toEqual({
+          asserted: true,
+          assertedAmount: true,
+        }),
       );
       unmount();
 
@@ -644,8 +644,8 @@ describe("<NetWorthView />", () => {
 
     it("should reflect the persisted columns in the loading skeleton, hidden by default", async () => {
       window.localStorage.setItem(
-        "accountant24.net-worth.columns",
-        JSON.stringify({ asserted: true, assertedAmount: true }),
+        "accountant24.net-worth-table",
+        JSON.stringify({ visibility: { asserted: true, assertedAmount: true } }),
       );
       vi.mocked(ledgerApi.netWorth).mockReturnValue(new Promise(() => {}));
       const { unmount } = renderView();
@@ -663,8 +663,8 @@ describe("<NetWorthView />", () => {
 
     it("should show only the toggled column when just one is enabled", async () => {
       window.localStorage.setItem(
-        "accountant24.net-worth.columns",
-        JSON.stringify({ asserted: true, assertedAmount: false }),
+        "accountant24.net-worth-table",
+        JSON.stringify({ visibility: { asserted: true, assertedAmount: false } }),
       );
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
@@ -677,8 +677,8 @@ describe("<NetWorthView />", () => {
 
     it("should fall back to hidden columns when the stored value is garbage", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
-      for (const stored of ["not json", JSON.stringify({ asserted: "yes" }), JSON.stringify(null)]) {
-        window.localStorage.setItem("accountant24.net-worth.columns", stored);
+      for (const stored of ["not json", JSON.stringify({ visibility: { asserted: "yes" } }), JSON.stringify(null)]) {
+        window.localStorage.setItem("accountant24.net-worth-table", stored);
         const { unmount } = renderView();
         await screen.findByTitle("assets:cash");
         expect(screen.queryByRole("button", { name: "Asserted On" })).not.toBeInTheDocument();
@@ -692,11 +692,12 @@ describe("<NetWorthView />", () => {
       renderView();
       await screen.findByTitle("assets:cash");
       await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "zzz");
+      // The three spine columns plus the grid's trailing resize-fill column.
       const emptyCell = () => screen.getAllByText("No matching accounts")[0]?.closest("td");
-      expect(emptyCell()?.colSpan).toBe(3);
+      expect(emptyCell()?.colSpan).toBe(4);
       // With the assertion pair on, the row widens to match.
       await showAssertionColumns();
-      expect(emptyCell()?.colSpan).toBe(5);
+      expect(emptyCell()?.colSpan).toBe(6);
     });
   });
 

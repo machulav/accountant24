@@ -14,8 +14,7 @@
 // while the register has nothing to show.
 // Data refreshes when the agent finishes a turn while the page is visible.
 
-import type { Column, ColumnDef, ExpandedState, SortingState, Updater } from "@tanstack/react-table";
-import { functionalUpdate } from "@tanstack/react-table";
+import type { Column, ColumnDef, ExpandedState, SortingState } from "@tanstack/react-table";
 import {
   CalendarIcon,
   CircleCheckIcon,
@@ -25,7 +24,8 @@ import {
   ReceiptTextIcon,
   XIcon,
 } from "lucide-react";
-import { type ComponentProps, type FC, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, type FC, type ReactNode, useMemo, useRef, useState } from "react";
+import { AppColumnHeader } from "@/components/accountant24/app-column-header";
 import { ColumnsMenu } from "@/components/accountant24/columns-menu";
 import {
   FilterChip,
@@ -37,9 +37,9 @@ import {
 } from "@/components/accountant24/filter-chip";
 import { MentionPill } from "@/components/accountant24/mentions";
 import { PageEmpty } from "@/components/accountant24/page-empty";
-import { useAppTable } from "@/components/accountant24/use-app-table";
+import { useTableConfig } from "@/components/accountant24/table-config";
+import { twoStateSortingChange, useAppTable } from "@/components/accountant24/use-app-table";
 import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
-import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
 import { DataGridTable, DataGridTableRowExpand } from "@/components/reui/data-grid/data-grid-table";
 import {
   DataGridTableVirtual,
@@ -57,18 +57,13 @@ import { cn } from "@/lib/utils";
 import type { LedgerPosting, LedgerTransaction, LedgerTransactionStatus } from "@/rpc/types";
 import { POPOVER_WIDTH } from "./popover";
 import { SearchField } from "./search-field";
-import { loadTableConfig, saveTableConfig, type TransactionsTableConfig } from "./transactions-columns";
+import { loadTableConfig, saveTableConfig } from "./transactions-columns";
 import { useTransactions } from "./use-transactions";
 
 /** The tag pill's text, also what search and the Tags sort key see. */
 const tagText = (tag: { name: string; value: string }): string => (tag.value ? `${tag.name}: ${tag.value}` : tag.name);
 
 const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-/** App-styled sort header: the vendored default hovers a small rounded-lg
- *  secondary box; ours is the ghost-button recipe (muted pill) every other
- *  hoverable control uses. Merged over the vendored classes via cn. */
-const HEADER_CLASS = "rounded-4xl hover:bg-muted data-[state=open]:bg-muted";
 
 /** One posting line inside a cell: a fixed-height line box so the Account
  *  pills and the Amount figures line up row by row across the two columns. */
@@ -143,7 +138,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Unlike the other minimums (header-fit), dates are fixed-width data:
     // the minimum keeps the full ISO date readable.
     minSize: 104,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Date" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Date" />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by.
     cell: ({ row }) => <div className={LINE}>{row.original.date}</div>,
@@ -159,7 +154,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 200,
     minSize: 90,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Payee" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
         <div className={LINE}>
@@ -181,7 +176,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     getUniqueValues: (row) => row.postings.map((p) => p.account),
     size: 250,
     minSize: 104,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Account" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
     // lines read as part of the row (the virtual table measures the growth).
@@ -229,9 +224,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 150,
     minSize: 100,
-    header: ({ column }) => (
-      <DataGridColumnHeader column={column} title="Amount" className={cn(HEADER_CLASS, "justify-end")} />
-    ),
+    header: ({ column }) => <AppColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);
       return (
@@ -281,7 +274,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     },
     size: 100,
     minSize: 94,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Status" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Status" />,
     cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
       headerTitle: "Status",
@@ -295,7 +288,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     sortFn: "text",
     size: 300,
     minSize: 108,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Comment" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Comment" />,
     // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
     // the whole comment, wrapping at the h-6 line rhythm.
     cell: ({ row }) =>
@@ -328,7 +321,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 300,
     minSize: 80,
-    header: ({ column }) => <DataGridColumnHeader column={column} title="Tags" className={HEADER_CLASS} />,
+    header: ({ column }) => <AppColumnHeader column={column} title="Tags" />,
     // Collapsed: every tag on one line, sharing the width (each pill
     // ellipsizes on its own). Expanded: one tag per line, on the same
     // rhythm as the unfolded account legs.
@@ -372,10 +365,6 @@ const NO_ROWS: LedgerTransaction[] = [];
 /** Registers up to this many rows render directly; the virtualizer's
  *  spacer-and-measure machinery only pays off past it. */
 const VIRTUALIZE_AFTER = 100;
-
-/** How long after the last column change (a resize drag emits one per
- *  pointer move) the table config is written to localStorage. */
-const SAVE_CONFIG_DELAY_MS = 250;
 
 /** A faceted chip wired to its column: reads the picked values and the facet
  *  counts off the column, and writes the filter back. Holds the
@@ -568,7 +557,7 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
   // Newest first by default (the payee tiebreak lives in the date column's
   // comparator); the column headers drive every other order.
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
-  const [config, setConfig] = useState<TransactionsTableConfig>(loadTableConfig);
+  const { config, applyConfig } = useTableConfig(loadTableConfig, saveTableConfig);
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
   // One lowercased haystack per transaction (payee, comment, every leg's
@@ -584,24 +573,6 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
     }
     return texts;
   }, [data]);
-
-  /** Update one config field; persistence follows debounced (below). */
-  const applyConfig = <K extends keyof TransactionsTableConfig>(key: K, updater: Updater<TransactionsTableConfig[K]>) =>
-    setConfig((prev) => ({ ...prev, [key]: functionalUpdate(updater, prev[key]) }));
-
-  // Persist the config debounced: an onChange column resize updates state on
-  // every pointer move, and a synchronous localStorage write per move would
-  // put disk I/O on the drag frame path. One write lands shortly after the
-  // last change; the just-loaded initial config never writes back.
-  const savedConfig = useRef(config);
-  useEffect(() => {
-    if (savedConfig.current === config) return;
-    const timer = setTimeout(() => {
-      savedConfig.current = config;
-      saveTableConfig(config);
-    }, SAVE_CONFIG_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [config]);
 
   const rows = data ?? NO_ROWS;
 
@@ -629,18 +600,7 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
       globalFilter: search,
       expanded,
     },
-    // Two-state sort headers (asc <-> desc), matching Net Worth. The
-    // vendored header's third click clears the sort (journal order — near
-    // enough to the date default to read as a dead click); map that clear
-    // to ascending so a header always just flips direction.
-    onSortingChange: (updater) => {
-      setSorting((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        const cleared = prev[0];
-        if (next.length === 0 && cleared) return [{ id: cleared.id, desc: false }];
-        return next;
-      });
-    },
+    onSortingChange: twoStateSortingChange(setSorting),
     onColumnVisibilityChange: (updater) => applyConfig("visibility", updater),
     onColumnSizingChange: (updater) => applyConfig("sizing", updater),
     onExpandedChange: setExpanded,

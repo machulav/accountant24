@@ -71,13 +71,21 @@ export function ChatLayout() {
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which view fills the inset. The chat is never unmounted (see below); the
-  // report pages mount fresh on each open so they always show current data.
+  // report pages latch on first open and stay mounted after, so their state
+  // survives view switches (a hidden page defers its refresh to the next
+  // show — see useAgentIdleRefresh).
   const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
-  // Latches once Transactions is first opened; the view then stays mounted.
+  // Latch per report page once it is first opened; the view then stays
+  // mounted.
   const [transactionsMounted, setTransactionsMounted] = useState(false);
   const showTransactions = useCallback(() => {
     setView("transactions");
     setTransactionsMounted(true);
+  }, []);
+  const [netWorthMounted, setNetWorthMounted] = useState(false);
+  const showNetWorth = useCallback(() => {
+    setView("net-worth");
+    setNetWorthMounted(true);
   }, []);
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
@@ -168,7 +176,7 @@ export function ChatLayout() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
+                  <SidebarMenuButton isActive={view === "net-worth"} onClick={showNetWorth}>
                     <WalletIcon className="size-4" />
                     <span className="whitespace-nowrap">Net Worth</span>
                     <NetWorthBadge />
@@ -216,7 +224,19 @@ export function ChatLayout() {
                 <TransactionsView active={view === "transactions"} />
               </div>
             )}
-            {view === "net-worth" && <NetWorthView />}
+            {/* Same treatment as Transactions: sort, search, resized
+                columns, and scroll survive view switches, and a turn that
+                finishes behind the hidden page only marks it dirty. */}
+            {netWorthMounted && (
+              <div
+                className={cn(
+                  "absolute inset-0 flex flex-col",
+                  view !== "net-worth" && "pointer-events-none invisible opacity-0",
+                )}
+              >
+                <NetWorthView active={view === "net-worth"} />
+              </div>
+            )}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>

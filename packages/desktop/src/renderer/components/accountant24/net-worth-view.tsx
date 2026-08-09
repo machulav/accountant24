@@ -3,65 +3,54 @@
 // Full-page Net Worth view: `hledger bs` rendered as data — an Assets
 // and a Liabilities section (liabilities already sign-flipped positive by
 // hledger), each with hledger's own total, and the hledger-computed Net as
-// the classic bottom line. A pinned header carries the page title, a
-// search box filtering every section by account path, and a Columns menu
-// toggling the two assertion columns (hidden by default, remembered in
-// localStorage) across every section at once. Each section is a
-// shadcn-style data table (TanStack Table): complete account paths in one
-// color, every native holding in a muted Holding column, the market value
-// (hledger's `-X` valuation in the base currency) in the Value column;
-// every column sorts, A-Z on the account path by default, independently per
-// section. All figures are hledger-computed; only the presentation happens
-// here. Data refreshes when the agent finishes a turn.
+// the classic bottom line. Each section is the same stock ReUI data grid
+// (TanStack v9) as the Transactions register: the app-styled two-state
+// sort headers, resizable columns (widths persisted with the column
+// visibility in localStorage, shared across the sections so they stay
+// aligned), per-column loading skeletons, and the filtered-out empty
+// state. A pinned header carries the page title, a search box filtering
+// every section by account path, and a Columns menu toggling the two
+// assertion columns across every section at once. Complete account paths
+// in one color, every native holding in the Holding column, the market
+// value (hledger's `-X` valuation in the base currency) in the Value
+// column; every column sorts, A-Z on the account path by default,
+// independently per section. All figures are hledger-computed; only the
+// presentation happens here. Data refreshes when the agent finishes a turn.
 
-import { type Column, type ColumnDef, flexRender, type SortingState } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InfoIcon, WalletIcon } from "lucide-react";
+import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
+import { InfoIcon, WalletIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
+import { AppColumnHeader } from "@/components/accountant24/app-column-header";
 import { PageEmpty } from "@/components/accountant24/page-empty";
-import { useAppTable } from "@/components/accountant24/use-app-table";
-import type { DataGridFeatures } from "@/components/reui/data-grid/data-grid";
+import { useTableConfig } from "@/components/accountant24/table-config";
+import { twoStateSortingChange, useAppTable } from "@/components/accountant24/use-app-table";
+import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { ColumnsMenu } from "./columns-menu";
+import {
+  COLUMN_SIZES,
+  loadTableConfig,
+  type NetWorthTableConfig,
+  saveTableConfig,
+  tableWidth,
+} from "./net-worth-columns";
 import { SearchField } from "./search-field";
 import { useNetWorth } from "./use-net-worth";
-
-/** Column visibility map (id -> shown); TanStack v9 no longer exports a
- *  dedicated state type for it. */
-type ColumnVisibility = Record<string, boolean>;
 
 /** The two columns the Columns menu can toggle; the other three are the
  *  page's spine and never leave. */
 type OptionalColumnId = "asserted" | "assertedAmount";
 
-/** Clickable column header driving the table's sorting; the icon mirrors
- *  the current direction, neutral chevrons while the column is unsorted. */
-const SortHeader: FC<{ column: Column<DataGridFeatures, AccountBalance>; label: string; className?: string }> = ({
-  column,
-  label,
-  className,
-}) => {
-  const sorted = column.getIsSorted();
-  const Icon = sorted === "asc" ? ArrowUpIcon : sorted === "desc" ? ArrowDownIcon : ChevronsUpDownIcon;
-  return (
-    <Button variant="ghost" size="sm" className={className} onClick={() => column.toggleSorting()}>
-      {label}
-      <Icon className={sorted ? undefined : "text-muted-foreground/60"} />
-    </Button>
-  );
-};
-
-/** Assertion-column labels, defined once: the headers, the help keys, the
- *  Columns menu, and the loading skeleton all read these. */
+/** Assertion-column labels, defined once: the headers, the help keys, and
+ *  the Columns menu all read these. */
 const ASSERTED_ON_LABEL = "Asserted On";
 const ASSERTED_AMOUNT_LABEL = "Asserted Amount";
 
-/** What each money/meta column means, keyed by its label; shown behind the
- *  little info marker next to the header (the Account column needs none). */
 /** The how-to line for anything valued at a recorded rate — shared by the
  *  Value column help and the bands' unpriced-legs tooltip so the copy stays
  *  identical in both. */
@@ -72,6 +61,8 @@ const RATE_HELP = (
   </p>
 );
 
+/** What each money/meta column means, keyed by its label; shown behind the
+ *  little info marker next to the header (the Account column needs none). */
 const COLUMN_HELP: Record<string, ReactNode> = {
   Holding:
     "What the account actually holds: cash in its own currency, shares, or crypto. Exactly as recorded in the ledger, before any conversion.",
@@ -134,7 +125,12 @@ const InfoTip: FC<{ label: string; children?: ReactNode }> = ({ label, children 
   </TooltipProvider>
 );
 
-/** The accounts data table columns. Sorting semantics:
+/** The money/meta columns put the biggest figures first on the first click
+ *  (the vendored header ignores `sortDescFirst`, so the sorting handler
+ *  applies the policy). */
+const DESC_FIRST: ReadonlySet<string> = new Set(["asserted", "assertedAmount", "holding", "value"]);
+
+/** The accounts data grid columns. Sorting semantics:
  *  - Account: A-Z on the full path (the table's default sort);
  *  - Holding: by the primary native quantity — a plain number sort, so the
  *    column reads monotonic (commodity grouping was tried and read as
@@ -144,180 +140,165 @@ const InfoTip: FC<{ label: string; children?: ReactNode }> = ({ label, children 
  *  - Asserted Amount: by quantity, like Holding; never-asserted rows
  *    count as zero;
  *  - Value: by market value.
- *  Money columns put the biggest figures first on the first click. The two
- *  assertion columns hide by default (the tables stay narrow) and toggle on
- *  via the header's Columns menu; the other three are the page's spine and
- *  cannot be hidden. */
+ *  The two assertion columns hide by default (the tables stay narrow) and
+ *  toggle on via the header's Columns menu; the other three are the page's
+ *  spine and cannot be hidden. */
 const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
   {
     id: "account",
     accessorFn: (row) => row.name,
     enableHiding: false,
     sortFn: "text",
-    header: ({ column }) => <SortHeader column={column} label="Account" className="-ml-3" />,
-    cell: ({ row }) => row.original.name,
+    size: COLUMN_SIZES.account,
+    minSize: 104,
+    header: ({ column }) => <AppColumnHeader column={column} title="Account" />,
+    // The full path, truncating inside the fixed column (complete path in
+    // the tooltip).
+    cell: ({ row }) => (
+      <div className="truncate" title={row.original.name}>
+        {row.original.name}
+      </div>
+    ),
+    meta: { headerTitle: "Account", skeleton: <Skeleton className="h-4 w-56" /> },
   },
   {
     id: "asserted",
     accessorFn: (row) => row.assertedOn ?? "",
     sortFn: "text",
-    sortDescFirst: true,
+    size: COLUMN_SIZES.asserted,
+    minSize: 120,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
         <InfoTip label={ASSERTED_ON_LABEL} />
-        <SortHeader column={column} label={ASSERTED_ON_LABEL} className="-mr-3" />
+        <AppColumnHeader column={column} title={ASSERTED_ON_LABEL} />
       </div>
     ),
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by. An em dash marks accounts whose
     // balance was never asserted.
-    cell: ({ row }) => row.original.assertedOn ?? "\u2014",
+    cell: ({ row }) => row.original.assertedOn ?? "—",
+    meta: {
+      headerTitle: ASSERTED_ON_LABEL,
+      cellClassName: "text-right tabular-nums",
+      skeleton: <Skeleton className="ms-auto h-4 w-20" />,
+    },
   },
   {
     id: "assertedAmount",
     accessorFn: (row) => row.assertedAmount?.quantity ?? 0,
     sortFn: "basic",
-    sortDescFirst: true,
+    size: COLUMN_SIZES.assertedAmount,
+    minSize: 160,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
         <InfoTip label={ASSERTED_AMOUNT_LABEL} />
-        <SortHeader column={column} label={ASSERTED_AMOUNT_LABEL} className="-mr-3" />
+        <AppColumnHeader column={column} title={ASSERTED_AMOUNT_LABEL} />
       </div>
     ),
     // The asserted native amount, formatted like Holding; an em dash marks
     // accounts never asserted (or an assertion whose amount the journal
     // export didn't carry), the same placeholder as the date column.
     cell: ({ row }) =>
-      row.original.assertedAmount ? formatAmount(row.original.assertedAmount, "native", navigator.language) : "\u2014",
+      row.original.assertedAmount ? formatAmount(row.original.assertedAmount, "native", navigator.language) : "—",
+    meta: {
+      headerTitle: ASSERTED_AMOUNT_LABEL,
+      cellClassName: "text-right tabular-nums",
+      skeleton: <Skeleton className="ms-auto h-4 w-24" />,
+    },
   },
   {
     id: "holding",
     accessorFn: (row) => row.amounts[0]?.quantity ?? 0,
     sortFn: "basic",
-    sortDescFirst: true,
     enableHiding: false,
+    size: COLUMN_SIZES.holding,
+    minSize: 104,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
         <InfoTip label="Holding" />
-        <SortHeader column={column} label="Holding" className="-mr-3" />
+        <AppColumnHeader column={column} title="Holding" />
       </div>
     ),
     cell: ({ row }) => formatAmounts(row.original.amounts, "native", navigator.language),
+    meta: {
+      headerTitle: "Holding",
+      cellClassName: "text-right tabular-nums",
+      skeleton: <Skeleton className="ms-auto h-4 w-24" />,
+    },
   },
   {
     id: "value",
     accessorFn: (row) => row.value[0]?.quantity ?? 0,
     sortFn: "basic",
-    sortDescFirst: true,
     enableHiding: false,
+    size: COLUMN_SIZES.value,
+    minSize: 100,
     header: ({ column }) => (
       <div className="flex items-center justify-end">
         <InfoTip label="Value" />
-        <SortHeader column={column} label="Value" className="-mr-3" />
+        <AppColumnHeader column={column} title="Value" />
       </div>
     ),
     cell: ({ row }) => formatValue(row.original, navigator.language),
+    meta: {
+      headerTitle: "Value",
+      cellClassName: "text-right tabular-nums",
+      skeleton: <Skeleton className="ms-auto h-4 w-24" />,
+    },
   },
 ];
 
-// py-2.5 keeps the pre-table row density; the stock p-3 cells read too airy
-// for this dense money list.
-const CELL_CLASS: Record<string, string> = {
-  account: "w-full py-2.5",
-  holding: "py-2.5 text-right tabular-nums",
-  asserted: "py-2.5 text-right tabular-nums",
-  assertedAmount: "py-2.5 text-right tabular-nums",
-  value: "py-2.5 text-right tabular-nums",
-};
+/** Stable empty row list for the loading grid. */
+const NO_ROWS: AccountBalance[] = [];
 
-/** The assertion pair starts hidden: the tables stay narrow and lead with
- *  what you have now; the reconciliation trail is opt-in via the Columns
- *  menu. The choice is remembered per user in localStorage and validated
- *  key-by-key on load, so garbage or stale entries fall back to hidden. */
-const COLUMNS_STORAGE_KEY = "accountant24.net-worth.columns";
-const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = { asserted: false, assertedAmount: false };
-
-export function loadColumnVisibility(): ColumnVisibility {
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(COLUMNS_STORAGE_KEY) ?? "");
-    const pick = (key: string) => (parsed as Record<string, unknown>)[key] === true;
-    return { asserted: pick("asserted"), assertedAmount: pick("assertedAmount") };
-  } catch {
-    return { ...DEFAULT_COLUMN_VISIBILITY };
-  }
-}
-
-function saveColumnVisibility(visibility: ColumnVisibility): void {
-  try {
-    window.localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibility));
-  } catch {
-    // Best-effort: without storage the toggle still works for the session.
-  }
-}
-
-const AccountsTable: FC<{
+/** One section's accounts on the stock data grid. Sorting is local (each
+ *  section sorts independently); visibility and sizing come in from the
+ *  page config, and resizes bubble back up so every section stays aligned
+ *  on the same column widths. */
+const AccountsGrid: FC<{
   rows: AccountBalance[];
   search: string;
-  label: string;
-  columnVisibility: ColumnVisibility;
-}> = ({ rows, search, label, columnVisibility }) => {
+  config: NetWorthTableConfig;
+  onSizingChange: (updater: Updater<Record<string, number>>) => void;
+  loading?: boolean;
+}> = ({ rows, search, config, onSizingChange, loading = false }) => {
   // A-Z on the account path until the user picks another column; a click
   // always leaves some direction active (no unsorted third state).
   const [sorting, setSorting] = useState<SortingState>([{ id: "account", desc: false }]);
-  // Visibility is owned by the page (one Columns menu drives every section
-  // table) and fully controlled: nothing in here mutates it.
   const table = useAppTable({
     data: rows,
     columns,
-    state: { sorting, globalFilter: search, columnVisibility },
-    onSortingChange: setSorting,
-    enableSortingRemoval: false,
-    // The account path is the only searchable field; substring match,
-    // case-insensitive.
+    getRowId: (row) => row.name,
+    state: {
+      sorting,
+      globalFilter: search,
+      columnVisibility: config.visibility,
+      columnSizing: config.sizing,
+    },
+    onSortingChange: twoStateSortingChange(setSorting, DESC_FIRST),
+    onColumnSizingChange: onSizingChange,
+    // The account path is the only searchable field (and the only column
+    // the global filter needs to visit); substring match, case-insensitive.
+    getColumnCanGlobalFilter: (column) => column.id === "account",
     globalFilterFn: (row, _columnId, value) => row.original.name.toLowerCase().includes(String(value).toLowerCase()),
   });
-
   return (
-    <Table aria-label={label}>
-      {/* The header row is labels, not data — no hover highlight. */}
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id} className="hover:bg-transparent">
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className={header.column.id === "account" ? "w-full" : undefined}>
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.length === 0 ? (
-          <TableRow>
-            <TableCell
-              colSpan={table.getVisibleLeafColumns().length}
-              className="h-24 text-center text-muted-foreground"
-            >
-              No matching accounts
-            </TableCell>
-          </TableRow>
-        ) : (
-          table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell
-                  key={cell.id}
-                  className={CELL_CLASS[cell.column.id]}
-                  title={cell.column.id === "account" ? row.original.name : undefined}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
+    <DataGrid
+      table={table}
+      recordCount={table.getFilteredRowModel().rows.length}
+      isLoading={loading}
+      emptyMessage="No matching accounts"
+      tableLayout={{
+        dense: true,
+        columnsResizable: true,
+        columnsResizeMode: "onChange",
+        width: "fixed",
+      }}
+    >
+      <DataGridContainer>
+        <DataGridTable />
+      </DataGridContainer>
+    </DataGrid>
   );
 };
 
@@ -327,6 +308,11 @@ const AccountsTable: FC<{
  *  grows a second (muted) line. px-5 inside mx-3 keeps the text on the px-8
  *  line of the page title. */
 const BAND_CLASS = "mx-3 flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
+
+/** The grids' side gutter: with the dense cells' own px-2, the table text
+ *  lines up with the bands' text (mx-3 + px-5 = 32px). */
+const GRID_GUTTER_CLASS = "px-6";
+const GRID_GUTTER_PX = 48;
 
 /** A summary band's figure. When the valuation could not fold every leg
  *  into the base currency, the base leg leads at the band's weight and the
@@ -356,94 +342,51 @@ const BandValue: FC<{ figure: NetWorthTotal; baseCommodity: string | null }> = (
   );
 };
 
-/** One `bs` section: its hledger name and total over its accounts table. */
+/** One `bs` section: its hledger name and total over its accounts grid,
+ *  wrapped in a labeled region so each section's table stays addressable. */
 const SheetSection: FC<{
   section: NetWorthSection;
   baseCommodity: string | null;
   search: string;
-  columnVisibility: ColumnVisibility;
-}> = ({ section, baseCommodity, search, columnVisibility }) => (
-  <section>
+  config: NetWorthTableConfig;
+  onSizingChange: (updater: Updater<Record<string, number>>) => void;
+}> = ({ section, baseCommodity, search, config, onSizingChange }) => (
+  <section aria-label={section.name}>
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
       <h2 className="text-xl font-semibold">{section.name}</h2>
       <BandValue figure={section.total} baseCommodity={baseCommodity} />
     </div>
-    {/* px-5: with the cells' own px-3, the table text lines up with the px-8
-        headings. */}
-    <div className="px-5">
-      <AccountsTable rows={section.rows} search={search} label={section.name} columnVisibility={columnVisibility} />
+    <div className={GRID_GUTTER_CLASS}>
+      <AccountsGrid rows={section.rows} search={search} config={config} onSizingChange={onSizingChange} />
     </div>
   </section>
 );
 
-const SKELETON_ROWS = ["s1", "s2", "s3", "s4", "s5", "s6"];
-
 /** The loading state mirrors the loaded page: everything that needs no data
  *  (the Assets band, the column labels, the Net band) is up immediately, and
  *  skeletons stand in only for the figures and rows hledger is still
- *  computing. The column set follows the page's visibility state (known
- *  before any data arrives), so the header doesn't jump when rows land.
- *  Assets and Net always exist on a balance sheet; Liabilities may not, so
- *  no placeholder for it. */
-const SheetSkeleton: FC<{ columnVisibility: ColumnVisibility }> = ({ columnVisibility }) => {
-  const metaLabels = [
-    ...(columnVisibility.asserted ? [ASSERTED_ON_LABEL] : []),
-    ...(columnVisibility.assertedAmount ? [ASSERTED_AMOUNT_LABEL] : []),
-    "Holding",
-    "Value",
-  ];
-  return (
-    <div role="status" aria-label="Loading accounts">
-      <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
-        <h2 className="text-xl font-semibold">Assets</h2>
-        <Skeleton className="h-5 w-36 self-center" />
-      </div>
-      <div className="px-5">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-full">
-                <Button variant="ghost" size="sm" className="-ml-3" disabled>
-                  Account
-                  <ChevronsUpDownIcon className="text-muted-foreground/60" />
-                </Button>
-              </TableHead>
-              {metaLabels.map((label) => (
-                <TableHead key={label}>
-                  <div className="flex items-center justify-end">
-                    <InfoTip label={label} />
-                    <Button variant="ghost" size="sm" className="-mr-3" disabled>
-                      {label}
-                      <ChevronsUpDownIcon className="text-muted-foreground/60" />
-                    </Button>
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {SKELETON_ROWS.map((row) => (
-              <TableRow key={row} className="hover:bg-transparent">
-                <TableCell className="w-full py-2.5">
-                  <Skeleton className="h-4 w-56" />
-                </TableCell>
-                {metaLabels.map((label) => (
-                  <TableCell key={label} className="py-2.5">
-                    <Skeleton className="ml-auto h-4 w-24" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className={`mt-8 ${BAND_CLASS}`}>
-        <div className="text-xl font-semibold">Net Worth</div>
-        <Skeleton className="h-5 w-32" />
-      </div>
+ *  computing — the grid's own per-column skeletons, under the real headers,
+ *  following the page's visibility state (known before any data arrives) so
+ *  the header doesn't jump when rows land. Assets and Net always exist on a
+ *  balance sheet; Liabilities may not, so no placeholder for it. */
+const SheetSkeleton: FC<{
+  config: NetWorthTableConfig;
+  onSizingChange: (updater: Updater<Record<string, number>>) => void;
+}> = ({ config, onSizingChange }) => (
+  <div role="status" aria-label="Loading accounts">
+    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
+      <h2 className="text-xl font-semibold">Assets</h2>
+      <Skeleton className="h-5 w-36 self-center" />
     </div>
-  );
-};
+    <div className={GRID_GUTTER_CLASS}>
+      <AccountsGrid rows={NO_ROWS} search="" config={config} onSizingChange={onSizingChange} loading />
+    </div>
+    <div className={`mt-8 ${BAND_CLASS}`}>
+      <div className="text-xl font-semibold">Net Worth</div>
+      <Skeleton className="h-5 w-32" />
+    </div>
+  </div>
+);
 
 // "No transactions yet", not "no accounts": the default workspace already
 // declares accounts on first start — what an empty report is missing is
@@ -457,37 +400,29 @@ const SheetEmpty: FC = () => (
 );
 
 /** The Net Worth page, shown in place of the chat thread. Laid out like
- *  a Claude-app content page: a centered column of capped width, a large
- *  title sitting well below the window chrome (clear of the drag region and
- *  the sidebar toggle), and the search box under it. Title and search are
- *  pinned; the sections and the Net line scroll. */
-export const NetWorthView: FC = () => {
-  const sheet = useNetWorth();
+ *  a Claude-app content page: a large title sitting well below the window
+ *  chrome (clear of the drag region and the sidebar toggle), the search box
+ *  and Columns menu beside it, pinned; the sections and the Net line
+ *  scroll. The body is exactly as wide as the tables' columns (never below
+ *  the default page cap), so showing the assertion pair or resizing a
+ *  column widens the page — past the window width the page scrolls
+ *  horizontally, like the Transactions register. `active` = the page is the
+ *  visible view; the layout keeps it mounted while hidden, and a hidden
+ *  page defers its idle-edge refetches to the next show. */
+export const NetWorthView: FC<{ active?: boolean }> = ({ active = true }) => {
+  const sheet = useNetWorth(active);
   const [search, setSearch] = useState("");
-  // The Columns choice, shared by every section table and the loading
-  // skeleton; owned here so one menu drives the whole page, saved on every
-  // toggle and restored on the next visit.
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
-  const setColumnShown = (id: OptionalColumnId, shown: boolean) =>
-    setColumnVisibility((prev) => {
-      const next = { ...prev, [id]: shown };
-      saveColumnVisibility(next);
-      return next;
-    });
+  // One config (visibility + sizing) drives every section grid and the
+  // loading skeleton, saved debounced and restored on the next visit.
+  const { config, applyConfig } = useTableConfig(loadTableConfig, saveTableConfig);
+  const onSizingChange = (updater: Updater<Record<string, number>>) => applyConfig("sizing", updater);
   // hledger emits a section even when it has no accounts; an empty side
   // renders nothing rather than a fabricated zero.
   const sections = sheet?.sections.filter((s) => s.rows.length > 0) ?? [];
-  // The assertion columns push the table past the default page cap; widen
-  // the page one step per extra column so nothing gets clipped where the
-  // window has the room, without leaving a four-column table adrift on a
-  // six-column-wide page. Narrow windows still fall back to the table's own
-  // horizontal scroll.
-  const extraColumns = (columnVisibility.asserted ? 1 : 0) + (columnVisibility.assertedAmount ? 1 : 0);
-  const pageWidth = extraColumns === 2 ? "max-w-6xl" : extraColumns === 1 ? "max-w-5xl" : "max-w-4xl";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className={`mx-auto flex w-full ${pageWidth} shrink-0 items-center justify-between gap-8 px-8 pt-16 pb-4`}>
+      <div className="mx-auto flex w-full max-w-4xl shrink-0 items-center justify-between gap-8 px-8 pt-16 pb-4">
         <h1 className="whitespace-nowrap text-3xl font-semibold">Net Worth</h1>
         {(sheet === null || sections.length > 0) && (
           // min-w-0 (not shrink-0): when the window narrows, the search
@@ -501,23 +436,26 @@ export const NetWorthView: FC = () => {
                 { id: "asserted", label: ASSERTED_ON_LABEL },
                 { id: "assertedAmount", label: ASSERTED_AMOUNT_LABEL },
               ]}
-              visibility={columnVisibility}
-              onToggle={setColumnShown}
+              visibility={config.visibility}
+              onToggle={(id, shown) => applyConfig("visibility", (prev) => ({ ...prev, [id]: shown }))}
             />
           </div>
         )}
       </div>
       {/* scroll-fade-t-6: content dissolves over 24px as it slides under the
           pinned search field, same as the chat viewport's top fade. */}
-      <div className="scroll-fade-t scroll-fade-t-6 min-h-0 flex-1 overflow-y-auto">
+      <div className="scroll-fade-t scroll-fade-t-6 min-h-0 flex-1 overflow-auto">
         {/* The empty view sits directly in the scroll container (not the
             width column) so it can center itself in the body's height. */}
         {sheet !== null && sections.length === 0 ? (
           <SheetEmpty />
         ) : (
-          <div className={`mx-auto w-full ${pageWidth} pb-12`}>
+          // The body is as wide as the tables' columns plus the grid
+          // gutters (never below the 52rem page floor); past the window
+          // width the page scrolls horizontally, like Transactions.
+          <div className="mx-auto pb-12" style={{ width: `max(52rem, ${tableWidth(config) + GRID_GUTTER_PX}px)` }}>
             {sheet === null ? (
-              <SheetSkeleton columnVisibility={columnVisibility} />
+              <SheetSkeleton config={config} onSizingChange={onSizingChange} />
             ) : (
               <>
                 {sections.map((section) => (
@@ -526,7 +464,8 @@ export const NetWorthView: FC = () => {
                     section={section}
                     baseCommodity={sheet.baseCommodity}
                     search={search}
-                    columnVisibility={columnVisibility}
+                    config={config}
+                    onSizingChange={onSizingChange}
                   />
                 ))}
                 {/* The closing Net band, straight from hledger's own net. */}
