@@ -334,7 +334,8 @@ describe("ChatLayout Net Worth view", () => {
     fireEvent.click(sheetButton());
     fireEvent.click(screen.getByRole("button", { name: "Select thread stub" }));
 
-    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    // Hidden, not unmounted — the page's state survives the round trip.
+    expect((screen.getByTestId("net-worth-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(threadWrapper().className).not.toContain("hidden");
   });
 
@@ -343,7 +344,7 @@ describe("ChatLayout Net Worth view", () => {
     fireEvent.click(sheetButton());
     fireEvent.click(screen.getByRole("button", { name: "New chat stub" }));
 
-    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect((screen.getByTestId("net-worth-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(threadWrapper().className).not.toContain("hidden");
   });
 
@@ -352,7 +353,7 @@ describe("ChatLayout Net Worth view", () => {
     fireEvent.click(sheetButton());
     fireEvent.keyDown(document.body, { key: "n", metaKey: true });
 
-    expect(screen.queryByTestId("net-worth-view")).toBeNull();
+    expect((screen.getByTestId("net-worth-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(threadWrapper().className).not.toContain("hidden");
     expect(h.switchToNewThread).toHaveBeenCalledTimes(1);
   });

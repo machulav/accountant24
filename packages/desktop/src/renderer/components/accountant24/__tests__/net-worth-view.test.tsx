@@ -106,12 +106,12 @@ const renderView = (isRunning = false) =>
 const section = (name: string) => within(screen.getByRole("region", { name }));
 
 /** The rendered account order of one section's grid: each body row's
- *  account-cell title (the full path, also the truncation tooltip). */
+ *  account pill text (the full path). */
 const accountOrder = (sectionName: string) =>
   section(sectionName)
     .getAllByRole("row")
     .slice(1) // the column-header row
-    .map((row) => row.querySelector("[title]")?.getAttribute("title"));
+    .map((row) => row.querySelector("[data-directive-type=account]")?.textContent);
 
 /** Turn both assertion columns on through the header's Columns menu, then
  *  close it so the tables are clickable again. */
@@ -149,7 +149,7 @@ describe("<NetWorthView />", () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
     // Settle on loaded data first — the skeleton also carries an Assets band.
-    await screen.findByTitle("assets:cash");
+    await screen.findByText("assets:cash");
     expect(screen.getByRole("heading", { level: 2, name: "Assets" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Liabilities" })).toBeInTheDocument();
     // The assets total includes converted holdings: an estimate, so ~.
@@ -163,7 +163,7 @@ describe("<NetWorthView />", () => {
   it("should show liabilities with hledger's positive sign", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    expect(await screen.findByTitle("liabilities:creditcard")).toBeInTheDocument();
+    expect(await screen.findByText("liabilities:creditcard")).toBeInTheDocument();
     // The account row (holding + value) and the section total all read
     // €346.75 — never a minus.
     expect(screen.getAllByText("346.75 EUR")).toHaveLength(3);
@@ -194,10 +194,11 @@ describe("<NetWorthView />", () => {
     expect(screen.queryByRole("heading", { level: 2, name: "Liabilities" })).not.toBeInTheDocument();
   });
 
-  it("should list complete account paths sorted A-Z by default", async () => {
+  it("should list complete account paths as account pills, sorted A-Z by default", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    expect(await screen.findByTitle("assets:cash")).toHaveTextContent("assets:cash");
+    // The chat's account pill, same as the register.
+    expect((await screen.findByText("assets:cash")).closest("[data-directive-type=account]")).toBeInTheDocument();
     // The fixture arrives in hledger's order (cash, darka, bank); the table
     // re-sorts it alphabetically.
     expect(accountOrder("Assets")).toEqual(["assets:bank", "assets:cash", "assets:darka:etf:sxr8"]);
@@ -217,7 +218,7 @@ describe("<NetWorthView />", () => {
   it("should show each account's last asserted date, and an em dash when it was never asserted, when toggled on", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    await screen.findByTitle("assets:cash");
+    await screen.findByText("assets:cash");
     await showAssertionColumns();
     // One sortable header per section table.
     expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
@@ -232,7 +233,7 @@ describe("<NetWorthView />", () => {
   it("should show the last asserted amount in the account's own commodity when toggled on", async () => {
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
     renderView();
-    await screen.findByTitle("assets:cash");
+    await screen.findByText("assets:cash");
     await showAssertionColumns();
     expect(screen.getAllByRole("button", { name: "Asserted Amount" })).toHaveLength(2);
     // Formatted like Holding: locale digits, commodity suffix, the amount's
@@ -255,7 +256,7 @@ describe("<NetWorthView />", () => {
       baseCommodity: null,
     });
     renderView();
-    await screen.findByTitle("assets:legacy");
+    await screen.findByText("assets:legacy");
     await showAssertionColumns();
     expect(screen.getByText("2026-05-01")).toBeInTheDocument();
     // Only the amount cell falls back to the dash.
@@ -352,7 +353,7 @@ describe("<NetWorthView />", () => {
       baseCommodity: null,
     });
     renderView();
-    await screen.findByTitle("assets:bank:mono");
+    await screen.findByText("assets:bank:mono");
     expect(screen.queryByText(/~/)).not.toBeInTheDocument();
   });
 
@@ -386,7 +387,7 @@ describe("<NetWorthView />", () => {
     it("should sort Z-A when the Account header is clicked", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await userEvent.click(assetsButton("Account"));
       expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:cash", "assets:bank"]);
     });
@@ -394,7 +395,7 @@ describe("<NetWorthView />", () => {
     it("should sort by market value, biggest first, when the Value header is clicked", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       // €1,920.15 (darka) > €115.57 (cash) > €50.00 (bank).
       await userEvent.click(assetsButton("Value"));
       expect(accountOrder("Assets")).toEqual(["assets:darka:etf:sxr8", "assets:cash", "assets:bank"]);
@@ -406,7 +407,7 @@ describe("<NetWorthView />", () => {
     it("should sort by the native quantity, biggest first, when the Holding header is clicked", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       // Primary native quantities: cash=1,408.26, bank=50, darka=22.45 — a
       // plain number sort so the column reads monotonic.
       await userEvent.click(assetsButton("Holding"));
@@ -419,7 +420,7 @@ describe("<NetWorthView />", () => {
     it("should sort by asserted date, most recent first, with never-asserted rows last", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       await userEvent.click(assetsButton("Asserted On"));
       // bank (07-12) > cash (06-15) > darka (never asserted).
@@ -432,7 +433,7 @@ describe("<NetWorthView />", () => {
     it("should sort by the asserted amount, biggest first, with never-asserted rows counting as zero", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       // Asserted quantities: cash=1,400, bank=45, darka=0 (never asserted) —
       // a plain number sort, like Holding.
@@ -459,7 +460,7 @@ describe("<NetWorthView />", () => {
         ],
       });
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       const liabilitiesValue = section("Liabilities").getByRole("button", { name: "Value" });
       await userEvent.click(liabilitiesValue);
       // Liabilities re-sorted by value, biggest first...
@@ -487,7 +488,7 @@ describe("<NetWorthView />", () => {
         baseCommodity: null,
       });
       renderView();
-      await screen.findByTitle("assets:closed");
+      await screen.findByText("assets:closed");
       // The amount-less row counts as zero and sinks below real holdings.
       await userEvent.click(assetsButton("Holding"));
       expect(accountOrder("Assets")).toEqual(["assets:wallet:big", "assets:wallet:small", "assets:closed"]);
@@ -498,14 +499,18 @@ describe("<NetWorthView />", () => {
   });
 
   describe("column explanations", () => {
+    /** The inline marker inside a sort pill is a decorative hover-only span
+     *  (a nested labeled widget would pollute the pill's accessible name),
+     *  so it is addressed by its slot, scoped to its header pill. */
     const hoverInfo = async (label: string) => {
-      await userEvent.hover(section("Assets").getByRole("button", { name: `About ${label}` }));
+      const pill = section("Assets").getByRole("button", { name: label });
+      await userEvent.hover(pill.querySelector("[data-slot=column-help]") as Element);
     };
 
     it("should explain the Holding column behind its info marker", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await hoverInfo("Holding");
       expect(
         await screen.findByText(/What the account actually holds: cash in its own currency, shares, or crypto/),
@@ -515,7 +520,7 @@ describe("<NetWorthView />", () => {
     it("should explain the Asserted On column, including the dash", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       await hoverInfo("Asserted On");
       expect(
@@ -529,7 +534,7 @@ describe("<NetWorthView />", () => {
     it("should explain the Asserted Amount column, including the dash", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       await hoverInfo("Asserted Amount");
       expect(
@@ -543,7 +548,7 @@ describe("<NetWorthView />", () => {
     it("should explain the Value column, including the ~ marker", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await hoverInfo("Value");
       expect(
         await screen.findByText(
@@ -558,8 +563,9 @@ describe("<NetWorthView />", () => {
     it("should give the Account column no info marker", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
-      expect(screen.queryByRole("button", { name: "About Account" })).not.toBeInTheDocument();
+      await screen.findByText("assets:cash");
+      const accountPill = section("Assets").getByRole("button", { name: "Account" });
+      expect(accountPill.querySelector("[data-slot=column-help]")).toBeNull();
     });
   });
 
@@ -567,7 +573,7 @@ describe("<NetWorthView />", () => {
     it("should filter every section by account path, case-insensitively", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "CASH");
       expect(accountOrder("Assets")).toEqual(["assets:cash"]);
       // The liabilities table has no matching account.
@@ -577,7 +583,7 @@ describe("<NetWorthView />", () => {
     it("should show empty messages when nothing matches, and restore rows when cleared", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       const box = screen.getByRole("searchbox", { name: "Search accounts" });
       await userEvent.type(box, "zzz");
       expect(screen.getAllByText("No matching accounts")).toHaveLength(2);
@@ -590,7 +596,7 @@ describe("<NetWorthView />", () => {
     it("should hide both assertion columns by default", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       expect(screen.queryByRole("button", { name: "Asserted On" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
       expect(screen.queryByText("2026-07-12")).not.toBeInTheDocument();
@@ -600,7 +606,7 @@ describe("<NetWorthView />", () => {
     it("should list only the two assertion columns in the Columns menu, unchecked by default", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await userEvent.click(screen.getByRole("button", { name: "Columns" }));
       const items = await screen.findAllByRole("menuitemcheckbox");
       // Account, Holding, and Value are the page's spine: never listed.
@@ -613,7 +619,7 @@ describe("<NetWorthView />", () => {
     it("should show the assertion columns in both section tables when toggled on", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       for (const name of ["Assets", "Liabilities"]) {
         expect(section(name).getByRole("button", { name: "Asserted On" })).toBeInTheDocument();
@@ -624,7 +630,7 @@ describe("<NetWorthView />", () => {
     it("should persist the column choice and restore it on remount", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       const { unmount } = renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await showAssertionColumns();
       // The write is debounced (a resize drag never writes per pointer move).
       await waitFor(() =>
@@ -637,7 +643,7 @@ describe("<NetWorthView />", () => {
 
       // A fresh mount reads the stored choice: no menu interaction needed.
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
       expect(screen.getByText("1,400.00 UAH")).toBeInTheDocument();
     });
@@ -668,7 +674,7 @@ describe("<NetWorthView />", () => {
       );
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       expect(screen.getAllByRole("button", { name: "Asserted On" })).toHaveLength(2);
       expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
       expect(screen.getByText("2026-07-12")).toBeInTheDocument();
@@ -680,7 +686,7 @@ describe("<NetWorthView />", () => {
       for (const stored of ["not json", JSON.stringify({ visibility: { asserted: "yes" } }), JSON.stringify(null)]) {
         window.localStorage.setItem("accountant24.net-worth-table", stored);
         const { unmount } = renderView();
-        await screen.findByTitle("assets:cash");
+        await screen.findByText("assets:cash");
         expect(screen.queryByRole("button", { name: "Asserted On" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Asserted Amount" })).not.toBeInTheDocument();
         unmount();
@@ -690,7 +696,7 @@ describe("<NetWorthView />", () => {
     it("should span the empty-search row across only the visible columns", async () => {
       vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
       renderView();
-      await screen.findByTitle("assets:cash");
+      await screen.findByText("assets:cash");
       await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "zzz");
       // The three spine columns plus the grid's trailing resize-fill column.
       const emptyCell = () => screen.getAllByText("No matching accounts")[0]?.closest("td");
@@ -743,6 +749,58 @@ describe("<NetWorthView />", () => {
       </Chrome>,
     );
     await waitFor(() => expect(ledgerApi.netWorth).toHaveBeenCalledTimes(2));
+  });
+
+  it("should defer the idle-edge refetch while hidden and refresh once on the next show", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+    const { rerender } = render(
+      <Chrome isRunning={false}>
+        <NetWorthView active={false} />
+      </Chrome>,
+    );
+    await screen.findByText("~115.57 EUR");
+    expect(ledgerApi.netWorth).toHaveBeenCalledTimes(1);
+
+    // A whole turn passes behind the hidden page: no report query runs.
+    rerender(
+      <Chrome isRunning={true}>
+        <NetWorthView active={false} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    rerender(
+      <Chrome isRunning={false}>
+        <NetWorthView active={false} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    expect(ledgerApi.netWorth).toHaveBeenCalledTimes(1);
+
+    // The show pays the deferred refresh, once.
+    rerender(
+      <Chrome isRunning={false}>
+        <NetWorthView active={true} />
+      </Chrome>,
+    );
+    await waitFor(() => expect(ledgerApi.netWorth).toHaveBeenCalledTimes(2));
+  });
+
+  it("should not refetch on show when no turn finished while hidden", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA);
+    const { rerender } = render(
+      <Chrome isRunning={false}>
+        <NetWorthView active={false} />
+      </Chrome>,
+    );
+    await screen.findByText("~115.57 EUR");
+
+    rerender(
+      <Chrome isRunning={false}>
+        <NetWorthView active={true} />
+      </Chrome>,
+    );
+    await act(async () => {});
+    expect(ledgerApi.netWorth).toHaveBeenCalledTimes(1);
   });
 
   it("should keep the current rows visible while a refetch is in flight", async () => {

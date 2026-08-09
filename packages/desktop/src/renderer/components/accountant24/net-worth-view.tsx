@@ -17,10 +17,11 @@
 // independently per section. All figures are hledger-computed; only the
 // presentation happens here. Data refreshes when the agent finishes a turn.
 
-import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
+import type { Column, ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import { InfoIcon, WalletIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
 import { AppColumnHeader } from "@/components/accountant24/app-column-header";
+import { MentionPill } from "@/components/accountant24/mentions";
 import { PageEmpty } from "@/components/accountant24/page-empty";
 import { useTableConfig } from "@/components/accountant24/table-config";
 import { twoStateSortingChange, useAppTable } from "@/components/accountant24/use-app-table";
@@ -28,11 +29,12 @@ import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { ColumnsMenu } from "./columns-menu";
 import {
+  COLUMN_MIN_SIZES,
   COLUMN_SIZES,
   loadTableConfig,
   type NetWorthTableConfig,
@@ -100,35 +102,63 @@ const COLUMN_HELP: Record<string, ReactNode> = {
 };
 
 /** A visible little info marker; hovering it explains the spot it marks —
- *  the column help for its label by default, or the given children. A
- *  separate target from the text it explains, so the help is discoverable
- *  and the text stays inert. */
-const InfoTip: FC<{ label: string; children?: ReactNode }> = ({ label, children }) => (
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger
-        render={
+ *  the column help for its label by default, or the given children.
+ *  `inline` renders it for use INSIDE a sort pill: a nested <button> would
+ *  be invalid DOM, and a labeled widget would pollute the pill's
+ *  accessible name, so the inline marker is a decorative hover-only span
+ *  (data-slot="column-help"), hidden from the a11y tree. The standalone
+ *  Button variant keeps full keyboard access where it is used (the bands). */
+const InfoTip: FC<{ label: string; inline?: boolean; children?: ReactNode }> = ({
+  label,
+  inline = false,
+  children,
+}) => (
+  // No local TooltipProvider: the app-level provider (App.tsx) owns the
+  // dwell delay and the shared warm-up across neighboring tooltips.
+  <Tooltip>
+    <TooltipTrigger
+      render={
+        inline ? (
+          <span
+            aria-hidden
+            data-slot="column-help"
+            className="flex size-5 items-center justify-center text-muted-foreground/70 hover:text-foreground"
+          />
+        ) : (
           <Button
             variant="ghost"
             size="icon"
             aria-label={`About ${label}`}
             className="size-5 text-muted-foreground/70 hover:text-foreground"
           />
-        }
-      >
-        <InfoIcon className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-60">
-        {children ?? COLUMN_HELP[label]}
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+        )
+      }
+    >
+      <InfoIcon className="size-3.5" />
+    </TooltipTrigger>
+    <TooltipContent side="top" className="max-w-60">
+      {children ?? COLUMN_HELP[label]}
+    </TooltipContent>
+  </Tooltip>
 );
 
 /** The money/meta columns put the biggest figures first on the first click
  *  (the vendored header ignores `sortDescFirst`, so the sorting handler
  *  applies the policy). */
 const DESC_FIRST: ReadonlySet<string> = new Set(["asserted", "assertedAmount", "holding", "value"]);
+
+/** A money/meta column header: the info marker rides inside the sort pill
+ *  (the vendored header's icon slot), so marker and label right-align over
+ *  the figures as one unit and the marker can never detach from its label,
+ *  however narrow the column is resized. */
+const InfoColumnHeader: FC<{
+  column: Column<DataGridFeatures, AccountBalance, unknown>;
+  title: string;
+}> = ({ column, title }) => (
+  <div className="flex items-center justify-end">
+    <AppColumnHeader column={column} title={title} icon={<InfoTip inline label={title} />} />
+  </div>
+);
 
 /** The accounts data grid columns. Sorting semantics:
  *  - Account: A-Z on the full path (the table's default sort);
@@ -150,29 +180,24 @@ const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
     enableHiding: false,
     sortFn: "text",
     size: COLUMN_SIZES.account,
-    minSize: 104,
+    minSize: COLUMN_MIN_SIZES.account,
     header: ({ column }) => <AppColumnHeader column={column} title="Account" />,
-    // The full path, truncating inside the fixed column (complete path in
-    // the tooltip).
+    // The chat's account pill, like the register: the full path, truncating
+    // inside the pill on a fixed column (complete path in the tooltip).
     cell: ({ row }) => (
-      <div className="truncate" title={row.original.name}>
-        {row.original.name}
+      <div className="flex h-6 items-center">
+        <MentionPill truncate type="account" label={row.original.name} />
       </div>
     ),
-    meta: { headerTitle: "Account", skeleton: <Skeleton className="h-4 w-56" /> },
+    meta: { headerTitle: "Account", skeleton: <Skeleton className="h-6 w-52 rounded-3xl" /> },
   },
   {
     id: "asserted",
     accessorFn: (row) => row.assertedOn ?? "",
     sortFn: "text",
     size: COLUMN_SIZES.asserted,
-    minSize: 120,
-    header: ({ column }) => (
-      <div className="flex items-center justify-end">
-        <InfoTip label={ASSERTED_ON_LABEL} />
-        <AppColumnHeader column={column} title={ASSERTED_ON_LABEL} />
-      </div>
-    ),
+    minSize: COLUMN_MIN_SIZES.asserted,
+    header: ({ column }) => <InfoColumnHeader column={column} title={ASSERTED_ON_LABEL} />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by. An em dash marks accounts whose
     // balance was never asserted.
@@ -188,13 +213,8 @@ const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
     accessorFn: (row) => row.assertedAmount?.quantity ?? 0,
     sortFn: "basic",
     size: COLUMN_SIZES.assertedAmount,
-    minSize: 160,
-    header: ({ column }) => (
-      <div className="flex items-center justify-end">
-        <InfoTip label={ASSERTED_AMOUNT_LABEL} />
-        <AppColumnHeader column={column} title={ASSERTED_AMOUNT_LABEL} />
-      </div>
-    ),
+    minSize: COLUMN_MIN_SIZES.assertedAmount,
+    header: ({ column }) => <InfoColumnHeader column={column} title={ASSERTED_AMOUNT_LABEL} />,
     // The asserted native amount, formatted like Holding; an em dash marks
     // accounts never asserted (or an assertion whose amount the journal
     // export didn't carry), the same placeholder as the date column.
@@ -212,13 +232,8 @@ const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
     sortFn: "basic",
     enableHiding: false,
     size: COLUMN_SIZES.holding,
-    minSize: 104,
-    header: ({ column }) => (
-      <div className="flex items-center justify-end">
-        <InfoTip label="Holding" />
-        <AppColumnHeader column={column} title="Holding" />
-      </div>
-    ),
+    minSize: COLUMN_MIN_SIZES.holding,
+    header: ({ column }) => <InfoColumnHeader column={column} title="Holding" />,
     cell: ({ row }) => formatAmounts(row.original.amounts, "native", navigator.language),
     meta: {
       headerTitle: "Holding",
@@ -232,13 +247,8 @@ const columns: ColumnDef<DataGridFeatures, AccountBalance>[] = [
     sortFn: "basic",
     enableHiding: false,
     size: COLUMN_SIZES.value,
-    minSize: 100,
-    header: ({ column }) => (
-      <div className="flex items-center justify-end">
-        <InfoTip label="Value" />
-        <AppColumnHeader column={column} title="Value" />
-      </div>
-    ),
+    minSize: COLUMN_MIN_SIZES.value,
+    header: ({ column }) => <InfoColumnHeader column={column} title="Value" />,
     cell: ({ row }) => formatValue(row.original, navigator.language),
     meta: {
       headerTitle: "Value",
@@ -305,14 +315,10 @@ const AccountsGrid: FC<{
 /** The soft summary-band surface shared by the section headers and the Net
  *  line: label left, hledger's figure right, on the app's muted panel. The
  *  label centers on the figure block, so it stays mid-band when the figure
- *  grows a second (muted) line. px-5 inside mx-3 keeps the text on the px-8
- *  line of the page title. */
-const BAND_CLASS = "mx-3 flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
-
-/** The grids' side gutter: with the dense cells' own px-2, the table text
- *  lines up with the bands' text (mx-3 + px-5 = 32px). */
-const GRID_GUTTER_CLASS = "px-6";
-const GRID_GUTTER_PX = 48;
+ *  grows a second (muted) line. No side margins: the band's edges sit on
+ *  the page's content edges, flush with the grid — one left line under the
+ *  pinned title, one right line under the Columns button. */
+const BAND_CLASS = "flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
 
 /** A summary band's figure. When the valuation could not fold every leg
  *  into the base currency, the base leg leads at the band's weight and the
@@ -353,12 +359,10 @@ const SheetSection: FC<{
 }> = ({ section, baseCommodity, search, config, onSizingChange }) => (
   <section aria-label={section.name}>
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
-      <h2 className="text-xl font-semibold">{section.name}</h2>
+      <h2 className="text-lg font-semibold">{section.name}</h2>
       <BandValue figure={section.total} baseCommodity={baseCommodity} />
     </div>
-    <div className={GRID_GUTTER_CLASS}>
-      <AccountsGrid rows={section.rows} search={search} config={config} onSizingChange={onSizingChange} />
-    </div>
+    <AccountsGrid rows={section.rows} search={search} config={config} onSizingChange={onSizingChange} />
   </section>
 );
 
@@ -375,14 +379,12 @@ const SheetSkeleton: FC<{
 }> = ({ config, onSizingChange }) => (
   <div role="status" aria-label="Loading accounts">
     <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
-      <h2 className="text-xl font-semibold">Assets</h2>
+      <h2 className="text-lg font-semibold">Assets</h2>
       <Skeleton className="h-5 w-36 self-center" />
     </div>
-    <div className={GRID_GUTTER_CLASS}>
-      <AccountsGrid rows={NO_ROWS} search="" config={config} onSizingChange={onSizingChange} loading />
-    </div>
+    <AccountsGrid rows={NO_ROWS} search="" config={config} onSizingChange={onSizingChange} loading />
     <div className={`mt-8 ${BAND_CLASS}`}>
-      <div className="text-xl font-semibold">Net Worth</div>
+      <div className="text-lg font-semibold">Net Worth</div>
       <Skeleton className="h-5 w-32" />
     </div>
   </div>
@@ -450,10 +452,11 @@ export const NetWorthView: FC<{ active?: boolean }> = ({ active = true }) => {
         {sheet !== null && sections.length === 0 ? (
           <SheetEmpty />
         ) : (
-          // The body is as wide as the tables' columns plus the grid
-          // gutters (never below the 52rem page floor); past the window
-          // width the page scrolls horizontally, like Transactions.
-          <div className="mx-auto pb-12" style={{ width: `max(52rem, ${tableWidth(config) + GRID_GUTTER_PX}px)` }}>
+          // The body is exactly as wide as the tables' columns (never below
+          // the 52rem page floor — the same span as the toolbar's content
+          // box, title edge to Columns edge); past the window width the
+          // page scrolls horizontally, like Transactions.
+          <div className="mx-auto pb-12" style={{ width: `max(52rem, ${tableWidth(config)}px)` }}>
             {sheet === null ? (
               <SheetSkeleton config={config} onSizingChange={onSizingChange} />
             ) : (
@@ -470,7 +473,7 @@ export const NetWorthView: FC<{ active?: boolean }> = ({ active = true }) => {
                 ))}
                 {/* The closing Net band, straight from hledger's own net. */}
                 <div className={`mt-8 ${BAND_CLASS}`}>
-                  <div className="text-xl font-semibold">Net Worth</div>
+                  <div className="text-lg font-semibold">Net Worth</div>
                   <BandValue figure={sheet.net} baseCommodity={sheet.baseCommodity} />
                 </div>
               </>

@@ -174,8 +174,13 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts for the filter chip count EVERY leg, matching the
     // filter's any-leg semantics (the accessor covers only the shown leg).
     getUniqueValues: (row) => row.postings.map((p) => p.account),
-    size: 250,
-    minSize: 104,
+    // With the other defaults, fills the 52rem page floor exactly (36 + 120
+    // + 200 + 326 + 150) so the Amount column ends on the toolbar's right
+    // edge instead of leaving slack in the grid's trailing fill column.
+    size: 326,
+    // Readability floor: below this the account pills crush into a
+    // meaningless "assets…".
+    minSize: 220,
     header: ({ column }) => <AppColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
@@ -197,8 +202,6 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
         </div>
       );
     },
-    // The widest default: account paths are the page's longest text, and the
-    // table sizes itself from the column widths (see getTotalSize below).
     meta: {
       headerTitle: "Account",
       cellClassName: "align-top",
@@ -223,7 +226,9 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       );
     },
     size: 150,
-    minSize: 100,
+    // Data-fit floor: a typical formatted amount ("5,414.60 EUR") stays
+    // readable at the minimum (the other minimums are header-fit).
+    minSize: 140,
     header: ({ column }) => <AppColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);

@@ -14,7 +14,7 @@ import { unstable_useMentionAdapter } from "@assistant-ui/react";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/shadcn/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
@@ -85,20 +85,20 @@ export const MentionPill: FC<{
   );
   if (!truncate) return badge;
   return (
-    <TooltipProvider delay={500}>
-      <Tooltip
-        open={tooltipOpen}
-        onOpenChange={(open) => {
-          const el = pillRef.current;
-          setTooltipOpen(open && !!el && el.scrollWidth > el.clientWidth);
-        }}
-      >
-        <TooltipTrigger ref={pillRef} render={badge} />
-        <TooltipContent side="top" className="max-w-80 break-words">
-          {label}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    // No local TooltipProvider: the app-level provider (App.tsx) owns the
+    // dwell delay and the shared warm-up across neighboring tooltips.
+    <Tooltip
+      open={tooltipOpen}
+      onOpenChange={(open) => {
+        const el = pillRef.current;
+        setTooltipOpen(open && !!el && el.scrollWidth > el.clientWidth);
+      }}
+    >
+      <TooltipTrigger ref={pillRef} render={badge} />
+      <TooltipContent side="top" className="max-w-80 break-words">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 };
 

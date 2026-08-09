@@ -1,5 +1,8 @@
 // Persisted table configuration for the Net Worth view: its storage key
-// and column set over the shared load/save core (table-config.ts).
+// and column set over the shared load/save core (table-config.ts), plus
+// the static column widths — the same model as the Transactions register:
+// fixed defaults, resizing moves only the dragged column, and extra
+// columns grow the table past the page floor.
 
 import { loadStoredTableConfig, saveStoredTableConfig, type TableConfig } from "./table-config";
 
@@ -14,14 +17,29 @@ export const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   assertedAmount: false,
 };
 
-/** Every column's default width, in display order — also the ids the
- *  sizing validation accepts and what the page-width math sums. */
+/** Every column's default width, in display order. The default-visible set
+ *  fills the 52rem page floor exactly (492 + 170 + 170 — the toolbar's
+ *  content span, title edge to Columns edge); toggling the assertion pair
+ *  grows the table past the floor and the page scrolls, the same way the
+ *  Transactions register grows when its optional columns come on. */
 export const COLUMN_SIZES: Record<string, number> = {
-  account: 400,
-  asserted: 130,
-  assertedAmount: 170,
-  holding: 180,
-  value: 160,
+  account: 492,
+  asserted: 170,
+  assertedAmount: 200,
+  holding: 170,
+  value: 170,
+};
+
+/** Every column's minimum: its header pill (measured rendered widths:
+ *  Account 93, Asserted On 146, Asserted Amount 178, Holding 115, Value
+ *  100) plus the cell's 8px padding on each side — at the minimum the pill
+ *  sits with the same breathing room to both column separators. */
+export const COLUMN_MIN_SIZES: Record<string, number> = {
+  account: 110,
+  asserted: 162,
+  assertedAmount: 194,
+  holding: 132,
+  value: 116,
 };
 
 export type NetWorthTableConfig = TableConfig;
@@ -34,11 +52,9 @@ export function saveTableConfig(config: NetWorthTableConfig): void {
   saveStoredTableConfig(NET_WORTH_TABLE_KEY, config);
 }
 
-/** The width the section tables render at: the visible columns' widths
- *  (resized or default) summed — computed from the config alone, so the
- *  page can size the shared width wrapper (section bands, the Net band)
- *  without reaching into a table instance. Mirrors TanStack's
- *  getTotalSize() for the same columns. */
+/** The width the section tables render at (the visible columns, resized or
+ *  default) — what the page sizes the shared width wrapper (section bands,
+ *  the Net band) with. Mirrors TanStack's getTotalSize(). */
 export function tableWidth(config: NetWorthTableConfig): number {
   return Object.entries(COLUMN_SIZES).reduce(
     (total, [id, size]) => (config.visibility[id] === false ? total : total + (config.sizing[id] ?? size)),
