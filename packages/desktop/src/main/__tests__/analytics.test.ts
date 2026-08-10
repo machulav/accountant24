@@ -202,21 +202,6 @@ describe("trackQuit()", () => {
   });
 });
 
-describe("trackAnalyticsToggle()", () => {
-  it("should emit analytics_disabled even though the setting is already off", async () => {
-    patchSettings({ analyticsEnabled: false });
-    const { trackAnalyticsToggle } = await setup();
-    trackAnalyticsToggle(false);
-    expect(events()).toEqual([["analytics_disabled"]]);
-  });
-
-  it("should emit analytics_enabled right after an opt-in", async () => {
-    const { trackAnalyticsToggle } = await setup();
-    trackAnalyticsToggle(true);
-    expect(events()).toEqual([["analytics_enabled"]]);
-  });
-});
-
 describe("skill events", () => {
   it("should emit skill_added with numeric counts", async () => {
     const { trackSkillAdded } = await setup();

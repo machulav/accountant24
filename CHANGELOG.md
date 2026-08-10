@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.2.14
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.13...v0.2.14)
+
+### 🚀 Features
+
+- Optional assertion columns on the Net Worth page ([#43](https://github.com/machulav/accountant24/pull/43))
+- Cleaner file attachment cards in the chat and composer ([#44](https://github.com/machulav/accountant24/pull/44))
+- Cleaner code blocks in the chat ([#45](https://github.com/machulav/accountant24/pull/45))
+- Clearer net worth summaries for multiple currencies ([#46](https://github.com/machulav/accountant24/pull/46))
+- Transactions page with search and filters ([#47](https://github.com/machulav/accountant24/pull/47))
+
+### 🐞 Bug Fixes
+
+- Rename the "Commit & Push" tool to "Commit" ([#42](https://github.com/machulav/accountant24/pull/42))
+
+## v0.2.13
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.12...v0.2.13)
+
+### 🚀 Features
+
+- Seamless conversation compaction with a live status in the chat ([#31](https://github.com/machulav/accountant24/pull/31))
+- Move the analytics opt-out to the settings file ([#34](https://github.com/machulav/accountant24/pull/34))
+- Fast, granular memory updates with proactive remembering ([#38](https://github.com/machulav/accountant24/pull/38))
+- Friendly labels for the built-in tool steps in the chat ([#40](https://github.com/machulav/accountant24/pull/40))
+
+### 🏡 Chore
+
+- Switch the license from MIT to Apache 2.0 ([#33](https://github.com/machulav/accountant24/pull/33))
+- Restructure the system prompt into topic sections ([#39](https://github.com/machulav/accountant24/pull/39))
+- Remove the unused pi slash commands ([#41](https://github.com/machulav/accountant24/pull/41))
+
 ## v0.2.12
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.11...v0.2.12)

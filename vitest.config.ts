@@ -52,6 +52,7 @@ export default defineConfig({
         "**/*.d.ts",
         "**/index.ts",
         "**/components/shadcn/**",
+        "**/components/reui/**",
         "packages/pi-extension/src/entry.ts",
         "packages/pi-extension/src/spawn.ts",
         "packages/desktop/src/renderer/main.tsx",
@@ -66,10 +67,10 @@ export default defineConfig({
       // Kept just under the current effective baseline so the gate is honest
       // (green today) and each new test suite raises it.
       thresholds: {
-        statements: 97.7,
-        branches: 92.1,
-        functions: 97.7,
-        lines: 98.8,
+        statements: 98.05,
+        branches: 93.45,
+        functions: 98.0,
+        lines: 99.0,
       },
     },
   },

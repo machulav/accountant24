@@ -1,1 +1,3 @@
-export { getMemory, type SaveMemoryResult, saveMemory } from "./memory";
+export { guardMemoryToolCall } from "./guard";
+export { getMemory } from "./memory";
+export { isMemoryFilePath } from "./paths";

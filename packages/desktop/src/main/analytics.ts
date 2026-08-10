@@ -2,7 +2,7 @@
 // (one event per launch, no renderer SDK, no extra IPC channel). Aptabase is
 // privacy-first by design: no cookies, no persistent device id, IP only used as
 // an ephemeral daily-rotated hash and never stored. Everything here is gated on
-// the user's opt-out (Settings → Privacy).
+// the user's opt-out (`analyticsEnabled: false` in ~/Accountant24/app-settings.json).
 
 import { initialize, trackEvent } from "@aptabase/electron/main";
 import { ipcMain } from "electron";
@@ -21,8 +21,7 @@ export function initAnalytics(): void {
 }
 
 /** The single opt-out gate: every event flows through here (directly or via
- *  trackOnce). Callers fire unconditionally and never check the setting —
- *  the only exception is trackAnalyticsToggle (see its note). */
+ *  trackOnce). Callers fire unconditionally and never check the setting. */
 function track(event: string, props?: EventProps): void {
   if (!isAnalyticsEnabled()) return;
   trackEvent(event, props);
@@ -83,14 +82,6 @@ export function trackUpdateInstallClicked(toVersion: string): void {
  *  to one event per session). */
 export function trackUpdateFailed(kind: "check" | "download"): void {
   track("update_failed", { kind });
-}
-
-/** Record the user flipping the analytics opt-out. The one caller that bypasses
- *  the gate: "disabled" must be the last thing we send before going quiet (the
- *  setting has already flipped to off when this fires), and "enabled" is sent
- *  right after they opt back in. */
-export function trackAnalyticsToggle(enabled: boolean): void {
-  trackEvent(enabled ? "analytics_enabled" : "analytics_disabled");
 }
 
 /** Record a skill add from a repository landing in the store. Counts only —

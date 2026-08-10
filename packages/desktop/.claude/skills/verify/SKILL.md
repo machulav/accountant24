@@ -43,7 +43,7 @@ with commands: `targets`, `eval <js>` (Runtime.evaluate with awaitPromise),
 ## Restore state
 
 Toggles persist to `~/Accountant24/app-settings.json` immediately. If probing
-changed `enabledModels` / `analyticsEnabled`, restore the file afterwards
+changed `enabledModels`, restore the file afterwards
 (all-models-enabled is stored as `enabledModels: []`). Kill your dev instance
 when done: `pkill -f "accountant24/node_modules/electron"` and
 `pkill -f "accountant24/node_modules/.bin/electron-vite"`.

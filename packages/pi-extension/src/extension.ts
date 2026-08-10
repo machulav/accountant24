@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { accountsCommand, memoryCommand, payeesCommand, tagsCommand } from "./commands";
 import { listAccounts, listPayees, listTags } from "./ledger";
-import { getMemory } from "./memory";
+import { getMemory, guardMemoryToolCall } from "./memory";
 import { ensureScaffolded } from "./scaffold/scaffold";
 import { buildContextSection, buildToolsSection, patchBakedDate } from "./system-prompt";
 import {
@@ -12,13 +11,12 @@ import {
   commitAndPushTool,
   extractTextTool,
   queryTool,
-  updateMemoryTool,
   validateTool,
 } from "./tools";
 
 // The desktop app renders all UI from the RPC event stream, so this extension
-// registers only domain behavior — tools, commands, scaffolding, and the system
-// prompt. No pi TUI customization (headers, footer, editor, autocomplete, etc.).
+// registers only domain behavior — tools, scaffolding, and the system prompt.
+// No pi TUI customization (headers, footer, editor, autocomplete, etc.).
 export function createAccountantExtension(pi: ExtensionAPI): void {
   // Register custom tools (pi registers its own built-in tools, bound to the agent
   // cwd, which the app sets to the workspace).
@@ -30,18 +28,16 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   pi.registerTool(commitAndPushTool);
   pi.registerTool(extractTextTool);
   pi.registerTool(validateTool);
-  pi.registerTool(updateMemoryTool);
-
-  // Register custom slash commands
-  accountsCommand(pi);
-  payeesCommand(pi);
-  tagsCommand(pi);
-  memoryCommand(pi);
 
   // Scaffold the workspace on session start
   pi.on("session_start", async () => {
     await ensureScaffolded();
   });
+
+  // memory.md has no dedicated tool — the agent maintains it with pi's built-in
+  // edit tool. This hook blocks the two escape hatches the system prompt cannot
+  // enforce: wholesale `write` rewrites and bash access to the file.
+  pi.on("tool_call", (event, ctx) => guardMemoryToolCall(event, ctx.cwd));
 
   // Extend pi's assembled base prompt before each agent turn. The base
   // (event.systemPrompt) already carries our system.md (loaded via

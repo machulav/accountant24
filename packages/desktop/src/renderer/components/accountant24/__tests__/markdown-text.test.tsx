@@ -107,11 +107,25 @@ describe("MarkdownText", () => {
     expect(quote.closest("blockquote")).not.toBeNull();
   });
 
-  it("should render a fenced code block with its language label and code", async () => {
+  it("should render a fenced code block's code without a language header", async () => {
     draw("```js\nconst x = 1;\n```");
-    // CodeHeader shows the language (lowercased) and the code renders verbatim.
-    await screen.findByText("js");
-    expect(screen.getByText(/const x = 1;/)).toBeInTheDocument();
+    expect(await screen.findByText(/const x = 1;/)).toBeInTheDocument();
+    // Code blocks are headerless: no language label anywhere.
+    expect(screen.queryByText("js")).toBeNull();
+  });
+
+  it("should render an empty fenced block without a copy button", async () => {
+    draw("Before\n\n```js\n```");
+    await screen.findByText("Before");
+    // Nothing to copy, so the copy action must not render.
+    expect(screen.queryByRole("button", { name: "Copy" })).toBeNull();
+  });
+
+  it("should render an untagged fenced block without an unknown label", async () => {
+    draw("```\naccount assets:bank\n```");
+    expect(await screen.findByText(/account assets:bank/)).toBeInTheDocument();
+    // react-markdown reports untagged fences as "unknown"; no label must leak.
+    expect(screen.queryByText("unknown")).toBeNull();
   });
 
   it("should render a GFM table with column headers and cell values", async () => {
@@ -161,7 +175,7 @@ describe("MarkdownText", () => {
       stubClipboard(writeText);
 
       draw("```js\nconst x = 1;\n```");
-      await screen.findByText("js");
+      await screen.findByText(/const x = 1;/);
       fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
       expect(writeText).toHaveBeenCalledTimes(1);
@@ -173,7 +187,7 @@ describe("MarkdownText", () => {
       stubClipboard(writeText);
 
       draw("```js\nconst x = 1;\n```");
-      await screen.findByText("js");
+      await screen.findByText(/const x = 1;/);
       const copyButton = screen.getByRole("button", { name: "Copy" });
       fireEvent.click(copyButton);
       // Wait for the transient isCopied flag to flip before the second click.

@@ -2,15 +2,17 @@
 
 // The net worth report feed, shared by the page and the sidebar badge.
 
-import { useAuiState } from "@assistant-ui/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { ledgerApi } from "@/rpc/api";
 import type { NetWorth } from "@/rpc/types";
 
 /** null = first load in flight; no section rows = loaded but empty (no
  *  journal yet or hledger failed — both render the empty state pointing at
- *  the agent). */
-export function useNetWorth(): NetWorth | null {
+ *  the agent). `active` = the host is visible; while false, the idle-edge
+ *  refresh defers to the next show (see useAgentIdleRefresh). The
+ *  always-visible sidebar badge omits it. */
+export function useNetWorth(active = true): NetWorth | null {
   const [data, setData] = useState<NetWorth | null>(null);
 
   const refresh = useCallback(() => {
@@ -21,7 +23,7 @@ export function useNetWorth(): NetWorth | null {
         if (!cancelled) setData(d);
       })
       .catch(() => {
-        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] } });
+        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
       });
     return () => {
       cancelled = true;
@@ -29,17 +31,11 @@ export function useNetWorth(): NetWorth | null {
   }, []);
 
   useEffect(() => refresh(), [refresh]);
-
-  // Refetch on the running → idle edge (the finished turn may have posted
-  // transactions). Existing rows stay up while the refresh is in flight, so
-  // the list never flickers back to the skeleton. Same pattern as mentions.tsx.
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const wasRunning = useRef(isRunning);
-  useEffect(() => {
-    const justFinished = wasRunning.current && !isRunning;
-    wasRunning.current = isRunning;
-    if (justFinished) return refresh();
-  }, [isRunning, refresh]);
+  // Refetch when a turn finishes (it may have posted transactions) — while
+  // the host is visible; hidden, the refetch waits for the next show.
+  // Existing rows stay up while the refresh is in flight, so the list never
+  // flickers back to the skeleton.
+  useAgentIdleRefresh(refresh, active);
 
   return data;
 }

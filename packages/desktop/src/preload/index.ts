@@ -32,6 +32,7 @@ const INVOKE_CHANNELS = new Set([
   "files_archive_to_workspace",
   "ledger_mentions",
   "ledger_net_worth",
+  "ledger_transactions",
   "analytics_track",
   "update_pending",
   "update_install",

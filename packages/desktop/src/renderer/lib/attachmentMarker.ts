@@ -4,7 +4,7 @@
 // a file chip instead of showing the raw line. Kept framework-free so both the
 // attachment adapter (encode) and the message renderer (decode) can share it.
 
-export type AttachmentRef = { name: string; path: string };
+export type AttachmentRef = { name: string; path: string; size?: number };
 
 const MARKER = "[[attachment]]";
 
@@ -24,11 +24,13 @@ export function extractAttachmentRefs(text: string): {
   for (const line of text.split("\n")) {
     if (line.startsWith(MARKER)) {
       // A marker line is never shown as raw text: emit a ref if it's well-formed,
-      // otherwise drop it.
+      // otherwise drop it. `size` is optional — markers from before it existed
+      // don't carry it — and is dropped when it isn't a plain finite number.
       try {
-        const ref = JSON.parse(line.slice(MARKER.length)) as AttachmentRef;
+        const ref = JSON.parse(line.slice(MARKER.length)) as Partial<Record<keyof AttachmentRef, unknown>>;
         if (ref && typeof ref.name === "string" && typeof ref.path === "string") {
-          refs.push(ref);
+          const size = typeof ref.size === "number" && Number.isFinite(ref.size) ? ref.size : undefined;
+          refs.push({ name: ref.name, path: ref.path, ...(size === undefined ? {} : { size }) });
         }
       } catch {
         // malformed marker — drop it

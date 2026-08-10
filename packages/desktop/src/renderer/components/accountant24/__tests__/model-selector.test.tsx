@@ -48,7 +48,7 @@ const renderSelector = (value?: string) => {
 
 const openPopup = async () => {
   fireEvent.click(screen.getByRole("combobox"));
-  await screen.findByPlaceholderText("Search models...");
+  await screen.findByPlaceholderText("Search models");
 };
 
 const itemNames = () =>
@@ -74,21 +74,21 @@ describe("ModelSelector", () => {
   it("should narrow the list when searching by name", async () => {
     renderSelector("anthropic/fable");
     await openPopup();
-    fireEvent.change(screen.getByPlaceholderText("Search models..."), { target: { value: "haiku" } });
+    fireEvent.change(screen.getByPlaceholderText("Search models"), { target: { value: "haiku" } });
     await waitFor(() => expect(itemNames()).toEqual(["Claude Haiku 4.5"]));
   });
 
   it("should match the model id (provider) in addition to the name", async () => {
     renderSelector("anthropic/fable");
     await openPopup();
-    fireEvent.change(screen.getByPlaceholderText("Search models..."), { target: { value: "openai" } });
+    fireEvent.change(screen.getByPlaceholderText("Search models"), { target: { value: "openai" } });
     await waitFor(() => expect(itemNames()).toEqual(["GPT-5.5"]));
   });
 
   it("should show an empty state when nothing matches", async () => {
     renderSelector("anthropic/fable");
     await openPopup();
-    fireEvent.change(screen.getByPlaceholderText("Search models..."), { target: { value: "zzz" } });
+    fireEvent.change(screen.getByPlaceholderText("Search models"), { target: { value: "zzz" } });
     await waitFor(() => expect(screen.getByText("No models found.")).toBeDefined());
   });
 

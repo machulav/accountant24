@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   mergeValuedBalanceSheet,
-  parseAssertionDates,
+  parseAssertions,
   parseBalanceSheetJson,
   parseLatestPriceTarget,
+  parseTransactionsJson,
   type RawBalanceSheet,
 } from "../ledger-json";
 
@@ -261,38 +262,72 @@ describe("mergeValuedBalanceSheet()", () => {
   });
 });
 
-// parseAssertionDates turns `hledger print -O json` output (an array of
+// parseAssertions turns `hledger print -O json` output (an array of
 // transactions with postings; a posting carrying `pbalanceassertion` asserts
-// its account's balance on that date) into each account's latest assertion
-// date. Fixtures follow the documented shape.
+// its account's balance on that date) into each account's latest assertion:
+// its date and the asserted amount. Fixtures follow the documented shape.
 
-describe("parseAssertionDates()", () => {
-  const posting = (account: string, asserted: boolean, pdate: string | null = null) => ({
+describe("parseAssertions()", () => {
+  const posting = (
+    account: string,
+    asserted: boolean,
+    pdate: string | null = null,
+    baamount: unknown = amt("EUR", 200),
+  ) => ({
     paccount: account,
     pdate,
-    pbalanceassertion: asserted ? { baamount: {}, batotal: false } : null,
+    pbalanceassertion: asserted ? { baamount, batotal: false } : null,
   });
   const txn = (date: string, postings: unknown[]) => ({ tdate: date, tpostings: postings });
+  // What the default `baamount` fixture must parse to.
+  const EUR200 = { commodity: "EUR", quantity: 200, precision: 2 };
 
   it("should return {} for an empty string, garbage, or a non-array", () => {
-    expect(parseAssertionDates("")).toEqual({});
-    expect(parseAssertionDates("hledger: error")).toEqual({});
-    expect(parseAssertionDates('{"a": 1}')).toEqual({});
+    expect(parseAssertions("")).toEqual({});
+    expect(parseAssertions("hledger: error")).toEqual({});
+    expect(parseAssertions('{"a": 1}')).toEqual({});
   });
 
   it("should return {} when no posting carries an assertion", () => {
     const json = JSON.stringify([txn("2026-06-01", [posting("assets:bank", false)])]);
-    expect(parseAssertionDates(json)).toEqual({});
+    expect(parseAssertions(json)).toEqual({});
   });
 
   it("should record the transaction date of an asserting posting", () => {
     const json = JSON.stringify([txn("2026-06-15", [posting("assets:bank", true), posting("equity", false)])]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-06-15" });
+    expect(parseAssertions(json)).toEqual({ "assets:bank": { date: "2026-06-15", amount: EUR200 } });
+  });
+
+  it("should parse the asserted amount off the asserting posting", () => {
+    const json = JSON.stringify([txn("2026-06-15", [posting("assets:btc", true, null, amt("BTC", 0.16, 8))])]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:btc": { date: "2026-06-15", amount: { commodity: "BTC", quantity: 0.16, precision: 8 } },
+    });
+  });
+
+  it("should default the amount's precision to 2 when the journal declares none", () => {
+    const bare = { acommodity: "EUR", aquantity: { floatingPoint: 77 } };
+    const json = JSON.stringify([txn("2026-06-15", [posting("assets:bank", true, null, bare)])]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-06-15", amount: { commodity: "EUR", quantity: 77, precision: 2 } },
+    });
+  });
+
+  it("should record a null amount when the assertion's amount is missing or malformed, keeping the date", () => {
+    const json = JSON.stringify([
+      // An assertion object with no baamount at all.
+      txn("2026-06-15", [{ paccount: "assets:bare", pdate: null, pbalanceassertion: { batotal: false } }]),
+      txn("2026-06-16", [posting("assets:odd", true, null, { acommodity: 5 })]),
+    ]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bare": { date: "2026-06-15", amount: null },
+      "assets:odd": { date: "2026-06-16", amount: null },
+    });
   });
 
   it("should prefer the posting's own date over the transaction's", () => {
     const json = JSON.stringify([txn("2026-07-10", [posting("assets:bank", true, "2026-07-12")])]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-12" });
+    expect(parseAssertions(json)).toEqual({ "assets:bank": { date: "2026-07-12", amount: EUR200 } });
   });
 
   it("should keep the latest date per account regardless of journal order", () => {
@@ -301,7 +336,22 @@ describe("parseAssertionDates()", () => {
       txn("2026-06-15", [posting("assets:bank", true)]),
       txn("2026-05-01", [posting("assets:cash", true)]),
     ]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:bank": "2026-07-01", "assets:cash": "2026-05-01" });
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-07-01", amount: EUR200 },
+      "assets:cash": { date: "2026-05-01", amount: EUR200 },
+    });
+  });
+
+  it("should carry the amount together with the latest date when assertions repeat", () => {
+    // Journal order deliberately newest-first: the winning record must take
+    // BOTH its date and its amount from the same (latest) posting.
+    const json = JSON.stringify([
+      txn("2026-07-01", [posting("assets:bank", true, null, amt("EUR", 250))]),
+      txn("2026-06-01", [posting("assets:bank", true, null, amt("EUR", 100))]),
+    ]);
+    expect(parseAssertions(json)).toEqual({
+      "assets:bank": { date: "2026-07-01", amount: { commodity: "EUR", quantity: 250, precision: 2 } },
+    });
   });
 
   it("should skip malformed transactions and postings but keep the valid ones", () => {
@@ -311,7 +361,171 @@ describe("parseAssertionDates()", () => {
       txn("2026-06-02", ["not a posting", { pbalanceassertion: {}, paccount: "" }, posting("assets:ok", true)]),
       { tpostings: [posting("assets:dateless", true)] },
     ]);
-    expect(parseAssertionDates(json)).toEqual({ "assets:ok": "2026-06-02" });
+    expect(parseAssertions(json)).toEqual({ "assets:ok": { date: "2026-06-02", amount: EUR200 } });
+  });
+});
+
+// parseTransactionsJson turns `hledger print -O json` output (an array of
+// transactions, each with postings) into the Transactions view's rows:
+// journal order preserved, "Payee | note" descriptions split on the first
+// pipe, tags as name/value pairs, posting cost lots merged per commodity.
+
+describe("parseTransactionsJson()", () => {
+  const tposting = (account: string, amounts: unknown[], asserted = false) => ({
+    paccount: account,
+    pamount: amounts,
+    pbalanceassertion: asserted ? { baamount: {}, batotal: false } : null,
+  });
+  const tx = (over: Record<string, unknown> = {}) => ({
+    tindex: 1,
+    tdate: "2026-01-05",
+    tdescription: "Grocery Store | weekly shop",
+    tstatus: "Cleared",
+    ttags: [],
+    tpostings: [],
+    ...over,
+  });
+
+  it("should return [] for an empty string, garbage, or a non-array", () => {
+    expect(parseTransactionsJson("")).toEqual([]);
+    expect(parseTransactionsJson("hledger: error: no journal file\n")).toEqual([]);
+    expect(parseTransactionsJson('{"a": 1}')).toEqual([]);
+  });
+
+  it("should parse a full transaction with split description, tags, and postings", () => {
+    const json = JSON.stringify([
+      tx({
+        ttags: [["category", "groceries"]],
+        tpostings: [tposting("expenses:food", [amt("EUR", 12.5)]), tposting("assets:cash", [amt("EUR", -12.5)])],
+      }),
+    ]);
+    expect(parseTransactionsJson(json)).toEqual([
+      {
+        index: 1,
+        date: "2026-01-05",
+        payee: "Grocery Store",
+        note: "weekly shop",
+        status: "Cleared",
+        tags: [{ name: "category", value: "groceries" }],
+        postings: [
+          { account: "expenses:food", amounts: [{ quantity: 12.5, commodity: "EUR", precision: 2 }] },
+          { account: "assets:cash", amounts: [{ quantity: -12.5, commodity: "EUR", precision: 2 }] },
+        ],
+      },
+    ]);
+  });
+
+  it("should keep the whole description as the payee when it has no pipe", () => {
+    const json = JSON.stringify([tx({ tdescription: "Landlord" })]);
+    expect(parseTransactionsJson(json)[0]).toMatchObject({ payee: "Landlord", note: "" });
+  });
+
+  it("should split the description only on the first pipe", () => {
+    const json = JSON.stringify([tx({ tdescription: "Cafe | lunch | with team" })]);
+    expect(parseTransactionsJson(json)[0]).toMatchObject({ payee: "Cafe", note: "lunch | with team" });
+  });
+
+  it("should give no postings to a transaction whose tpostings is not an array", () => {
+    const json = JSON.stringify([tx({ tpostings: "not postings" })]);
+    expect(parseTransactionsJson(json)[0]?.postings).toEqual([]);
+  });
+
+  it("should give a bare tag an empty value and skip malformed tags", () => {
+    const json = JSON.stringify([
+      tx({ ttags: [["reviewed"], ["", "x"], "not a tag", ["count", 42], ["kind", "food"]] }),
+    ]);
+    expect(parseTransactionsJson(json)[0]?.tags).toEqual([
+      { name: "reviewed", value: "" },
+      { name: "count", value: "" },
+      { name: "kind", value: "food" },
+    ]);
+  });
+
+  it("should pass Pending through and read unknown or missing statuses as Unmarked", () => {
+    const json = JSON.stringify([
+      tx({ tstatus: "Pending" }),
+      tx({ tstatus: "Unmarked" }),
+      tx({ tstatus: "Wired" }),
+      tx({ tstatus: undefined }),
+    ]);
+    expect(parseTransactionsJson(json).map((t) => t.status)).toEqual(["Pending", "Unmarked", "Unmarked", "Unmarked"]);
+  });
+
+  it("should merge cost lots of a posting into one amount per commodity", () => {
+    const json = JSON.stringify([tx({ tpostings: [tposting("assets:broker", [amt("USD", 100), amt("USD", 150)])] })]);
+    expect(parseTransactionsJson(json)[0]?.postings[0]?.amounts).toEqual([
+      { quantity: 250, commodity: "USD", precision: 2 },
+    ]);
+  });
+
+  it("should keep every commodity of a multi-commodity posting", () => {
+    const json = JSON.stringify([tx({ tpostings: [tposting("assets:cash", [amt("UAH", 1408.26), amt("USD", 100)])] })]);
+    expect(parseTransactionsJson(json)[0]?.postings[0]?.amounts).toEqual([
+      { quantity: 1408.26, commodity: "UAH", precision: 2 },
+      { quantity: 100, commodity: "USD", precision: 2 },
+    ]);
+  });
+
+  it("should keep a single zero amount for a zero posting without an assertion", () => {
+    const json = JSON.stringify([tx({ tpostings: [tposting("assets:bank", [amt("EUR", 0)])] })]);
+    expect(parseTransactionsJson(json)[0]?.postings[0]?.amounts).toEqual([
+      { quantity: 0, commodity: "EUR", precision: 2 },
+    ]);
+  });
+
+  it("should hide an assertion-only entry (every posting zero, at least one asserting)", () => {
+    // The agent's standalone Balance Assertion rows: a reconciliation mark,
+    // not money movement.
+    const json = JSON.stringify([
+      tx({ tdescription: "Balance Assertion", tpostings: [tposting("assets:bank", [amt("EUR", 0)], true)] }),
+      tx({ tindex: 2 }),
+    ]);
+    expect(parseTransactionsJson(json).map((t) => t.index)).toEqual([2]);
+  });
+
+  it("should keep a transaction that moves money even when a posting asserts a balance", () => {
+    const json = JSON.stringify([
+      tx({
+        tpostings: [tposting("expenses:food", [amt("EUR", 12.5)]), tposting("assets:cash", [amt("EUR", -12.5)], true)],
+      }),
+    ]);
+    expect(parseTransactionsJson(json)).toHaveLength(1);
+  });
+
+  it("should skip postings without an account and give no amounts to a missing pamount", () => {
+    const json = JSON.stringify([
+      tx({ tpostings: ["not a posting", { paccount: "" }, { paccount: "equity:opening" }, tposting("assets:ok", [])] }),
+    ]);
+    expect(parseTransactionsJson(json)[0]?.postings).toEqual([
+      { account: "equity:opening", amounts: [] },
+      { account: "assets:ok", amounts: [] },
+    ]);
+  });
+
+  it("should skip transactions missing the index, date, or description but keep the valid ones", () => {
+    const json = JSON.stringify([
+      "not a transaction",
+      tx({ tindex: undefined }),
+      tx({ tdate: "" }),
+      tx({ tdescription: undefined }),
+      tx({ tdescription: "" }),
+    ]);
+    expect(parseTransactionsJson(json)).toEqual([
+      { index: 1, date: "2026-01-05", payee: "", note: "", status: "Cleared", tags: [], postings: [] },
+    ]);
+  });
+
+  it("should preserve journal order and carry each transaction's index", () => {
+    const json = JSON.stringify([
+      tx({ tindex: 1, tdate: "2026-03-01" }),
+      tx({ tindex: 2, tdate: "2026-01-15" }),
+      tx({ tindex: 3, tdate: "2026-02-20" }),
+    ]);
+    expect(parseTransactionsJson(json).map((t) => [t.index, t.date])).toEqual([
+      [1, "2026-03-01"],
+      [2, "2026-01-15"],
+      [3, "2026-02-20"],
+    ]);
   });
 });
 

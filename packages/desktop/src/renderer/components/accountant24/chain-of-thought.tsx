@@ -10,6 +10,7 @@ import {
   DisclosureTrigger,
   ShimmerLabel,
 } from "@/components/accountant24/disclosure";
+import { Spinner } from "@/components/shadcn/spinner";
 import { formatDuration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
 
@@ -167,12 +168,14 @@ export function ChainOfThoughtRoot({
       data-slot="aui_chain-of-thought"
       open={userOpen ?? active}
       onOpenChange={setUserOpen}
-      // my-3 mirrors the markdown paragraph rhythm (p is my-3), so the chain
-      // sits with the same gap whether it precedes or follows answer text;
-      // first:mt-0 keeps a chain at the top of a message flush, like p.
-      className="my-3 first:mt-0"
+      // chat-rhythm mirrors the markdown block rhythm, so the chain sits with
+      // the same gap whether it precedes or follows answer text; first:mt-0 /
+      // last:mb-0 keep a chain flush at a message's edges, like p.
+      className="my-chat-rhythm first:mt-0 last:mb-0"
     >
       <DisclosureTrigger data-slot="aui_cot-trigger" className="w-full">
+        {/* Same live-status affordance as the compaction divider. */}
+        {active && <Spinner className="shrink-0" />}
         <ShimmerLabel active={active} className="font-medium">
           {label}
         </ShimmerLabel>
@@ -200,9 +203,9 @@ export const ChainOfThoughtStep: FC<PropsWithChildren<{ variant: "reasoning" | "
   // Rendered outside a chain (standalone tool call): no rail/dot, just the content.
   if (!useContext(InChainContext)) return <>{children}</>;
   return (
-    // pb-3 spaces steps 12px apart (the chat's spacing rhythm); last:pb-0 so
-    // the rail ends flush with the final step instead of trailing past it.
-    <li className="relative min-w-0 pb-3 pl-4 last:pb-0">
+    // chat-rhythm spaces the steps apart; last:pb-0 so the rail ends flush
+    // with the final step instead of trailing past it.
+    <li className="relative min-w-0 pb-chat-rhythm pl-4 last:pb-0">
       <span
         aria-hidden
         className={cn(

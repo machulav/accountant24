@@ -15,14 +15,12 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { type ComponentPropsWithoutRef, type FC, memo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { COMPOSER_POPOVER_CHROME, POPOVER_ROW, POPOVER_WIDTH } from "./popover";
 
 // Styling note: shadcn's menu-row components (DropdownMenuItem, ComboboxItem)
 // are bound to their Base UI/cmdk engines and can't render inside an
-// assistant-ui popover, so — like shadcn itself does across its own menu
-// components — the popup/row/label RECIPES below are copied verbatim from the
-// stock files. When the stock recipes change, resync these:
-//   container  ← shadcn/dropdown-menu.tsx DropdownMenuContent
-//   rows       ← shadcn/dropdown-menu.tsx DropdownMenuItem
+// assistant-ui popover, so the popup chrome and row core come from the shared
+// popover recipes (./popover.ts). Only the leftovers are copied from stock:
 //   lists      ← shadcn/combobox.tsx ComboboxList (padding, no-scrollbar)
 //   empty rows ← shadcn Command empty-state convention (py-6 centered)
 
@@ -85,7 +83,7 @@ const Categories: FC<CategoriesProps> = ({ iconMap, fallbackIcon, emptyLabel }) 
             <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
               categoryId={cat.id}
-              className="hover:bg-accent hover:text-accent-foreground focus:bg-accent data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex items-center justify-between gap-2 rounded-2xl px-3 py-2 text-sm font-medium outline-none"
+              className={cn(POPOVER_ROW, "flex items-center justify-between gap-2 text-sm font-medium")}
             >
               <span className="flex items-center gap-2">
                 <Icon className="text-muted-foreground size-4" />
@@ -130,7 +128,9 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
               (row + separator) with it so no stray hairline remains. */}
           <div className="hidden has-[button]:block">
             <div className="p-1.5 pb-0">
-              <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm outline-none">
+              <ComposerPrimitive.Unstable_TriggerPopoverBack
+                className={cn(POPOVER_ROW, "text-muted-foreground flex w-full items-center gap-2 text-sm")}
+              >
                 <ChevronLeftIcon className="size-4" />
                 {backLabel}
               </ComposerPrimitive.Unstable_TriggerPopoverBack>
@@ -151,7 +151,7 @@ const Items: FC<ItemsProps> = ({ iconMap, fallbackIcon, backLabel, emptyLabel, l
                     key={item.id}
                     item={item}
                     index={index}
-                    className="hover:bg-accent hover:text-accent-foreground focus:bg-accent data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex w-full flex-col items-start gap-0.5 rounded-2xl px-3 py-2 text-start outline-none"
+                    className={cn(POPOVER_ROW, "flex w-full flex-col items-start gap-0.5 text-start")}
                   >
                     <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
                       <Icon className="text-muted-foreground size-4 shrink-0" />
@@ -200,12 +200,7 @@ const ComposerMentionsPopoverImpl: FC<ComposerMentionsPopoverProps> = ({
     <ComposerPrimitive.Unstable_TriggerPopover
       char="@"
       data-slot="composer-mentions-popover"
-      className={cn(
-        // Chrome copied from the stock dropdown-menu/combobox popup so all popups
-        // in the app share one look: rounded-3xl, ring instead of border, fade/zoom in.
-        "aui-composer-mentions-popover bg-popover text-popover-foreground ring-foreground/5 dark:ring-foreground/10 animate-in fade-in-0 zoom-in-95 absolute start-0 bottom-full z-50 mb-2 w-96 overflow-hidden rounded-3xl shadow-lg ring-1 duration-100",
-        className,
-      )}
+      className={cn("aui-composer-mentions-popover", COMPOSER_POPOVER_CHROME, POPOVER_WIDTH, className)}
       {...props}
     >
       <ComposerPrimitive.Unstable_TriggerPopover.Directive

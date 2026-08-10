@@ -187,8 +187,8 @@ describe("chainLabel()", () => {
     expect(chainLabel(false, 383_000, 3)).toBe("Worked for 6m 23s");
   });
 
-  it("should return 'Worked for <1s' when duration is 0", () => {
-    expect(chainLabel(false, 0, 3)).toBe("Worked for <1s");
+  it("should return 'Worked for 1s' when duration is 0", () => {
+    expect(chainLabel(false, 0, 3)).toBe("Worked for 1s");
   });
 
   it("should fall back to 'Worked through 1 step' (singular) when duration is unknown", () => {

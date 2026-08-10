@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -12,7 +12,7 @@ vi.mock("../../config.js", () => ({
   setBaseDir: () => {},
 }));
 
-const { getMemory, saveMemory } = await import("../memory.js");
+const { getMemory } = await import("../memory.js");
 
 beforeEach(() => {
   rmSync(BASE, { recursive: true, force: true });
@@ -49,56 +49,5 @@ describe("getMemory()", () => {
     writeFileSync(join(BASE, "memory.md"), "## Section 1\n- item\n\n## Section 2\n- item\n");
     const result = await getMemory();
     expect(result).toBe("## Section 1\n- item\n\n## Section 2\n- item");
-  });
-});
-
-// ── saveMemory() ────────────────────────────────────────────────────
-
-describe("saveMemory()", () => {
-  test("should write content to memory.md with trailing newline", () => {
-    saveMemory("## Personal\n- Name: Volo");
-    const content = readFileSync(join(BASE, "memory.md"), "utf-8");
-    expect(content).toBe("## Personal\n- Name: Volo\n");
-  });
-
-  test("should trim content before writing", () => {
-    saveMemory("  ## Personal  \n- Name: Volo  \n  ");
-    const content = readFileSync(join(BASE, "memory.md"), "utf-8");
-    expect(content).toBe("## Personal  \n- Name: Volo\n");
-  });
-
-  test("should create parent directories if missing", () => {
-    rmSync(BASE, { recursive: true, force: true });
-    saveMemory("new content");
-    const content = readFileSync(join(BASE, "memory.md"), "utf-8");
-    expect(content).toBe("new content\n");
-  });
-
-  test("should overwrite existing content", () => {
-    writeFileSync(join(BASE, "memory.md"), "old content\n");
-    saveMemory("new content");
-    const content = readFileSync(join(BASE, "memory.md"), "utf-8");
-    expect(content).toBe("new content\n");
-  });
-
-  test("should return diff showing changes", () => {
-    writeFileSync(join(BASE, "memory.md"), "old line\n");
-    const result = saveMemory("new line");
-    expect(result.diff).toContain("-");
-    expect(result.diff).toContain("old line");
-    expect(result.diff).toContain("+");
-    expect(result.diff).toContain("new line");
-  });
-
-  test("should return diff with additions when file is new", () => {
-    const result = saveMemory("first content");
-    expect(result.diff).toContain("+");
-    expect(result.diff).toContain("first content");
-  });
-
-  test("should return empty diff when content is unchanged", () => {
-    writeFileSync(join(BASE, "memory.md"), "same content\n");
-    const result = saveMemory("same content");
-    expect(result.diff).toBe("");
   });
 });

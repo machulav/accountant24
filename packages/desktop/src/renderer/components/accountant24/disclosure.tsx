@@ -91,7 +91,9 @@ export function DisclosureContent({ className, ...props }: React.ComponentProps<
   );
 }
 
-/** Trigger label that shows an animated shimmer overlay while `active`. */
+/** Trigger label that sweeps an animated shimmer across its text while `active`.
+ *  Uses shadcn's `shimmer` utility, which clips the gradient to the text itself
+ *  (`shimmer-none` under reduced motion restores the plain text fill). */
 export function ShimmerLabel({
   active = false,
   className,
@@ -99,13 +101,11 @@ export function ShimmerLabel({
   ...props
 }: React.ComponentProps<"span"> & { active?: boolean }) {
   return (
-    <span className={cn("relative inline-block leading-none", className)} {...props}>
-      <span>{children}</span>
-      {active && (
-        <span aria-hidden className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none">
-          {children}
-        </span>
-      )}
+    <span
+      className={cn("inline-block leading-none", active && "shimmer motion-reduce:shimmer-none", className)}
+      {...props}
+    >
+      {children}
     </span>
   );
 }

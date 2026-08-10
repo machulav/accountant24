@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { LandmarkIcon, SettingsIcon } from "lucide-react";
+import { ReceiptTextIcon, SettingsIcon, WalletIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sidebar,
@@ -29,6 +29,7 @@ import { Settings } from "./settings/settings";
 import { loadSidebarWidth, SidebarResizeHandle } from "./sidebar-resize";
 import { Thread } from "./thread";
 import { ThreadList, ThreadListNew } from "./thread-list";
+import { TransactionsView } from "./transactions-view";
 import { UpdateBanner } from "./update-banner";
 
 /** Hide/show toggle. Offset clear of the macOS traffic lights whenever the
@@ -70,8 +71,22 @@ export function ChatLayout() {
   const runtime = usePiRuntime({ client, adapters: { attachments } });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which view fills the inset. The chat is never unmounted (see below); the
-  // The Net Worth page mounts fresh on each open so it always shows current data.
-  const [view, setView] = useState<"chat" | "net-worth">("chat");
+  // report pages latch on first open and stay mounted after, so their state
+  // survives view switches (a hidden page defers its refresh to the next
+  // show — see useAgentIdleRefresh).
+  const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
+  // Latch per report page once it is first opened; the view then stays
+  // mounted.
+  const [transactionsMounted, setTransactionsMounted] = useState(false);
+  const showTransactions = useCallback(() => {
+    setView("transactions");
+    setTransactionsMounted(true);
+  }, []);
+  const [netWorthMounted, setNetWorthMounted] = useState(false);
+  const showNetWorth = useCallback(() => {
+    setView("net-worth");
+    setNetWorthMounted(true);
+  }, []);
   const showChat = useCallback(() => setView("chat"), []);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
@@ -155,9 +170,15 @@ export function ChatLayout() {
               {updateVersion && <UpdateBanner version={updateVersion} />}
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={view === "net-worth"} onClick={() => setView("net-worth")}>
-                    <LandmarkIcon className="size-4" />
-                    Net Worth
+                  <SidebarMenuButton isActive={view === "transactions"} onClick={showTransactions}>
+                    <ReceiptTextIcon className="size-4" />
+                    Transactions
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={view === "net-worth"} onClick={showNetWorth}>
+                    <WalletIcon className="size-4" />
+                    <span className="whitespace-nowrap">Net Worth</span>
                     <NetWorthBadge />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -174,13 +195,48 @@ export function ChatLayout() {
           <SidebarInset className="relative min-w-0">
             <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
             <SidebarToggle />
-            {/* The chat stays mounted (display:none) while the Net Worth is open:
+            {/* The chat stays mounted (display:none) while a report page is open:
                 the composer's editor state, scroll position, and any in-flight
                 streaming all survive the round trip. */}
             <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
               <Thread />
             </div>
-            {view === "net-worth" && <NetWorthView />}
+            {/* Mounted on first open and kept alive after: filters, sort,
+                expansion, and scroll survive view switches. A turn that
+                finishes while the page is hidden only marks it dirty (no
+                register query runs behind a hidden page); it refreshes on
+                the next show. Hidden with visibility (not display): the box
+                keeps its size, so the virtualized list never tears down,
+                remeasures, or loses its scroll position. Absolute so the
+                out-of-flow box never pushes the visible view. A fresh app
+                start still opens clean. */}
+            {transactionsMounted && (
+              <div
+                className={cn(
+                  "absolute inset-0 flex flex-col",
+                  // opacity-0 alongside invisible: opacity flips on the
+                  // compositor immediately, so the big table layer vanishes
+                  // in one frame instead of smearing stale tiles over the
+                  // next view while visibility waits for a repaint.
+                  view !== "transactions" && "pointer-events-none invisible opacity-0",
+                )}
+              >
+                <TransactionsView active={view === "transactions"} />
+              </div>
+            )}
+            {/* Same treatment as Transactions: sort, search, resized
+                columns, and scroll survive view switches, and a turn that
+                finishes behind the hidden page only marks it dirty. */}
+            {netWorthMounted && (
+              <div
+                className={cn(
+                  "absolute inset-0 flex flex-col",
+                  view !== "net-worth" && "pointer-events-none invisible opacity-0",
+                )}
+              >
+                <NetWorthView active={view === "net-worth"} />
+              </div>
+            )}
           </SidebarInset>
           <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>

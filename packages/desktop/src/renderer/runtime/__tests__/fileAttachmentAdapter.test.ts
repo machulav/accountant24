@@ -162,9 +162,10 @@ describe("WorkspaceFileAttachmentAdapter.send()", () => {
     const complete = await adapter.send(pending);
     const text = (complete.content as { text: string }[])[0]!.text;
 
+    // size 1: the test file holds the single byte "x".
     expect(extractAttachmentRefs(text)).toEqual({
       text: "",
-      refs: [{ name: "statement.pdf", path: "attachments/statement.pdf" }],
+      refs: [{ name: "statement.pdf", path: "attachments/statement.pdf", size: 1 }],
     });
   });
 

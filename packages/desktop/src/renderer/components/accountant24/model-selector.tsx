@@ -14,11 +14,12 @@ import {
   ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxInput,
   ComboboxItem,
   ComboboxList,
 } from "@/components/shadcn/combobox";
 import { cn } from "@/lib/utils";
+import { POPOVER_WIDTH } from "./popover";
+import { SearchField } from "./search-field";
 
 export type ModelOption = {
   id: string;
@@ -58,6 +59,9 @@ export function ModelSelector({
   placeholder = "Select model",
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
+  // The popup's search text, owned here so the field's clear X is a plain
+  // state reset; every open starts with a fresh, empty search.
+  const [query, setQuery] = useState("");
   const selected = models.find((m) => m.id === value) ?? null;
 
   return (
@@ -70,8 +74,13 @@ export function ModelSelector({
       isItemEqualToValue={(a: ModelOption, b: ModelOption) => a.id === b.id}
       itemToStringLabel={(model: ModelOption) => model.name}
       filter={matchesQuery}
+      inputValue={query}
+      onInputValueChange={setQuery}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next: boolean) => {
+        setOpen(next);
+        if (next) setQuery("");
+      }}
     >
       <ComboboxPrimitive.Trigger
         data-slot="model-selector-trigger"
@@ -80,16 +89,8 @@ export function ModelSelector({
         <span className={cn("truncate", !selected && "text-muted-foreground")}>{selected?.name ?? placeholder}</span>
         <ChevronDownIcon className="size-4 opacity-50" />
       </ComboboxPrimitive.Trigger>
-      <ComboboxContent data-slot="model-selector-content" className={cn("w-72", contentClassName)}>
-        {searchable && (
-          // No focus ring: the search field is the popup's only focusable
-          // control and is focused on open, so the stock ring is pure noise.
-          <ComboboxInput
-            placeholder="Search models..."
-            showTrigger={false}
-            className="has-[[data-slot=input-group-control]:focus-visible]:border-input/30 has-[[data-slot=input-group-control]:focus-visible]:ring-0"
-          />
-        )}
+      <ComboboxContent data-slot="model-selector-content" className={cn(POPOVER_WIDTH, contentClassName)}>
+        {searchable && <SearchField combobox subject="models" value={query} onValueChange={setQuery} />}
         <ComboboxList className="scroll-fade">
           <ComboboxEmpty>No models found.</ComboboxEmpty>
           <ComboboxCollection>

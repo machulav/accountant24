@@ -10,16 +10,21 @@
 // refreshed whenever the agent finishes a turn so newly-added
 // payees/accounts/tags show up.
 
-import { unstable_useMentionAdapter, useAuiState } from "@assistant-ui/react";
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
 import { AtSignIcon, LandmarkIcon, StoreIcon, TagIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
+import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { cn } from "@/lib/utils";
 import { ledgerApi } from "@/rpc/api";
 import type { LedgerMentions } from "@/rpc/types";
 import { ComposerMentionsPopover } from "./composer-mentions-popover";
 
-const iconFor = (type: string): FC<{ className?: string }> => ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
+/** The canonical icon for a mention type — the one its pills carry; shared
+ *  so other UI naming the same entity (filter chips) matches the pills. */
+export const iconFor = (type: string): FC<{ className?: string }> =>
+  ICON_MAP[type as keyof typeof ICON_MAP] ?? AtSignIcon;
 
 // Per-type colors (static strings so Tailwind keeps them). account=blue,
 // payee=green, tag=yellow. Muted/desaturated dusty tones rather than Tailwind's
@@ -36,9 +41,25 @@ const TYPE_COLORS: Record<string, string> = {
  *  all look identical. Renders the stock shadcn Badge so shape/sizing (rounded
  *  pill, text-xs, gap-1, size-3 icon) stays in sync with the rest of the app,
  *  with a per-type color layered on top of the secondary variant. */
-export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }) => {
+export const MentionPill: FC<{
+  type: string;
+  label: string;
+  /** Cut a long label with an ellipsis INSIDE the pill, keeping the rounded
+   *  edge (clipping the pill from outside cuts the corner off). Caps at the
+   *  parent's width; tighten further via `className` (e.g. `max-w-40`). Off
+   *  by default: in flowing chat text pills wrap with the prose, and the
+   *  truncating display mode would break the inline baseline alignment. */
+  truncate?: boolean;
+  /** Extra classes, merged last. */
+  className?: string;
+}> = ({ type, label, truncate = false, className }) => {
   const Icon = iconFor(type);
-  return (
+  const pillRef = useRef<HTMLButtonElement>(null);
+  // The full-label tooltip opens only when the pill is actually clipped
+  // (tooltips on untruncated text are noise); measured at open time, so
+  // column resizes need no observers.
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const badge = (
     <Badge
       variant="secondary"
       data-directive-type={type}
@@ -54,11 +75,30 @@ export const MentionPill: FC<{ type: string; label: string }> = ({ type, label }
         "mx-px inline h-auto px-[0.55em] py-[0.15em] align-baseline text-[0.9em] leading-[1.3]",
         "[&>svg]:mr-[0.25em] [&>svg]:inline-block [&>svg]:size-[1.1em]! [&>svg]:align-[-0.125em]",
         TYPE_COLORS[type] ?? TYPE_COLORS.account,
+        truncate && "inline-block max-w-full shrink truncate",
+        className,
       )}
     >
       <Icon />
       {label}
     </Badge>
+  );
+  if (!truncate) return badge;
+  return (
+    // No local TooltipProvider: the app-level provider (App.tsx) owns the
+    // dwell delay and the shared warm-up across neighboring tooltips.
+    <Tooltip
+      open={tooltipOpen}
+      onOpenChange={(open) => {
+        const el = pillRef.current;
+        setTooltipOpen(open && !!el && el.scrollWidth > el.clientWidth);
+      }}
+    >
+      <TooltipTrigger ref={pillRef} render={badge} />
+      <TooltipContent side="top" className="max-w-80 break-words">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
@@ -98,17 +138,10 @@ function useLedgerMentions(): LedgerMentions {
   }, []);
 
   useEffect(() => refresh(), [refresh]);
-
-  // Refetch on the running → idle edge (a turn just finished).
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const wasRunning = useRef(isRunning);
-  useEffect(() => {
-    const justFinished = wasRunning.current && !isRunning;
-    wasRunning.current = isRunning;
-    // Return refresh()'s cancel like the mount effect does, so a fetch that
-    // resolves after unmount (or after the next turn starts) can't setData.
-    if (justFinished) return refresh();
-  }, [isRunning, refresh]);
+  // Refetch on the running → idle edge (a turn just finished). The hook
+  // returns refresh()'s cancel like the mount effect does, so a fetch that
+  // resolves after unmount (or after the next turn starts) can't setData.
+  useAgentIdleRefresh(refresh);
 
   return data;
 }

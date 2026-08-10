@@ -38,6 +38,32 @@
   },
   "overrides": [
     {
+      "includes": ["packages/desktop/src/renderer/components/reui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "noAriaHiddenOnFocusable": "off",
+            "noSvgWithoutTitle": "off"
+          },
+          "complexity": {
+            "noUselessFragments": "off",
+            "useOptionalChain": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "style": {
+            "useTemplate": "off",
+            "useImportType": "off"
+          },
+          "suspicious": {
+            "useIterableCallbackReturn": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/desktop/src/renderer/components/shadcn/**"],
       "linter": {
         "rules": {

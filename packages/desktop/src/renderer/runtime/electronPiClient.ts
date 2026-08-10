@@ -36,12 +36,14 @@ import {
 } from "../lib/analyticsEvents";
 import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
+import { isMemoryUpdateCall } from "../lib/memory-tool";
 import { mentionsToPlainText } from "../lib/mentions";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
 import { agentApi, authApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
+import { takePendingCompactionMarkers } from "./pendingCompaction";
 
 /** Subset of the `get_state` response we read. */
 type PiState = {
@@ -101,11 +103,19 @@ export function createElectronPiClient(): PiClient {
     const native = nativeSkills.has(name);
     trackSkillUsed(native ? name : "custom", native ? "native" : "custom", method);
   };
+  // Memory updates ride on the generic edit/write tools (recognized by path in
+  // the start event); end events carry no args, so the ids are correlated here
+  // to keep the historical "update_memory" analytics name.
+  const memoryToolCallIds = new Set<string>();
   agentBridge.addEventListener((e) => {
     // Tool + reply analytics live on this singleton listener (not mapEvent,
     // which runs once per active subscription) so each is counted exactly once.
+    if (e.type === "tool_execution_start" && isMemoryUpdateCall(e.toolName, e.args)) {
+      memoryToolCallIds.add(e.toolCallId);
+    }
     if (e.type === "tool_execution_end") {
-      trackAgentToolUsed(e.toolName, Boolean(e.isError));
+      const isMemoryUpdate = memoryToolCallIds.delete(e.toolCallId);
+      trackAgentToolUsed(isMemoryUpdate ? "update_memory" : e.toolName, Boolean(e.isError));
       if (e.toolName === "add_transactions" && !e.isError) trackTransactionFirstAdded();
     }
     if (e.type === "tool_execution_start" && e.toolName === "read") {
@@ -183,8 +193,6 @@ export function createElectronPiClient(): PiClient {
     switch (e.type) {
       case "agent_start":
         return { type: "agent_start" };
-      case "agent_end":
-        return { type: "agent_end" };
       case "turn_start": {
         const t = (turns.get(threadId) ?? -1) + 1;
         turns.set(threadId, t);
@@ -213,8 +221,14 @@ export function createElectronPiClient(): PiClient {
         };
       case "tool_execution_end":
         return { type: "tool_execution_end", toolCallId: e.toolCallId, result: e.result, isError: Boolean(e.isError) };
-      default:
-        return { type: (e as { type: string }).type } as unknown as PiClientEventBody;
+      default: {
+        // Forward everything else with its full payload, as node/mapping.ts
+        // does — the reducer needs e.g. `agent_end.willRetry` (keeps runStatus
+        // running across recoveries), `compaction_start.reason`, and
+        // `queue_update`'s arrays; unknown types are ignored downstream.
+        const { sessionPath: _sessionPath, ...body } = e as { type: string; sessionPath?: string };
+        return body as unknown as PiClientEventBody;
+      }
     }
   };
 
@@ -271,6 +285,12 @@ export function createElectronPiClient(): PiClient {
         agentBridge.request<{ messages: unknown }>(threadId, { type: "get_messages" }, "get_messages"),
         agentBridge.request<PiState>(threadId, { type: "get_state" }, "get_state"),
       ]);
+      // Every snapshot flows through here (ThreadController.load() calls this
+      // directly; subscribe()'s snapshot branch does too). The fetched
+      // transcript already carries pi's persisted compactionSummary entries,
+      // so any marker still parked for a later injection would now duplicate
+      // the one in the snapshot.
+      takePendingCompactionMarkers(threadId);
       return buildSnapshot(threadId, state, msgs.messages);
     },
 
@@ -364,6 +384,20 @@ export function createElectronPiClient(): PiClient {
         if (!active) return;
         listener({ ...body, threadId, seq: nextSeq(threadId) } as PiClientEvent);
       };
+      // Re-sync this subscription with the session's live compaction state:
+      // react-pi keeps thread state in a cached controller that unsubscribes
+      // ~30s after unmount, and snapshots don't carry compaction — so without
+      // this a compaction that started (or ended) while unsubscribed would be
+      // missed (or stick forever). Runs after attachLive() so nothing races.
+      const emitCompactionHeal = () => {
+        const c = agentBridge.compactionState(threadId);
+        if (!c?.everCompacted) return;
+        emit(
+          c.active
+            ? { type: "compaction_start", reason: c.reason ?? "threshold" }
+            : { type: "compaction_end", aborted: false, willRetry: false },
+        );
+      };
       const attachLive = () => {
         if (!active) return;
         offs.push(
@@ -389,6 +423,7 @@ export function createElectronPiClient(): PiClient {
           .then((snapshot) => {
             emit({ type: "snapshot", snapshot });
             attachLive();
+            emitCompactionHeal();
           })
           .catch((err) => {
             emit({ type: "error", error: err instanceof Error ? err.message : String(err) });
@@ -396,6 +431,7 @@ export function createElectronPiClient(): PiClient {
           });
       } else {
         attachLive();
+        emitCompactionHeal();
       }
 
       return () => {

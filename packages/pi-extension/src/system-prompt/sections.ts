@@ -46,6 +46,9 @@ export function buildContextSection(input: ContextSectionInput): string {
   parts.push(`\n\n<date>\nToday's date: ${input.today}\n</date>`);
 
   if (input.memory) {
+    // The block mirrors memory.md byte for byte: the model copies oldText
+    // anchors for edits straight from it. Guidance on how to treat it lives
+    // in system.md.
     parts.push(`\n\n<memory>\n${input.memory}\n</memory>`);
   }
 

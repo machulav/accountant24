@@ -33,10 +33,11 @@ test("opens the Net Worth view from the sidebar and returns to the chat", async 
 
   await window.getByRole("button", { name: "Net Worth" }).click();
   await expect(window.getByRole("heading", { name: "Net Worth" })).toBeVisible();
-  await expect(window.getByText("No accounts yet")).toBeVisible();
+  await expect(window.getByText("No transactions yet")).toBeVisible();
 
-  // Toggling the entry brings the chat back.
-  await window.getByRole("button", { name: "Net Worth" }).click();
+  // New Chat brings the composer back (sidebar entries select, not toggle —
+  // a second click on the active entry is a no-op).
+  await window.getByRole("button", { name: "New Chat" }).click();
   await expect(window.getByRole("heading", { name: "Net Worth" })).not.toBeVisible();
   await expect(window.getByLabel("Message input")).toBeVisible();
 });

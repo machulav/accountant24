@@ -41,6 +41,11 @@ export interface AccountBalance {
    *  (the posting's own date when it has one) — when the balance was last
    *  reconciled. Absent when the account has no assertions. */
   assertedOn?: string;
+  /** The amount of that most recent balance assertion, verbatim from the
+   *  journal. An assertion pins a single commodity's balance, so this is one
+   *  amount, not a list. Absent when the account has no assertions or the
+   *  assertion's amount did not parse; present only alongside `assertedOn`. */
+  assertedAmount?: LedgerAmount;
 }
 
 /** A figure of the report that isn't an account row: a section total or the
@@ -65,6 +70,43 @@ export interface NetWorthSection {
 export interface NetWorth {
   sections: NetWorthSection[];
   net: NetWorthTotal;
+  /** The valuation's base commodity: the `-X` target resolved from the
+   *  journal's declared or cost-inferred prices. Null when valuation fell
+   *  back to `-V`. Lets the renderer lead a multi-commodity figure with the
+   *  home-currency leg. */
+  baseCommodity: string | null;
+}
+
+// ---- Ledger transactions (Transactions view) -------------------------------
+
+/** A transaction's status mark, hledger's wording verbatim
+ *  (`*` = Cleared, `!` = Pending, no mark = Unmarked). */
+export type LedgerTransactionStatus = "Cleared" | "Pending" | "Unmarked";
+
+/** One leg of a transaction: the account touched and what was posted to it
+ *  (elided amounts filled in by hledger, cost lots merged per commodity). */
+export interface LedgerPosting {
+  /** Full account path ("expenses:food"), verbatim. */
+  account: string;
+  amounts: LedgerAmount[];
+}
+
+/** One journal transaction, as `hledger print` reports it. */
+export interface LedgerTransaction {
+  /** hledger's 1-based journal sequence — a stable row key within one
+   *  report, never persisted across fetches. */
+  index: number;
+  /** ISO transaction date, verbatim. */
+  date: string;
+  /** The description's payee part (before the first "|"); the whole
+   *  description when it has no pipe. */
+  payee: string;
+  /** The description's note part (after the first "|"); "" when none. */
+  note: string;
+  status: LedgerTransactionStatus;
+  /** Transaction-level tags in journal order; value "" for a bare tag. */
+  tags: { name: string; value: string }[];
+  postings: LedgerPosting[];
 }
 
 // ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---

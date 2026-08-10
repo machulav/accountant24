@@ -48,6 +48,21 @@ describe("extractAttachmentRefs()", () => {
     expect(extractAttachmentRefs(missingName).refs).toEqual([]);
   });
 
+  it("should round-trip the file size when the ref carries one", () => {
+    const withSize: AttachmentRef = { name: "statement.pdf", path: "files/statement.pdf", size: 245_000 };
+    expect(extractAttachmentRefs(encodeAttachmentRef(withSize)).refs).toEqual([withSize]);
+  });
+
+  it("should accept a size-less marker (written before size existed)", () => {
+    const line = `[[attachment]]${JSON.stringify({ name: "old.pdf", path: "files/old.pdf" })}`;
+    expect(extractAttachmentRefs(line).refs).toEqual([{ name: "old.pdf", path: "files/old.pdf" }]);
+  });
+
+  it("should drop a size that is not a finite number", () => {
+    const bogus = `[[attachment]]${JSON.stringify({ name: "x.pdf", path: "files/x.pdf", size: "big" })}`;
+    expect(extractAttachmentRefs(bogus).refs).toEqual([{ name: "x.pdf", path: "files/x.pdf" }]);
+  });
+
   it("should trim surrounding whitespace from the remaining text", () => {
     const input = `\n\n${encodeAttachmentRef(REF)}\n\n`;
     expect(extractAttachmentRefs(input).text).toBe("");

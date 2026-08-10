@@ -35,6 +35,17 @@ The Electron desktop app:
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 
+# System Prompt
+
+The agent's system prompt is `packages/pi-extension/src/system-prompt/system.md` (copied to desktop resources at build time; runtime data blocks like `<memory>` and `<accounts>` are appended per turn by the extension).
+
+- Keep it short: every line is sent on every turn. Add a rule only for observed behavior a shorter rule didn't fix.
+- Group rules by topic in Markdown `#` sections; a topic's rules live in exactly one section, never duplicated elsewhere. `# Ground rules` holds the important cross-cutting rules the agent must always follow; a rule that fits neither a topic nor Ground rules goes in `# Other rules` — never force-fit a rule into a section.
+- Severity is carried by wording, not by section: "Never"/"Always"/"Only" for absolute rules, "prefer"/"when" for judgment calls.
+- Markdown headers carry authored instructions; XML tags carry runtime-injected data (`<memory>`, `<accounts>`, `<tools>`, …). Data blocks contain only verbatim data; guidance about a block lives in its matching Markdown section (`# Memory` for `<memory>`).
+- Rules the agent must not be able to break get code enforcement (extension hooks), with the prompt rule on top.
+- Prefer positive phrasing: say what to do instead alongside every prohibition.
+
 # UI Components
 
 The desktop app uses the **wrapper pattern**: library components stay untouched; all customization lives in our own components.
@@ -44,6 +55,7 @@ The desktop app uses the **wrapper pattern**: library components stay untouched;
 `packages/desktop/src/renderer/components/`:
 
 - `shadcn/` — stock shadcn/ui components (Base UI-based). **Never edit**; add/update only via `scripts/shadcn.sh`. The whole shadcn catalog (select, tabs, card, dropdown-menu, table, …) is available on demand: `sh packages/desktop/scripts/shadcn.sh add <component>` — install before building custom UI.
+- `reui/` — vendored ReUI registry components (Base UI flavor; today the data grid on TanStack Table v9). **Never edit** beyond mechanical vendoring transforms (import aliases, unused-symbol strips); re-vendor from the reui.io registry JSON to update. `icon-placeholder.tsx` is the one local file: a lucide adapter for the registry's icon indirection.
 - `accountant24/` — all our components: wrappers around shadcn, customized assistant-ui components, app UI.
 
 ## Rules
@@ -112,3 +124,11 @@ Four tiers, all on Vitest (`npm test`); the first three run in CI on every PR.
 - Every new feature or module ships **in the same PR** with tests at **all applicable tiers**: pure logic → unit; new/changed component → component; new user flow → integration; new critical happy path → an E2E line.
 - A change must not drop coverage below the gate.
 - A bug fix ships with a regression test that **fails before** the fix and passes after.
+
+# Pull Requests
+
+- Title: Conventional Commit style matching the main commit subject; the subject is the user-visible outcome, written for the changelog.
+- Body: a short, flat bullet list of what changed, and nothing else. One change per bullet, imperative phrasing ("Replace …", "Block …", "Show …"), code identifiers in backticks.
+- What, never why: no motivation, strategy, or design discussion in the body.
+- No issue links or tracker references; the branch name links the issue automatically.
+- No AI attribution or "generated with" footers in commits or PR descriptions.

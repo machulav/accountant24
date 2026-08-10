@@ -61,7 +61,7 @@ const renderSelector = (client: PiClient | null = fakeClient) =>
 
 const openPopup = async () => {
   fireEvent.click(await screen.findByRole("combobox"));
-  await screen.findByPlaceholderText("Search models...");
+  await screen.findByPlaceholderText("Search models");
 };
 
 const itemNames = () =>

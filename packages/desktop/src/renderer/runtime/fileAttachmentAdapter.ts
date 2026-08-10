@@ -38,7 +38,12 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
   abstract accept: string;
   protected abstract type: PendingAttachment["type"];
   /** How the archived file is presented to the agent. */
-  protected abstract toContent(name: string, path: string, dataUrl: string): CompleteAttachment["content"];
+  protected abstract toContent(
+    name: string,
+    path: string,
+    dataUrl: string,
+    sizeBytes: number,
+  ): CompleteAttachment["content"];
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     trackAttachmentAdded(attachmentKind(file.type));
@@ -58,7 +63,7 @@ abstract class ArchivingAttachmentAdapter implements AttachmentAdapter {
     return {
       ...attachment,
       status: { type: "complete" },
-      content: this.toContent(attachment.name, path, dataUrl),
+      content: this.toContent(attachment.name, path, dataUrl, attachment.file.size),
     };
   }
 
@@ -95,7 +100,7 @@ export class WorkspaceFileAttachmentAdapter extends ArchivingAttachmentAdapter {
     super();
   }
 
-  protected toContent(name: string, path: string) {
-    return [{ type: "text" as const, text: encodeAttachmentRef({ name, path }) }];
+  protected toContent(name: string, path: string, _dataUrl: string, sizeBytes: number) {
+    return [{ type: "text" as const, text: encodeAttachmentRef({ name, path, size: sizeBytes }) }];
   }
 }

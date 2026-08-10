@@ -54,7 +54,7 @@ const renderWith = (settings: AppSettings) => {
 
 const openDefaultPicker = async () => {
   fireEvent.click(await screen.findByRole("combobox"));
-  await screen.findByPlaceholderText("Search models...");
+  await screen.findByPlaceholderText("Search models");
 };
 
 describe("ModelsSettings — empty state", () => {
