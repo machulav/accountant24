@@ -34,6 +34,16 @@ describe("loadTableConfig()", () => {
     expect(JSON.parse(window.localStorage.getItem(NET_WORTH_TABLE_KEY) ?? "")).toEqual(config);
     expect(loadTableConfig()).toEqual(config);
   });
+
+  it("should clamp stored sub-minimum widths up to each column's minimum", () => {
+    // Raw drag values below the minimums (the grid clamps only at render)
+    // must not survive a reload into the width model.
+    saveTableConfig({ visibility: { asserted: false, assertedAmount: false }, sizing: { account: 90, value: 30 } });
+    expect(loadTableConfig().sizing).toEqual({
+      account: COLUMN_MIN_SIZES.account,
+      value: COLUMN_MIN_SIZES.value,
+    });
+  });
 });
 
 describe("column sizes", () => {
@@ -58,5 +68,14 @@ describe("tableWidth()", () => {
 
   it("should prefer a resized width over the default", () => {
     expect(tableWidth({ visibility: { asserted: false, assertedAmount: false }, sizing: { account: 300 } })).toBe(640);
+  });
+
+  it("should clamp live sub-minimum drag values like the grid does", () => {
+    // A drag past the minimum stores the raw value (45) while the grid
+    // renders the clamp (140); the wrapper must match the grid, or it ends
+    // up narrower than the table and the container clips the last column.
+    expect(tableWidth({ visibility: { asserted: false, assertedAmount: false }, sizing: { value: 45 } })).toBe(
+      492 + 170 + COLUMN_MIN_SIZES.value,
+    );
   });
 });

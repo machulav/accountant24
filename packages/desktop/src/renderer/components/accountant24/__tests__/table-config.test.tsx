@@ -47,6 +47,14 @@ describe("loadStoredTableConfig()", () => {
     expect(load().sizing).toEqual({ chrome: 44, alpha: 120.5 });
   });
 
+  it("should clamp stored widths below a column's minimum up to it", () => {
+    // A resize drag past the minimum persists the raw sub-minimum value
+    // (the grid clamps only at render); loading must not let it back in.
+    window.localStorage.setItem(KEY, JSON.stringify({ sizing: { alpha: 30, beta: 500 } }));
+    const clamped = loadStoredTableConfig(KEY, DEFAULT_VISIBILITY, SIZABLE, { alpha: 120, beta: 90 });
+    expect(clamped.sizing).toEqual({ alpha: 120, beta: 500 });
+  });
+
   it("should round-trip a config through save and load", () => {
     const config: TableConfig = { visibility: { alpha: false, beta: true }, sizing: { alpha: 240 } };
     saveStoredTableConfig(KEY, config);

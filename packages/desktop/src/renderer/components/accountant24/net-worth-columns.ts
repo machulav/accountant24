@@ -30,22 +30,31 @@ export const COLUMN_SIZES: Record<string, number> = {
   value: 170,
 };
 
-/** Every column's minimum: its header pill (measured rendered widths:
- *  Account 93, Asserted On 146, Asserted Amount 178, Holding 115, Value
- *  100) plus the cell's 8px padding on each side — at the minimum the pill
- *  sits with the same breathing room to both column separators. */
+/** Every column's minimum: whichever is larger of
+ *  - its header pill (measured rendered widths: Account 93, Asserted On
+ *    146, Asserted Amount 178, Holding 115, Value 100) plus the cell's 8px
+ *    padding per side, so at the minimum the pill sits with the same
+ *    breathing room to both column separators, and
+ *  - its content: a typical formatted amount ("~1,187.50 EUR") for the
+ *    money columns, a readable account pill for Account — cranking a
+ *    column to the stop must never make its data unreadable. */
 export const COLUMN_MIN_SIZES: Record<string, number> = {
-  account: 110,
+  account: 220,
   asserted: 162,
   assertedAmount: 194,
-  holding: 132,
-  value: 116,
+  holding: 140,
+  value: 140,
 };
 
 export type NetWorthTableConfig = TableConfig;
 
 export function loadTableConfig(): NetWorthTableConfig {
-  return loadStoredTableConfig(NET_WORTH_TABLE_KEY, DEFAULT_COLUMN_VISIBILITY, Object.keys(COLUMN_SIZES));
+  return loadStoredTableConfig(
+    NET_WORTH_TABLE_KEY,
+    DEFAULT_COLUMN_VISIBILITY,
+    Object.keys(COLUMN_SIZES),
+    COLUMN_MIN_SIZES,
+  );
 }
 
 export function saveTableConfig(config: NetWorthTableConfig): void {
@@ -54,10 +63,15 @@ export function saveTableConfig(config: NetWorthTableConfig): void {
 
 /** The width the section tables render at (the visible columns, resized or
  *  default) — what the page sizes the shared width wrapper (section bands,
- *  the Net band) with. Mirrors TanStack's getTotalSize(). */
+ *  the Net band) with. Mirrors TanStack's getTotalSize() INCLUDING its
+ *  minimum clamp: a live drag past a column's minimum stores the raw
+ *  sub-minimum value while the grid renders the clamp, and summing the raw
+ *  values would make the wrapper narrower than the table — whose container
+ *  then clips the last column. */
 export function tableWidth(config: NetWorthTableConfig): number {
   return Object.entries(COLUMN_SIZES).reduce(
-    (total, [id, size]) => (config.visibility[id] === false ? total : total + (config.sizing[id] ?? size)),
+    (total, [id, size]) =>
+      config.visibility[id] === false ? total : total + Math.max(config.sizing[id] ?? size, COLUMN_MIN_SIZES[id] ?? 0),
     0,
   );
 }

@@ -22,11 +22,15 @@ export interface TableConfig {
  *  visibility, and non-positive widths are dropped, so a stale or garbled
  *  entry can never hide or break a table. `sizableColumns` lists every leaf
  *  column id the sizing validation accepts — it can exceed the visibility
- *  keys (chrome columns resize but never hide). */
+ *  keys (chrome columns resize but never hide). Stored widths clamp to
+ *  `minSizes`: a resize drag past a column's minimum persists the raw
+ *  sub-minimum value (the grid clamps only at render), and letting it back
+ *  into the model would make every later width computation lie. */
 export function loadStoredTableConfig(
   key: string,
   defaultVisibility: Record<string, boolean>,
   sizableColumns: readonly string[],
+  minSizes: Record<string, number> = {},
 ): TableConfig {
   const config: TableConfig = { visibility: { ...defaultVisibility }, sizing: {} };
   let stored: unknown;
@@ -45,7 +49,7 @@ export function loadStoredTableConfig(
   if (typeof s.sizing === "object" && s.sizing !== null) {
     for (const [id, width] of Object.entries(s.sizing)) {
       if (sizableColumns.includes(id) && typeof width === "number" && Number.isFinite(width) && width > 0) {
-        config.sizing[id] = width;
+        config.sizing[id] = Math.max(width, minSizes[id] ?? 0);
       }
     }
   }

@@ -57,7 +57,7 @@ import { cn } from "@/lib/utils";
 import type { LedgerPosting, LedgerTransaction, LedgerTransactionStatus } from "@/rpc/types";
 import { POPOVER_WIDTH } from "./popover";
 import { SearchField } from "./search-field";
-import { loadTableConfig, saveTableConfig } from "./transactions-columns";
+import { COLUMN_MIN_SIZES, loadTableConfig, saveTableConfig } from "./transactions-columns";
 import { useTransactions } from "./use-transactions";
 
 /** The tag pill's text, also what search and the Tags sort key see. */
@@ -135,9 +135,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return !range || inRange(row.original.date, range);
     },
     size: 120,
-    // Unlike the other minimums (header-fit), dates are fixed-width data:
-    // the minimum keeps the full ISO date readable.
-    minSize: 104,
+    minSize: COLUMN_MIN_SIZES.date,
     header: ({ column }) => <AppColumnHeader column={column} title="Date" />,
     // The journal's own ISO date, verbatim — unambiguous, and what you see
     // is literally what the column sorts by.
@@ -153,7 +151,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return payees.length === 0 || payees.includes(row.original.payee);
     },
     size: 200,
-    minSize: 90,
+    minSize: COLUMN_MIN_SIZES.payee,
     header: ({ column }) => <AppColumnHeader column={column} title="Payee" />,
     cell: ({ row }) =>
       row.original.payee ? (
@@ -178,9 +176,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // + 200 + 326 + 150) so the Amount column ends on the toolbar's right
     // edge instead of leaving slack in the grid's trailing fill column.
     size: 326,
-    // Readability floor: below this the account pills crush into a
-    // meaningless "assets…".
-    minSize: 220,
+    minSize: COLUMN_MIN_SIZES.account,
     header: ({ column }) => <AppColumnHeader column={column} title="Account" />,
     // The leading legs only (splitPostings) — one pill per line; expanding
     // the row appends the folded legs to the same stack, so the unfolded
@@ -226,9 +222,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       );
     },
     size: 150,
-    // Data-fit floor: a typical formatted amount ("5,414.60 EUR") stays
-    // readable at the minimum (the other minimums are header-fit).
-    minSize: 140,
+    minSize: COLUMN_MIN_SIZES.amount,
     header: ({ column }) => <AppColumnHeader column={column} title="Amount" className="justify-end" />,
     cell: ({ row }) => {
       const { shown, hidden } = splitPostings(row.original.postings);
@@ -278,7 +272,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
       return statuses.length === 0 || statuses.includes(row.original.status);
     },
     size: 100,
-    minSize: 94,
+    minSize: COLUMN_MIN_SIZES.status,
     header: ({ column }) => <AppColumnHeader column={column} title="Status" />,
     cell: ({ row }) => <div className={LINE}>{row.original.status}</div>,
     meta: {
@@ -292,7 +286,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     accessorFn: (row) => row.note,
     sortFn: "text",
     size: 300,
-    minSize: 108,
+    minSize: COLUMN_MIN_SIZES.note,
     header: ({ column }) => <AppColumnHeader column={column} title="Comment" />,
     // Collapsed: one line, ellipsized (full text in the tooltip). Expanded:
     // the whole comment, wrapping at the h-6 line rhythm.
@@ -325,7 +319,7 @@ const columns: ColumnDef<DataGridFeatures, LedgerTransaction>[] = [
     // Facet counts per tag name, one per row (the accessor is sort text).
     getUniqueValues: (row) => [...new Set(row.tags.map((tag) => tag.name))],
     size: 300,
-    minSize: 80,
+    minSize: COLUMN_MIN_SIZES.tags,
     header: ({ column }) => <AppColumnHeader column={column} title="Tags" />,
     // Collapsed: every tag on one line, sharing the width (each pill
     // ellipsizes on its own). Expanded: one tag per line, on the same

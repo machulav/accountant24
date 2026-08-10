@@ -23,10 +23,24 @@ export const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
  *  so has no visibility entry. Derived, so a new column is declared once. */
 const KNOWN_COLUMNS = ["expand", ...Object.keys(DEFAULT_COLUMN_VISIBILITY)];
 
+/** Every column's minimum (the register's column defs read these): header
+ *  fit for the text columns, content fit where the data is the wider
+ *  constraint (a typical formatted amount for Amount, a readable account
+ *  pill for Account, the full ISO date for Date). */
+export const COLUMN_MIN_SIZES: Record<string, number> = {
+  date: 104,
+  payee: 90,
+  account: 220,
+  amount: 140,
+  status: 94,
+  note: 108,
+  tags: 80,
+};
+
 export type TransactionsTableConfig = TableConfig;
 
 export function loadTableConfig(): TransactionsTableConfig {
-  return loadStoredTableConfig(TRANSACTIONS_TABLE_KEY, DEFAULT_COLUMN_VISIBILITY, KNOWN_COLUMNS);
+  return loadStoredTableConfig(TRANSACTIONS_TABLE_KEY, DEFAULT_COLUMN_VISIBILITY, KNOWN_COLUMNS, COLUMN_MIN_SIZES);
 }
 
 export function saveTableConfig(config: TransactionsTableConfig): void {
