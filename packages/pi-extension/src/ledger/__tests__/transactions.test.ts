@@ -196,94 +196,100 @@ describe("addBalanceAssertions()", () => {
 // ── Market prices (standalone P directives) ─────────────────────────
 
 describe("addPrices()", () => {
-  const rate = {
+  const usdPrice = {
     date: "2026-03-15",
     commodity: "USD",
-    price: { amount: 0.87, currency: "EUR" },
+    price: { amount: 0.87, commodity: "EUR" },
   };
 
   test("should format the P directive verbatim", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addPrices([rate]);
+    const result = await addPrices([usdPrice]);
     expect(result.ledgerIsValid).toBe(true);
     expect(result.transactions[0].transactionText).toBe("P 2026-03-15 USD 0.87 EUR");
   });
 
   test("should double-quote a commodity containing digits, as hledger requires", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addPrices([{ ...rate, commodity: "SOL2" }]);
+    const result = await addPrices([{ ...usdPrice, commodity: "SOL2" }]);
     expect(result.transactions[0].transactionText).toBe('P 2026-03-15 "SOL2" 0.87 EUR');
   });
 
-  test("should double-quote a target currency containing digits", async () => {
+  test("should double-quote a target commodity containing digits", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addPrices([{ ...rate, price: { amount: 0.87, currency: "SOL2" } }]);
+    const result = await addPrices([{ ...usdPrice, price: { amount: 0.87, commodity: "SOL2" } }]);
     expect(result.transactions[0].transactionText).toBe('P 2026-03-15 USD 0.87 "SOL2"');
   });
 
-  test("should preserve the rate's full precision instead of rounding to 2 decimals", async () => {
+  test("should preserve the price's full precision instead of rounding to 2 decimals", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addPrices([{ ...rate, commodity: "UAH", price: { amount: 0.0205, currency: "EUR" } }]);
+    const result = await addPrices([{ ...usdPrice, commodity: "UAH", price: { amount: 0.0205, commodity: "EUR" } }]);
     expect(result.transactions[0].transactionText).toBe("P 2026-03-15 UAH 0.0205 EUR");
   });
 
-  test("should render a tiny rate in plain decimal, never exponential notation", async () => {
+  test("should render a tiny price in plain decimal, never exponential notation", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    const result = await addPrices([{ ...rate, commodity: "SAT", price: { amount: 0.0000005, currency: "EUR" } }]);
+    const result = await addPrices([{ ...usdPrice, commodity: "SAT", price: { amount: 0.0000005, commodity: "EUR" } }]);
     expect(result.transactions[0].transactionText).toBe("P 2026-03-15 SAT 0.0000005 EUR");
   });
 
   test("should route each price of a batch to the monthly file of its date", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    await addPrices([rate, { date: "2026-04-02", commodity: "BTC", price: { amount: 55000, currency: "EUR" } }]);
+    await addPrices([usdPrice, { date: "2026-04-02", commodity: "BTC", price: { amount: 55000, commodity: "EUR" } }]);
     expect(readFileSync(join(LEDGER, "2026", "03.journal"), "utf-8")).toContain("P 2026-03-15 USD 0.87 EUR");
     expect(readFileSync(join(LEDGER, "2026", "04.journal"), "utf-8")).toContain("P 2026-04-02 BTC 55000 EUR");
   });
 
   test("should declare both sides of the price as commodities when missing", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
-    await addPrices([{ ...rate, commodity: "BTC" }]);
+    await addPrices([{ ...usdPrice, commodity: "BTC" }]);
     const commodities = readFileSync(join(LEDGER, "commodities.journal"), "utf-8");
     expect(commodities).toContain("commodity BTC");
     expect(commodities).toContain("commodity EUR");
   });
 
   test("should reject a date not in YYYY-MM-DD format", async () => {
-    await expect(addPrices([{ ...rate, date: "March 15" }])).rejects.toThrow("Invalid date format");
+    await expect(addPrices([{ ...usdPrice, date: "March 15" }])).rejects.toThrow("Invalid date format");
   });
 
   test("should reject a missing commodity", async () => {
-    await expect(addPrices([{ ...rate, commodity: "" }])).rejects.toThrow("missing a commodity");
+    await expect(addPrices([{ ...usdPrice, commodity: "" }])).rejects.toThrow("missing `commodity`");
   });
 
   test("should reject a price without an amount", async () => {
-    await expect(addPrices([{ ...rate, price: { currency: "EUR" } }] as any)).rejects.toThrow("missing the amount");
+    await expect(addPrices([{ ...usdPrice, price: { commodity: "EUR" } }] as any)).rejects.toThrow(
+      "missing `price.amount`",
+    );
   });
 
   test("should reject a zero price", async () => {
-    await expect(addPrices([{ ...rate, price: { amount: 0, currency: "EUR" } }])).rejects.toThrow("must be positive");
-  });
-
-  test("should reject a negative price", async () => {
-    await expect(addPrices([{ ...rate, price: { amount: -0.87, currency: "EUR" } }])).rejects.toThrow(
+    await expect(addPrices([{ ...usdPrice, price: { amount: 0, commodity: "EUR" } }])).rejects.toThrow(
       "must be positive",
     );
   });
 
-  test("should reject a price without a currency", async () => {
-    await expect(addPrices([{ ...rate, price: { amount: 0.87 } }] as any)).rejects.toThrow("missing the currency");
+  test("should reject a negative price", async () => {
+    await expect(addPrices([{ ...usdPrice, price: { amount: -0.87, commodity: "EUR" } }])).rejects.toThrow(
+      "must be positive",
+    );
+  });
+
+  test("should reject a price without a quote commodity", async () => {
+    await expect(addPrices([{ ...usdPrice, price: { amount: 0.87 } }] as any)).rejects.toThrow(
+      "missing `price.commodity`",
+    );
   });
 
   test("should point at the offending price when a batch fails validation", async () => {
-    await expect(addPrices([rate, { ...rate, commodity: "" }])).rejects.toThrow(
-      "Price 2: Price is missing a commodity.",
+    await expect(addPrices([usdPrice, { ...usdPrice, commodity: "" }])).rejects.toThrow(
+      "Price 2: Price is missing `commodity`.",
     );
   });
 
   test("should surface hledger's error when the write does not validate", async () => {
     writeFileSync(join(LEDGER, "main.journal"), "");
     vi.mocked(spawnText).mockResolvedValue(makeMockProc(1, "", "commodity check failed"));
-    await expect(addPrices([rate])).rejects.toThrow("commodity check failed");
+    await expect(addPrices([usdPrice])).rejects.toThrow("commodity check failed");
   });
 });
 

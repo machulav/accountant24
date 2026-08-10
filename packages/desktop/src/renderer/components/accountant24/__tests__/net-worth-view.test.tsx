@@ -271,7 +271,7 @@ describe("<NetWorthView />", () => {
   });
 
   it("should show an unconverted multi-commodity net comma-joined, without ~", async () => {
-    // No rates in the journal: the valued run returns the same figures.
+    // No prices in the journal: the valued run returns the same figures.
     vi.mocked(ledgerApi.netWorth).mockResolvedValue({
       ...DATA,
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
@@ -329,10 +329,10 @@ describe("<NetWorthView />", () => {
     renderView();
     await screen.findByText("2,050.00 UAH");
     await userEvent.hover(screen.getByRole("button", { name: "About other currencies" }));
-    expect(await screen.findByText("No rate recorded yet to value these in your main currency.")).toBeInTheDocument();
+    expect(await screen.findByText("No price recorded yet to value these in your main currency.")).toBeInTheDocument();
     // The same how-to line as the Value column help: the fix, not just the fact.
     expect(
-      screen.getByText(/To update a rate, tell the agent what one unit of the holding is worth/),
+      screen.getByText(/To update a price, tell the agent what one unit of the holding is worth/),
     ).toBeInTheDocument();
   });
 
@@ -552,11 +552,11 @@ describe("<NetWorthView />", () => {
       await hoverInfo("Value");
       expect(
         await screen.findByText(
-          /What the holding is worth in your main currency, at the latest rate recorded in the ledger/,
+          /What the holding is worth in your main currency, at the latest price recorded in the ledger/,
         ),
       ).toBeInTheDocument();
       expect(screen.getByText(/~ means the value was converted and is an estimate/)).toBeInTheDocument();
-      // The tooltip also teaches how to refresh a rate.
+      // The tooltip also teaches how to refresh a price.
       expect(screen.getByText(/1 USD is 0.92 EUR/)).toBeInTheDocument();
     });
 

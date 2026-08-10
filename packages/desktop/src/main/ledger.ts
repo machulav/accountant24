@@ -65,9 +65,9 @@ async function ledgerMentions(): Promise<LedgerMentions> {
 }
 
 /** The report's base commodity — the target of the journal's latest
- *  declared market price. The agent records prices toward the user's
- *  currency, so the journal itself answers "which currency is home" and no
- *  currency is hardcoded. When the journal declares no prices, the latest
+ *  declared market price. The agent records prices toward the user's main
+ *  currency, so the journal itself answers which commodity is the base and
+ *  nothing is hardcoded. When the journal declares no prices, the latest
  *  cost-inferred price (`--infer-market-prices`, e.g. `2 WRLD @ 210.00 EUR`)
  *  answers instead. The probes stay sequential so a later-dated cost can
  *  never out-rank a declared price. Seam for the future default-currency
@@ -84,12 +84,12 @@ async function resolveBaseCommodity(): Promise<string | null> {
  *  hledger), each with hledger's own total, plus the hledger-computed net.
  *  Run twice — native holdings and the market valuation — and paired. With a
  *  base commodity the valued run is `-X <base> --infer-market-prices`, which
- *  collapses multi-commodity holdings to one base-currency figure wherever
+ *  collapses multi-commodity holdings to one base-commodity figure wherever
  *  hledger finds any price path (direct, reverse, chained, or cost-
  *  inferred); with no prices at all there is nothing to aim at, and `-V`
  *  lets hledger value what it can. The payload carries the base commodity
  *  (the `-X` target; null on the `-V` path) so the renderer can lead a
- *  multi-commodity figure with the home-currency leg. Each row also carries
+ *  multi-commodity figure with the base-commodity leg. Each row also carries
  *  the date and amount of the account's latest balance assertion (from
  *  `print -O json`) — when the balance was last reconciled and what it was
  *  confirmed to be. Empty when there's no journal yet or hledger fails. */

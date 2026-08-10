@@ -34,7 +34,7 @@ export interface AccountBalance {
   /** The balance in its original commodities, one entry per commodity. */
   amounts: LedgerAmount[];
   /** The same balance at market value (`-X` valuation) — a single
-   *  base-currency figure when hledger finds a price path, otherwise equal
+   *  base-commodity figure when hledger finds a price path, otherwise equal
    *  to `amounts`. This is the primary number the report views show. */
   value: LedgerAmount[];
   /** ISO date of the account's most recent balance assertion in the journal
@@ -73,7 +73,7 @@ export interface NetWorth {
   /** The valuation's base commodity: the `-X` target resolved from the
    *  journal's declared or cost-inferred prices. Null when valuation fell
    *  back to `-V`. Lets the renderer lead a multi-commodity figure with the
-   *  home-currency leg. */
+   *  base-commodity leg. */
   baseCommodity: string | null;
 }
 

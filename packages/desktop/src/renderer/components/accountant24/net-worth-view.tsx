@@ -12,7 +12,7 @@
 // every section by account path, and a Columns menu toggling the two
 // assertion columns across every section at once. Complete account paths
 // in one color, every native holding in the Holding column, the market
-// value (hledger's `-X` valuation in the base currency) in the Value
+// value (hledger's `-X` valuation in the base commodity) in the Value
 // column; every column sorts, A-Z on the account path by default,
 // independently per section. All figures are hledger-computed; only the
 // presentation happens here. Data refreshes when the agent finishes a turn.
@@ -53,12 +53,12 @@ type OptionalColumnId = "asserted" | "assertedAmount";
 const ASSERTED_ON_LABEL = "Asserted On";
 const ASSERTED_AMOUNT_LABEL = "Asserted Amount";
 
-/** The how-to line for anything valued at a recorded rate — shared by the
+/** The how-to line for anything valued at a recorded price — shared by the
  *  Value column help and the bands' unpriced-legs tooltip so the copy stays
  *  identical in both. */
-const RATE_HELP = (
+const PRICE_HELP = (
   <p className="mt-1.5">
-    To update a rate, tell the agent what one unit of the holding is worth now in your main currency, for example: "1
+    To update a price, tell the agent what one unit of the holding is worth now in your main currency, for example: "1
     USD is 0.92 EUR."
   </p>
 );
@@ -93,10 +93,10 @@ const COLUMN_HELP: Record<string, ReactNode> = {
   Value: (
     <div>
       <p>
-        What the holding is worth in your main currency, at the latest rate recorded in the ledger. A ~ means the value
+        What the holding is worth in your main currency, at the latest price recorded in the ledger. A ~ means the value
         was converted and is an estimate.
       </p>
-      {RATE_HELP}
+      {PRICE_HELP}
     </div>
   ),
 };
@@ -321,7 +321,7 @@ const AccountsGrid: FC<{
 const BAND_CLASS = "flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
 
 /** A summary band's figure. When the valuation could not fold every leg
- *  into the base currency, the base leg leads at the band's weight and the
+ *  into the base commodity, the base leg leads at the band's weight and the
  *  leftover legs sit smaller and muted on their own line under it, marked
  *  with the same info icon as the column help. A figure with no split
  *  renders exactly as before. */
@@ -338,8 +338,8 @@ const BandValue: FC<{ figure: NetWorthTotal; baseCommodity: string | null }> = (
           {/* One wrapper like every COLUMN_HELP entry: the tooltip content
               lays its direct children out in a row. */}
           <div>
-            <p>No rate recorded yet to value these in your main currency.</p>
-            {RATE_HELP}
+            <p>No price recorded yet to value these in your main currency.</p>
+            {PRICE_HELP}
           </div>
         </InfoTip>
         <span className="text-sm font-medium text-muted-foreground">{tail}</span>

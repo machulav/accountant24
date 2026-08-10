@@ -529,7 +529,7 @@ describe("parseTransactionsJson()", () => {
   });
 });
 
-// parseLatestPriceTarget reads the journal's de-facto base currency off
+// parseLatestPriceTarget reads the journal's de-facto base commodity off
 // plain `hledger prices` output: the target commodity of the last (latest)
 // declared price, whatever display style the journal gives the amount.
 

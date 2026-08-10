@@ -38,15 +38,15 @@ beforeEach(() => {
 const run = (params: any) =>
   addPricesTool.execute("test", params, undefined, undefined, undefined as any) as Promise<any>;
 
-const rate = {
+const usdPrice = {
   date: "2026-03-15",
   commodity: "USD",
-  price: { amount: 0.87, currency: "EUR" },
+  price: { amount: 0.87, commodity: "EUR" },
 };
 
 test("saves a P directive and reports its text", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  const result = await run({ prices: [rate] });
+  const result = await run({ prices: [usdPrice] });
   const text = result.content[0].text;
   expect(text).toContain("Price saved to");
   expect(text).toContain("P 2026-03-15 USD 0.87 EUR");
@@ -54,7 +54,7 @@ test("saves a P directive and reports its text", async () => {
 
 test("routes the directive to ledger/YYYY/MM.journal and returns diffs in details", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
-  const result = await run({ prices: [rate] });
+  const result = await run({ prices: [usdPrice] });
   const filePath = join(LEDGER, "2026", "03.journal");
   expect(existsSync(filePath)).toBe(true);
   expect(readFileSync(filePath, "utf-8")).toContain("P 2026-03-15 USD 0.87 EUR");
@@ -65,7 +65,7 @@ test("routes the directive to ledger/YYYY/MM.journal and returns diffs in detail
 test("reports a numbered list when several prices are saved at once", async () => {
   writeFileSync(join(LEDGER, "main.journal"), "");
   const result = await run({
-    prices: [rate, { date: "2026-03-15", commodity: "BTC", price: { amount: 55000, currency: "EUR" } }],
+    prices: [usdPrice, { date: "2026-03-15", commodity: "BTC", price: { amount: 55000, commodity: "EUR" } }],
   });
   const text = result.content[0].text;
   expect(text).toContain("2 prices saved");

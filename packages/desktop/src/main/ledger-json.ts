@@ -117,8 +117,8 @@ export function parseBalanceSheetJson(json: string): RawBalanceSheet | null {
 
 /** The target commodity of the journal's latest declared market price — the
  *  last line of `hledger prices` output. This is the journal's de-facto base
- *  currency: the agent records prices toward the user's currency, and it is
- *  the same "latest P directive" rule hledger's own `-V` valuation applies
+ *  commodity: the agent records prices toward the user's main currency, and
+ *  it is the same "latest P directive" rule hledger's own `-V` valuation applies
  *  per commodity, read once for the whole report. The amount's display style
  *  is journal-defined ("0.01 EUR", "EUR0.01", "€0.01"), so the symbol is
  *  whatever remains once the number is stripped away. Null when the journal

@@ -135,7 +135,7 @@ describe("isConverted()", () => {
 });
 
 describe("formatValue()", () => {
-  it("should prefix a converted figure with ~ (an estimate at the last recorded rate)", () => {
+  it("should prefix a converted figure with ~ (an estimate at the last recorded price)", () => {
     expect(formatValue({ amounts: [a("UAH", 1408.26), a("USD", 100)], value: [a("EUR", 115.573, 3)] }, "en-US")).toBe(
       "~115.57 EUR",
     );

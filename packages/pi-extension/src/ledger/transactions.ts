@@ -28,11 +28,12 @@ export interface AddBalanceAssertionParams {
 }
 
 /** A market price: hledger's P directive, stating what one unit of a
- *  commodity was worth on a date. */
+ *  commodity was worth on a date. Both sides are commodities — the one
+ *  being priced, and the one the price is quoted in. */
 export interface AddPriceParams {
   date: string;
   commodity: string;
-  price: { amount: number; currency: string };
+  price: { amount: number; commodity: string };
 }
 
 export interface AddTransactionsResult {
@@ -84,8 +85,8 @@ export async function addBalanceAssertions(
 export async function addPrices(paramsList: AddPriceParams[], signal?: AbortSignal): Promise<AddTransactionsResult> {
   validateEach(paramsList, validatePriceInputs, "Price");
   const formatted = paramsList.map((params) => routeByMonth(params.date, formatPrice(params)));
-  const currencies = paramsList.flatMap((params) => [params.commodity, params.price.currency]);
-  return persistFormatted(formatted, currencies, signal);
+  const commodities = paramsList.flatMap((params) => [params.commodity, params.price.commodity]);
+  return persistFormatted(formatted, commodities, signal);
 }
 
 async function persistFormatted(
@@ -285,16 +286,16 @@ function validatePriceInputs(params: AddPriceParams): void {
     throw new Error(`Invalid date format: ${params.date}. Expected YYYY-MM-DD.`);
   }
   if (!params.commodity) {
-    throw new Error("Price is missing a commodity.");
+    throw new Error("Price is missing `commodity`.");
   }
   if (params.price?.amount == null) {
-    throw new Error(`Price for ${params.commodity} is missing the amount.`);
+    throw new Error(`Price for ${params.commodity} is missing \`price.amount\`.`);
   }
   if (!(params.price.amount > 0)) {
     throw new Error(`Price for ${params.commodity} must be positive.`);
   }
-  if (!params.price.currency) {
-    throw new Error(`Price for ${params.commodity} is missing the currency.`);
+  if (!params.price.commodity) {
+    throw new Error(`Price for ${params.commodity} is missing \`price.commodity\`.`);
   }
 }
 
@@ -355,9 +356,9 @@ function quoteCommodity(commodity: string): string {
   return /^[\p{L}\p{Sc}]+$/u.test(commodity) ? commodity : `"${commodity}"`;
 }
 
-/** Plain decimal rendering preserving the given precision — market rates
+/** Plain decimal rendering preserving the given precision — market prices
  *  carry meaning in their decimals (0.0205), so no fixed rounding; tiny
- *  rates must never fall into exponential notation. */
+ *  prices must never fall into exponential notation. */
 function formatPriceAmount(amount: number): string {
   const plain = String(amount);
   if (!plain.toLowerCase().includes("e")) return plain;
@@ -365,6 +366,6 @@ function formatPriceAmount(amount: number): string {
 }
 
 function formatPrice(params: AddPriceParams): string {
-  const amount = `${formatPriceAmount(params.price.amount)} ${quoteCommodity(params.price.currency)}`;
+  const amount = `${formatPriceAmount(params.price.amount)} ${quoteCommodity(params.price.commodity)}`;
   return `P ${params.date} ${quoteCommodity(params.commodity)} ${amount}`;
 }

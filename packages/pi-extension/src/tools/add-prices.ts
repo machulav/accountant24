@@ -4,12 +4,14 @@ import { type AddTransactionsResult, addPrices } from "../ledger";
 import { TOOL_LABELS } from "../tool-labels";
 
 const Price = Type.Object({
-  date: Type.String({ description: "Date the rate was observed, in YYYY-MM-DD format, usually today" }),
+  date: Type.String({ description: "Date the price was observed, in YYYY-MM-DD format, usually today" }),
   commodity: Type.String({ description: "Commodity being priced, e.g. USD, BTC, AAPL" }),
   price: Type.Object(
     {
       amount: Type.Number({ description: "Price of one unit of the commodity" }),
-      currency: Type.String({ description: "Currency the price is quoted in, e.g. EUR" }),
+      commodity: Type.String({
+        description: "Commodity the price is quoted in, usually the user's main currency, e.g. EUR",
+      }),
     },
     { description: "The market price of one unit of the commodity" },
   ),
@@ -25,10 +27,10 @@ export const addPricesTool: ToolDefinition<typeof Params, AddTransactionsResult>
   description:
     "Record market prices (hledger P directives): what one unit of a commodity was worth on a date. " +
     "Auto-routes to the correct monthly files and validates.",
-  promptSnippet: "Record market prices when the user states a current rate or asset price",
+  promptSnippet: "Record market prices when the user states a commodity's current price",
   promptGuidelines: [
     "Record prices toward the user's main currency; the Net Worth report values every holding at its latest recorded price.",
-    "A price is a standalone P directive, not a transaction. Record one when the user states a rate; purchases already imply prices through their cost.",
+    "A price is a standalone P directive, not a transaction. Record one when the user states a price; purchases already imply prices through their cost.",
   ],
   parameters: Params,
 

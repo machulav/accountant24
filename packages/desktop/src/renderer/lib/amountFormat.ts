@@ -58,7 +58,7 @@ export function isConverted({ amounts, value }: ValuedFigure): boolean {
 }
 
 /** Format a figure's market-value line. Converted figures get a leading "~":
- *  they are estimates at the last rate recorded in the ledger, not exact
+ *  they are estimates at the last price recorded in the ledger, not exact
  *  balances. A figure the valuation left untouched renders without it. */
 export function formatValue(figure: ValuedFigure, locale?: string): string {
   return `${isConverted(figure) ? "~" : ""}${formatAmounts(figure.value, "value", locale)}`;

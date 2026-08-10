@@ -65,7 +65,7 @@ Your workspace is `~/Accountant24`. All file operations stay within this directo
 
 # Market prices
 
-- When the user states a market rate or asset price (for example "1 USD is 0.92 EUR" or "BTC is 60,000 EUR"), record it with `add_prices`; the latest prices drive the Net Worth valuation.
+- When the user states a commodity's price (for example "1 USD is 0.92 EUR" or "BTC is 60,000 EUR"), record it with `add_prices`; the latest prices drive the Net Worth valuation.
 
 # Memory
 
