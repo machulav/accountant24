@@ -59,7 +59,7 @@ function makeSession() {
       listeners.push(fn);
       return () => {};
     },
-    modelRegistry: { getAvailable: async () => [{ provider: "anthropic", id: "claude" }] },
+    modelRuntime: { getAvailableSnapshot: () => [{ provider: "anthropic", id: "claude" }] },
     model: { provider: "anthropic", id: "claude" },
     thinkingLevel: "medium",
     isStreaming: false,

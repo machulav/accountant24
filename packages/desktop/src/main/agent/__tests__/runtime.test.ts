@@ -1,3 +1,4 @@
+import { InMemoryModelsStore } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentHostConfig } from "../../../shared/agentHost";
 import type { UiBridge } from "../host/host";
@@ -5,12 +6,11 @@ import type { UiBridge } from "../host/host";
 // runtime.ts builds the real pi runtime per session. The pi SDK is the faked
 // boundary; the specs pin the exact configuration contract: the old spawn
 // flags (--no-* / --system-prompt / --skill / -e / --session) expressed as SDK
-// options, one shared auth/models registry per host, and NO model passed (it
+// options, one shared auth/models runtime per host, and NO model passed (it
 // must restore from the session file — CLI-style resolution can process.exit).
 
 const h = vi.hoisted(() => ({
-  authStorage: { id: "auth-storage" },
-  modelRegistry: { id: "model-registry" },
+  modelRuntime: { id: "model-runtime" },
   sessionManager: { id: "session-manager" },
   services: { id: "services", diagnostics: [{ note: "diag" }] },
   session: {
@@ -19,8 +19,7 @@ const h = vi.hoisted(() => ({
     reload: vi.fn(async () => {}),
     navigateTree: vi.fn(async (_id: unknown, _opts: unknown) => ({ cancelled: false })),
   },
-  authCreate: vi.fn((_path: unknown) => h.authStorage),
-  registryCreate: vi.fn((_auth: unknown, _path: unknown) => h.modelRegistry),
+  runtimeCreate: vi.fn(async (_opts: unknown) => h.modelRuntime),
   sessionOpen: vi.fn((_path: unknown, _dir: unknown) => h.sessionManager),
   createServices: vi.fn(async (_opts: unknown) => h.services),
   createFromServices: vi.fn(async (_opts: unknown) => ({ session: h.session, extensionsResult: {} })),
@@ -29,8 +28,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
-  AuthStorage: { create: h.authCreate },
-  ModelRegistry: { create: h.registryCreate },
+  ModelRuntime: { create: h.runtimeCreate },
   SessionManager: { open: h.sessionOpen },
   createAgentSessionServices: h.createServices,
   createAgentSessionFromServices: h.createFromServices,
@@ -80,14 +78,27 @@ async function createRuntimeForSession(ui: UiBridge = makeUi()) {
 }
 
 describe("createRuntimeFactory()", () => {
-  it("should create one shared auth storage and model registry per host, from the workspace files", async () => {
+  it("should create one shared model runtime per host, from the workspace files", async () => {
     const { factory } = await createRuntimeForSession();
     await factory("/ws/sessions/b.jsonl", makeUi());
 
-    expect(h.authCreate).toHaveBeenCalledTimes(1);
-    expect(h.authCreate).toHaveBeenCalledWith("/ws/auth.json");
-    expect(h.registryCreate).toHaveBeenCalledTimes(1);
-    expect(h.registryCreate).toHaveBeenCalledWith(h.authStorage, "/ws/models.json");
+    expect(h.runtimeCreate).toHaveBeenCalledTimes(1);
+    expect(h.runtimeCreate).toHaveBeenCalledWith({
+      authPath: "/ws/auth.json",
+      modelsPath: "/ws/models.json",
+      modelsStore: expect.anything(),
+    });
+  });
+
+  it("should keep pi's catalog cache in memory, out of the user's ledger directory", async () => {
+    await createRuntimeForSession();
+
+    // A file-backed store would drop an empty models-store.json beside the
+    // ledger; we never refresh catalogs over the network, so there is nothing
+    // to persist.
+    const options = h.runtimeCreate.mock.calls[0][0] as { modelsStore?: { write?: unknown } };
+    expect(options.modelsStore).toBeInstanceOf(InMemoryModelsStore);
+    expect("modelsStorePath" in options).toBe(false);
   });
 
   it("should open the session at its minted path with the sessions dir (fresh AND reopen contract)", async () => {
@@ -106,8 +117,7 @@ describe("createRuntimeFactory()", () => {
     expect(h.createServices).toHaveBeenCalledWith({
       cwd: "/ws",
       agentDir: "/ws",
-      authStorage: h.authStorage,
-      modelRegistry: h.modelRegistry,
+      modelRuntime: h.modelRuntime,
       resourceLoaderOptions: {
         noExtensions: true,
         noSkills: true,

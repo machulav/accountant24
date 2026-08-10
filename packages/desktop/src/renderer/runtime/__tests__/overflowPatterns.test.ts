@@ -1,4 +1,4 @@
-import { getOverflowPatterns, isContextOverflow } from "@earendil-works/pi-ai/base";
+import { getOverflowPatterns, isContextOverflow } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import { isOverflowErrorMessage, OVERFLOW_PATTERNS } from "../overflowPatterns";
 
@@ -23,6 +23,8 @@ describe("overflowPatterns drift guard", () => {
       "This model's maximum prompt length is 131072 but the request contains 537812 tokens",
       "Please reduce the length of the messages or completion",
       "the request exceeds the available context size, try increasing it",
+      "Prompt has 40000 tokens, but the configured context size is 32768 tokens",
+      "Range of input length should be [1, 129024]",
       "context_length_exceeded",
       "too many tokens",
       "400 status code (no body)",

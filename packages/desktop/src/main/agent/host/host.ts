@@ -25,8 +25,8 @@ export interface HostSession {
   setThinkingLevel(level: never): void;
   setSessionName(name: string): void;
   subscribe(listener: (event: object) => void): () => void;
-  readonly modelRegistry: {
-    getAvailable(): Array<{ provider: string; id: string }> | Promise<Array<{ provider: string; id: string }>>;
+  readonly modelRuntime: {
+    getAvailableSnapshot(): ReadonlyArray<{ provider: string; id: string }>;
   };
   readonly model: unknown;
   readonly thinkingLevel: unknown;
@@ -274,7 +274,7 @@ export class AgentHost {
           return;
         }
         case "set_model": {
-          const models = await session.modelRegistry.getAvailable();
+          const models = session.modelRuntime.getAvailableSnapshot();
           const model = models.find((m) => m.provider === command.provider && m.id === command.modelId);
           if (!model) {
             this.postEvent(sessionPath, error(`Model not found: ${command.provider}/${command.modelId}`));

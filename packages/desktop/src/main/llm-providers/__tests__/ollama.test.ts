@@ -7,8 +7,8 @@ type Handler = (event: unknown, payload?: unknown) => unknown;
 
 const h = vi.hoisted(() => ({
   handlers: new Map<string, Handler>(),
-  authStorage: {
-    logout: vi.fn(),
+  modelRuntime: {
+    logout: vi.fn(async () => {}),
   },
   trackProviderConnected: vi.fn(),
   fs: {
@@ -28,8 +28,7 @@ vi.mock("electron", () => ({
 vi.mock("../../env", () => ({ workspaceDir: () => "/ws" }));
 vi.mock("../../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
-  AuthStorage: { create: () => h.authStorage },
-  ModelRegistry: { create: () => ({}) },
+  ModelRuntime: { create: async () => h.modelRuntime },
 }));
 vi.mock("node:fs", () => ({
   existsSync: h.fs.existsSync,
@@ -61,6 +60,7 @@ beforeEach(() => {
   // so per-test mockReturnValue overrides can't leak into the next test.
   h.fs.existsSync.mockImplementation(() => false);
   h.fs.readFileSync.mockImplementation(() => "");
+  h.modelRuntime.logout.mockImplementation(async () => {});
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => {
@@ -294,16 +294,16 @@ describe("auth_add_all_ollama", () => {
 describe("auth_remove_ollama", () => {
   it("should succeed without touching anything when models.json does not exist", async () => {
     await setup();
-    expect(invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
+    expect(await invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
     expect(h.fs.writeFileSync).not.toHaveBeenCalled();
-    expect(h.authStorage.logout).not.toHaveBeenCalled();
+    expect(h.modelRuntime.logout).not.toHaveBeenCalled();
   });
 
   it("should refuse when models.json is not valid JSON", async () => {
     h.fs.existsSync.mockReturnValue(true);
     h.fs.readFileSync.mockReturnValue("{oops");
     await setup();
-    expect(invoke("auth_remove_ollama")).toEqual({
+    expect(await invoke("auth_remove_ollama")).toEqual({
       type: "error",
       message: "models.json is not valid JSON; refusing to overwrite",
     });
@@ -316,9 +316,18 @@ describe("auth_remove_ollama", () => {
     );
     await setup();
 
-    expect(invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
+    expect(await invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
     expect(writtenJson()).toEqual({ providers: { keep: { name: "K" } } });
-    expect(h.authStorage.logout).toHaveBeenCalledWith("ollama");
+    expect(h.modelRuntime.logout).toHaveBeenCalledWith("ollama");
+  });
+
+  it("should still report success when dropping the stored credential fails", async () => {
+    h.fs.existsSync.mockReturnValue(true);
+    h.fs.readFileSync.mockReturnValue(JSON.stringify({ providers: { ollama: { name: "Ollama" } } }));
+    h.modelRuntime.logout.mockRejectedValue(new Error("no such credential"));
+    await setup();
+
+    expect(await invoke("auth_remove_ollama")).toEqual({ type: "done", provider: "ollama" });
   });
 
   it("should not rewrite models.json when it has no ollama provider", async () => {
@@ -326,7 +335,7 @@ describe("auth_remove_ollama", () => {
     h.fs.readFileSync.mockReturnValue(JSON.stringify({ providers: { keep: {} } }));
     await setup();
 
-    invoke("auth_remove_ollama");
+    await invoke("auth_remove_ollama");
     expect(h.fs.writeFileSync).not.toHaveBeenCalled();
   });
 });

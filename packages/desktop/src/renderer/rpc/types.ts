@@ -82,7 +82,6 @@ export interface AuthStatus {
 export interface OAuthProviderRow {
   id: string;
   name: string;
-  usesCallbackServer: boolean;
 }
 
 export interface AuthProviders {

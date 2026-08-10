@@ -497,6 +497,31 @@ describe("createElectronPiClient() event mapping", () => {
     expect(events[0]).toMatchObject({ type: "agent_end" });
   });
 
+  // Our assistant-ui runtime refetches the whole thread whenever it meets an
+  // event type it has no reducer for, so pi's newer session events must not
+  // reach it. They are still delivered to the interceptor upstream — the
+  // overflow recovery relies on agent_settled.
+  it.each([
+    "agent_settled",
+    "entry_appended",
+    "summarization_retry_scheduled",
+    "summarization_retry_attempt_start",
+    "summarization_retry_finished",
+    "bash_execution_update",
+  ])("should not forward %s to the thread runtime", (type) => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type } as never);
+    expect(events).toEqual([]);
+  });
+
+  it("should keep forwarding the events around a dropped one", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "agent_start" });
+    emitL({ type: "agent_settled" } as never);
+    emitL({ type: "agent_end" });
+    expect(events.map((e) => e.type)).toEqual(["agent_start", "agent_end"]);
+  });
+
   it("should number turns from zero, incrementing on each turn_start", () => {
     const { events } = captureLive(createElectronPiClient());
     emitL({ type: "turn_start" });

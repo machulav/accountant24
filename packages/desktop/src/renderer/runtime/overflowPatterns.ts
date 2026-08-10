@@ -4,10 +4,10 @@
 // (`isContextOverflow`), which the pi SDK itself uses to decide whether an
 // errored assistant message triggers compact-and-retry. Importing it here would
 // drag pi-ai's ~580KB generated model catalog into the renderer bundle (the
-// `./base` entry re-exports it and rollup cannot shake it off), so the two
-// regex lists are copied verbatim instead. A drift-guard test compares them
-// against the installed pi-ai on every run — if pi adds a provider pattern,
-// that test fails and this file gets re-synced.
+// package root re-exports it and rollup cannot shake it off), so the two regex
+// lists are copied verbatim instead. A drift-guard test compares them against
+// the installed pi-ai on every run — if pi adds a provider pattern, that test
+// fails and this file gets re-synced.
 //
 // Only the error-message case is replicated: the silent (z.ai) and length-stop
 // (MiMo) overflow cases need the model's context window and end in stopReason
@@ -31,8 +31,10 @@ export const OVERFLOW_PATTERNS: readonly RegExp[] = [
   /context window exceeds limit/i, // MiniMax
   /exceeded model token limit/i, // Kimi For Coding
   /too large for model with \d+ maximum context length/i, // Mistral
+  /prompt has [\d,]+ tokens?, but the configured context size is [\d,]+ tokens?/i, // DS4 server
   /model_context_window_exceeded/i, // z.ai non-standard finish_reason surfaced as error text
   /prompt too long; exceeded (?:max )?context length/i, // Ollama explicit overflow error
+  /range of input length should be/i, // DashScope / Qwen Token Plan
   /context[_ ]length[_ ]exceeded/i, // Generic fallback
   /too many tokens/i, // Generic fallback
   /token limit exceeded/i, // Generic fallback

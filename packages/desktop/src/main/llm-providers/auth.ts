@@ -1,22 +1,36 @@
 // Provider auth + models queries — the one-shot reads/writes behind the
 // Settings providers screen, onboarding gating, and the composer model picker.
 
-import type { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
+import type { AuthInteraction, Credential } from "@earendil-works/pi-ai";
+import { CredentialSynchronizationError, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ipcMain } from "electron";
 import { trackProviderConnected } from "../analytics";
-import { createRegistry } from "./registry";
+import { createProviderRuntime } from "./registry";
 
-function uniqueProviders(modelRegistry: ModelRegistry): string[] {
+function uniqueProviders(runtime: ModelRuntime): string[] {
   const seen = new Set<string>();
-  for (const model of modelRegistry.getAll()) seen.add(model.provider);
+  for (const model of runtime.getModels()) seen.add(model.provider);
   return [...seen].sort();
+}
+
+function displayName(runtime: ModelRuntime, provider: string): string {
+  return runtime.getProvider(provider)?.name ?? provider;
+}
+
+/** OAuth-capable providers, in pi's provider order. */
+function oauthProviders(runtime: ModelRuntime): { id: string; name: string }[] {
+  const rows: { id: string; name: string }[] = [];
+  for (const provider of runtime.getProviders()) {
+    if (provider.auth.oauth) rows.push({ id: provider.id, name: provider.auth.oauth.name });
+  }
+  return rows;
 }
 
 /** A human label for how a configured provider is authenticated. The stored
  *  credential type (oauth vs api_key) is authoritative; otherwise fall back to
  *  where the key was resolved from (env / models.json / session). */
-function connectionLabel(authStorage: AuthStorage, provider: string, source: string | undefined): string | undefined {
-  switch (authStorage.get(provider)?.type) {
+function connectionLabel(credential: Credential["type"] | undefined, source: string | undefined): string | undefined {
+  switch (credential) {
     case "oauth":
       return "Subscription";
     case "api_key":
@@ -35,55 +49,54 @@ function connectionLabel(authStorage: AuthStorage, provider: string, source: str
   }
 }
 
-function authStatus() {
-  const { authStorage, modelRegistry } = createRegistry();
-  const oauthIds = new Set(authStorage.getOAuthProviders().map((p) => p.id));
-  const providers = uniqueProviders(modelRegistry).map((provider) => {
-    const status = modelRegistry.getProviderAuthStatus(provider);
-    const rawName = modelRegistry.getProviderDisplayName(provider);
+async function authStatus() {
+  const runtime = await createProviderRuntime();
+  const oauthIds = new Set(oauthProviders(runtime).map((p) => p.id));
+  // One listing instead of a stored-credential read per provider; we only ever
+  // need each credential's type, never its secret.
+  const stored = new Map((await runtime.listCredentials()).map((c) => [c.providerId, c.type]));
+  const providers = uniqueProviders(runtime).map((provider) => {
+    const status = runtime.getProviderAuthStatus(provider);
+    const rawName = displayName(runtime, provider);
     // Ollama models we register carry no provider display name, so pi falls back
     // to the bare id "ollama"; show it properly capitalized.
-    const displayName = provider === "ollama" && rawName.toLowerCase() === "ollama" ? "Ollama" : rawName;
+    const name = provider === "ollama" && rawName.toLowerCase() === "ollama" ? "Ollama" : rawName;
     return {
       provider,
-      displayName,
+      displayName: name,
       configured: status.configured,
       source: status.source,
       oauth: oauthIds.has(provider),
       // Only credentials stored in auth.json can be logged out; env vars and
       // models.json-defined providers are managed outside the app.
       removable: status.source === "stored",
-      ...(status.configured ? { connection: connectionLabel(authStorage, provider, status.source) } : {}),
+      ...(status.configured ? { connection: connectionLabel(stored.get(provider), status.source) } : {}),
     };
   });
   return {
     type: "status",
     providers,
-    availableModels: modelRegistry.getAvailable().length,
+    availableModels: runtime.getAvailableSnapshot().length,
     anyConfigured: providers.some((p) => p.configured),
   };
 }
 
-function authProviders() {
-  const { authStorage, modelRegistry } = createRegistry();
-  const oauth = authStorage.getOAuthProviders().map((p) => ({
-    id: p.id,
-    name: p.name,
-    usesCallbackServer: Boolean(p.usesCallbackServer),
-  }));
+async function authProviders() {
+  const runtime = await createProviderRuntime();
+  const oauth = oauthProviders(runtime);
   const oauthIds = new Set(oauth.map((p) => p.id));
-  const all = uniqueProviders(modelRegistry).map((provider) => ({
+  const all = uniqueProviders(runtime).map((provider) => ({
     provider,
-    displayName: modelRegistry.getProviderDisplayName(provider),
+    displayName: displayName(runtime, provider),
     oauth: oauthIds.has(provider),
-    configured: modelRegistry.getProviderAuthStatus(provider).configured,
+    configured: runtime.getProviderAuthStatus(provider).configured,
   }));
   return { type: "providers", oauth, all };
 }
 
-function authModels() {
-  const { modelRegistry } = createRegistry();
-  const models = modelRegistry.getAvailable().map((m) => ({
+async function authModels() {
+  const runtime = await createProviderRuntime();
+  const models = runtime.getAvailableSnapshot().map((m) => ({
     provider: m.provider,
     id: m.id,
     name: m.name,
@@ -94,20 +107,54 @@ function authModels() {
   return { type: "models", models };
 }
 
-function authSetKey(provider: string, key: string) {
+/** Answers pi's api-key login with a key the user already pasted. Standard
+ *  providers ask for exactly one secret; a provider that wants more (an account
+ *  id, a second field) has no answer here, so the login fails instead of
+ *  storing a half-configured credential. */
+function pastedKeyInteraction(key: string): AuthInteraction {
+  let answered = false;
+  return {
+    prompt: async (prompt) => {
+      if (prompt.type === "secret" && !answered) {
+        answered = true;
+        return key;
+      }
+      throw new Error("This provider needs more than an API key to connect.");
+    },
+    notify: () => {},
+  };
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+async function authSetKey(provider: string, key: string) {
   if (!provider) return { type: "error", message: "missing provider" };
   const trimmed = key.trim();
   if (!trimmed) return { type: "error", message: "empty API key" };
-  const { authStorage } = createRegistry();
-  authStorage.set(provider, { type: "api_key", key: trimmed });
+  const runtime = await createProviderRuntime();
+  try {
+    await runtime.login(provider, "api_key", pastedKeyInteraction(trimmed));
+  } catch (e) {
+    return { type: "error", message: errorMessage(e) };
+  }
   trackProviderConnected(provider, "api_key");
   return { type: "done", provider };
 }
 
-function authLogout(provider: string) {
+async function authLogout(provider: string) {
   if (!provider) return { type: "error", message: "missing provider" };
-  const { authStorage } = createRegistry();
-  authStorage.logout(provider);
+  const runtime = await createProviderRuntime();
+  try {
+    await runtime.logout(provider);
+  } catch (e) {
+    // The credential is deleted even when the runtime cannot resynchronize its
+    // own snapshot afterwards — and we discard that runtime immediately.
+    if (!(e instanceof CredentialSynchronizationError)) {
+      return { type: "error", message: errorMessage(e) };
+    }
+  }
   return { type: "done", provider };
 }
 

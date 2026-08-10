@@ -13,14 +13,14 @@
 // — that path can process.exit(1) on an unresolvable model.
 
 import { join } from "node:path";
+import { InMemoryModelsStore } from "@earendil-works/pi-ai";
 import {
-  AuthStorage,
   type CreateAgentSessionRuntimeFactory,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
   createAgentSessionServices,
   type ExtensionUIContext,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentHostConfig } from "../../../shared/agentHost";
@@ -28,19 +28,29 @@ import { enabledSkillPaths } from "../skills-store";
 import type { RuntimeFactory, UiBridge } from "./host";
 
 export function createRuntimeFactory(cfg: AgentHostConfig): RuntimeFactory {
-  // One auth/models registry shared by every session in this host — reading
+  // One auth/models runtime shared by every session in this host — reading
   // the workspace files the llm-providers/ modules write. Killing the host (the
   // agent_restart flow) is what picks up credential changes.
-  const authStorage = AuthStorage.create(join(cfg.workspaceDir, "auth.json"));
-  const modelRegistry = ModelRegistry.create(authStorage, join(cfg.workspaceDir, "models.json"));
+  // In-memory models store: we never refresh catalogs over the network, so
+  // pi's file-backed default would only write an empty models-store.json into
+  // the user's ledger directory. See llm-providers/registry.ts.
+  const modelRuntimePromise = ModelRuntime.create({
+    authPath: join(cfg.workspaceDir, "auth.json"),
+    modelsPath: join(cfg.workspaceDir, "models.json"),
+    modelsStore: new InMemoryModelsStore(),
+  });
+  // A creation failure is reported per session (the caller turns a rejected
+  // runtime into session_error); this keeps it from also being an unhandled
+  // rejection while no session is waiting on it yet.
+  modelRuntimePromise.catch(() => undefined);
 
   return async (sessionPath, ui) => {
+    const modelRuntime = await modelRuntimePromise;
     const factory: CreateAgentSessionRuntimeFactory = async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
       const services = await createAgentSessionServices({
         cwd,
         agentDir,
-        authStorage,
-        modelRegistry,
+        modelRuntime,
         resourceLoaderOptions: {
           noExtensions: true,
           noSkills: true,

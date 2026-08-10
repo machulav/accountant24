@@ -25,7 +25,7 @@ function makeSession() {
         listeners.splice(listeners.indexOf(fn), 1);
       };
     }),
-    modelRegistry: { getAvailable: vi.fn(async () => [{ provider: "anthropic", id: "claude" }]) },
+    modelRuntime: { getAvailableSnapshot: vi.fn(() => [{ provider: "anthropic", id: "claude" }]) },
     model: { provider: "anthropic", id: "claude" },
     thinkingLevel: "medium",
     isStreaming: false,

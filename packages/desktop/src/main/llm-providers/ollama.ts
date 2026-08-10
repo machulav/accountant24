@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { ipcMain } from "electron";
 import { trackProviderConnected } from "../analytics";
-import { createRegistry, paths } from "./registry";
+import { createProviderRuntime, paths } from "./registry";
 
 const OLLAMA_BASE_URL = "http://localhost:11434";
 
@@ -128,7 +128,7 @@ async function addAllOllama() {
 /** Remove the whole Ollama provider the app added to models.json. Only Ollama is
  *  removable this way — other models.json providers are hand-authored and left
  *  alone. */
-function removeOllama() {
+async function removeOllama() {
   const { modelsPath } = paths();
   if (!existsSync(modelsPath)) return { type: "done", provider: "ollama" };
 
@@ -143,8 +143,10 @@ function removeOllama() {
     delete config.providers.ollama;
     writeFileSync(modelsPath, `${JSON.stringify(config, null, 2)}\n`);
   }
-  // Drop any stored Ollama credential too (normally none — it lives in models.json).
-  createRegistry().authStorage.logout("ollama");
+  // Drop any stored Ollama credential too (normally none — it lives in
+  // models.json), best-effort: the provider is already gone either way.
+  const runtime = await createProviderRuntime();
+  await runtime.logout("ollama").catch(() => undefined);
   return { type: "done", provider: "ollama" };
 }
 

@@ -56,6 +56,20 @@ type PiState = {
   messageCount?: number;
 };
 
+/** Session events pi emits that our pinned assistant-ui runtime has no reducer
+ *  for. It reads an unrecognized type as "my snapshot may be stale" and refetches
+ *  the whole thread, so forwarding these would cost a full reload per event —
+ *  several per run. Anything listed here is consumed before this point (the
+ *  overflow interceptor uses `agent_settled`) or carries nothing we render. */
+const UNRENDERED_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "agent_settled",
+  "entry_appended",
+  "summarization_retry_scheduled",
+  "summarization_retry_attempt_start",
+  "summarization_retry_finished",
+  "bash_execution_update",
+]);
+
 const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
 
 const deriveReadiness = (model: ModelInfo | undefined): PiRuntimeReadiness =>
@@ -186,6 +200,7 @@ export function createElectronPiClient(): PiClient {
   /** Map a sidecar `AgentEvent` to the wire `PiClientEventBody` (mirrors
    *  node/mapping.ts `mapSessionEvent`). Returns null to drop. */
   const mapEvent = (threadId: string, e: AgentEvent): PiClientEventBody | null => {
+    if (UNRENDERED_EVENT_TYPES.has(e.type)) return null;
     // Most shapes pass through structurally: pi's wire data already matches the
     // mirror types; our local AgentEvent under-declares fields like
     // `partial`/`contentIndex`, but JSON.parse kept them at runtime, so the casts

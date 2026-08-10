@@ -15,16 +15,24 @@ const OUT = join(ROOT, "packages", "desktop", "resources", "accountant24-extensi
 const SYSTEM_MD_SRC = join(ROOT, "packages", "pi-extension", "src", "system-prompt", "system.md");
 const SYSTEM_MD_OUT = join(ROOT, "packages", "desktop", "resources", "system.md");
 
+// Mirrors the alias table pi's extension loader injects (its own
+// VIRTUAL_MODULES, in core/extensions/loader.ts). Bundling any of these would
+// give the extension a second copy of a module pi expects to be a singleton, so
+// re-check this list against the loader on every pi upgrade.
 const VIRTUAL_MODULES = [
   "@earendil-works/pi-coding-agent",
   "@earendil-works/pi-tui",
   "@earendil-works/pi-agent-core",
   "@earendil-works/pi-ai",
+  "@earendil-works/pi-ai/compat",
   "@earendil-works/pi-ai/oauth",
+  "@earendil-works/pi-ai/providers/all",
   "typebox",
   "typebox/compile",
   "typebox/value",
   "@sinclair/typebox",
+  "@sinclair/typebox/compile",
+  "@sinclair/typebox/value",
 ];
 
 await build({

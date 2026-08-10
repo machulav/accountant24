@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Accountant24 customization for pi: ledger tools, system prompt, scaffolding.",
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.79.8",
+    "@earendil-works/pi-coding-agent": "0.84.1",
     "file-type": "22.0.1",
-    "typebox": "1.1.38"
+    "typebox": "1.3.7"
   }
 }
