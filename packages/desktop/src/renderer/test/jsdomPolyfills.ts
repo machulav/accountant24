@@ -48,4 +48,10 @@ export function installJsdomPolyfills(): void {
   // on a timer; without the stub every grid test run drowns in unhandled
   // TypeErrors after unmount.
   Element.prototype.getAnimations ??= () => [];
+
+  // jsdom Ranges have no layout: Lexical's scroll-into-view reads the
+  // selection Range's rect whenever the editor is focused and its content
+  // changes (e.g. composer setText in tests).
+  Range.prototype.getBoundingClientRect ??= () =>
+    ({ x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0, toJSON: () => ({}) }) as DOMRect;
 }

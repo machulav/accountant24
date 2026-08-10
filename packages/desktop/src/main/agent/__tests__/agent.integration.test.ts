@@ -52,6 +52,9 @@ function makeSession() {
       opts?.preflightResult?.(true);
     }),
     abort: vi.fn(async () => {}),
+    clearQueue: vi.fn((): { steering: string[]; followUp: string[] } => ({ steering: [], followUp: [] })),
+    getSteeringMessages: vi.fn((): readonly string[] => []),
+    getFollowUpMessages: vi.fn((): readonly string[] => []),
     setModel: vi.fn(async () => {}),
     setThinkingLevel: vi.fn(),
     setSessionName: vi.fn(),
@@ -179,6 +182,24 @@ describe("renderer IPC → host → renderer events", () => {
         }),
       },
     ]);
+  });
+
+  it("should round-trip a clear_queue request into a correlated response line", async () => {
+    await setup();
+    invoke("agent_send", { sessionPath: A, command: { type: "get_state", id: "warmup" } });
+    await flush();
+    fixtures[0].sessions.get(A)?.session.clearQueue.mockReturnValueOnce({ steering: ["use 50 EUR"], followUp: [] });
+
+    invoke("agent_send", { sessionPath: A, command: { type: "clear_queue", id: "req-cq" } });
+    await flush();
+
+    expect(rendererLines(A)).toContainEqual({
+      id: "req-cq",
+      type: "response",
+      command: "clear_queue",
+      success: true,
+      data: { steering: ["use 50 EUR"], followUp: [] },
+    });
   });
 
   it("should stream a session's events to the renderer tagged with its path", async () => {

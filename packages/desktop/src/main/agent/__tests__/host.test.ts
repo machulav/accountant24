@@ -16,6 +16,9 @@ function makeSession() {
       opts?.preflightResult?.(true);
     }),
     abort: vi.fn(async () => {}),
+    clearQueue: vi.fn((): { steering: string[]; followUp: string[] } => ({ steering: [], followUp: [] })),
+    getSteeringMessages: vi.fn((): readonly string[] => []),
+    getFollowUpMessages: vi.fn((): readonly string[] => []),
     setModel: vi.fn(async (_model: unknown) => {}),
     setThinkingLevel: vi.fn(),
     setSessionName: vi.fn(),
@@ -237,6 +240,33 @@ describe("commands", () => {
     expect(responses(A)).toEqual([{ id: "1", type: "response", command: "abort", success: true }]);
   });
 
+  it("should clear the session queue and return the cleared messages on clear_queue", async () => {
+    fakes.get(A)?.session.clearQueue.mockReturnValueOnce({ steering: ["use 50 EUR"], followUp: ["and rename it"] });
+    command(A, { type: "clear_queue", id: "1" });
+    await flush();
+    expect(fakes.get(A)?.session.clearQueue).toHaveBeenCalled();
+    expect(responses(A)).toEqual([
+      {
+        id: "1",
+        type: "response",
+        command: "clear_queue",
+        success: true,
+        data: { steering: ["use 50 EUR"], followUp: ["and rename it"] },
+      },
+    ]);
+  });
+
+  it("should respond an error when clearQueue throws", async () => {
+    fakes.get(A)?.session.clearQueue.mockImplementationOnce(() => {
+      throw new Error("session gone");
+    });
+    command(A, { type: "clear_queue", id: "1" });
+    await flush();
+    expect(responses(A)).toEqual([
+      { id: "1", type: "response", command: "clear_queue", success: false, error: "session gone" },
+    ]);
+  });
+
   it("should resolve set_model against the registry and apply it", async () => {
     command(A, { type: "set_model", id: "1", provider: "anthropic", modelId: "claude" });
     await flush();
@@ -312,9 +342,22 @@ describe("commands", () => {
           autoCompactionEnabled: true,
           messageCount: 2,
           pendingMessageCount: 0,
+          steeringMessages: [],
+          followUpMessages: [],
         },
       },
     ]);
+  });
+
+  it("should include pending queued messages in get_state", async () => {
+    fakes.get(A)?.session.getSteeringMessages.mockReturnValueOnce(["use 50 EUR"]);
+    fakes.get(A)?.session.getFollowUpMessages.mockReturnValueOnce(["and rename it"]);
+    command(A, { type: "get_state", id: "1" });
+    await flush();
+    expect(responses(A)[0].data).toMatchObject({
+      steeringMessages: ["use 50 EUR"],
+      followUpMessages: ["and rename it"],
+    });
   });
 
   it("should return the messages on get_messages", async () => {

@@ -10,6 +10,7 @@ import { ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
 import type { ClipboardEvent, FC } from "react";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/accountant24/attachment";
 import { ComposerModelSelector } from "@/components/accountant24/composer-model-selector";
+import { ComposerQueuedMessages } from "@/components/accountant24/composer-queue";
 import { ComposerSkills } from "@/components/accountant24/composer-skills";
 import { DirectiveChip } from "@/components/accountant24/directive-chips";
 import { ComposerMentions } from "@/components/accountant24/mentions";
@@ -17,6 +18,7 @@ import { RotatingPlaceholderInput } from "@/components/accountant24/rotating-pla
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
 import { Button } from "@/components/shadcn/button";
 import { InputGroup, InputGroupAddon } from "@/components/shadcn/input-group";
+import { restoreQueuedDraft } from "@/hooks/use-escape-stop";
 
 // Center the composer only for a genuinely new, empty chat. "New chat" is the
 // not-yet-created thread (its id is the runtime's `newThreadId`); switching to an
@@ -64,6 +66,7 @@ export const Composer: FC = () => {
             onPasteCapture={(e) => handleComposerFilePaste(e, aui)}
           >
             <ComposerAttachments />
+            <ComposerQueuedMessages />
             <RotatingPlaceholderInput
               className="aui-composer-input max-h-32 w-full bg-transparent text-base"
               autoFocus
@@ -81,6 +84,7 @@ export const Composer: FC = () => {
 };
 
 const ComposerAction: FC = () => {
+  const aui = useAui();
   return (
     <InputGroupAddon align="block-end" className="aui-composer-action-wrapper justify-between">
       {/* No gap: the attach button's and the model pill's own ghost paddings
@@ -122,8 +126,24 @@ const ComposerAction: FC = () => {
             </ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
-        <AuiIf condition={(s) => !s.thread.isRunning}>
-          <ComposerPrimitive.Send asChild>
+        {/* One morphing action slot. While the agent runs with an EMPTY
+            composer the only meaningful action is Stop; the moment text (or an
+            attachment) is entered the slot morphs into Send — a mid-run send
+            is a steering message (pi delivers it after the current tool call
+            and re-plans). Stop stays reachable with a draft via Esc
+            (use-escape-stop) or by clearing the input. */}
+        <AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>
+          {/* The onClick runs before the primitive's built-in send
+              (composeEventHandlers) and preventDefault suppresses it, so every
+              send carries the steer intent — harmless while idle, since pi
+              reads streamingBehavior only during a run. */}
+          <ComposerPrimitive.Send
+            asChild
+            onClick={(e) => {
+              e.preventDefault();
+              aui.composer().send({ steer: true });
+            }}
+          >
             <TooltipIconButton
               tooltip="Send message"
               side="bottom"
@@ -137,17 +157,22 @@ const ComposerAction: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel asChild>
-            <Button
+        <AuiIf condition={(s) => s.thread.isRunning && s.composer.isEmpty}>
+          {/* Stop discards a pending (undelivered) steering message; its text
+              goes back into the composer first so nothing typed is lost. Runs
+              before the built-in cancel (queue clear + abort). */}
+          <ComposerPrimitive.Cancel asChild onClick={() => restoreQueuedDraft(aui.composer())}>
+            <TooltipIconButton
+              tooltip="Stop (Esc)"
+              side="bottom"
               type="button"
               variant="default"
               size="icon"
-              className="aui-composer-cancel size-6 p-1"
+              className="aui-composer-cancel"
               aria-label="Stop generating"
             >
               <SquareIcon className="aui-composer-cancel-icon size-2.5 fill-current" />
-            </Button>
+            </TooltipIconButton>
           </ComposerPrimitive.Cancel>
         </AuiIf>
       </div>

@@ -21,6 +21,9 @@ export interface HostSession {
     },
   ): Promise<void>;
   abort(): Promise<void>;
+  clearQueue(): { steering: string[]; followUp: string[] };
+  getSteeringMessages(): readonly string[];
+  getFollowUpMessages(): readonly string[];
   setModel(model: unknown): Promise<void>;
   setThinkingLevel(level: never): void;
   setSessionName(name: string): void;
@@ -273,6 +276,12 @@ export class AgentHost {
           this.postEvent(sessionPath, success());
           return;
         }
+        case "clear_queue": {
+          // abort() does not drop queued steering/follow-up messages; the
+          // renderer clears them explicitly when the user stops a run.
+          this.postEvent(sessionPath, success(session.clearQueue()));
+          return;
+        }
         case "set_model": {
           const models = session.modelRuntime.getAvailableSnapshot();
           const model = models.find((m) => m.provider === command.provider && m.id === command.modelId);
@@ -315,6 +324,8 @@ export class AgentHost {
               autoCompactionEnabled: session.autoCompactionEnabled,
               messageCount: session.messages.length,
               pendingMessageCount: session.pendingMessageCount,
+              steeringMessages: session.getSteeringMessages(),
+              followUpMessages: session.getFollowUpMessages(),
             }),
           );
           return;

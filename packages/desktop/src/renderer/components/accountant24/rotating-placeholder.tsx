@@ -5,6 +5,8 @@ import { useAuiState } from "@assistant-ui/react";
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import { type ComponentProps, type FC, useEffect, useRef, useState } from "react";
 import { useDeleteLineWithChips } from "@/hooks/use-delete-line-with-chips";
+import { useEscapeStop } from "@/hooks/use-escape-stop";
+import { useSteerEnter } from "@/hooks/use-steer-enter";
 
 const COMPOSER_PLACEHOLDERS = [
   "Write a message...",
@@ -48,6 +50,8 @@ export const RotatingPlaceholderInput: FC<RotatingPlaceholderInputProps> = (prop
   const editorRef = useRef<HTMLDivElement>(null);
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
   useDeleteLineWithChips(editorRef);
+  useSteerEnter(editorRef);
+  useEscapeStop(editorRef);
 
   // Refocus the input when switching chats (new or existing) so the user can
   // type immediately — the library's autoFocus only covers the initial mount.

@@ -22,9 +22,9 @@ export const DirectiveChip: FC<DirectiveChipProps> = ({ directiveType, label }) 
   <DirectivePill type={directiveType} label={label} />
 );
 
-/** Renders a sent user-message text part, turning directives into the same
- *  inline chips the composer shows (plain text passes through untouched). */
-export const DirectiveText: TextMessagePartComponent = ({ text }) => {
+/** Renders directive-bearing text as inline chips + plain spans — the shared
+ *  body behind sent user messages and the composer's queued-message chip. */
+export const DirectiveSegments: FC<{ text: string }> = ({ text }) => {
   const segments = parseMentions(text);
   if (segments.length === 1 && segments[0]?.kind === "text") {
     return <span className="whitespace-pre-wrap">{text}</span>;
@@ -43,3 +43,7 @@ export const DirectiveText: TextMessagePartComponent = ({ text }) => {
     </>
   );
 };
+
+/** Renders a sent user-message text part, turning directives into the same
+ *  inline chips the composer shows (plain text passes through untouched). */
+export const DirectiveText: TextMessagePartComponent = ({ text }) => <DirectiveSegments text={text} />;

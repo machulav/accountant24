@@ -18,6 +18,7 @@ import type {
   PiClientEventBody,
   PiHostUiResponse,
   PiModelInfo,
+  PiQueuedMessage,
   PiRuntimeReadiness,
   PiSendMessageInput,
   PiThinkingLevel,
@@ -25,6 +26,7 @@ import type {
   PiThreadSnapshot,
   PiTranscriptMessage,
 } from "@assistant-ui/react-pi";
+import { piQueueItemId } from "@assistant-ui/react-pi";
 import {
   trackAgentMessageSent,
   trackAgentToolUsed,
@@ -54,6 +56,8 @@ type PiState = {
   sessionId?: string;
   sessionName?: string;
   messageCount?: number;
+  steeringMessages?: string[];
+  followUpMessages?: string[];
 };
 
 /** Session events pi emits that our pinned assistant-ui runtime has no reducer
@@ -178,15 +182,27 @@ export function createElectronPiClient(): PiClient {
     return changed ? ({ ...m, content } as T) : message;
   };
 
+  /** Pending steering/follow-up messages in the shape the runtime's queue
+   *  adapter mirrors — same id scheme as react-pi's own ThreadSupervisor.
+   *  Queued strings arrive post skill-expansion; collapse them like transcript
+   *  user messages so the queue chip renders the `:skill[name]` directive. */
+  const toQueuedMessages = (state: PiState): readonly PiQueuedMessage[] =>
+    [
+      ...(state.steeringMessages ?? []).map((content, i) => ({ mode: "steer" as const, content, i })),
+      ...(state.followUpMessages ?? []).map((content, i) => ({ mode: "followUp" as const, content, i })),
+    ].map(({ mode, content, i }) => ({ id: piQueueItemId(mode, i), mode, content: collapseSkillText(content) }));
+
   const buildSnapshot = (threadId: string, state: PiState, messages: unknown): PiThreadSnapshot => {
     if (state.model) modelByThread.set(threadId, `${state.model.provider}/${state.model.id}`);
     const list = Array.isArray(messages) ? messages.map(collapseUserMessage) : [];
+    const queuedMessages = toQueuedMessages(state);
     return {
       metadata: {
         id: threadId,
         status: running.has(threadId) || state.isStreaming ? "running" : "idle",
         ...(state.sessionName ? { title: mentionsToPlainText(state.sessionName) } : {}),
         ...(state.sessionFile ? { sessionFile: state.sessionFile } : {}),
+        ...(queuedMessages.length > 0 ? { queuedMessages } : {}),
         messageCount: state.messageCount ?? list.length,
         config: state.model
           ? { provider: state.model.provider, modelId: state.model.id, thinkingLevel: state.thinkingLevel }
@@ -236,6 +252,15 @@ export function createElectronPiClient(): PiClient {
         };
       case "tool_execution_end":
         return { type: "tool_execution_end", toolCallId: e.toolCallId, result: e.result, isError: Boolean(e.isError) };
+      case "queue_update":
+        // Queued texts arrive post skill-expansion, like transcript user
+        // messages — collapse them so the composer's queue chip renders the
+        // `:skill[name]` directive instead of pi's expanded block.
+        return {
+          type: "queue_update",
+          steering: e.steering.map(collapseSkillText),
+          followUp: e.followUp.map(collapseSkillText),
+        };
       default: {
         // Forward everything else with its full payload, as node/mapping.ts
         // does — the reducer needs e.g. `agent_end.willRetry` (keeps runStatus
@@ -320,22 +345,39 @@ export function createElectronPiClient(): PiClient {
       const message = hoistSkillDirective(input.content);
       const skillToken = /^\/skill:(\S+)/.exec(message)?.[1];
       if (skillToken) trackSkillByName(skillToken, "manual");
-      running.add(threadId); // optimistic — flips status to running before agent_start arrives
-      await agentBridge.send(threadId, {
-        type: "prompt",
-        message,
-        ...(input.attachments?.length ? { images: input.attachments } : {}),
-        ...(input.streamingBehavior ? { streamingBehavior: input.streamingBehavior } : {}),
-      });
+      running.add(threadId); // optimistic — flips status to running before agent_start arrives; a mid-run send is a no-op here
+      // An id-tracked request, not fire-and-forget: pi's preflight rejection
+      // (e.g. a mid-run send during compaction) must reject this promise so
+      // the runtime rolls back its optimistic message/queue entry.
+      await agentBridge.request<void>(
+        threadId,
+        {
+          type: "prompt",
+          message,
+          ...(input.attachments?.length ? { images: input.attachments } : {}),
+          ...(input.streamingBehavior ? { streamingBehavior: input.streamingBehavior } : {}),
+        },
+        "prompt",
+      );
     },
 
     async cancelRun(threadId) {
       await agentBridge.send(threadId, { type: "abort" });
     },
 
-    async clearQueue() {
-      // pi exposes no clear-and-return; queue is still reflected via queue_update.
-      return { steering: [], followUp: [] };
+    async clearQueue(threadId) {
+      // pi's abort keeps queued messages; clearing is its own command. The
+      // cleared texts go back to the composer, so collapse them like any
+      // transcript user message.
+      const cleared = await agentBridge.request<{ steering?: string[]; followUp?: string[] }>(
+        threadId,
+        { type: "clear_queue" },
+        "clear_queue",
+      );
+      return {
+        steering: (cleared.steering ?? []).map(collapseSkillText),
+        followUp: (cleared.followUp ?? []).map(collapseSkillText),
+      };
     },
 
     async getAvailableModels() {

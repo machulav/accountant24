@@ -25,9 +25,11 @@ import {
   type ExternalStoreAdapter,
   SimpleImageAttachmentAdapter,
   ThreadPrimitive,
+  useAui,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 import { Composer, EditComposer, handleComposerFilePaste, isNewChatView } from "../composer";
@@ -157,18 +159,41 @@ const makeDictationAdapter = () => ({
   }),
 });
 
+/** The queue surface production exposes (react-pi's adapter); spies stand in
+ *  so tests can assert the enqueue/clear calls the composer must make. */
+const makeQueueAdapter = (items: { id: string; prompt: string }[] = []) => ({
+  items,
+  enqueue: vi.fn(),
+  steer: vi.fn(),
+  remove: vi.fn(),
+  clear: vi.fn(),
+});
+type QueueAdapter = ReturnType<typeof makeQueueAdapter>;
+
+/** The aui handle of the rendered runtime, for driving composer state the way
+ *  the Lexical input would (jsdom cannot type into Lexical). */
+let aui: ReturnType<typeof useAui> | undefined;
+const CaptureAui = () => {
+  aui = useAui();
+  return null;
+};
+
 function Chrome({
   children,
   isRunning = false,
   messages = [],
   attachments = false,
   dictation = false,
+  queue,
+  onCancel,
 }: {
   children: ReactNode;
   isRunning?: boolean;
   messages?: Msg[];
   attachments?: boolean;
   dictation?: boolean;
+  queue?: QueueAdapter;
+  onCancel?: () => Promise<void>;
 }) {
   const adapters =
     attachments || dictation
@@ -181,11 +206,18 @@ function Chrome({
     messages,
     isRunning,
     onNew: async () => {},
+    ...(onCancel ? { onCancel } : {}),
+    ...(queue ? { queue } : {}),
     convertMessage: (m: unknown) => m,
     adapters,
   } as unknown as ExternalStoreAdapter;
   const runtime = useExternalStoreRuntime(store);
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <CaptureAui />
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 
 describe("<Composer />", () => {
@@ -212,15 +244,88 @@ describe("<Composer />", () => {
     expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
   });
 
-  it("should swap the send button for a stop button while the thread is running", () => {
+  it("should show Stop in place of Send while running with an empty composer", () => {
     render(
-      <Chrome isRunning={true}>
+      <Chrome isRunning={true} queue={makeQueueAdapter()}>
         <Composer />
       </Chrome>,
     );
     expect(screen.getByRole("button", { name: "Stop generating" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send message" })).not.toBeInTheDocument();
   });
+
+  it("should morph Stop into Send when text is entered mid-run", async () => {
+    render(
+      <Chrome isRunning={true} queue={makeQueueAdapter()}>
+        <Composer />
+      </Chrome>,
+    );
+    act(() => aui?.composer().setText("use 50 EUR"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled());
+    expect(screen.queryByRole("button", { name: "Stop generating" })).not.toBeInTheDocument();
+  });
+
+  it("should morph Send back into Stop when the mid-run text is cleared", async () => {
+    render(
+      <Chrome isRunning={true} queue={makeQueueAdapter()}>
+        <Composer />
+      </Chrome>,
+    );
+    act(() => aui?.composer().setText("use 50 EUR"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument());
+    act(() => aui?.composer().setText(""));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Stop generating" })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Send message" })).not.toBeInTheDocument();
+  });
+
+  it("should enqueue with steer intent when Send is clicked while running", async () => {
+    const queue = makeQueueAdapter();
+    render(
+      <Chrome isRunning={true} queue={queue}>
+        <Composer />
+      </Chrome>,
+    );
+    act(() => aui?.composer().setText("use 50 EUR"));
+    await userEvent.click(await screen.findByRole("button", { name: "Send message" }));
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    const [message, options] = queue.enqueue.mock.calls[0];
+    expect(message).toMatchObject({ content: [{ type: "text", text: "use 50 EUR" }] });
+    expect(options).toEqual({ steer: true });
+  });
+
+  it("should enqueue with steer intent when Send is clicked while idle", async () => {
+    // Always-steer by design: pi only reads the flag during a run, so an idle
+    // send is unchanged — and a send racing an unnoticed run start still steers.
+    const queue = makeQueueAdapter();
+    render(
+      <Chrome isRunning={false} queue={queue}>
+        <Composer />
+      </Chrome>,
+    );
+    act(() => aui?.composer().setText("hi"));
+    await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue.mock.calls[0][1]).toEqual({ steer: true });
+  });
+
+  it("should restore the pending queued text into the composer when Stop is clicked", async () => {
+    const queue = makeQueueAdapter([{ id: "steer:0", prompt: "use 50 EUR" }]);
+    const onCancel = vi.fn().mockResolvedValue(undefined);
+    render(
+      <Chrome isRunning={true} queue={queue} onCancel={onCancel}>
+        <Composer />
+      </Chrome>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Stop generating" }));
+
+    expect(aui?.composer().getState().text).toBe("use 50 EUR");
+    expect(queue.clear).toHaveBeenCalledWith("cancel-run");
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  // A Stop click with a typed draft is unreachable now (the slot shows Send);
+  // the draft-wins guard is covered by restoreQueuedDraft()'s own unit specs.
 
   it("should route a file paste through the attach handler without inserting text", () => {
     render(

@@ -68,7 +68,14 @@ export function ChatLayout() {
       ]),
     [],
   );
-  const runtime = usePiRuntime({ client, adapters: { attachments } });
+  // onError: mid-run (queued) send failures bypass the transcript's failed
+  // state — the runtime only rolls back its optimistic queue entry — so log
+  // them here; everything else already surfaces on the thread.
+  const runtime = usePiRuntime({
+    client,
+    adapters: { attachments },
+    onError: (error) => console.error("[pi] runtime action failed:", error),
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which view fills the inset. The chat is never unmounted (see below); the
   // report pages latch on first open and stay mounted after, so their state

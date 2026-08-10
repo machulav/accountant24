@@ -40,6 +40,8 @@ const h = vi.hoisted(() => ({
   deleted: [] as string[],
   /** request types that should reject, to exercise error/edge paths. */
   errorTypes: new Set<string>(),
+  /** clear_queue response — per-test override for the cleared texts. */
+  clearQueueResult: { steering: [] as string[], followUp: [] as string[] },
   /** compactionState response — per-test override for the heal-on-subscribe. */
   compaction: undefined as { active: boolean; reason?: string; everCompacted: boolean } | undefined,
   /** skills_list response — feeds the skill_used native/custom lookup. */
@@ -72,6 +74,7 @@ vi.mock("../agentBridge", () => ({
       if (h.errorTypes.has(command.type)) throw new Error(`fail:${command.type}`);
       if (command.type === "get_state") return h.state;
       if (command.type === "get_messages") return { messages: h.messages };
+      if (command.type === "clear_queue") return h.clearQueueResult;
       return {};
     },
     compactionState: () => h.compaction,
@@ -144,6 +147,7 @@ beforeEach(() => {
   h.settingsThrows = false;
   h.deleted.length = 0;
   h.errorTypes = new Set();
+  h.clearQueueResult = { steering: [], followUp: [] };
   h.compaction = undefined;
   resetPendingCompactionMarkers();
   h.state = { model: { provider: "anthropic", id: "claude-x" }, sessionFile: "/ws/sessions/s1.jsonl" };
@@ -372,14 +376,14 @@ describe("createElectronPiClient() analytics", () => {
       const client = createElectronPiClient();
       const snapshot = await client.createThread({});
       await client.sendMessage(snapshot.metadata.id, message("add 12 EUR for coffee"));
-      expect(sentCmds().at(-1)).toMatchObject({ type: "prompt", message: "add 12 EUR for coffee" });
+      expect(requestCmds().at(-1)).toMatchObject({ type: "prompt", message: "add 12 EUR for coffee" });
     });
 
     it("should hoist a skill chip into pi's leading /skill: token on send", async () => {
       const client = createElectronPiClient();
       const snapshot = await client.createThread({});
       await client.sendMessage(snapshot.metadata.id, message(":skill[pdf] summarize this receipt"));
-      expect(sentCmds().at(-1)).toMatchObject({ type: "prompt", message: "/skill:pdf summarize this receipt" });
+      expect(requestCmds().at(-1)).toMatchObject({ type: "prompt", message: "/skill:pdf summarize this receipt" });
     });
 
     it("should collapse pi's expanded skill block back to the directive in transcript snapshots", async () => {
@@ -651,6 +655,26 @@ describe("createElectronPiClient() event mapping", () => {
     expect(events[0]).toMatchObject({ type: "queue_update", steering: ["s1"], followUp: ["f1"] });
   });
 
+  it("should collapse expanded skill blocks in queue_update texts", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({
+      type: "queue_update",
+      steering: ['<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninstructions\n</skill>\n\ncheck this'],
+      followUp: ["/skill:pdf later"],
+    });
+    expect(events[0]).toMatchObject({
+      type: "queue_update",
+      steering: [":skill[pdf] check this"],
+      followUp: [":skill[pdf] later"],
+    });
+  });
+
+  it("should forward empty queue_update arrays verbatim", () => {
+    const { events } = captureLive(createElectronPiClient());
+    emitL({ type: "queue_update", steering: [], followUp: [] });
+    expect(events[0]).toMatchObject({ type: "queue_update", steering: [], followUp: [] });
+  });
+
   it("should keep stopReason and errorMessage on a message_end assistant message", () => {
     const { events } = captureLive(createElectronPiClient());
     const msg = { role: "assistant", content: [], stopReason: "error", errorMessage: "boom" };
@@ -792,8 +816,9 @@ describe("createElectronPiClient() per-session routing", () => {
     await client.renameThread(A, "Budget");
     await client.cancelRun(B);
 
-    expect(h.requests.every((r) => r.sessionPath === A)).toBe(true);
-    expect(h.sent).toContainEqual({ sessionPath: B, command: expect.objectContaining({ type: "prompt" }) });
+    // getThread's get_state/get_messages target A; the prompt targets B.
+    expect(h.requests.filter((r) => r.command.type !== "prompt").every((r) => r.sessionPath === A)).toBe(true);
+    expect(h.requests).toContainEqual({ sessionPath: B, command: expect.objectContaining({ type: "prompt" }) });
     expect(h.sent).toContainEqual({
       sessionPath: A,
       command: { type: "set_model", provider: "openai", modelId: "gpt-x" },
@@ -869,7 +894,7 @@ describe("createElectronPiClient() createThread()", () => {
   it("should send the initial message to the freshly minted session", async () => {
     const client = createElectronPiClient();
     await client.createThread({ initialMessage: message("hi") });
-    expect(h.sent).toContainEqual({
+    expect(h.requests).toContainEqual({
       sessionPath: "/ws/sessions/new.jsonl",
       command: expect.objectContaining({ type: "prompt", message: "hi" }),
     });
@@ -960,7 +985,7 @@ describe("createElectronPiClient() getThread() snapshot", () => {
     expect(snap.metadata.status).toBe("idle");
 
     await client.sendMessage("/ws/sessions/old.jsonl", message("continuing"));
-    expect(h.sent).toContainEqual({
+    expect(h.requests).toContainEqual({
       sessionPath: "/ws/sessions/old.jsonl",
       command: expect.objectContaining({ type: "prompt", message: "continuing" }),
     });
@@ -992,6 +1017,44 @@ describe("createElectronPiClient() getThread() snapshot", () => {
     const client = createElectronPiClient();
     const snap = await client.getThread("/ws/sessions/s1.jsonl");
     expect(snap.metadata.title).toBe("Monthly budget");
+  });
+
+  it("should map pending steering and follow-up messages into queuedMessages", async () => {
+    h.state = {
+      model: A_MODEL,
+      sessionFile: "/ws/sessions/s1.jsonl",
+      steeringMessages: ["use 50 EUR"],
+      followUpMessages: ["and rename it"],
+    };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.queuedMessages).toEqual([
+      { id: "steer:0", mode: "steer", content: "use 50 EUR" },
+      { id: "followUp:0", mode: "followUp", content: "and rename it" },
+    ]);
+  });
+
+  it("should collapse skill text in queued snapshot messages", async () => {
+    h.state = {
+      model: A_MODEL,
+      sessionFile: "/ws/sessions/s1.jsonl",
+      steeringMessages: ['<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninstructions\n</skill>\n\ncheck this'],
+    };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata.queuedMessages).toEqual([{ id: "steer:0", mode: "steer", content: ":skill[pdf] check this" }]);
+  });
+
+  it("should omit queuedMessages when both queues are empty", async () => {
+    h.state = {
+      model: A_MODEL,
+      sessionFile: "/ws/sessions/s1.jsonl",
+      steeringMessages: [],
+      followUpMessages: [],
+    };
+    const client = createElectronPiClient();
+    const snap = await client.getThread("/ws/sessions/s1.jsonl");
+    expect(snap.metadata).not.toHaveProperty("queuedMessages");
   });
 
   it("should fall back messageCount to the transcript length when pi omits it", async () => {
@@ -1107,6 +1170,43 @@ describe("createElectronPiClient() listThreads()", () => {
   });
 });
 
+describe("createElectronPiClient() sendMessage()", () => {
+  it("should send the prompt as an id-tracked request, never fire-and-forget", async () => {
+    // Regression: a fire-and-forget prompt drops pi's preflight rejection
+    // (e.g. "Agent is already processing") because the response carries no id
+    // to correlate — the failure never reached the UI.
+    const client = createElectronPiClient();
+    await client.sendMessage("/ws/s1.jsonl", message("hi"));
+    expect(requestCmds()).toContainEqual(expect.objectContaining({ type: "prompt", message: "hi" }));
+    expect(sentCmds().some((c) => c.type === "prompt")).toBe(false);
+  });
+
+  it("should reject when pi rejects the prompt preflight", async () => {
+    h.errorTypes.add("prompt");
+    const client = createElectronPiClient();
+    await expect(client.sendMessage("/ws/s1.jsonl", message("hi"))).rejects.toThrow("fail:prompt");
+  });
+
+  it("should forward the steer streaming behavior verbatim on the prompt command", async () => {
+    const client = createElectronPiClient();
+    await client.sendMessage("/ws/s1.jsonl", {
+      content: "use 50 EUR",
+      streamingBehavior: "steer",
+    } as PiSendMessageInput);
+    expect(requestCmds().at(-1)).toMatchObject({
+      type: "prompt",
+      message: "use 50 EUR",
+      streamingBehavior: "steer",
+    });
+  });
+
+  it("should omit streamingBehavior from the prompt command when not queued", async () => {
+    const client = createElectronPiClient();
+    await client.sendMessage("/ws/s1.jsonl", message("hi"));
+    expect(requestCmds().at(-1)).not.toHaveProperty("streamingBehavior");
+  });
+});
+
 describe("createElectronPiClient() thread mutations", () => {
   it("should send abort to the thread's own session on cancelRun", async () => {
     const client = createElectronPiClient();
@@ -1114,9 +1214,38 @@ describe("createElectronPiClient() thread mutations", () => {
     expect(h.sent).toEqual([{ sessionPath: "/ws/s1.jsonl", command: { type: "abort" } }]);
   });
 
-  it("should return empty steering and follow-up queues from clearQueue", async () => {
+  it("should clear pi's queue via the clear_queue command and return the cleared texts", async () => {
+    h.clearQueueResult = { steering: ["use 50 EUR"], followUp: ["and rename it"] };
+    const client = createElectronPiClient();
+    expect(await client.clearQueue("/ws/s1.jsonl")).toEqual({
+      steering: ["use 50 EUR"],
+      followUp: ["and rename it"],
+    });
+    expect(h.requests).toContainEqual({ sessionPath: "/ws/s1.jsonl", command: { type: "clear_queue" } });
+  });
+
+  it("should collapse expanded skill blocks in the cleared queue texts", async () => {
+    h.clearQueueResult = {
+      steering: ['<skill name="pdf" location="/ws/skills/pdf/SKILL.md">\ninstructions\n</skill>\n\ncheck this'],
+      followUp: [],
+    };
+    const client = createElectronPiClient();
+    expect(await client.clearQueue("/ws/s1.jsonl")).toEqual({
+      steering: [":skill[pdf] check this"],
+      followUp: [],
+    });
+  });
+
+  it("should return empty queues when the clear_queue response omits the arrays", async () => {
+    h.clearQueueResult = {} as { steering: string[]; followUp: string[] };
     const client = createElectronPiClient();
     expect(await client.clearQueue("/ws/s1.jsonl")).toEqual({ steering: [], followUp: [] });
+  });
+
+  it("should propagate a clear_queue failure", async () => {
+    h.errorTypes.add("clear_queue");
+    const client = createElectronPiClient();
+    await expect(client.clearQueue("/ws/s1.jsonl")).rejects.toThrow("fail:clear_queue");
   });
 
   it("should send set_thinking_level to the thread's own session", async () => {
