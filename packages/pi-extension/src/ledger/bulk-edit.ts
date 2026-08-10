@@ -7,10 +7,10 @@ import { resolveSafePath } from "./paths";
 // ── Types ───────────────────────────────────────────────────────────
 
 /** The transaction/posting fields that are safe to change by surgical text replacement. */
-export type ModifyField = "account" | "payee" | "status";
+export type BulkEditField = "account" | "payee" | "status";
 
-export interface ModifyParams {
-  field: ModifyField;
+export interface BulkEditParams {
+  field: BulkEditField;
   /** The replacement value: a new account (field "account"), a new payee (field "payee"),
    * or a status name — "cleared" | "pending" | "unmarked" (field "status"). */
   new_value: string;
@@ -21,8 +21,8 @@ export interface ModifyParams {
   from_payee?: string;
 }
 
-export interface ModifyResult {
-  field: ModifyField;
+export interface BulkEditResult {
+  field: BulkEditField;
   query: string[];
   transactions: number;
   postings: number;
@@ -47,7 +47,7 @@ const STATUS_HEADER_RE =
 
 /** Journal status markers by their tool-facing names ("" = unmarked). */
 const STATUS_MARKERS = { cleared: "*", pending: "!", unmarked: "" } as const;
-type ModifyStatus = keyof typeof STATUS_MARKERS;
+type BulkEditStatus = keyof typeof STATUS_MARKERS;
 
 // ── Public ──────────────────────────────────────────────────────────
 
@@ -71,12 +71,12 @@ type ModifyStatus = keyof typeof STATUS_MARKERS;
  * tool. That keeps concurrent read/edit/write/validate cycles from interleaving on shared
  * journal files.
  */
-export async function modifyTransactions(
+export async function bulkEditTransactions(
   query: string[],
-  params: ModifyParams,
+  params: BulkEditParams,
   dryRun = false,
   signal?: AbortSignal,
-): Promise<ModifyResult> {
+): Promise<BulkEditResult> {
   validate(query, params);
   const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
   const session = new JournalEditSession();
@@ -100,7 +100,7 @@ export async function modifyTransactions(
         ? applyAccountEdit(content, match, params.from_account as string, params.new_value)
         : params.field === "payee"
           ? applyPayeeEdit(content, match, params.from_payee as string, params.new_value)
-          : applyStatusEdit(content, match, params.new_value as ModifyStatus);
+          : applyStatusEdit(content, match, params.new_value as BulkEditStatus);
 
     warnings.push(...warn);
     if (count > 0) {
@@ -127,7 +127,7 @@ export async function modifyTransactions(
     }
   }
 
-  const base: Omit<ModifyResult, "ledgerIsValid" | "validationError" | "dryRun"> = {
+  const base: Omit<BulkEditResult, "ledgerIsValid" | "validationError" | "dryRun"> = {
     field: params.field,
     query,
     transactions,
@@ -153,7 +153,7 @@ export async function modifyTransactions(
 
 // ── Validation ──────────────────────────────────────────────────────
 
-function validate(query: string[], params: ModifyParams): void {
+function validate(query: string[], params: BulkEditParams): void {
   if (!Array.isArray(query) || query.length === 0) {
     throw new Error("query must be a non-empty array of hledger query terms.");
   }
@@ -209,7 +209,7 @@ interface Match {
 
 async function discover(
   query: string[],
-  params: ModifyParams,
+  params: BulkEditParams,
   mainPath: string,
   signal?: AbortSignal,
 ): Promise<Match[]> {
@@ -413,7 +413,7 @@ function renderHeaderPayee({ prefix, gap, trailing }: ParsedHeader, newPayee: st
  * status markers are deliberately left untouched (they override the header only when
  * present, so clearing the header does not change what they assert).
  */
-function applyStatusEdit(content: string, match: Match, newStatus: ModifyStatus): ApplyResult {
+function applyStatusEdit(content: string, match: Match, newStatus: BulkEditStatus): ApplyResult {
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
   const lines = content.split(/\r?\n/);
   const warn: string[] = [];
@@ -426,7 +426,7 @@ function applyStatusEdit(content: string, match: Match, newStatus: ModifyStatus)
     return { newContent: content, count: 0, warn };
   }
   const [, date, gap, marker = "", rest] = m;
-  const current: ModifyStatus = marker.startsWith("*") ? "cleared" : marker.startsWith("!") ? "pending" : "unmarked";
+  const current: BulkEditStatus = marker.startsWith("*") ? "cleared" : marker.startsWith("!") ? "pending" : "unmarked";
   if (current === newStatus) {
     return { newContent: content, count: 0, warn }; // already there; no-op
   }

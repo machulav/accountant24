@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-const BASE = mkdtempSync(join(tmpdir(), "accountant24-modify-"));
+const BASE = mkdtempSync(join(tmpdir(), "accountant24-bulk-edit-"));
 const LEDGER = join(BASE, "ledger");
 
 vi.mock("../../config.js", () => ({

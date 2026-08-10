@@ -1,10 +1,10 @@
 export { listAccounts } from "./accounts";
 export {
-  type ModifyField,
-  type ModifyParams,
-  type ModifyResult,
-  modifyTransactions,
-} from "./modify";
+  type BulkEditField,
+  type BulkEditParams,
+  type BulkEditResult,
+  bulkEditTransactions,
+} from "./bulk-edit";
 export { listPayees } from "./payees";
 export { type QueryLedgerResult, queryLedger } from "./query";
 export { listTags } from "./tags";

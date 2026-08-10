@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { type ModifyField, type ModifyParams, type ModifyResult, modifyTransactions } from "../ledger";
+import { type BulkEditField, type BulkEditParams, type BulkEditResult, bulkEditTransactions } from "../ledger";
 import { TOOL_LABELS } from "../tool-labels";
 
 const Params = Type.Object({
@@ -37,14 +37,14 @@ const ACTION_FIELDS = {
   set_status: "status",
 } as const;
 
-/** Ledger-layer errors name ModifyParams fields; resurface them under this tool's schema names. */
+/** Ledger-layer errors name BulkEditParams fields; resurface them under this tool's schema names. */
 function renameParamsInError(e: unknown): unknown {
   if (!(e instanceof Error)) return e;
   const msg = e.message.replace(/\bfrom_(?:account|payee)\b/g, "from").replace(/\bnew_value\b/g, "to");
   return msg === e.message ? e : new Error(msg);
 }
 
-export const bulkEditTransactionsTool: ToolDefinition<typeof Params, ModifyResult> = {
+export const bulkEditTransactionsTool: ToolDefinition<typeof Params, BulkEditResult> = {
   name: "bulk_edit_transactions",
   label: TOOL_LABELS.bulk_edit_transactions,
   description:
@@ -69,18 +69,18 @@ export const bulkEditTransactionsTool: ToolDefinition<typeof Params, ModifyResul
       const noun = params.action === "change_account" ? "account" : "payee";
       throw new Error(`from is required for ${params.action}: the exact current ${noun} being replaced.`);
     }
-    const spec: ModifyParams = {
+    const spec: BulkEditParams = {
       // Unknown actions (possible only when the schema is bypassed) fall through
       // verbatim so the ledger layer's "Unsupported field" error names them.
-      field: (ACTION_FIELDS[params.action] ?? params.action) as ModifyField,
+      field: (ACTION_FIELDS[params.action] ?? params.action) as BulkEditField,
       new_value: params.to,
       from_account: params.action === "change_account" ? params.from : undefined,
       from_payee: params.action === "change_payee" ? params.from : undefined,
     };
 
-    let result: ModifyResult;
+    let result: BulkEditResult;
     try {
-      result = await modifyTransactions(params.query, spec, params.dry_run ?? false, signal);
+      result = await bulkEditTransactions(params.query, spec, params.dry_run ?? false, signal);
     } catch (e) {
       throw renameParamsInError(e);
     }
