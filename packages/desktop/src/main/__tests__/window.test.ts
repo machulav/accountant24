@@ -1,18 +1,25 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // window.ts creates the single app window and wires its security policy:
 // hardened webPreferences, an external-only window-open handler, an
-// off-origin-blocking will-navigate guard, and a CSP for packaged builds.
-// Electron (BrowserWindow + shell) is the faked boundary; the real ./urls
-// helpers make the actual open/navigate/CSP decisions (they're pure and
-// separately tested), so this suite verifies the wiring, not a re-mock of them.
+// off-origin-blocking will-navigate guard, and a CSP for packaged builds —
+// plus the window-state policy (first launch centered on the active
+// display, saved state restored after). Electron (BrowserWindow + screen +
+// app + shell) is the faked boundary; the real ./urls and ./window-state
+// helpers make the actual decisions (pure and separately tested), so this
+// suite verifies the wiring, not a re-mock of them.
 
 type Fn = (...args: unknown[]) => unknown;
 
 const h = vi.hoisted(() => ({
   ctorOpts: undefined as Record<string, unknown> | undefined,
   show: vi.fn(),
+  maximize: vi.fn(),
   once: new Map<string, Fn>(),
+  winOn: new Map<string, Fn>(),
   on: new Map<string, Fn>(),
   windowOpenHandler: undefined as ((d: { url: string }) => { action: string }) | undefined,
   onHeadersReceived: undefined as ((details: unknown, cb: Fn) => void) | undefined,
@@ -20,6 +27,9 @@ const h = vi.hoisted(() => ({
   loadURL: vi.fn(() => Promise.resolve()),
   loadFile: vi.fn(() => Promise.resolve()),
   openExternal: vi.fn(() => Promise.resolve()),
+  // One display: a 2000×1200 work area below a 25px menu bar.
+  workArea: { x: 0, y: 25, width: 2000, height: 1200 },
+  userDataDir: "",
 }));
 
 class FakeBrowserWindow {
@@ -42,9 +52,21 @@ class FakeBrowserWindow {
   loadURL = h.loadURL;
   loadFile = h.loadFile;
   show = h.show;
+  maximize = h.maximize;
   once = (evt: string, fn: Fn) => {
     h.once.set(evt, fn);
   };
+  on = (evt: string, fn: Fn) => {
+    h.winOn.set(evt, fn);
+  };
+  getNormalBounds = () => ({
+    x: (h.ctorOpts?.x as number) ?? 0,
+    y: (h.ctorOpts?.y as number) ?? 0,
+    width: (h.ctorOpts?.width as number) ?? 0,
+    height: (h.ctorOpts?.height as number) ?? 0,
+  });
+  isMaximized = () => false;
+  isFullScreen = () => false;
   constructor(opts: Record<string, unknown>) {
     h.ctorOpts = opts;
   }
@@ -53,6 +75,12 @@ class FakeBrowserWindow {
 vi.mock("electron", () => ({
   BrowserWindow: FakeBrowserWindow,
   shell: { openExternal: h.openExternal },
+  app: { getPath: () => h.userDataDir },
+  screen: {
+    getCursorScreenPoint: () => ({ x: 0, y: 0 }),
+    getDisplayNearestPoint: () => ({ workArea: h.workArea }),
+    getAllDisplays: () => [{ workArea: h.workArea }],
+  },
 }));
 
 let prevRendererUrl: string | undefined;
@@ -62,22 +90,28 @@ async function createWindow() {
   return createWindow();
 }
 
+const stateFile = () => path.join(h.userDataDir, "window-state.json");
+
 beforeEach(() => {
   prevRendererUrl = process.env.ELECTRON_RENDERER_URL;
   h.ctorOpts = undefined;
   h.once.clear();
+  h.winOn.clear();
   h.on.clear();
   h.windowOpenHandler = undefined;
   h.onHeadersReceived = undefined;
   h.currentUrl = "app://index/";
   h.show.mockClear();
+  h.maximize.mockClear();
   h.loadURL.mockClear();
   h.loadFile.mockClear();
   h.openExternal.mockClear();
+  h.userDataDir = mkdtempSync(path.join(tmpdir(), "a24-window-test-"));
   vi.resetModules();
 });
 
 afterEach(() => {
+  rmSync(h.userDataDir, { recursive: true, force: true });
   if (prevRendererUrl === undefined) delete process.env.ELECTRON_RENDERER_URL;
   else process.env.ELECTRON_RENDERER_URL = prevRendererUrl;
 });
@@ -94,17 +128,66 @@ describe("createWindow()", () => {
       expect(String(web.preload)).toMatch(/preload[/\\]index\.mjs$/);
     });
 
-    it("should use the documented size, minimums, and inset title bar and start hidden", async () => {
+    it("should open first launch centered on the active display at the capped default size", async () => {
+      // 2000×1200 work area at y=25: 80% → 1600 wide (at the cap) × 960, centered.
       process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
       await createWindow();
       expect(h.ctorOpts).toMatchObject({
-        width: 980,
-        height: 720,
+        x: 200,
+        y: 145,
+        width: 1600,
+        height: 960,
         minWidth: 560,
         minHeight: 480,
         show: false,
         titleBarStyle: "hiddenInset",
         trafficLightPosition: { x: 14, y: 14 },
+      });
+    });
+  });
+
+  describe("window state", () => {
+    it("should reopen at the saved bounds when they are still on a display", async () => {
+      process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+      writeFileSync(stateFile(), JSON.stringify({ x: 40, y: 50, width: 900, height: 700 }));
+      await createWindow();
+      expect(h.ctorOpts).toMatchObject({ x: 40, y: 50, width: 900, height: 700 });
+    });
+
+    it("should fall back to the centered default when the saved bounds are off-screen", async () => {
+      process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+      writeFileSync(stateFile(), JSON.stringify({ x: 9000, y: 9000, width: 900, height: 700 }));
+      await createWindow();
+      expect(h.ctorOpts).toMatchObject({ x: 200, y: 145, width: 1600, height: 960 });
+    });
+
+    it("should re-maximize on ready-to-show when the window was left maximized", async () => {
+      process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+      writeFileSync(stateFile(), JSON.stringify({ x: 40, y: 50, width: 900, height: 700, maximized: true }));
+      await createWindow();
+      expect(h.maximize).not.toHaveBeenCalled();
+      h.once.get("ready-to-show")?.();
+      expect(h.maximize).toHaveBeenCalledTimes(1);
+      expect(h.show).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not maximize a window that was left normal", async () => {
+      process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+      await createWindow();
+      h.once.get("ready-to-show")?.();
+      expect(h.maximize).not.toHaveBeenCalled();
+    });
+
+    it("should persist the window bounds when the window closes", async () => {
+      process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+      await createWindow();
+      h.winOn.get("close")?.();
+      expect(JSON.parse(readFileSync(stateFile(), "utf8"))).toEqual({
+        x: 200,
+        y: 145,
+        width: 1600,
+        height: 960,
+        maximized: false,
       });
     });
   });
