@@ -213,9 +213,12 @@ export const UserMessageFileCards: TextMessagePartComponent = ({ text }) => (
 
 /** The sent attachments of a user message, lifted out of the bubble: images and
  *  file cards in a right-aligned row above the message text. Hidden while the
- *  message has no attachments. Must render inside MessagePrimitive.Root. */
+ *  message has no attachments. Must render inside MessagePrimitive.Root.
+ *  items-end: the default cross-axis stretch balloons a file card to the height
+ *  of a tall image beside it; bottom-aligning keeps cards at their natural
+ *  height, anchored to the edge shared with the bubble below. */
 export const UserMessageAttachments: FC = () => (
-  <div data-slot="aui_user-attachments" className="flex max-w-[80%] flex-wrap justify-end gap-2 empty:hidden">
+  <div data-slot="aui_user-attachments" className="flex max-w-[80%] flex-wrap items-end justify-end gap-2 empty:hidden">
     <MessagePrimitive.Parts components={{ Image: UserMessageImage, Text: UserMessageFileCards }} />
   </div>
 );
