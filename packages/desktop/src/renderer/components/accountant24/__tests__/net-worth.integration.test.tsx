@@ -21,8 +21,9 @@ vi.mock("@assistant-ui/react", () => ({
   CompositeAttachmentAdapter: class {},
   useAuiState: (sel: (s: unknown) => unknown) => sel({ thread: { isRunning: false } }),
 }));
+const switchToNewThread = vi.hoisted(() => vi.fn());
 vi.mock("@assistant-ui/react-pi", () => ({
-  usePiRuntime: () => ({ threads: { switchToNewThread: vi.fn() } }),
+  usePiRuntime: () => ({ threads: { switchToNewThread } }),
 }));
 vi.mock("@/runtime/electronPiClient", () => ({
   createElectronPiClient: () => ({ getThread: vi.fn() }),
@@ -115,6 +116,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   bridge.reset();
+  switchToNewThread.mockClear();
   bridge.setHandler("update_pending", () => null);
   bridge.setHandler("ledger_net_worth", () => DATA);
   // The Columns choice persists here; every spec starts from the default.
@@ -223,5 +225,24 @@ describe("Net Worth view flow", () => {
 
     expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("should open a new chat from the empty state's New Chat button", async () => {
+    bridge.setHandler("ledger_net_worth", () => ({
+      sections: [],
+      net: { amounts: [], value: [] },
+      baseCommodity: null,
+    }));
+    render(<ChatLayout />);
+    openSheet();
+
+    fireEvent.click(await screen.findByRole("button", { name: "New Chat" }));
+
+    // Back on the chat view, in a fresh thread — the sidebar's New Chat
+    // action, triggered from the report page.
+    const thread = screen.getByTestId("thread");
+    expect((thread.parentElement as HTMLElement).className).not.toContain("hidden");
+    expect(screen.getByRole("button", { name: "Net Worth" })).not.toHaveAttribute("data-active");
+    expect(switchToNewThread).toHaveBeenCalledTimes(1);
   });
 });

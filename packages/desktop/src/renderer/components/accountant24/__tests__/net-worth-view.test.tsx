@@ -21,7 +21,7 @@ vi.mock("@/rpc/api", () => ({
 }));
 
 import { AssistantRuntimeProvider, type ExternalStoreAdapter, useExternalStoreRuntime } from "@assistant-ui/react";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { ledgerApi } from "@/rpc/api";
@@ -725,6 +725,25 @@ describe("<NetWorthView />", () => {
     vi.mocked(ledgerApi.netWorth).mockRejectedValue(new Error("bridge down"));
     renderView();
     expect(await screen.findByText("No transactions yet")).toBeInTheDocument();
+  });
+
+  it("should fire onNewChat from the empty state's New Chat button", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(EMPTY);
+    const onNewChat = vi.fn();
+    render(
+      <Chrome>
+        <NetWorthView onNewChat={onNewChat} />
+      </Chrome>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "New Chat" }));
+    expect(onNewChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("should show no action button when the page has no onNewChat route", async () => {
+    vi.mocked(ledgerApi.netWorth).mockResolvedValue(EMPTY);
+    renderView();
+    await screen.findByText("No transactions yet");
+    expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
   });
 
   it("should refetch the report when the agent goes from running to idle", async () => {

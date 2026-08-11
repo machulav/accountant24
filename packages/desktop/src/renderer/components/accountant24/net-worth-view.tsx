@@ -18,7 +18,7 @@
 // presentation happens here. Data refreshes when the agent finishes a turn.
 
 import type { Column, ColumnDef, SortingState, Updater } from "@tanstack/react-table";
-import { InfoIcon, WalletIcon } from "lucide-react";
+import { InfoIcon, PlusIcon, WalletIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
 import { AppColumnHeader } from "@/components/accountant24/app-column-header";
 import { MentionPill } from "@/components/accountant24/mentions";
@@ -393,11 +393,14 @@ const SheetSkeleton: FC<{
 // "No transactions yet", not "no accounts": the default workspace already
 // declares accounts on first start — what an empty report is missing is
 // postings to give them balances.
-const SheetEmpty: FC = () => (
+const SheetEmpty: FC<{ onNewChat?: () => void }> = ({ onNewChat }) => (
   <PageEmpty
     icon={WalletIcon}
     title="No transactions yet"
     description="Ask the agent to record your first transactions and your net worth will show up here"
+    // Asking happens in a chat — the button carries the sidebar's New Chat
+    // action (same label and icon), teaching where that action lives.
+    action={onNewChat && { label: "New Chat", icon: PlusIcon, onClick: onNewChat }}
   />
 );
 
@@ -410,8 +413,9 @@ const SheetEmpty: FC = () => (
  *  column widens the page — past the window width the page scrolls
  *  horizontally, like the Transactions register. `active` = the page is the
  *  visible view; the layout keeps it mounted while hidden, and a hidden
- *  page defers its idle-edge refetches to the next show. */
-export const NetWorthView: FC<{ active?: boolean }> = ({ active = true }) => {
+ *  page defers its idle-edge refetches to the next show. `onNewChat` backs
+ *  the empty state's New Chat button (the layout's new-chat action). */
+export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({ active = true, onNewChat }) => {
   const sheet = useNetWorth(active);
   const [search, setSearch] = useState("");
   // One config (visibility + sizing) drives every section grid and the
@@ -450,7 +454,7 @@ export const NetWorthView: FC<{ active?: boolean }> = ({ active = true }) => {
         {/* The empty view sits directly in the scroll container (not the
             width column) so it can center itself in the body's height. */}
         {sheet !== null && sections.length === 0 ? (
-          <SheetEmpty />
+          <SheetEmpty onNewChat={onNewChat} />
         ) : (
           // The body is exactly as wide as the tables' columns (never below
           // the 52rem page floor — the same span as the toolbar's content

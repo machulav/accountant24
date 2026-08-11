@@ -95,6 +95,15 @@ export function ChatLayout() {
     setNetWorthMounted(true);
   }, []);
   const showChat = useCallback(() => setView("chat"), []);
+  // The report pages' empty states carry the sidebar's New Chat action:
+  // into a fresh chat with the composer focused, ready to type.
+  const newChatFromPage = useCallback(() => {
+    setView("chat");
+    void runtime.threads.switchToNewThread();
+    // Focus only after React commits the switch — the chat is display:none
+    // while a report page is open, and a hidden input can't take focus.
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(".aui-lexical-input")?.focus());
+  }, [runtime]);
   // Non-null once an update is downloaded and staged; drives the footer banner.
   const updateVersion = useUpdateStatus();
   // Read once on mount; afterwards SidebarResizeHandle mutates the CSS var live.
@@ -228,7 +237,7 @@ export function ChatLayout() {
                   view !== "transactions" && "pointer-events-none invisible opacity-0",
                 )}
               >
-                <TransactionsView active={view === "transactions"} />
+                <TransactionsView active={view === "transactions"} onNewChat={newChatFromPage} />
               </div>
             )}
             {/* Same treatment as Transactions: sort, search, resized
@@ -241,7 +250,7 @@ export function ChatLayout() {
                   view !== "net-worth" && "pointer-events-none invisible opacity-0",
                 )}
               >
-                <NetWorthView active={view === "net-worth"} />
+                <NetWorthView active={view === "net-worth"} onNewChat={newChatFromPage} />
               </div>
             )}
           </SidebarInset>

@@ -1,16 +1,19 @@
 // The dedicated empty view shared by the full-page views (Transactions,
-// Net Worth): the stock shadcn Empty — icon, title, one-line description —
-// vertically centered in the page body. Rendered directly inside the page's
-// scroll container, in place of the content it stands in for.
+// Net Worth): the stock shadcn Empty — icon, title, one-line description,
+// and an optional action button — vertically centered in the page body.
+// Rendered directly inside the page's scroll container, in place of the
+// content it stands in for.
 
 import type { FC } from "react";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { Button } from "@/components/shadcn/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
 
 export const PageEmpty: FC<{
   icon: FC<{ className?: string }>;
   title: string;
   description: string;
-}> = ({ icon: Icon, title, description }) => (
+  action?: { label: string; icon?: FC<{ className?: string }>; onClick: () => void };
+}> = ({ icon: Icon, title, description, action }) => (
   // min-h-full (not h-full): Empty is flex-1, so the column centers it in
   // the body's height; a window too short to fit it grows the column past
   // 100% and scrolls instead of clipping the top. The pb-12 biases the
@@ -26,6 +29,14 @@ export const PageEmpty: FC<{
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
+      {action && (
+        <EmptyContent>
+          <Button size="sm" onClick={action.onClick}>
+            {action.icon && <action.icon />}
+            {action.label}
+          </Button>
+        </EmptyContent>
+      )}
     </Empty>
   </div>
 );

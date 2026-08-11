@@ -854,6 +854,39 @@ describe("<TransactionsView />", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
+  it("should fire onNewChat from the empty view's New Chat button", async () => {
+    vi.mocked(ledgerApi.transactions).mockResolvedValue([]);
+    const onNewChat = vi.fn();
+    render(
+      <Chrome>
+        <TransactionsView now={NOW} onNewChat={onNewChat} />
+      </Chrome>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "New Chat" }));
+    expect(onNewChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("should carry the same New Chat button on the unreadable-journal view", async () => {
+    // Checking the journal is an agent job too, so the broken state routes
+    // to a chat the same way the empty one does.
+    vi.mocked(ledgerApi.transactions).mockRejectedValue(new Error("register query failed"));
+    const onNewChat = vi.fn();
+    render(
+      <Chrome>
+        <TransactionsView now={NOW} onNewChat={onNewChat} />
+      </Chrome>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "New Chat" }));
+    expect(onNewChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("should show no action button when the page has no onNewChat route", async () => {
+    vi.mocked(ledgerApi.transactions).mockResolvedValue([]);
+    renderView();
+    await screen.findByText("No transactions yet");
+    expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
+  });
+
   it("should refetch the register when the agent goes from running to idle", async () => {
     vi.mocked(ledgerApi.transactions).mockResolvedValue(DATA);
     const { rerender } = renderView(false);

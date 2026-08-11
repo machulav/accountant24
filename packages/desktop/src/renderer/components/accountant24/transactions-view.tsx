@@ -21,6 +21,7 @@ import {
   CoinsIcon,
   DollarSignIcon,
   FileWarningIcon,
+  PlusIcon,
   ReceiptTextIcon,
   XIcon,
 } from "lucide-react";
@@ -528,29 +529,40 @@ const DateFilterChip: FC<{
  *  while there is nothing to show: search, chips, and column headers say
  *  nothing about an empty journal, so they step aside — the same treatment
  *  as the Net Worth page. An unreadable journal reports an empty register
- *  too, so it lands here with its own wording. */
-const RegisterEmpty: FC<{ failed: boolean }> = ({ failed }) =>
-  failed ? (
+ *  too, so it lands here with its own wording. Both wordings say "ask the
+ *  agent", and asking happens in a chat — so both carry the sidebar's New
+ *  Chat action (same label and icon), teaching where that action lives. */
+const RegisterEmpty: FC<{ failed: boolean; onNewChat?: () => void }> = ({ failed, onNewChat }) => {
+  const action = onNewChat && { label: "New Chat", icon: PlusIcon, onClick: onNewChat };
+  return failed ? (
     <PageEmpty
       icon={FileWarningIcon}
       title="The journal could not be read"
       description="Ask the agent to check the journal"
+      action={action}
     />
   ) : (
     <PageEmpty
       icon={ReceiptTextIcon}
       title="No transactions yet"
       description="Ask the agent to record your first transactions and they will show up here"
+      action={action}
     />
   );
+};
 
 /** The Transactions page, shown in place of the chat thread: pinned title
  *  over the data-table toolbar (search, filter chips, Reset, View) and the
  *  stock data grid. `now` anchors the Date chip's presets (injectable so
  *  tests pin the calendar). `active` = the page is the visible view; the
  *  layout keeps it mounted while hidden, and a hidden page defers its
- *  idle-edge refetches to the next show. */
-export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, active = true }) => {
+ *  idle-edge refetches to the next show. `onNewChat` backs the empty
+ *  state's New Chat button (the layout's new-chat action). */
+export const TransactionsView: FC<{ now?: Date; active?: boolean; onNewChat?: () => void }> = ({
+  now,
+  active = true,
+  onNewChat,
+}) => {
   const { transactions: data, failed } = useTransactions(active);
   const [search, setSearch] = useState("");
   // Newest first by default (the payee tiebreak lives in the date column's
@@ -762,7 +774,7 @@ export const TransactionsView: FC<{ now?: Date; active?: boolean }> = ({ now, ac
           backdrop covers the rows sliding beneath instead. */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {empty ? (
-          <RegisterEmpty failed={failed} />
+          <RegisterEmpty failed={failed} onNewChat={onNewChat} />
         ) : (
           <>
             {/* The table area is exactly as wide as its columns (never below
