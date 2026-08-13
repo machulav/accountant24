@@ -45,6 +45,8 @@ Tell the agent once — it remembers and applies it when it matters.
 
 ### Extend the agent with skills
 
+> Which subscriptions can I cancel?
+
 > Create a skill that compares my spending this month to the previous month and shows where I spent more.
 
 Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. Use the built-in ones or create your own.
