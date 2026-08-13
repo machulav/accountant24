@@ -13,13 +13,17 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
-import type { LedgerMentions, LedgerTransaction, NetWorth } from "../shared/types";
+import type { Investments, LedgerMentions, LedgerTransaction, NetWorth, NetWorthInvestments } from "../shared/types";
 import { agentEnv, binDir, mainJournalPath, workspaceDir } from "./env";
 import {
+  mergePrices,
   mergeValuedBalanceSheet,
   parseAssertions,
   parseBalanceSheetJson,
+  parseInvestments,
   parseLatestPriceTarget,
+  parseNetLots,
+  parsePrices,
   parseTransactionsJson,
 } from "./ledger-json";
 
@@ -67,16 +71,41 @@ async function ledgerMentions(): Promise<LedgerMentions> {
 /** The report's base commodity — the target of the journal's latest
  *  declared market price. The agent records prices toward the user's main
  *  currency, so the journal itself answers which commodity is the base and
- *  nothing is hardcoded. When the journal declares no prices, the latest
- *  cost-inferred price (`--infer-market-prices`, e.g. `2 WRLD @ 210.00 EUR`)
- *  answers instead. The probes stay sequential so a later-dated cost can
- *  never out-rank a declared price. Seam for the future default-currency
- *  setting: once it exists, resolve it here first and fall back to the
- *  derivation. Null when the journal yields no prices at all. */
-async function resolveBaseCommodity(): Promise<string | null> {
-  const declared = parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath()]));
+ *  nothing is hardcoded. Declared always wins over a later-dated cost:
+ *  `prices --infer-market-prices` also lists cost-inferred entries, and the
+ *  base must not drift to a holding's purchase price while a declared price
+ *  exists. Seam for the future default-currency setting: once it exists,
+ *  resolve it here first and fall back to the derivation. Null when the
+ *  journal yields no prices at all. */
+function resolveBaseCommodity(declaredText: string, inferredText: string): string | null {
+  const declared = parseLatestPriceTarget(declaredText);
   if (declared !== null) return declared;
-  return parseLatestPriceTarget(await hledgerRaw(["prices", "-f", mainJournalPath(), "--infer-market-prices"]));
+  return parseLatestPriceTarget(inferredText);
+}
+
+/** The Investments section for a journal with no holdings (or no journal):
+ *  nothing to list, no fabricated zero. */
+const EMPTY_INVESTMENTS: NetWorthInvestments = { rows: [], totalMarketValue: [], totalCostBasis: [] };
+
+/** The priced-holdings payload from the three hledger queries that feed it:
+ *  the net row's lots (from `bs -O json`) valued at the latest prices toward
+ *  the base — declared `P` directives first, cost-inferred after. Shared by
+ *  the Net Worth section and the Investments view, so the two pages always
+ *  agree on the same numbers. */
+function investmentsReport(
+  native: string,
+  declaredPrices: string,
+  inferredPrices: string,
+): { target: string | null; investments: NetWorthInvestments } {
+  const target = resolveBaseCommodity(declaredPrices, inferredPrices);
+  return {
+    target,
+    investments: parseInvestments(
+      parseNetLots(native),
+      target,
+      mergePrices(parsePrices(declaredPrices), parsePrices(inferredPrices)),
+    ),
+  };
 }
 
 /** The classic balance sheet, straight from `hledger bs`: Assets and
@@ -92,22 +121,34 @@ async function resolveBaseCommodity(): Promise<string | null> {
  *  multi-commodity figure with the base-commodity leg. Each row also carries
  *  the date and amount of the account's latest balance assertion (from
  *  `print -O json`) — when the balance was last reconciled and what it was
- *  confirmed to be. Empty when there's no journal yet or hledger fails. */
+ *  confirmed to be. Empty when there's no journal yet or hledger fails.
+ *  The Investments section (the priced non-base commodities, aggregated
+ *  across the balance sheet) rides along: its prices are the same
+ *  declared-then-cost-inferred `P` directives the valuation used. */
 async function ledgerNetWorth(): Promise<NetWorth> {
-  const base = ["bs", "-O", "json", "-f", mainJournalPath()];
-  const [native, printed, target] = await Promise.all([
+  const journal = mainJournalPath();
+  const base = ["bs", "-O", "json", "-f", journal];
+  // Both price sources are fetched once: declared `P` directives and the
+  // cost-inferred set (`10 SXR8 @ 210.00 EUR` → 1 SXR8 = 210 EUR). The base
+  // resolves declared-first; the Investments section merges the two per
+  // commodity, declared winning — the same rule the `-X` valuation applies.
+  const [native, printed, declaredPrices, inferredPrices] = await Promise.all([
     hledgerRaw(base),
-    hledgerRaw(["print", "-O", "json", "-f", mainJournalPath()]),
-    resolveBaseCommodity(),
+    hledgerRaw(["print", "-O", "json", "-f", journal]),
+    hledgerRaw(["prices", "-f", journal]),
+    hledgerRaw(["prices", "-f", journal, "--infer-market-prices"]),
   ]);
+  const { target, investments } = investmentsReport(native, declaredPrices, inferredPrices);
   const valued = await hledgerRaw(target ? [...base, "-X", target, "--infer-market-prices"] : [...base, "-V"]);
   const raw = parseBalanceSheetJson(native);
-  if (raw === null) return { sections: [], net: { amounts: [], value: [] }, baseCommodity: null };
+  if (raw === null)
+    return { sections: [], net: { amounts: [], value: [] }, baseCommodity: null, investments: EMPTY_INVESTMENTS };
   const sheet = mergeValuedBalanceSheet(raw, parseBalanceSheetJson(valued));
   const asserted = parseAssertions(printed);
   return {
     ...sheet,
     baseCommodity: target,
+    investments,
     sections: sheet.sections.map((section) => ({
       ...section,
       rows: section.rows.map((row) => {
@@ -119,6 +160,21 @@ async function ledgerNetWorth(): Promise<NetWorth> {
       }),
     })),
   };
+}
+
+/** The Investments view's payload: the priced holdings and their totals,
+ *  straight from the same queries the Net Worth section runs — no balance
+ *  sheet and no register, so this stays cheap. Empty when there's no
+ *  journal yet or hledger fails, like the Net Worth query. */
+async function ledgerInvestments(): Promise<Investments> {
+  const journal = mainJournalPath();
+  const [native, declaredPrices, inferredPrices] = await Promise.all([
+    hledgerRaw(["bs", "-O", "json", "-f", journal]),
+    hledgerRaw(["prices", "-f", journal]),
+    hledgerRaw(["prices", "-f", journal, "--infer-market-prices"]),
+  ]);
+  const { target, investments } = investmentsReport(native, declaredPrices, inferredPrices);
+  return { baseCommodity: target, ...investments };
 }
 
 /** The register JSON runs ~2.6 KB per plain transaction, so the default
@@ -145,5 +201,6 @@ async function ledgerTransactions(): Promise<LedgerTransaction[]> {
 export function registerLedgerIpc(): void {
   ipcMain.handle("ledger_mentions", () => ledgerMentions());
   ipcMain.handle("ledger_net_worth", () => ledgerNetWorth());
+  ipcMain.handle("ledger_investments", () => ledgerInvestments());
   ipcMain.handle("ledger_transactions", () => ledgerTransactions());
 }

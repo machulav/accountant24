@@ -75,6 +75,54 @@ export interface NetWorth {
    *  back to `-V`. Lets the renderer lead a multi-commodity figure with the
    *  base-commodity leg. */
   baseCommodity: string | null;
+  /** The Investments section: every priced (non-base) commodity with a
+   *  nonzero balance, aggregated across the whole balance sheet. */
+  investments: NetWorthInvestments;
+}
+
+// ---- Net Worth: investments (priced holdings) ------------------------------
+
+/** One priced holding: a non-base commodity with a nonzero balance, valued
+ *  at its latest recorded market price. All figures hledger-computed; only
+ *  the aggregation across accounts and the market valuation happen here. */
+export interface InvestmentHolding {
+  /** Commodity symbol ("SXR8"), verbatim from the journal. */
+  commodity: string;
+  /** Total quantity across all accounts, in native units. */
+  quantity: LedgerAmount;
+  /** The latest market price per unit in the base commodity — the last
+   *  declared `P` directive toward the base (a cost-inferred price fills in
+   *  only when none is declared). Null when no price resolves. */
+  price: LedgerAmount | null;
+  /** quantity × price, in the base commodity; null when no price resolves. */
+  marketValue: LedgerAmount | null;
+  /** Cost basis in the base commodity: the sum of quantity × per-unit cost
+   *  over every lot. Null when any lot was acquired without a transaction
+   *  price, or in a commodity other than the base (no honest conversion). */
+  costBasis: LedgerAmount | null;
+  /** marketValue − costBasis, in the base commodity; null when costBasis
+   *  is null. */
+  unrealizedPnl: LedgerAmount | null;
+}
+
+/** The Investments section of the Net Worth payload: holdings sorted by
+ *  market value, most valuable first (holdings without a value last). */
+export interface NetWorthInvestments {
+  rows: InvestmentHolding[];
+  /** The sum of every holding's market value, in the base commodity. */
+  totalMarketValue: LedgerAmount[];
+  /** The sum of cost basis across holdings that have one, in the base
+   *  commodity. */
+  totalCostBasis: LedgerAmount[];
+}
+
+/** The Investments view payload: every priced holding aggregated across the
+ *  balance sheet, valued at its latest recorded market price, plus the
+ *  totals — the same computation the Net Worth section shows, standalone. */
+export interface Investments extends NetWorthInvestments {
+  /** The valuation's base commodity (the `-X` target; null when the journal
+   *  yields no prices), like `NetWorth.baseCommodity`. */
+  baseCommodity: string | null;
 }
 
 // ---- Ledger transactions (Transactions view) -------------------------------
@@ -107,6 +155,34 @@ export interface LedgerTransaction {
   /** Transaction-level tags in journal order; value "" for a bare tag. */
   tags: { name: string; value: string }[];
   postings: LedgerPosting[];
+}
+
+// ---- Git workspace state (sidebar indicator) ------------------------------
+
+/** The workspace repo's state, read from git in the main process. "Meaningful"
+ *  excludes the app's own `sessions/` files, matching the pi extension's
+ *  commit filter. */
+export interface GitStatus {
+  /** False when the workspace isn't a git repo (or git is unavailable) — the
+   *  UI hides the indicator entirely. */
+  isRepo: boolean;
+  /** Current branch ("main"); null when HEAD is detached or unborn. */
+  branch: string | null;
+  /** Short HEAD hash ("abc1234"); null when the repo has no commits yet. */
+  head: string | null;
+  /** HEAD commit date, ISO 8601; null when the repo has no commits yet. */
+  headDate: string | null;
+  /** HEAD commit subject; null when the repo has no commits yet. */
+  headMessage: string | null;
+  /** Meaningful (non-sessions/) files changed since the last commit. */
+  dirtyCount: number;
+  /** Whether the repo has at least one remote configured. */
+  hasRemote: boolean;
+  /** Commits ahead of the upstream branch (0 when no upstream is set — the
+   *  agent pushes without configuring one). */
+  ahead: number;
+  /** Commits behind the upstream branch (0 when no upstream is set). */
+  behind: number;
 }
 
 // ---- App settings (app-owned config in <workspace>/app-settings.json) -----

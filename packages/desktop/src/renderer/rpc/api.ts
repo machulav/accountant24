@@ -11,6 +11,8 @@ import type {
   AuthModels,
   AuthProviders,
   AuthStatus,
+  GitStatus,
+  Investments,
   LedgerMentions,
   LedgerTransaction,
   NetWorth,
@@ -137,8 +139,15 @@ export const ledgerApi = {
   mentions: () => api.invoke<LedgerMentions>("ledger_mentions"),
   /** Fetch the `hledger bs` report (sections + net) for the Net Worth view. */
   netWorth: () => api.invoke<NetWorth>("ledger_net_worth"),
+  /** Fetch the priced holdings + totals for the Investments view. */
+  investments: () => api.invoke<Investments>("ledger_investments"),
   /** Fetch the `hledger print` register (journal order) for the Transactions view. */
   transactions: () => api.invoke<LedgerTransaction[]>("ledger_transactions"),
+};
+
+export const gitApi = {
+  /** Fetch the workspace repo's state (branch, HEAD, dirty count, sync). */
+  status: () => api.invoke<GitStatus>("git_status"),
 };
 
 export const skillsApi = {

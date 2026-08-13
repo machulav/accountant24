@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider, CompositeAttachmentAdapter } from "@assistant-ui/react";
 import { usePiRuntime } from "@assistant-ui/react-pi";
-import { ReceiptTextIcon, SettingsIcon, WalletIcon } from "lucide-react";
+import { ReceiptTextIcon, SettingsIcon, TrendingUpIcon, WalletIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ import { agentBridge } from "@/runtime/agentBridge";
 import { createElectronPiClient } from "@/runtime/electronPiClient";
 import { ArchivingImageAttachmentAdapter, WorkspaceFileAttachmentAdapter } from "@/runtime/fileAttachmentAdapter";
 import { PiClientContext } from "@/runtime/modelsContext";
+import { InvestmentsView } from "./investments-view";
 import { NetWorthBadge } from "./net-worth-badge";
 import { NetWorthView } from "./net-worth-view";
 import { Settings } from "./settings/settings";
@@ -81,7 +82,7 @@ export function ChatLayout() {
   // report pages latch on first open and stay mounted after, so their state
   // survives view switches (a hidden page defers its refresh to the next
   // show — see useAgentIdleRefresh).
-  const [view, setView] = useState<"chat" | "transactions" | "net-worth">("chat");
+  const [view, setView] = useState<"chat" | "transactions" | "net-worth" | "investments">("chat");
   // Latch per report page once it is first opened; the view then stays
   // mounted.
   const [transactionsMounted, setTransactionsMounted] = useState(false);
@@ -93,6 +94,11 @@ export function ChatLayout() {
   const showNetWorth = useCallback(() => {
     setView("net-worth");
     setNetWorthMounted(true);
+  }, []);
+  const [investmentsMounted, setInvestmentsMounted] = useState(false);
+  const showInvestments = useCallback(() => {
+    setView("investments");
+    setInvestmentsMounted(true);
   }, []);
   const showChat = useCallback(() => setView("chat"), []);
   // The report pages' empty states carry the sidebar's New Chat action:
@@ -192,6 +198,12 @@ export function ChatLayout() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
+                  <SidebarMenuButton isActive={view === "investments"} onClick={showInvestments}>
+                    <TrendingUpIcon className="size-4" />
+                    Investments
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton isActive={view === "net-worth"} onClick={showNetWorth}>
                     <WalletIcon className="size-4" />
                     <span className="whitespace-nowrap">Net Worth</span>
@@ -238,6 +250,19 @@ export function ChatLayout() {
                 )}
               >
                 <TransactionsView active={view === "transactions"} onNewChat={newChatFromPage} />
+              </div>
+            )}
+            {/* Same treatment as Transactions and Net Worth: sort, search,
+                column choices, and scroll survive view switches, and a turn
+                that finishes behind the hidden page only marks it dirty. */}
+            {investmentsMounted && (
+              <div
+                className={cn(
+                  "absolute inset-0 flex flex-col",
+                  view !== "investments" && "pointer-events-none invisible opacity-0",
+                )}
+              >
+                <InvestmentsView active={view === "investments"} onNewChat={newChatFromPage} />
               </div>
             )}
             {/* Same treatment as Transactions: sort, search, resized

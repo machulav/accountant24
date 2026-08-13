@@ -292,6 +292,9 @@ describe("ledger_net_worth", () => {
         value: [{ quantity: 9690, commodity: "EUR", precision: 2 }],
       },
       baseCommodity: "EUR",
+      // BTC has no declared price toward EUR and no cost lot, so it lists
+      // nothing here — neither priced nor costed positions aren't holdings.
+      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
   });
 
@@ -299,15 +302,17 @@ describe("ledger_net_worth", () => {
     stubHledger(emptyStubs);
     await netWorth();
 
-    expect(h.execFile.mock.calls).toHaveLength(4);
+    // bs (native), bs (-X), print, and both price probes — each once.
+    expect(h.execFile.mock.calls).toHaveLength(5);
     const base = ["bs", "-O", "json", "-f", "/ws/ledger/main.journal"];
     const argLists = h.execFile.mock.calls.map((c) => c[1] as string[]);
     expect(argLists).toContainEqual(base);
     expect(argLists).toContainEqual([...base, "-X", "EUR", "--infer-market-prices"]);
     expect(argLists).toContainEqual(["print", "-O", "json", "-f", "/ws/ledger/main.journal"]);
     expect(argLists).toContainEqual(["prices", "-f", "/ws/ledger/main.journal"]);
-    // Declared prices exist, so the cost-inferred probe must not run.
-    expect(argLists).not.toContainEqual(["prices", "-f", "/ws/ledger/main.journal", "--infer-market-prices"]);
+    // The inferred probe feeds the Investments section's per-commodity
+    // prices, so it runs whenever a base exists — regardless of declared.
+    expect(argLists).toContainEqual(["prices", "-f", "/ws/ledger/main.journal", "--infer-market-prices"]);
     for (const call of h.execFile.mock.calls) {
       const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
       expect(opts.cwd).toBe("/ws");
@@ -382,13 +387,23 @@ describe("ledger_net_worth", () => {
   it("should return an empty sheet when hledger fails (no journal yet)", async () => {
     const err = new Error("hledger: no journal");
     stubHledger({ bs: err, "bs:V": err });
-    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
+    expect(await netWorth()).toEqual({
+      sections: [],
+      net: { amounts: [], value: [] },
+      baseCommodity: null,
+      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
+    });
   });
 
   it("should return an empty sheet when hledger is missing entirely", async () => {
     const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
     stubHledger({ bs: enoent, "bs:V": enoent });
-    expect(await netWorth()).toEqual({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
+    expect(await netWorth()).toEqual({
+      sections: [],
+      net: { amounts: [], value: [] },
+      baseCommodity: null,
+      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
+    });
   });
 
   it("should run the vendored hledger binary when it exists in binDir", async () => {

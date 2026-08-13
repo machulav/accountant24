@@ -43,6 +43,7 @@ const sheet = (net: NetWorth["net"], baseCommodity: NetWorth["baseCommodity"] = 
   sections: [],
   net,
   baseCommodity,
+  investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
 });
 
 const CONVERTED = sheet({

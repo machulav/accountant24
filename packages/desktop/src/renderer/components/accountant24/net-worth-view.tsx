@@ -18,8 +18,8 @@
 // presentation happens here. Data refreshes when the agent finishes a turn.
 
 import type { Column, ColumnDef, SortingState, Updater } from "@tanstack/react-table";
-import { InfoIcon, PlusIcon, WalletIcon } from "lucide-react";
-import { type FC, type ReactNode, useState } from "react";
+import { PlusIcon, WalletIcon } from "lucide-react";
+import { type FC, useState } from "react";
 import { AppColumnHeader } from "@/components/accountant24/app-column-header";
 import { MentionPill } from "@/components/accountant24/mentions";
 import { PageEmpty } from "@/components/accountant24/page-empty";
@@ -27,15 +27,15 @@ import { useTableConfig } from "@/components/accountant24/table-config";
 import { twoStateSortingChange, useAppTable } from "@/components/accountant24/use-app-table";
 import { DataGrid, DataGridContainer, type DataGridFeatures } from "@/components/reui/data-grid/data-grid";
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
-import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { ColumnsMenu } from "./columns-menu";
+import { BAND_CLASS, InfoTip, InvestmentsGrid, InvestmentsSection, PRICE_HELP } from "./investments-table";
 import {
   COLUMN_MIN_SIZES,
   COLUMN_SIZES,
+  investmentsTableWidth,
   loadTableConfig,
   type NetWorthTableConfig,
   saveTableConfig,
@@ -44,103 +44,23 @@ import {
 import { SearchField } from "./search-field";
 import { useNetWorth } from "./use-net-worth";
 
-/** The two columns the Columns menu can toggle; the other three are the
- *  page's spine and never leave. */
-type OptionalColumnId = "asserted" | "assertedAmount";
+/** The columns the Columns menu can toggle; the other five are the page's
+ *  spine and never leave. */
+type OptionalColumnId = "asserted" | "assertedAmount" | "cost" | "pnl" | "allocation";
+
+/** The Investments section's toggleable columns, in display order. Only
+ *  listed while the section has rows, so a holdings-less journal keeps the
+ *  menu to the assertion pair. */
+const INVESTMENT_OPTIONAL_COLUMNS: { id: OptionalColumnId; label: string }[] = [
+  { id: "cost", label: "Cost" },
+  { id: "pnl", label: "P&L" },
+  { id: "allocation", label: "Allocation" },
+];
 
 /** Assertion-column labels, defined once: the headers, the help keys, and
  *  the Columns menu all read these. */
 const ASSERTED_ON_LABEL = "Asserted On";
 const ASSERTED_AMOUNT_LABEL = "Asserted Amount";
-
-/** The how-to line for anything valued at a recorded price — shared by the
- *  Value column help and the bands' unpriced-legs tooltip so the copy stays
- *  identical in both. */
-const PRICE_HELP = (
-  <p className="mt-1.5">
-    To update a price, tell the agent what one unit of the holding is worth now in your main currency, for example: "1
-    USD is 0.92 EUR."
-  </p>
-);
-
-/** What each money/meta column means, keyed by its label; shown behind the
- *  little info marker next to the header (the Account column needs none). */
-const COLUMN_HELP: Record<string, ReactNode> = {
-  Holding:
-    "What the account actually holds: cash in its own currency, shares, or crypto. Exactly as recorded in the ledger, before any conversion.",
-  [ASSERTED_ON_LABEL]: (
-    <div>
-      <p>
-        When the ledger balance was last confirmed to match the real account balance. A dash means it was never
-        confirmed.
-      </p>
-      <p className="mt-1.5">
-        To confirm, tell the agent the actual account balance, for example: "My cash balance is 200 EUR."
-      </p>
-    </div>
-  ),
-  [ASSERTED_AMOUNT_LABEL]: (
-    <div>
-      <p>
-        The ledger balance that was last confirmed to match the real account balance, in the account's own currency. A
-        dash means it was never confirmed.
-      </p>
-      <p className="mt-1.5">
-        To confirm, tell the agent the actual account balance, for example: "My cash balance is 200 EUR."
-      </p>
-    </div>
-  ),
-  Value: (
-    <div>
-      <p>
-        What the holding is worth in your main currency, at the latest price recorded in the ledger. A ~ means the value
-        was converted and is an estimate.
-      </p>
-      {PRICE_HELP}
-    </div>
-  ),
-};
-
-/** A visible little info marker; hovering it explains the spot it marks —
- *  the column help for its label by default, or the given children.
- *  `inline` renders it for use INSIDE a sort pill: a nested <button> would
- *  be invalid DOM, and a labeled widget would pollute the pill's
- *  accessible name, so the inline marker is a decorative hover-only span
- *  (data-slot="column-help"), hidden from the a11y tree. The standalone
- *  Button variant keeps full keyboard access where it is used (the bands). */
-const InfoTip: FC<{ label: string; inline?: boolean; children?: ReactNode }> = ({
-  label,
-  inline = false,
-  children,
-}) => (
-  // No local TooltipProvider: the app-level provider (App.tsx) owns the
-  // dwell delay and the shared warm-up across neighboring tooltips.
-  <Tooltip>
-    <TooltipTrigger
-      render={
-        inline ? (
-          <span
-            aria-hidden
-            data-slot="column-help"
-            className="flex size-5 items-center justify-center text-muted-foreground/70 hover:text-foreground"
-          />
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`About ${label}`}
-            className="size-5 text-muted-foreground/70 hover:text-foreground"
-          />
-        )
-      }
-    >
-      <InfoIcon className="size-3.5" />
-    </TooltipTrigger>
-    <TooltipContent side="top" className="max-w-60">
-      {children ?? COLUMN_HELP[label]}
-    </TooltipContent>
-  </Tooltip>
-);
 
 /** The money/meta columns put the biggest figures first on the first click
  *  (the vendored header ignores `sortDescFirst`, so the sorting handler
@@ -312,13 +232,7 @@ const AccountsGrid: FC<{
   );
 };
 
-/** The soft summary-band surface shared by the section headers and the Net
- *  line: label left, hledger's figure right, on the app's muted panel. The
- *  label centers on the figure block, so it stays mid-band when the figure
- *  grows a second (muted) line. No side margins: the band's edges sit on
- *  the page's content edges, flush with the grid — one left line under the
- *  pinned title, one right line under the Columns button. */
-const BAND_CLASS = "flex items-center justify-between gap-8 rounded-xl bg-muted/50 px-5 py-4";
+/** The loading state mirrors the loaded page: everything that needs no data
 
 /** A summary band's figure. When the valuation could not fold every leg
  *  into the base commodity, the base leg leads at the band's weight and the
@@ -383,6 +297,11 @@ const SheetSkeleton: FC<{
       <Skeleton className="h-5 w-36 self-center" />
     </div>
     <AccountsGrid rows={NO_ROWS} search="" config={config} onSizingChange={onSizingChange} loading />
+    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
+      <h2 className="text-lg font-semibold">Investments</h2>
+      <Skeleton className="h-5 w-36 self-center" />
+    </div>
+    <InvestmentsGrid rows={[]} search="" config={config} onSizingChange={onSizingChange} loading />
     <div className={`mt-8 ${BAND_CLASS}`}>
       <div className="text-lg font-semibold">Net Worth</div>
       <Skeleton className="h-5 w-32" />
@@ -435,12 +354,15 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
           // field gives way so the Columns button never clips.
           <div className="flex min-w-0 items-center gap-2">
             <SearchField subject="accounts" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
-            {/* Only the assertion pair toggles; Account, Holding, and Value
-                are the page's spine and never leave. */}
+            {/* Only the optional columns toggle: the assertion pair (Net
+                Worth's own) plus the Investments section's Cost, P&L, and
+                Allocation. Account, Holding, Value, Commodity, Quantity,
+                and Price are the page's spine and never leave. */}
             <ColumnsMenu<OptionalColumnId>
               columns={[
                 { id: "asserted", label: ASSERTED_ON_LABEL },
                 { id: "assertedAmount", label: ASSERTED_AMOUNT_LABEL },
+                ...(sheet?.investments.rows.length ? INVESTMENT_OPTIONAL_COLUMNS : []),
               ]}
               visibility={config.visibility}
               onToggle={(id, shown) => applyConfig("visibility", (prev) => ({ ...prev, [id]: shown }))}
@@ -459,8 +381,15 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
           // The body is exactly as wide as the tables' columns (never below
           // the 52rem page floor — the same span as the toolbar's content
           // box, title edge to Columns edge); past the window width the
-          // page scrolls horizontally, like Transactions.
-          <div className="mx-auto pb-12" style={{ width: `max(52rem, ${tableWidth(config)}px)` }}>
+          // page scrolls horizontally, like Transactions. The Investments
+          // section's own width wins when its optional columns push it
+          // wider than the account tables.
+          <div
+            className="mx-auto pb-12"
+            style={{
+              width: `max(52rem, ${tableWidth(config)}px, ${investmentsTableWidth(config)}px)`,
+            }}
+          >
             {sheet === null ? (
               <SheetSkeleton config={config} onSizingChange={onSizingChange} />
             ) : (
@@ -475,6 +404,16 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
                     onSizingChange={onSizingChange}
                   />
                 ))}
+                {/* Priced holdings, one row per commodity — between the
+                    balance sheet and the Net line. */}
+                {sheet.investments.rows.length > 0 && (
+                  <InvestmentsSection
+                    investments={sheet.investments}
+                    search={search}
+                    config={config}
+                    onSizingChange={onSizingChange}
+                  />
+                )}
                 {/* The closing Net band, straight from hledger's own net. */}
                 <div className={`mt-8 ${BAND_CLASS}`}>
                   <div className="text-lg font-semibold">Net Worth</div>
