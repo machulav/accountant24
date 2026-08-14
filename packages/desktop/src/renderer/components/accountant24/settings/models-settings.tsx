@@ -8,7 +8,7 @@ import { Badge } from "@/components/shadcn/badge";
 import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/shadcn/item";
 import { Label } from "@/components/shadcn/label";
 import { Switch } from "@/components/shadcn/switch";
-import { addEnabledModels } from "@/lib/enabledModels";
+import { defaultModelPatch } from "@/lib/defaultModelPick";
 import { authApi, settingsApi } from "@/rpc/api";
 import type { AppSettings, ModelInfo } from "@/rpc/types";
 import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
@@ -190,18 +190,8 @@ export function ModelsSettings() {
       .catch((e) => setSaveError(`Couldn’t save settings: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
 
-  // Picking a default also enables it — the default must always be available to
-  // new chats.
   const setDefault = useCallback(
-    (id: string) => {
-      const current = settings.enabledModels;
-      if (current && current.length > 0 && !current.includes(id)) {
-        const allIds = models.map(idOf);
-        patch({ defaultModel: id, enabledModels: addEnabledModels(current, [id], allIds) });
-      } else {
-        patch({ defaultModel: id });
-      }
-    },
+    (id: string) => patch(defaultModelPatch(id, settings.enabledModels, models)),
     [models, settings.enabledModels, patch],
   );
 

@@ -31,6 +31,9 @@ export interface ModelInfo {
   contextWindow?: number;
 }
 
+/** provider id -> pi's default model id for it. */
+export type ProviderDefaults = Record<string, string>;
+
 // ---- App settings (app-owned config in ~/Accountant24/settings.json) -----
 
 /** A concrete model pick: provider + the provider's model id. */
@@ -93,6 +96,9 @@ export interface AuthProviders {
 export interface AuthModels {
   type: "models";
   models: ModelInfo[];
+  /** pi's opinionated default model id per provider, used to preselect a
+   *  default. Absent providers (e.g. Ollama) have no opinion. */
+  providerDefaults: ProviderDefaults;
 }
 
 export interface OllamaInfo {

@@ -130,6 +130,20 @@ describe("ModelsSettings — enable/disable toggles", () => {
   });
 });
 
+describe("ModelsSettings — load failures", () => {
+  it("should still offer the default-model picker when the settings cannot be read", async () => {
+    h.get.mockRejectedValue(new Error("unreadable"));
+    render(<ModelsSettings />);
+    expect(await screen.findByRole("switch", { name: "GPT-5" })).toBeInTheDocument();
+  });
+
+  it("should fall back to the empty state when the model list cannot be read", async () => {
+    h.models.mockRejectedValue(new Error("offline"));
+    renderWith({ defaultModel: GPT });
+    expect(await screen.findByText("Connect a provider to choose a default model.")).toBeInTheDocument();
+  });
+});
+
 describe("ModelsSettings — save errors", () => {
   it("should surface a banner when saving fails", async () => {
     h.set.mockRejectedValue(new Error("disk full"));

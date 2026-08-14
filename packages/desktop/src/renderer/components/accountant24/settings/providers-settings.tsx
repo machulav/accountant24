@@ -9,9 +9,10 @@ import { Button } from "@/components/shadcn/button";
 import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
 import { Spinner } from "@/components/shadcn/spinner";
 import { useOAuthLogin } from "@/hooks/use-oauth-login";
+import { defaultModelPatch, pickDefaultModel } from "@/lib/defaultModelPick";
 import { addEnabledModels, parseModelId } from "@/lib/enabledModels";
 import { agentApi, authApi, settingsApi } from "@/rpc/api";
-import type { AuthProviderRow, AuthStatus } from "@/rpc/types";
+import type { AppSettings, AuthProviderRow, AuthStatus } from "@/rpc/types";
 import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
 import { ApiKeyDialog, OAuthSignInDialog } from "./provider-dialogs";
 
@@ -25,16 +26,26 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   const signingProvider = useRef<string | null>(null);
 
   // When a provider is added, make sure its models show in the composer — adding
-  // a provider shouldn't leave its models hidden behind an existing scoped list.
-  const enableProviderModels = useCallback(async (provider: string) => {
+  // a provider shouldn't leave its models hidden behind an existing scoped list —
+  // and start new chats on one of them when no default has been chosen yet.
+  const adoptProviderModels = useCallback(async (provider: string) => {
     try {
       const [models, settings] = await Promise.all([authApi.models(), settingsApi.get()]);
       const toEnable = models.models.filter((m) => m.provider === provider).map((m) => `${m.provider}/${m.id}`);
       const allIds = models.models.map((m) => `${m.provider}/${m.id}`);
       const next = addEnabledModels(settings.enabledModels, toEnable, allIds);
+      const patch: Partial<AppSettings> = {};
       if (next !== undefined && JSON.stringify(next) !== JSON.stringify(settings.enabledModels ?? [])) {
-        await settingsApi.set({ enabledModels: next });
+        patch.enabledModels = next;
       }
+      if (!settings.defaultModel) {
+        // The pick comes from the provider just added, whose models are enabled
+        // above, so the default is always one the user can actually chat with.
+        const picked = pickDefaultModel(models.models, models.providerDefaults, provider);
+        if (picked) patch.defaultModel = picked;
+      }
+      // One write, so the composer sees a single settings-changed event.
+      if (Object.keys(patch).length > 0) await settingsApi.set(patch);
     } catch {
       // Best-effort: failing to widen the composer list shouldn't block the add.
     }
@@ -45,10 +56,10 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
       // The agent caches auth/models at startup, so restart it to pick up the new
       // provider; this also notifies the composer to re-fetch its model list.
       await agentApi.restart();
-      await enableProviderModels(provider);
+      await adoptProviderModels(provider);
       await reload();
     },
-    [enableProviderModels, reload],
+    [adoptProviderModels, reload],
   );
 
   const oauth = useOAuthLogin(() => {
@@ -70,10 +81,20 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
       // its own path; auth.json-backed providers are logged out.
       if (provider === "ollama") await authApi.removeOllama();
       else await authApi.logout(provider);
-      // A default model from the removed provider is now dangling — clear it.
+      // The default model came from the provider just removed, so it is now
+      // dangling: hand the spot to a model that still works, or clear it when
+      // nothing is left. The model list is re-read after the removal, so it
+      // already excludes what went away.
       const settings = await settingsApi.get();
-      if (parseModelId(settings.defaultModel ?? "")?.provider === provider)
-        await settingsApi.set({ defaultModel: undefined });
+      if (parseModelId(settings.defaultModel ?? "")?.provider === provider) {
+        const models = await authApi.models();
+        const replacement = pickDefaultModel(models.models, models.providerDefaults);
+        await settingsApi.set(
+          replacement
+            ? defaultModelPatch(replacement, settings.enabledModels, models.models)
+            : { defaultModel: undefined },
+        );
+      }
       // Restart the agent so it drops the removed provider's models (it caches
       // them at startup); this also tells the composer to re-fetch its list.
       await agentApi.restart();

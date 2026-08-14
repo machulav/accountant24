@@ -5,6 +5,7 @@ import type { AuthInteraction, Credential } from "@earendil-works/pi-ai";
 import { CredentialSynchronizationError, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ipcMain } from "electron";
 import { trackProviderConnected } from "../analytics";
+import { providerDefaults as piProviderDefaults } from "./pi-defaults";
 import { createProviderRuntime } from "./registry";
 
 function uniqueProviders(runtime: ModelRuntime): string[] {
@@ -95,7 +96,7 @@ async function authProviders() {
 }
 
 async function authModels() {
-  const runtime = await createProviderRuntime();
+  const [runtime, providerDefaults] = await Promise.all([createProviderRuntime(), piProviderDefaults()]);
   const models = runtime.getAvailableSnapshot().map((m) => ({
     provider: m.provider,
     id: m.id,
@@ -104,7 +105,9 @@ async function authModels() {
     input: m.input,
     contextWindow: m.contextWindow,
   }));
-  return { type: "models", models };
+  // pi's default per provider rides along so the renderer can preselect a
+  // default model without knowing about pi.
+  return { type: "models", models, providerDefaults };
 }
 
 /** Answers pi's api-key login with a key the user already pasted. Standard

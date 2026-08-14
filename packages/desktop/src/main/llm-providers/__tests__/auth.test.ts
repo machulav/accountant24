@@ -44,6 +44,9 @@ vi.mock("@earendil-works/pi-coding-agent", () => ({
   ModelRuntime: { create: async () => h.modelRuntime },
   CredentialSynchronizationError: h.CredentialSynchronizationError,
 }));
+// pi's real default-model table is exercised in pi-defaults.test.ts; here it is
+// just another input, so a stub keeps these specs independent of pi's catalog.
+vi.mock("../pi-defaults", () => ({ providerDefaults: async () => ({ p: "m" }) }));
 
 /** Import auth.ts fresh and register its handlers. */
 async function setup() {
@@ -205,7 +208,15 @@ describe("auth_models", () => {
     expect(await invoke("auth_models")).toEqual({
       type: "models",
       models: [{ provider: "p", id: "m", name: "M", reasoning: true, input: ["text"], contextWindow: 100 }],
+      providerDefaults: { p: "m" },
     });
+  });
+
+  it("should carry pi's default model per provider so the renderer can preselect one", async () => {
+    await setup();
+
+    const models = (await invoke("auth_models")) as { providerDefaults: Record<string, string> };
+    expect(models.providerDefaults).toEqual({ p: "m" });
   });
 });
 

@@ -59,6 +59,17 @@ describe("settings persistence (real fs)", () => {
     expect(merged).toEqual({ enabledModels: ["a/1", "b/2"], defaultModel: "a/1" });
   });
 
+  it("should drop the default model from the file when it is cleared", async () => {
+    // Removing the last provider clears the default this way; the key must
+    // leave the file rather than persist as a dangling id.
+    await load();
+    set({ defaultModel: "anthropic/opus", enabledModels: ["a/1"] });
+    const merged = set({ defaultModel: undefined });
+    expect(merged.defaultModel).toBeUndefined();
+    expect(readJson("app-settings.json")).toEqual({ enabledModels: ["a/1"] });
+    expect(get()).toEqual({ enabledModels: ["a/1"] });
+  });
+
   it("should ignore foreign (pi) keys present in the file", async () => {
     await load();
     // Seed the file with an app key + a pi-owned key.

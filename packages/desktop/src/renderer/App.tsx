@@ -5,10 +5,13 @@
 import { ChatLayout } from "./components/accountant24/chat-layout";
 import { Onboarding } from "./components/accountant24/onboarding";
 import { TooltipProvider } from "./components/shadcn/tooltip";
+import { useEnsureDefaultModel } from "./hooks/use-default-model";
 import { useHasModels } from "./hooks/use-provider-status";
 
 export default function App() {
   const hasModels = useHasModels();
+  // Fills in a default model for setups that have models but never chose one.
+  useEnsureDefaultModel();
   if (hasModels === null) return null;
   return (
     // The app's one tooltip provider: every tooltip opens on dwell (400ms —

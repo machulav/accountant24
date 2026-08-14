@@ -98,7 +98,7 @@ beforeEach(() => {
   vi.mocked(authApi.logout).mockResolvedValue({ type: "ok" });
   vi.mocked(authApi.removeOllama).mockResolvedValue({ type: "ok" });
   vi.mocked(authApi.addAllOllama).mockResolvedValue({ type: "ok", count: 1 });
-  vi.mocked(authApi.models).mockResolvedValue({ type: "models", models: [] });
+  vi.mocked(authApi.models).mockResolvedValue({ type: "models", models: [], providerDefaults: {} });
   vi.mocked(agentApi.restart).mockResolvedValue(undefined);
   vi.mocked(settingsApi.get).mockResolvedValue({});
   vi.mocked(settingsApi.set).mockResolvedValue({});
@@ -291,6 +291,105 @@ describe("ProvidersSettings", () => {
   });
 
   describe("disconnect flow", () => {
+    it("should hand the default model to a remaining provider", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "openai", displayName: "OpenAI", configured: true, removable: true })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({ defaultModel: "openai/gpt-4" });
+      // What is left once OpenAI is gone.
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "groq", id: "llama" },
+          { provider: "groq", id: "mixtral" },
+        ],
+        providerDefaults: {},
+      } as never);
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: "groq/llama" }));
+      expect(authApi.logout).toHaveBeenCalledWith("openai");
+    });
+
+    it("should hand the default model to the remaining provider's recommended model", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "openai", displayName: "OpenAI", configured: true, removable: true })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({ defaultModel: "openai/gpt-4" });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "groq", id: "llama" },
+          { provider: "groq", id: "mixtral" },
+        ],
+        providerDefaults: { groq: "mixtral" },
+      } as never);
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: "groq/mixtral" }));
+    });
+
+    it("should enable the replacement default when the allow-list excludes it", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "openai", displayName: "OpenAI", configured: true, removable: true })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({
+        defaultModel: "openai/gpt-4",
+        enabledModels: ["openai/gpt-4", "groq/mixtral"],
+      });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "groq", id: "llama" },
+          { provider: "groq", id: "mixtral" },
+          { provider: "groq", id: "gemma" },
+        ],
+        providerDefaults: {},
+      } as never);
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+      // The replacement joins the list, the departed provider's stale id drops
+      // out, and the model the user had switched off stays off.
+      await waitFor(() =>
+        expect(settingsApi.set).toHaveBeenCalledWith({
+          defaultModel: "groq/llama",
+          enabledModels: ["groq/llama", "groq/mixtral"],
+        }),
+      );
+    });
+
+    it("should enable every model when the replacement completes the allow-list", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "openai", displayName: "OpenAI", configured: true, removable: true })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({
+        defaultModel: "openai/gpt-4",
+        enabledModels: ["openai/gpt-4", "groq/mixtral"],
+      });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "groq", id: "llama" },
+          { provider: "groq", id: "mixtral" },
+        ],
+        providerDefaults: {},
+      } as never);
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+      // Nothing is left switched off, which is stored as the canonical empty list.
+      await waitFor(() =>
+        expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: "groq/llama", enabledModels: [] }),
+      );
+    });
+
     it("should log out, clear a dangling default model, restart the agent, and reload", async () => {
       vi.mocked(authApi.status).mockResolvedValue(
         status([row({ provider: "openai", displayName: "OpenAI", configured: true, removable: true })]),
@@ -302,7 +401,8 @@ describe("ProvidersSettings", () => {
       await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
       expect(authApi.logout).toHaveBeenCalledWith("openai");
       expect(authApi.removeOllama).not.toHaveBeenCalled();
-      // The default model belonged to the removed provider, so it's cleared.
+      // The default belonged to the removed provider and no model is left to
+      // take its place, so it's cleared.
       expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: undefined });
       // reload() re-reads status: once on mount, once after disconnect.
       expect(vi.mocked(authApi.status).mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -339,7 +439,11 @@ describe("ProvidersSettings", () => {
         status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
       );
       // A scoped list that doesn't yet include Groq's model (so adding it must widen).
-      vi.mocked(settingsApi.get).mockResolvedValue({ enabledModels: ["openai/gpt-4"] });
+      // A default model is already chosen, so this test sees widening alone.
+      vi.mocked(settingsApi.get).mockResolvedValue({
+        enabledModels: ["openai/gpt-4"],
+        defaultModel: "openai/gpt-4",
+      });
       vi.mocked(authApi.models).mockResolvedValue({
         type: "models",
         models: [
@@ -347,6 +451,7 @@ describe("ProvidersSettings", () => {
           { provider: "openai", id: "gpt-5" },
           { provider: "groq", id: "llama" },
         ],
+        providerDefaults: {},
       } as never);
       vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
 
@@ -367,10 +472,12 @@ describe("ProvidersSettings", () => {
         status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
       );
       // No scoped list means "all enabled": adding a provider needs no widening.
-      vi.mocked(settingsApi.get).mockResolvedValue({});
+      // A default model is already chosen, so nothing is written at all.
+      vi.mocked(settingsApi.get).mockResolvedValue({ defaultModel: "groq/llama" });
       vi.mocked(authApi.models).mockResolvedValue({
         type: "models",
         models: [{ provider: "groq", id: "llama" }],
+        providerDefaults: {},
       } as never);
       vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
 
@@ -387,7 +494,10 @@ describe("ProvidersSettings", () => {
       vi.mocked(authApi.status).mockResolvedValue(
         status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
       );
-      vi.mocked(settingsApi.get).mockResolvedValue({ enabledModels: ["openai/gpt-4"] });
+      vi.mocked(settingsApi.get).mockResolvedValue({
+        enabledModels: ["openai/gpt-4"],
+        defaultModel: "openai/gpt-4",
+      });
       vi.mocked(authApi.models).mockResolvedValue({
         type: "models",
         models: [
@@ -395,6 +505,7 @@ describe("ProvidersSettings", () => {
           { provider: "openai", id: "gpt-5" },
           { provider: "anthropic", id: "claude" },
         ],
+        providerDefaults: {},
       } as never);
 
       render(<ProvidersSettings />);
@@ -407,6 +518,131 @@ describe("ProvidersSettings", () => {
 
       await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
       expect(settingsApi.set).toHaveBeenCalledWith({ enabledModels: ["openai/gpt-4", "anthropic/claude"] });
+    });
+
+    it("should choose a default model and widen the list in one write when no default is set", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({ enabledModels: ["openai/gpt-4"] });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "openai", id: "gpt-4" },
+          { provider: "openai", id: "gpt-5" },
+          { provider: "groq", id: "llama" },
+        ],
+        providerDefaults: {},
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledTimes(1));
+      // One write, so the composer only reacts once.
+      expect(settingsApi.set).toHaveBeenCalledWith({
+        enabledModels: ["openai/gpt-4", "groq/llama"],
+        defaultModel: "groq/llama",
+      });
+    });
+
+    it("should choose the model pi recommends for the added provider", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: false })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({});
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "anthropic", id: "claude-mini" },
+          { provider: "anthropic", id: "claude-pro" },
+        ],
+        providerDefaults: { anthropic: "claude-pro" },
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-a" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      // pi's recommendation wins over the provider's first model.
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: "anthropic/claude-pro" }));
+    });
+
+    it("should choose a default model for the provider just added, not another one", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({});
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "openai", id: "gpt-4" },
+          { provider: "groq", id: "llama" },
+        ],
+        providerDefaults: { openai: "gpt-4" },
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledWith({ defaultModel: "groq/llama" }));
+    });
+
+    it("should keep the default model the user already chose", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({
+        enabledModels: ["openai/gpt-4"],
+        defaultModel: "openai/gpt-4",
+      });
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [
+          { provider: "openai", id: "gpt-4" },
+          { provider: "openai", id: "gpt-5" },
+          { provider: "groq", id: "llama" },
+        ],
+        providerDefaults: { groq: "llama" },
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(settingsApi.set).toHaveBeenCalledTimes(1));
+      expect(settingsApi.set).toHaveBeenCalledWith({ enabledModels: ["openai/gpt-4", "groq/llama"] });
+    });
+
+    it("should not choose a default model when the new provider has none available", async () => {
+      vi.mocked(authApi.status).mockResolvedValue(
+        status([row({ provider: "groq", displayName: "Groq", configured: false, oauth: false })]),
+      );
+      vi.mocked(settingsApi.get).mockResolvedValue({});
+      vi.mocked(authApi.models).mockResolvedValue({
+        type: "models",
+        models: [{ provider: "openai", id: "gpt-4" }],
+        providerDefaults: {},
+      } as never);
+      vi.mocked(authApi.setKey).mockResolvedValue({ type: "ok" });
+
+      render(<ProvidersSettings />);
+      fireEvent.click(await screen.findByRole("button", { name: "API Key" }));
+      fireEvent.change(await screen.findByLabelText("API Key"), { target: { value: "sk-groq" } });
+      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+      await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
+      expect(settingsApi.set).not.toHaveBeenCalled();
     });
 
     it("should just reload without an add when a sign-in completes with no provider armed", async () => {

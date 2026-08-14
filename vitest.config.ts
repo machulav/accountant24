@@ -67,10 +67,10 @@ export default defineConfig({
       // Kept just under the current effective baseline so the gate is honest
       // (green today) and each new test suite raises it.
       thresholds: {
-        statements: 98.05,
-        branches: 93.45,
-        functions: 98.0,
-        lines: 99.0,
+        statements: 98.3,
+        branches: 94.15,
+        functions: 98.15,
+        lines: 99.3,
       },
     },
   },
