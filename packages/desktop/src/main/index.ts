@@ -15,6 +15,7 @@ import { registerOllamaIpc } from "./llm-providers/ollama";
 import { registerSettingsIpc } from "./settings";
 import { initAutoUpdater } from "./updater";
 import { createWindow } from "./window";
+import { ensureWorkspace } from "./workspace";
 
 // Dev only: expose a local CDP endpoint so tooling (visual-measurement and
 // driver scripts) can attach to the RUNNING dev app instead of launching a
@@ -30,7 +31,18 @@ const getWin = (): BrowserWindow | null => mainWindow;
 // Anonymous usage analytics; the SDK emits nothing until trackLaunch() runs.
 initAnalytics();
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Seed ~/Accountant24 (dirs, starter journals, git repo) before anything can
+  // read or write it — the ledger views and settings must not race a fresh
+  // install, and the workspace is the agent's cwd. A failure here (an
+  // unwritable home) must not cost the user their window: log it and open
+  // anyway, with the empty states and errors that follow from it.
+  try {
+    await ensureWorkspace();
+  } catch (err) {
+    console.error("[workspace] setup failed:", err);
+  }
+
   // Dev only: packaged builds get the icon from build/icon.icns, but
   // `electron-vite dev` runs the stock Electron binary with its default icon.
   // The red "dev" badge marks the dev instance so it can't be confused with

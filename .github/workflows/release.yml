@@ -91,7 +91,7 @@ jobs:
 
       # The suite includes integration tests that run the real tools the app
       # ships (hledger for briefings, pdftotext/tesseract for extraction) and
-      # a real `git commit` (scaffold) — install the tools and give the runner
+      # real `git` commands — install the tools and give the runner
       # a git identity, or 13 tests fail with empty results.
       - name: Install CLI tools used by integration tests
         run: |

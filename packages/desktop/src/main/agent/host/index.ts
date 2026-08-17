@@ -8,7 +8,8 @@ import { createRuntimeFactory } from "./runtime";
 
 const cfg = JSON.parse(process.argv[2] ?? "{}") as AgentHostConfig;
 // The workspace is every session's cwd and must exist before the first runtime
-// is created (the extension scaffolds its contents later, on session_start).
+// is created. Main seeds it at launch (main/workspace.ts); this guards a
+// workspace deleted while the app runs.
 mkdirSync(cfg.workspaceDir, { recursive: true });
 
 const host = new AgentHost({

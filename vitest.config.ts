@@ -1,27 +1,6 @@
-import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
-// The extension inlines templates via `import x from "./f.md" with { type: "text" }`
-// (a bun feature). Rewrite that attribute to vite's native `?raw` text import so
-// vitest can load .md/.journal/.gitignore sources as strings. esbuild handles the
-// same imports for the production bundle (see scripts/bundle-extension.ts).
-function textImports(): Plugin {
-  return {
-    name: "accountant24-text-imports",
-    enforce: "pre",
-    transform(code, id) {
-      if (!id.endsWith(".ts") || !code.includes('with { type: "text" }')) return null;
-      const out = code.replace(
-        /from\s+("[^"]+")\s+with\s*\{\s*type:\s*"text"\s*\}/g,
-        (_m, spec: string) => `from ${spec.slice(0, -1)}?raw"`,
-      );
-      return out === code ? null : { code: out, map: null };
-    },
-  };
-}
-
 export default defineConfig({
-  plugins: [textImports()],
   resolve: {
     // Mirror the desktop app's `@` alias so component tests can load sources
     // that import via "@/...".
@@ -61,7 +40,7 @@ export default defineConfig({
         "packages/desktop/src/preload/index.ts",
         "packages/desktop/src/renderer/rpc/types.ts",
         "packages/desktop/src/shared/**",
-        "packages/pi-extension/src/scaffold/template/**",
+        "packages/desktop/src/main/template/**",
       ],
       // Enforced floor — ratchets up toward 100 as gaps close; never lowered.
       // Kept just under the current effective baseline so the gate is honest

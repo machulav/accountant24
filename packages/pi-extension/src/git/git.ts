@@ -1,14 +1,6 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { spawnText } from "../spawn";
 
 // ── Commands ────────────────────────────────────────────────────────
-
-export async function gitInit(cwd: string): Promise<boolean> {
-  if (existsSync(join(cwd, ".git"))) return false;
-  await spawn(["git", "init"], { cwd });
-  return true;
-}
 
 export async function hasChanges(cwd: string): Promise<boolean> {
   const { stdout } = await spawn(["git", "status", "--porcelain"], { cwd });

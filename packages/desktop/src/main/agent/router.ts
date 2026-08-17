@@ -67,8 +67,8 @@ function settleHostState(handle: HostHandle): void {
 function ensureHost(getWin: () => BrowserWindow | null): HostHandle {
   if (current) return current;
   const workspace = workspaceDir();
-  // Every session's cwd; must exist at fork time (the extension scaffolds its
-  // contents later, on session_start).
+  // Every session's cwd; must exist at fork time. The app seeds it at launch
+  // (workspace.ts) — this guards a workspace deleted while the app runs.
   mkdirSync(workspace, { recursive: true });
 
   // ForkOptions.env wants string values only.

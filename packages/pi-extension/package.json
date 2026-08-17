@@ -3,7 +3,7 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "description": "Accountant24 customization for pi: ledger tools, system prompt, scaffolding.",
+  "description": "Accountant24 customization for pi: ledger tools and system prompt.",
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.1",
     "file-type": "22.0.1",

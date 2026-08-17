@@ -70,8 +70,8 @@ function readSettings(): AppSettings {
 /** Merge-patch the settings file and return the merged result. */
 function writeSettings(patch: Partial<AppSettings>): AppSettings {
   const merged: AppSettings = { ...readSettings(), ...patch };
-  // The workspace normally exists (the agent scaffolds it), but a save can race
-  // a fresh install — create it so the write can't fail with ENOENT.
+  // The workspace normally exists (seeded at launch by workspace.ts) — create it
+  // anyway so a save into a deleted workspace can't fail with ENOENT.
   mkdirSync(workspaceDir(), { recursive: true });
   writeFileSync(appSettingsPath(), `${JSON.stringify(merged, null, 2)}\n`);
   return merged;

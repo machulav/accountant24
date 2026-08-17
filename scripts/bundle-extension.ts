@@ -1,9 +1,8 @@
 // Bundle the pi extension to a single self-contained ESM file that the desktop
 // app loads via `pi -e`. pi's virtual modules are externalized so they resolve
 // against node_modules at load time (the agent runs under Electron-as-Node, so
-// node_modules is present). Templates imported via `with { type: "text" }` are
-// inlined by the text loaders below. This is the lightweight dev/prelaunch step;
-// the release build calls the same bundling.
+// node_modules is present). This is the lightweight dev/prelaunch step; the
+// release build calls the same bundling.
 
 import { copyFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -42,7 +41,6 @@ await build({
   platform: "node",
   outfile: OUT,
   external: VIRTUAL_MODULES,
-  loader: { ".md": "text", ".journal": "text", ".gitignore": "text" },
   logLevel: "info",
 });
 

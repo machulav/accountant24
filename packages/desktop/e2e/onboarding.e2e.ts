@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { type LaunchedApp, launchApp } from "./helpers";
 
@@ -25,6 +27,17 @@ test("boots to onboarding with the three connect options on a fresh install", as
   await expect(window.getByText("Sign in with a subscription")).toBeVisible();
   await expect(window.getByText("Use an API key")).toBeVisible();
   await expect(window.getByText("Connect Ollama")).toBeVisible();
+});
+
+test("seeds the workspace on a fresh install, before any chat exists", async () => {
+  const window = await launched.app.firstWindow();
+  await window.waitForLoadState("domcontentloaded");
+
+  // The app (not the agent) creates the workspace at launch, so the ledger and
+  // its git repo are there even though no message has been sent.
+  expect(existsSync(path.join(launched.home, "ledger", "main.journal"))).toBe(true);
+  expect(existsSync(path.join(launched.home, "memory.md"))).toBe(true);
+  expect(existsSync(path.join(launched.home, ".git"))).toBe(true);
 });
 
 test("opens Settings on the Providers section when a connect option is clicked", async () => {
