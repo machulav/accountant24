@@ -92,7 +92,11 @@ const DATA: NetWorth = {
   baseCommodity: "EUR",
 };
 
-const EMPTY: NetWorth = { sections: [], net: { amounts: [], value: [] }, baseCommodity: null };
+const EMPTY: NetWorth = {
+  sections: [],
+  net: { amounts: [], value: [] },
+  baseCommodity: null,
+};
 
 const renderView = (isRunning = false) =>
   render(
