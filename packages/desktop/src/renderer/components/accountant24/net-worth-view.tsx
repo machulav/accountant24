@@ -16,6 +16,7 @@
 // column; every column sorts, A-Z on the account path by default,
 // independently per section. All figures are hledger-computed; only the
 // presentation happens here. Data refreshes when the agent finishes a turn.
+// Holdings live on the Investments page, not here.
 
 import type { Column, ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import { PlusIcon, WalletIcon } from "lucide-react";
@@ -31,11 +32,10 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { formatAmount, formatAmounts, formatValue, splitValueLead } from "@/lib/amountFormat";
 import type { AccountBalance, NetWorthSection, NetWorthTotal } from "@/rpc/types";
 import { ColumnsMenu } from "./columns-menu";
-import { BAND_CLASS, InfoTip, InvestmentsGrid, InvestmentsSection, PRICE_HELP } from "./investments-table";
+import { BAND_CLASS, InfoTip, PRICE_HELP } from "./investments-table";
 import {
   COLUMN_MIN_SIZES,
   COLUMN_SIZES,
-  investmentsTableWidth,
   loadTableConfig,
   type NetWorthTableConfig,
   saveTableConfig,
@@ -44,18 +44,9 @@ import {
 import { SearchField } from "./search-field";
 import { useNetWorth } from "./use-net-worth";
 
-/** The columns the Columns menu can toggle; the other five are the page's
+/** The columns the Columns menu can toggle; the other three are the page's
  *  spine and never leave. */
-type OptionalColumnId = "asserted" | "assertedAmount" | "cost" | "pnl" | "allocation";
-
-/** The Investments section's toggleable columns, in display order. Only
- *  listed while the section has rows, so a holdings-less journal keeps the
- *  menu to the assertion pair. */
-const INVESTMENT_OPTIONAL_COLUMNS: { id: OptionalColumnId; label: string }[] = [
-  { id: "cost", label: "Cost" },
-  { id: "pnl", label: "P&L" },
-  { id: "allocation", label: "Allocation" },
-];
+type OptionalColumnId = "asserted" | "assertedAmount";
 
 /** Assertion-column labels, defined once: the headers, the help keys, and
  *  the Columns menu all read these. */
@@ -297,11 +288,6 @@ const SheetSkeleton: FC<{
       <Skeleton className="h-5 w-36 self-center" />
     </div>
     <AccountsGrid rows={NO_ROWS} search="" config={config} onSizingChange={onSizingChange} loading />
-    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
-      <h2 className="text-lg font-semibold">Investments</h2>
-      <Skeleton className="h-5 w-36 self-center" />
-    </div>
-    <InvestmentsGrid rows={[]} search="" config={config} onSizingChange={onSizingChange} loading />
     <div className={`mt-8 ${BAND_CLASS}`}>
       <div className="text-lg font-semibold">Net Worth</div>
       <Skeleton className="h-5 w-32" />
@@ -354,15 +340,13 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
           // field gives way so the Columns button never clips.
           <div className="flex min-w-0 items-center gap-2">
             <SearchField subject="accounts" value={search} onValueChange={setSearch} className="w-64 min-w-0" />
-            {/* Only the optional columns toggle: the assertion pair (Net
-                Worth's own) plus the Investments section's Cost, P&L, and
-                Allocation. Account, Holding, Value, Commodity, Quantity,
-                and Price are the page's spine and never leave. */}
+            {/* Only the optional columns toggle: the assertion pair.
+                Account, Holding, and Value are the page's spine and never
+                leave. */}
             <ColumnsMenu<OptionalColumnId>
               columns={[
                 { id: "asserted", label: ASSERTED_ON_LABEL },
                 { id: "assertedAmount", label: ASSERTED_AMOUNT_LABEL },
-                ...(sheet?.investments.rows.length ? INVESTMENT_OPTIONAL_COLUMNS : []),
               ]}
               visibility={config.visibility}
               onToggle={(id, shown) => applyConfig("visibility", (prev) => ({ ...prev, [id]: shown }))}
@@ -381,13 +365,11 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
           // The body is exactly as wide as the tables' columns (never below
           // the 52rem page floor — the same span as the toolbar's content
           // box, title edge to Columns edge); past the window width the
-          // page scrolls horizontally, like Transactions. The Investments
-          // section's own width wins when its optional columns push it
-          // wider than the account tables.
+          // page scrolls horizontally, like Transactions.
           <div
             className="mx-auto pb-12"
             style={{
-              width: `max(52rem, ${tableWidth(config)}px, ${investmentsTableWidth(config)}px)`,
+              width: `max(52rem, ${tableWidth(config)}px)`,
             }}
           >
             {sheet === null ? (
@@ -404,16 +386,6 @@ export const NetWorthView: FC<{ active?: boolean; onNewChat?: () => void }> = ({
                     onSizingChange={onSizingChange}
                   />
                 ))}
-                {/* Priced holdings, one row per commodity — between the
-                    balance sheet and the Net line. */}
-                {sheet.investments.rows.length > 0 && (
-                  <InvestmentsSection
-                    investments={sheet.investments}
-                    search={search}
-                    config={config}
-                    onSizingChange={onSizingChange}
-                  />
-                )}
                 {/* The closing Net band, straight from hledger's own net. */}
                 <div className={`mt-8 ${BAND_CLASS}`}>
                   <div className="text-lg font-semibold">Net Worth</div>

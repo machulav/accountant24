@@ -76,46 +76,16 @@ describe("ledger net worth over a real journal", () => {
       sections: [],
       net: { amounts: [], value: [] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
   });
 
-  it("should report holdings with market value, cost basis, and P&L from the real hledger", async () => {
+  it("should value the balance sheet in the base commodity from the real hledger", async () => {
     await load();
     seedJournal();
     const sheet = await invoke<NetWorth>("ledger_net_worth");
 
     // Base resolves from the declared prices: EUR.
     expect(sheet.baseCommodity).toBe("EUR");
-
-    // SXR8: 10 units at 200 EUR cost, valued at the declared 250 EUR price.
-    // hledger styles the integer share count at precision 0.
-    const sxr8 = sheet.investments.rows.find((r) => r.commodity === "SXR8");
-    expect(sxr8).toEqual({
-      commodity: "SXR8",
-      quantity: { quantity: 10, commodity: "SXR8", precision: 0 },
-      price: { quantity: 250, commodity: "EUR", precision: 2 },
-      marketValue: { quantity: 2500, commodity: "EUR", precision: 2 },
-      costBasis: { quantity: 2000, commodity: "EUR", precision: 2 },
-      unrealizedPnl: { quantity: 500, commodity: "EUR", precision: 2 },
-    });
-
-    // AAPL: bought in USD, so the cost can't convert to EUR — value only.
-    const aapl = sheet.investments.rows.find((r) => r.commodity === "AAPL");
-    expect(aapl).toMatchObject({
-      quantity: { quantity: 5, commodity: "AAPL", precision: 0 },
-      price: { quantity: 190, commodity: "EUR", precision: 2 },
-      marketValue: { quantity: 950, commodity: "EUR", precision: 2 },
-      costBasis: null,
-      unrealizedPnl: null,
-    });
-
-    // The leftover USD cash is neither priced nor costed toward EUR, so it
-    // never appears as a holding.
-    expect(sheet.investments.rows.map((r) => r.commodity)).toEqual(["SXR8", "AAPL"]);
-
-    expect(sheet.investments.totalMarketValue).toEqual([{ quantity: 3450, commodity: "EUR", precision: 2 }]);
-    expect(sheet.investments.totalCostBasis).toEqual([{ quantity: 2000, commodity: "EUR", precision: 2 }]);
 
     // The balance sheet still reads as before: assets hold the two positions,
     // and hledger's full price graph values even the leftover USD (via the

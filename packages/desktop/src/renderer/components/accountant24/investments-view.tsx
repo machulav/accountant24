@@ -2,15 +2,13 @@
 
 // Full-page Investments view: every priced holding, one row per commodity,
 // with a portfolio summary on top — total invested (cost basis), market
-// value, and unrealized P&L with its return. The table is the shared
-// holdings grid (investments-table.tsx) the Net Worth section uses, so the
-// two places show the same numbers and columns; this page brings its own
-// persisted column config and its own summary. Laid out like the other
-// report pages: a large title below the window chrome, the search box and
-// Columns menu beside it, pinned; the body is exactly as wide as the
-// grid's columns (never below the default page cap). All figures are
-// hledger-computed; only the presentation happens here. Data refreshes
-// when the agent finishes a turn.
+// value, and unrealized P&L with its return. The table is the holdings grid
+// (investments-table.tsx); this page brings its own persisted column config
+// and its own summary. Laid out like the other report pages: a large title
+// below the window chrome, the search box and Columns menu beside it,
+// pinned; the body is exactly as wide as the grid's columns (never below
+// the default page cap). All figures are hledger-computed; only the
+// presentation happens here. Data refreshes when the agent finishes a turn.
 
 import type { Updater } from "@tanstack/react-table";
 import { PlusIcon, TrendingUpIcon } from "lucide-react";
@@ -23,11 +21,11 @@ import { summarizePnl } from "@/lib/investments-summary";
 import { ColumnsMenu } from "./columns-menu";
 import {
   type InvestmentsTableConfig,
+  investmentsTableWidth,
   loadInvestmentsTableConfig,
   saveInvestmentsTableConfig,
 } from "./investments-columns";
 import { DASH, InvestmentsGrid, withAllocation } from "./investments-table";
-import { investmentsTableWidth } from "./net-worth-columns";
 import { SearchField } from "./search-field";
 import { useInvestments } from "./use-investments";
 

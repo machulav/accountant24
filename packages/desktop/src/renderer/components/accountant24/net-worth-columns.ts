@@ -11,14 +11,10 @@ export const NET_WORTH_TABLE_KEY = "accountant24.net-worth-table";
 /** Only the assertion pair toggles, hidden by default: the tables stay
  *  narrow and lead with what you have now; the reconciliation trail is
  *  opt-in via the Columns menu. Account, Holding, and Value are the page's
- *  spine and never leave, so they have no entry here. The Investments
- *  section's Cost, P&L, and Allocation follow the same rule. */
+ *  spine and never leave, so they have no entry here. */
 export const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   asserted: false,
   assertedAmount: false,
-  cost: false,
-  pnl: false,
-  allocation: false,
 };
 
 /** Every column's default width, in display order. The default-visible set
@@ -50,38 +46,14 @@ export const COLUMN_MIN_SIZES: Record<string, number> = {
   value: 140,
 };
 
-/** The Investments section's columns: Commodity, Quantity, Price, and Value
- *  (the latter sharing the account tables' "value" id and width) visible by
- *  default at the same span as the account tables (350+140+170+170 = 830);
- *  Cost, P&L, and Allocation are opt-in like the assertion pair. */
-export const INVESTMENT_COLUMN_SIZES: Record<string, number> = {
-  commodity: 350,
-  quantity: 140,
-  price: 170,
-  value: 170,
-  cost: 170,
-  pnl: 170,
-  allocation: 120,
-};
-
-export const INVESTMENT_COLUMN_MIN_SIZES: Record<string, number> = {
-  commodity: 140,
-  quantity: 110,
-  price: 130,
-  value: 140,
-  cost: 130,
-  pnl: 130,
-  allocation: 88,
-};
-
 export type NetWorthTableConfig = TableConfig;
 
 export function loadTableConfig(): NetWorthTableConfig {
   return loadStoredTableConfig(
     NET_WORTH_TABLE_KEY,
     DEFAULT_COLUMN_VISIBILITY,
-    [...Object.keys(COLUMN_SIZES), ...Object.keys(INVESTMENT_COLUMN_SIZES)],
-    { ...COLUMN_MIN_SIZES, ...INVESTMENT_COLUMN_MIN_SIZES },
+    Object.keys(COLUMN_SIZES),
+    COLUMN_MIN_SIZES,
   );
 }
 
@@ -100,20 +72,6 @@ export function tableWidth(config: NetWorthTableConfig): number {
   return Object.entries(COLUMN_SIZES).reduce(
     (total, [id, size]) =>
       config.visibility[id] === false ? total : total + Math.max(config.sizing[id] ?? size, COLUMN_MIN_SIZES[id] ?? 0),
-    0,
-  );
-}
-
-/** The Investments section's own width — its default-visible span matches
- *  the account tables' (830 ≈ 832), and toggling its optional columns grows
- *  the page past the floor the same way the assertion pair does. The page
- *  wraps every section at the wider of the two (see the view). */
-export function investmentsTableWidth(config: NetWorthTableConfig): number {
-  return Object.entries(INVESTMENT_COLUMN_SIZES).reduce(
-    (total, [id, size]) =>
-      config.visibility[id] === false
-        ? total
-        : total + Math.max(config.sizing[id] ?? size, INVESTMENT_COLUMN_MIN_SIZES[id] ?? 0),
     0,
   );
 }

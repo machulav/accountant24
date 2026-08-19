@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 
-// Spec for the shared holdings table (investments-table.tsx): the compact
-// InvestmentsSection the Net Worth page embeds. The full column grid is
-// exercised through the Net Worth and Investments page tests; this suite
-// covers the boundary shapes the pages don't render — holdings the journal
-// can't price or cost, and the optional columns on.
+// Spec for the holdings grid (investments-table.tsx): the one-row-per-
+// commodity table the Investments page renders. The page's summary cards
+// and empty/loading states are covered by the Investments page tests; this
+// suite covers the boundary shapes the page doesn't reach on its happy path
+// — holdings the journal can't price or cost, and the optional columns on.
 
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { InvestmentHolding, NetWorthInvestments } from "@/rpc/types";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
-import { InvestmentsSection } from "../investments-table";
+import { InvestmentsGrid, withAllocation } from "../investments-table";
 
 beforeAll(() => installJsdomPolyfills());
 afterEach(() => cleanup());
@@ -44,39 +44,37 @@ const emptyInvestments = (rows: InvestmentHolding[], totals?: Partial<NetWorthIn
   ...totals,
 });
 
-describe("InvestmentsSection", () => {
-  it("should dash the band and every figure cell for holdings with no price or cost", () => {
-    render(
-      <InvestmentsSection
-        investments={emptyInvestments([VALUELESS])}
-        search=""
-        config={{ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} }}
-        onSizingChange={NOOP}
-      />,
-    );
-    // The section's band total, plus the Price, Value, Cost, P&L, and
-    // Allocation cells — six em dashes, never a fabricated zero.
-    expect(screen.getAllByText("—")).toHaveLength(6);
+const renderGrid = (investments: NetWorthInvestments) =>
+  render(
+    <InvestmentsGrid
+      rows={withAllocation(investments)}
+      search=""
+      config={{ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} }}
+      onSizingChange={NOOP}
+    />,
+  );
+
+describe("InvestmentsGrid", () => {
+  it("should dash every figure cell for holdings with no price or cost", () => {
+    renderGrid(emptyInvestments([VALUELESS]));
+    // Price, Value, Cost, P&L, and Allocation — five em dashes, never a
+    // fabricated zero.
+    expect(screen.getAllByText("—")).toHaveLength(5);
     // The commodity and its native quantity still read.
     expect(screen.getByText("VLT")).toBeInTheDocument();
     expect(screen.getByText("3 VLT")).toBeInTheDocument();
   });
 
   it("should render the optional Cost, P&L, and Allocation cells when the columns are on", () => {
-    render(
-      <InvestmentsSection
-        investments={emptyInvestments([COMPLETE], {
-          totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
-          totalCostBasis: [{ quantity: 1941.53, commodity: "EUR", precision: 2 }],
-        })}
-        search=""
-        config={{ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} }}
-        onSizingChange={NOOP}
-      />,
+    renderGrid(
+      emptyInvestments([COMPLETE], {
+        totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
+        totalCostBasis: [{ quantity: 1941.53, commodity: "EUR", precision: 2 }],
+      }),
     );
     expect(screen.getByText("1,941.53 EUR")).toBeInTheDocument();
     expect(screen.getByText("3.75 EUR")).toBeInTheDocument();
-    // 1,945.28 / 1,945.28 — the single holding owns the whole section.
+    // 1,945.28 / 1,945.28 — the single holding owns the whole table.
     expect(screen.getByText("100%")).toBeInTheDocument();
   });
 
@@ -84,15 +82,10 @@ describe("InvestmentsSection", () => {
     // The grid's default sort is on Value; clicking the other headers makes
     // TanStack read each column's own accessor — the sort data path every
     // holding column relies on.
-    render(
-      <InvestmentsSection
-        investments={emptyInvestments([COMPLETE, VALUELESS], {
-          totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
-        })}
-        search=""
-        config={{ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} }}
-        onSizingChange={NOOP}
-      />,
+    renderGrid(
+      emptyInvestments([COMPLETE, VALUELESS], {
+        totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
+      }),
     );
     for (const name of ["Commodity", "Quantity", "Price", "Cost", "P&L", "Allocation"]) {
       await userEvent.click(screen.getByRole("button", { name }));
@@ -103,28 +96,22 @@ describe("InvestmentsSection", () => {
   });
 
   it("should keep the optional cells dashed when the holding has a value but no cost", () => {
-    render(
-      <InvestmentsSection
-        investments={emptyInvestments(
-          [
-            {
-              ...COMPLETE,
-              costBasis: null,
-              unrealizedPnl: null,
-            },
-          ],
+    renderGrid(
+      emptyInvestments(
+        [
           {
-            totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
+            ...COMPLETE,
+            costBasis: null,
+            unrealizedPnl: null,
           },
-        )}
-        search=""
-        config={{ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} }}
-        onSizingChange={NOOP}
-      />,
+        ],
+        {
+          totalMarketValue: [{ quantity: 1945.28, commodity: "EUR", precision: 2 }],
+        },
+      ),
     );
-    // Value reads (in the band and the column); Cost and P&L dash; the
-    // allocation still computes.
-    expect(screen.getAllByText("1,945.28 EUR")).toHaveLength(2);
+    // Value reads; Cost and P&L dash; the allocation still computes.
+    expect(screen.getByText("1,945.28 EUR")).toBeInTheDocument();
     expect(screen.getAllByText("—")).toHaveLength(2);
     expect(screen.getByText("100%")).toBeInTheDocument();
   });

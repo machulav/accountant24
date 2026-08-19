@@ -5,11 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAgentIdleRefresh } from "@/hooks/use-agent-idle-refresh";
 import { ledgerApi } from "@/rpc/api";
-import type { NetWorth, NetWorthInvestments } from "@/rpc/types";
-
-/** The Investments section when there's nothing to report: empty lists, no
- *  fabricated zeros. */
-const EMPTY_INVESTMENTS: NetWorthInvestments = { rows: [], totalMarketValue: [], totalCostBasis: [] };
+import type { NetWorth } from "@/rpc/types";
 
 /** null = first load in flight; no section rows = loaded but empty (no
  *  journal yet or hledger failed — both render the empty state pointing at
@@ -27,14 +23,12 @@ export function useNetWorth(active = true): NetWorth | null {
         if (!cancelled) setData(d);
       })
       .catch(() => {
-        // hledger failed or there's no journal yet — the empty page, with
-        // the same Investments section shape the happy path carries.
+        // hledger failed or there's no journal yet — the empty page.
         if (!cancelled) {
           setData({
             sections: [],
             net: { amounts: [], value: [] },
             baseCommodity: null,
-            investments: EMPTY_INVESTMENTS,
           });
         }
       });

@@ -292,9 +292,6 @@ describe("ledger_net_worth", () => {
         value: [{ quantity: 9690, commodity: "EUR", precision: 2 }],
       },
       baseCommodity: "EUR",
-      // BTC has no declared price toward EUR and no cost lot, so it lists
-      // nothing here — neither priced nor costed positions aren't holdings.
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
   });
 
@@ -310,8 +307,8 @@ describe("ledger_net_worth", () => {
     expect(argLists).toContainEqual([...base, "-X", "EUR", "--infer-market-prices"]);
     expect(argLists).toContainEqual(["print", "-O", "json", "-f", "/ws/ledger/main.journal"]);
     expect(argLists).toContainEqual(["prices", "-f", "/ws/ledger/main.journal"]);
-    // The inferred probe feeds the Investments section's per-commodity
-    // prices, so it runs whenever a base exists — regardless of declared.
+    // The inferred probe is the base-commodity fallback when no declared price
+    // resolves, so it runs whenever the valuation may need it.
     expect(argLists).toContainEqual(["prices", "-f", "/ws/ledger/main.journal", "--infer-market-prices"]);
     for (const call of h.execFile.mock.calls) {
       const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
@@ -391,7 +388,6 @@ describe("ledger_net_worth", () => {
       sections: [],
       net: { amounts: [], value: [] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
   });
 
@@ -402,7 +398,6 @@ describe("ledger_net_worth", () => {
       sections: [],
       net: { amounts: [], value: [] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
   });
 

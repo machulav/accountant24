@@ -1,13 +1,11 @@
 "use client";
 
-// The priced-holdings table shared by the Net Worth page's Investments
-// section and the full-page Investments view: one row per commodity on the
-// stock ReUI data grid (TanStack v9), the app-styled two-state sort headers,
-// resizable columns, per-column loading skeletons, and the filtered-out
-// empty state. The column definitions, the help copy, and the grid live here
-// once so the compact section and the dedicated page can never drift apart;
-// each page brings its own persisted config (visibility + sizing) and its
-// own summary band.
+// The priced-holdings table for the Investments view: one row per commodity
+// on the stock ReUI data grid (TanStack v9), the app-styled two-state sort
+// headers, resizable columns, per-column loading skeletons, and the
+// filtered-out empty state. The column definitions, the help copy, and the
+// grid live here; the page brings its own persisted config (visibility +
+// sizing) and its own summary cards.
 //
 // All figures are hledger-computed (src/main/ledger-json.ts); only the
 // presentation happens here.
@@ -22,9 +20,9 @@ import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
-import { formatAmount, formatAmounts } from "@/lib/amountFormat";
+import { formatAmount } from "@/lib/amountFormat";
 import type { InvestmentHolding, NetWorthInvestments } from "@/rpc/types";
-import { INVESTMENT_COLUMN_MIN_SIZES, INVESTMENT_COLUMN_SIZES } from "./net-worth-columns";
+import { INVESTMENT_COLUMN_MIN_SIZES, INVESTMENT_COLUMN_SIZES } from "./investments-columns";
 import type { TableConfig } from "./table-config";
 
 /** The how-to line for anything valued at a recorded price — shared by the
@@ -339,34 +337,3 @@ export const InvestmentsGrid: FC<{
     </DataGrid>
   );
 };
-
-/** The compact Investments section: its band (section total = the sum of
- *  every holding's market value) over the holdings grid — the form the Net
- *  Worth page shows between the balance sheet and the Net line. The band's
- *  figure is the plain base-commodity sum; a dash-only figure (no holding
- *  has a value) renders as an em dash rather than a fabricated zero. */
-export const InvestmentsSection: FC<{
-  investments: NetWorthInvestments;
-  search: string;
-  config: TableConfig;
-  onSizingChange: (updater: Updater<Record<string, number>>) => void;
-}> = ({ investments, search, config, onSizingChange }) => (
-  <section aria-label="Investments">
-    <div className={`mt-8 mb-2 ${BAND_CLASS}`}>
-      <h2 className="text-lg font-semibold">Investments</h2>
-      {investments.totalMarketValue.length > 0 ? (
-        <div className="shrink-0 text-right text-lg font-semibold tabular-nums">
-          {formatAmounts(investments.totalMarketValue, "value", navigator.language)}
-        </div>
-      ) : (
-        <div className="text-lg font-semibold text-muted-foreground">{DASH}</div>
-      )}
-    </div>
-    <InvestmentsGrid
-      rows={withAllocation(investments)}
-      search={search}
-      config={config}
-      onSizingChange={onSizingChange}
-    />
-  </section>
-);

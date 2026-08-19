@@ -75,12 +75,9 @@ export interface NetWorth {
    *  back to `-V`. Lets the renderer lead a multi-commodity figure with the
    *  base-commodity leg. */
   baseCommodity: string | null;
-  /** The Investments section: every priced (non-base) commodity with a
-   *  nonzero balance, aggregated across the whole balance sheet. */
-  investments: NetWorthInvestments;
 }
 
-// ---- Net Worth: investments (priced holdings) ------------------------------
+// ---- Investments (priced holdings) -----------------------------------------
 
 /** One priced holding: a non-base commodity with a nonzero balance, valued
  *  at its latest recorded market price. All figures hledger-computed; only
@@ -105,8 +102,8 @@ export interface InvestmentHolding {
   unrealizedPnl: LedgerAmount | null;
 }
 
-/** The Investments section of the Net Worth payload: holdings sorted by
- *  market value, most valuable first (holdings without a value last). */
+/** Priced holdings sorted by market value, most valuable first (holdings
+ *  without a value last). */
 export interface NetWorthInvestments {
   rows: InvestmentHolding[];
   /** The sum of every holding's market value, in the base commodity. */
@@ -118,7 +115,7 @@ export interface NetWorthInvestments {
 
 /** The Investments view payload: every priced holding aggregated across the
  *  balance sheet, valued at its latest recorded market price, plus the
- *  totals — the same computation the Net Worth section shows, standalone. */
+ *  totals. */
 export interface Investments extends NetWorthInvestments {
   /** The valuation's base commodity (the `-X` target; null when the journal
    *  yields no prices), like `NetWorth.baseCommodity`. */

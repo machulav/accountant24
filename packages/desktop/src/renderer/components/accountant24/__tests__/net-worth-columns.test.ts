@@ -12,9 +12,6 @@ import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 import {
   COLUMN_MIN_SIZES,
   COLUMN_SIZES,
-  INVESTMENT_COLUMN_MIN_SIZES,
-  INVESTMENT_COLUMN_SIZES,
-  investmentsTableWidth,
   loadTableConfig,
   NET_WORTH_TABLE_KEY,
   saveTableConfig,
@@ -27,9 +24,9 @@ beforeEach(() => {
 });
 
 describe("loadTableConfig()", () => {
-  it("should hide the optional columns by default (assertion pair + investments) with no custom widths", () => {
+  it("should hide the optional assertion pair by default with no custom widths", () => {
     expect(loadTableConfig()).toEqual({
-      visibility: { asserted: false, assertedAmount: false, cost: false, pnl: false, allocation: false },
+      visibility: { asserted: false, assertedAmount: false },
       sizing: {},
     });
   });
@@ -38,9 +35,8 @@ describe("loadTableConfig()", () => {
     const config = { visibility: { asserted: true, assertedAmount: false }, sizing: { account: 320 } };
     saveTableConfig(config);
     expect(JSON.parse(window.localStorage.getItem(NET_WORTH_TABLE_KEY) ?? "")).toEqual(config);
-    // Reload merges the hidden-by-default investments columns back in.
     expect(loadTableConfig()).toEqual({
-      visibility: { ...config.visibility, cost: false, pnl: false, allocation: false },
+      visibility: config.visibility,
       sizing: config.sizing,
     });
   });
@@ -60,9 +56,6 @@ describe("column sizes", () => {
   it("should keep every default at or above its column's minimum", () => {
     for (const [id, min] of Object.entries(COLUMN_MIN_SIZES)) {
       expect(COLUMN_SIZES[id]).toBeGreaterThanOrEqual(min);
-    }
-    for (const [id, min] of Object.entries(INVESTMENT_COLUMN_MIN_SIZES)) {
-      expect(INVESTMENT_COLUMN_SIZES[id]).toBeGreaterThanOrEqual(min);
     }
   });
 });
@@ -90,28 +83,5 @@ describe("tableWidth()", () => {
     expect(tableWidth({ visibility: { asserted: false, assertedAmount: false }, sizing: { value: 45 } })).toBe(
       492 + 170 + COLUMN_MIN_SIZES.value,
     );
-  });
-});
-
-describe("investmentsTableWidth()", () => {
-  it("should span the same default-visible set as the account tables", () => {
-    // commodity 350 + quantity 140 + price 170 + value 170 = 830 ≈ 832.
-    expect(investmentsTableWidth(loadTableConfig())).toBe(830);
-  });
-
-  it("should grow when the optional Cost, P&L, and Allocation columns come on", () => {
-    expect(investmentsTableWidth({ visibility: { cost: true, pnl: true, allocation: true }, sizing: {} })).toBe(
-      830 + 170 + 170 + 120,
-    );
-  });
-
-  it("should prefer resized widths and clamp to minimums like the account tables", () => {
-    // commodity 60 clamps to its 140 minimum; the rest keep their defaults.
-    expect(
-      investmentsTableWidth({
-        visibility: { cost: false, pnl: false, allocation: false },
-        sizing: { commodity: 60 },
-      }),
-    ).toBe(INVESTMENT_COLUMN_MIN_SIZES.commodity + 140 + 170 + 170);
   });
 });

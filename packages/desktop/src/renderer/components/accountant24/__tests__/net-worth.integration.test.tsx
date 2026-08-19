@@ -91,7 +91,6 @@ const DATA: NetWorth = {
     value: [{ quantity: 2736, commodity: "EUR", precision: 2 }],
   },
   baseCommodity: "EUR",
-  investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
 };
 
 beforeAll(() => {

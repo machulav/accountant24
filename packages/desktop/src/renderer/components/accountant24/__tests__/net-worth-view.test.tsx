@@ -90,14 +90,12 @@ const DATA: NetWorth = {
   ],
   net: { amounts: [A("UAH", 1408.26), A("USD", 100), A("SXR8", 22.45), A("EUR", -296.75)], value: [A("EUR", 1738.97)] },
   baseCommodity: "EUR",
-  investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
 };
 
 const EMPTY: NetWorth = {
   sections: [],
   net: { amounts: [], value: [] },
   baseCommodity: null,
-  investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
 };
 
 const renderView = (isRunning = false) =>
@@ -260,7 +258,6 @@ describe("<NetWorthView />", () => {
       ],
       net: { amounts: [A("EUR", 10)], value: [A("EUR", 10)] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
     renderView();
     await screen.findByText("assets:legacy");
@@ -283,7 +280,6 @@ describe("<NetWorthView />", () => {
       ...DATA,
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
     renderView();
     expect(await screen.findByText("7,796.25 EUR, 1,000.00 UAH")).toBeInTheDocument();
@@ -359,7 +355,6 @@ describe("<NetWorthView />", () => {
       ],
       net: { amounts: [A("EUR", 7796.25), A("UAH", 1000)], value: [A("EUR", 7796.25), A("UAH", 1000)] },
       baseCommodity: null,
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     });
     renderView();
     await screen.findByText("assets:bank:mono");
@@ -383,7 +378,6 @@ describe("<NetWorthView />", () => {
       ],
       net: { amounts: [A("EUR", 105)], value: [A("EUR", 105)] },
       baseCommodity: "EUR",
-      investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
     };
     vi.mocked(ledgerApi.netWorth).mockResolvedValue(many);
     renderView();
@@ -496,7 +490,6 @@ describe("<NetWorthView />", () => {
         ],
         net: { amounts: [], value: [A("EUR", 170)] },
         baseCommodity: null,
-        investments: { rows: [], totalMarketValue: [], totalCostBasis: [] },
       });
       renderView();
       await screen.findByText("assets:closed");
@@ -644,15 +637,10 @@ describe("<NetWorthView />", () => {
       await screen.findByText("assets:cash");
       await showAssertionColumns();
       // The write is debounced (a resize drag never writes per pointer move).
-      // The investments columns ride in the same visibility map, hidden by
-      // default even with no holdings on this journal.
       await waitFor(() =>
         expect(JSON.parse(window.localStorage.getItem("accountant24.net-worth-table") ?? "{}").visibility).toEqual({
           asserted: true,
           assertedAmount: true,
-          cost: false,
-          pnl: false,
-          allocation: false,
         }),
       );
       unmount();
@@ -861,95 +849,5 @@ describe("<NetWorthView />", () => {
     await waitFor(() => expect(ledgerApi.netWorth).toHaveBeenCalledTimes(2));
     expect(screen.getByText("~115.57 EUR")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-});
-
-describe("<NetWorthView /> investments section", () => {
-  /** A holdings payload: SXR8 (cost + P&L known) and AAPL (bought in USD —
-   *  value only, cost and P&L off). */
-  const HOLDINGS: NetWorth["investments"] = {
-    rows: [
-      {
-        commodity: "SXR8",
-        quantity: { quantity: 10, commodity: "SXR8", precision: 2 },
-        price: { quantity: 250, commodity: "EUR", precision: 2 },
-        marketValue: { quantity: 2500, commodity: "EUR", precision: 2 },
-        costBasis: { quantity: 2000, commodity: "EUR", precision: 2 },
-        unrealizedPnl: { quantity: 500, commodity: "EUR", precision: 2 },
-      },
-      {
-        commodity: "AAPL",
-        quantity: { quantity: 5, commodity: "AAPL", precision: 2 },
-        price: { quantity: 190, commodity: "EUR", precision: 2 },
-        marketValue: { quantity: 950, commodity: "EUR", precision: 2 },
-        costBasis: null,
-        unrealizedPnl: null,
-      },
-    ],
-    totalMarketValue: [{ quantity: 3450, commodity: "EUR", precision: 2 }],
-    totalCostBasis: [{ quantity: 2000, commodity: "EUR", precision: 2 }],
-  };
-
-  const renderHoldings = () => {
-    vi.mocked(ledgerApi.netWorth).mockResolvedValue({ ...DATA, investments: HOLDINGS });
-    renderView();
-  };
-
-  it("should render the Investments section with each holding and the section total", async () => {
-    renderHoldings();
-    const investments = within(await screen.findByRole("region", { name: "Investments" }));
-    expect(investments.getByText("Investments")).toBeInTheDocument();
-    expect(investments.getByText("3,450.00 EUR")).toBeInTheDocument();
-    // SXR8: quantity, price, market value (native mode keeps the 2 places).
-    expect(investments.getByText("SXR8")).toBeInTheDocument();
-    expect(investments.getByText("10.00 SXR8")).toBeInTheDocument();
-    expect(investments.getByText("250.00 EUR")).toBeInTheDocument();
-    expect(investments.getByText("2,500.00 EUR")).toBeInTheDocument();
-    // AAPL: value only.
-    expect(investments.getByText("AAPL")).toBeInTheDocument();
-    expect(investments.getByText("950.00 EUR")).toBeInTheDocument();
-    // Cost, P&L, and Allocation are hidden by default.
-    expect(investments.queryByText("2,000.00 EUR")).not.toBeInTheDocument();
-    expect(investments.queryByText("500.00 EUR")).not.toBeInTheDocument();
-  });
-
-  it("should list the most valuable holding first", async () => {
-    renderHoldings();
-    const investments = within(await screen.findByRole("region", { name: "Investments" }));
-    const commodities = investments
-      .getAllByRole("row")
-      .slice(1)
-      .map((row) => row.textContent);
-    expect(commodities[0]).toContain("SXR8");
-    expect(commodities[1]).toContain("AAPL");
-  });
-
-  it("should reveal Cost, P&L, and Allocation through the Columns menu", async () => {
-    renderHoldings();
-    const investments = within(await screen.findByRole("region", { name: "Investments" }));
-    await userEvent.click(screen.getByRole("button", { name: "Columns" }));
-    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Cost" }));
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "P&L" }));
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Allocation" }));
-    await userEvent.keyboard("{Escape}");
-    expect(await investments.findByText("2,000.00 EUR")).toBeInTheDocument();
-    expect(investments.getByText("500.00 EUR")).toBeInTheDocument();
-    // SXR8's share of the 3,450.00 EUR section total.
-    expect(investments.getByText("72.5%")).toBeInTheDocument();
-  });
-
-  it("should filter holdings by the shared search box", async () => {
-    renderHoldings();
-    const investments = within(await screen.findByRole("region", { name: "Investments" }));
-    await userEvent.type(screen.getByRole("searchbox", { name: "Search accounts" }), "AAPL");
-    await investments.findByText("AAPL");
-    expect(investments.queryByText("SXR8")).not.toBeInTheDocument();
-  });
-
-  it("should not render the Investments section when the journal has no holdings", async () => {
-    vi.mocked(ledgerApi.netWorth).mockResolvedValue(DATA); // empty investments
-    renderView();
-    await screen.findByText("assets:darka:etf:sxr8");
-    expect(screen.queryByRole("region", { name: "Investments" })).not.toBeInTheDocument();
   });
 });
