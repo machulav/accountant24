@@ -1,9 +1,12 @@
-// First-run workspace setup: the app seeds ~/Accountant24 with its directories,
-// the starter journal + memory files, and a git repo at launch — before any chat
-// exists, so the ledger views, settings, and skills all work on a fresh install.
+// First-run workspace setup: the app seeds the workspace (~/.accountant24 by
+// default) with its directories, the starter journal + memory files, and a git
+// repo at launch — before any chat exists, so the ledger views, settings, and
+// skills all work on a fresh install. Also the IPC that tells the renderer where
+// the workspace is and opens it in the Finder.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { ipcMain, shell } from "electron";
 import { workspaceDir } from "./env";
 import { commitAll, initRepo } from "./git";
 // `?raw` text imports so vite inlines the template files into the main bundle.
@@ -46,4 +49,15 @@ export async function ensureWorkspace(): Promise<void> {
   if (freshRepo) {
     await commitAll(home, "Initial Accountant24 setup");
   }
+}
+
+/** Register workspace IPC handlers: the active workspace path (Settings →
+ *  About) and opening that folder in the system file manager. */
+export function registerWorkspaceIpc(): void {
+  ipcMain.handle("workspace_dir", () => workspaceDir());
+  ipcMain.handle("workspace_open", async () => {
+    // shell.openPath resolves with an error message (not a rejection) on failure.
+    const error = await shell.openPath(workspaceDir());
+    if (error) throw new Error(error);
+  });
 }

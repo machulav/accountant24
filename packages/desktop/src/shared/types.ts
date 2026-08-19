@@ -109,7 +109,7 @@ export interface LedgerTransaction {
   postings: LedgerPosting[];
 }
 
-// ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---
+// ---- App settings (app-owned config in <workspace>/app-settings.json) -----
 
 /** The app's own settings schema (app-owned keys, distinct from pi's config,
  *  which we don't write). */
@@ -129,7 +129,7 @@ export interface AppSettings {
 // ---- Skills (Settings → Skills) --------------------------------------------
 
 /** A skill the agent can use: native (embedded in the app bundle) or
- *  third-party (a folder in ~/Accountant24/skills). */
+ *  third-party (a folder in <workspace>/skills). */
 export interface SkillInfo {
   /** Skill identity: the store folder name for third-party skills, the
    *  frontmatter name for native ones. */

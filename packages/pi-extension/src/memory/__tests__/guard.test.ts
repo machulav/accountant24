@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-guard-"));
 
 vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: BASE,
+  ACCOUNTANT24_WORKSPACE: BASE,
   LEDGER_DIR: join(BASE, "ledger"),
   MEMORY_PATH: join(BASE, "memory.md"),
   setBaseDir: () => {},

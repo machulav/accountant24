@@ -1,8 +1,14 @@
 // Resource paths + the environment passed to the agent-host utilityProcess.
 //
-// The workspace (~/Accountant24) holds the ledger + auth.json + models.json;
-// PATH exposes the vendored native tools (hledger/pdftotext/tesseract) to the
-// agent's bash/tool subprocesses; TESSDATA_PREFIX points at the OCR data.
+// The workspace (~/.accountant24 by default) holds the ledger + auth.json +
+// models.json; PATH exposes the vendored native tools (hledger/pdftotext/
+// tesseract) to the agent's bash/tool subprocesses; TESSDATA_PREFIX points at
+// the OCR data.
+//
+// ACCOUNTANT24_WORKSPACE is the single channel that names the workspace: set
+// by the `--workspace` launch flag (cli.ts) or by the caller's environment, read
+// by workspaceDir() here and inherited by the agent host (agentEnv), the bundled
+// extension, hledger subprocesses, and the test helpers.
 
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,40 +17,42 @@ import { fileURLToPath } from "node:url";
 import { app } from "electron";
 import type { AgentHostConfig } from "../shared/agentHost";
 
-/** ~/Accountant24 — the agent's cwd and the home of the ledger/auth/models. */
-export function workspaceDir(): string {
-  const env = process.env.ACCOUNTANT24_HOME;
-  return env && env.length > 0 ? env : path.join(homedir(), "Accountant24");
+/** ~/.accountant24 — the workspace when neither --workspace nor
+ *  ACCOUNTANT24_WORKSPACE is set. */
+export function defaultWorkspaceDir(): string {
+  return path.join(homedir(), ".accountant24");
 }
 
-/** ~/Accountant24/skills — one self-contained folder per installed skill
+/** The workspace: the agent's cwd and the home of the ledger/auth/models.
+ *  ACCOUNTANT24_WORKSPACE when set and non-empty, else the default. */
+export function workspaceDir(): string {
+  const env = process.env.ACCOUNTANT24_WORKSPACE;
+  return env && env.length > 0 ? env : defaultWorkspaceDir();
+}
+
+/** <workspace>/skills — one self-contained folder per installed skill
  *  (Agent Skills standard: a dir with SKILL.md). Each enabled skill is passed
  *  to the agent child via a `--skill` flag. */
 export function skillsDir(): string {
   return path.join(workspaceDir(), "skills");
 }
 
-/** ~/Accountant24/sessions — pi's session files, one JSONL per chat thread.
+/** <workspace>/sessions — pi's session files, one JSONL per chat thread.
  *  Passed to the agent child via `--session-dir`. */
 export function sessionsDir(): string {
   return path.join(workspaceDir(), "sessions");
 }
 
-/** ~/Accountant24/ledger/main.journal — the ledger's entry point (includes the
+/** <workspace>/ledger/main.journal — the ledger's entry point (includes the
  *  other journal files). */
 export function mainJournalPath(): string {
   return path.join(workspaceDir(), "ledger", "main.journal");
 }
 
-/** ~/Accountant24/app-settings.json — app-owned settings (distinct from pi's). */
+/** <workspace>/app-settings.json — app-owned settings (distinct from pi's
+ *  own settings.json in the same folder). */
 export function appSettingsPath(): string {
   return path.join(workspaceDir(), "app-settings.json");
-}
-
-/** ~/Accountant24/settings.json — pi's settings file, which earlier app
- *  versions shared; read once as a migration source. */
-export function legacySettingsPath(): string {
-  return path.join(workspaceDir(), "settings.json");
 }
 
 /** Dir holding vendored bin/ + tessdata/ + the extension bundle.
@@ -111,7 +119,7 @@ export function agentEnv(): NodeJS.ProcessEnv {
   const workspace = workspaceDir();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    ACCOUNTANT24_HOME: workspace,
+    ACCOUNTANT24_WORKSPACE: workspace,
     PI_CODING_AGENT_DIR: workspace,
   };
   const res = resourceDir();

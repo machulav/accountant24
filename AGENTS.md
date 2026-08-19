@@ -1,4 +1,4 @@
-> Keep entries in this file brief and high-level: principles and conventions, not implementation detail.
+> This file is a high-level overview and guidance, not a manual. Whenever you add or change a rule here, keep it brief, conceptual, and clearly written: principles and conventions, never implementation detail. The code is the source of truth for the details, and the agent is trusted to decide the specifics.
 
 # Tech Stack
 
@@ -26,7 +26,7 @@ The Electron desktop app:
 
 `packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
 
-- `src/main/` — Electron main process: window, IPC handlers, workspace setup (`workspace.ts`, run at launch), the agent (`agent/`), LLM provider connections (`llm-providers/`), vendored binaries (hledger).
+- `src/main/` — Electron main process: window, IPC handlers, the workspace (location `cli.ts` + `env.ts`, `migrations/`, setup `workspace.ts`), the agent (`agent/`), LLM provider connections (`llm-providers/`), vendored binaries (hledger).
 - `src/main/agent/` — the chat runtime: the IPC router plus `host/`, which runs in a single agent-host utilityProcess hosting one pi SDK session per chat. Nothing in `host/` may import Electron APIs.
 - `src/main/llm-providers/` — LLM provider auth, OAuth login, models, Ollama. `llm-providers/` and `agent/` never import each other; their only interface is the workspace files (`auth.json`/`models.json`).
 - `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
@@ -34,6 +34,18 @@ The Electron desktop app:
 - `src/shared/` — IPC payload types used by both main and renderer (and the agent host). Types only, imported with `import type` from both sides; never add runtime code here.
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
+
+# Workspace
+
+One folder holds all user data. It is resolved once per launch (`--workspace` flag > `ACCOUNTANT24_WORKSPACE` > `~/.accountant24`) and exported as `ACCOUNTANT24_WORKSPACE` to every child process, so every part of the app agrees on it.
+
+## Migrations
+
+A change to an existing workspace's layout or contents ships as a numbered migration in `src/main/migrations/`, applied once per workspace at launch before anything reads the folder.
+
+- One file per change; append it to the list; never edit a shipped one.
+- Idempotent, confined to the given workspace, failing loudly on anything unexpected (a failed migration aborts startup).
+- Tested over a real temp directory.
 
 # System Prompt
 
@@ -111,8 +123,9 @@ Four tiers, all on Vitest (`npm test`); the first three run in CI on every PR.
 
 - **Unit** — mock only at fs/child_process; keep functions small and pure.
 - **Component** — assert on roles/text, not classes or DOM structure; use the shared `src/renderer/test/jsdomPolyfills.ts` preamble; drive interaction with `@testing-library/user-event`.
-- **Integration** — assert **both** the resulting UI/state **and** the exact IPC calls (`fakeApi.calls` / invoked main handlers). Use a temp `ACCOUNTANT24_HOME`, never a global `node:fs` mock.
+- **Integration** — assert **both** the resulting UI/state **and** the exact IPC calls (`fakeApi.calls` / invoked main handlers). Use a temp `ACCOUNTANT24_WORKSPACE`, never a global `node:fs` mock.
 - **E2E** — deterministic and small; stub the agent (no real LLM/network); leave logic coverage to the lower tiers.
+- **Running the app** (e2e, manual smoke runs, the verify skill, a second dev instance) — never against the real workspace; always create a fresh test workspace and launch on it (`--workspace <temp dir>` or `ACCOUNTANT24_WORKSPACE`), delete it afterwards.
 
 ## Coverage
 

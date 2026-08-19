@@ -1,4 +1,4 @@
-import { ACCOUNTANT24_HOME } from "../config";
+import { ACCOUNTANT24_WORKSPACE } from "../config";
 import { runHledger } from "./hledger";
 import { resolveSafePath } from "./paths";
 
@@ -20,7 +20,7 @@ export interface QueryLedgerResult {
 
 export async function queryLedger(params: any, signal?: AbortSignal): Promise<QueryLedgerResult> {
   const file = params.file ?? "ledger/main.journal";
-  const resolved = resolveSafePath(file, ACCOUNTANT24_HOME);
+  const resolved = resolveSafePath(file, ACCOUNTANT24_WORKSPACE);
   const args = buildQueryArgs(params, resolved);
   const raw = await runHledger(args, { signal });
   const command = ["hledger", ...args].join(" ");

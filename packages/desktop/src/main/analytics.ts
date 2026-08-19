@@ -2,7 +2,7 @@
 // (one event per launch, no renderer SDK, no extra IPC channel). Aptabase is
 // privacy-first by design: no cookies, no persistent device id, IP only used as
 // an ephemeral daily-rotated hash and never stored. Everything here is gated on
-// the user's opt-out (`analyticsEnabled: false` in ~/Accountant24/app-settings.json).
+// the user's opt-out (`analyticsEnabled: false` in <workspace>/app-settings.json).
 
 import { initialize, trackEvent } from "@aptabase/electron/main";
 import { ipcMain } from "electron";

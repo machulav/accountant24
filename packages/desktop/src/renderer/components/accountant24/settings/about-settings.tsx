@@ -1,14 +1,14 @@
 // About — read-only app info: version (with the staged-update state when one
-// is pending) and links to the docs and project resources. Nothing here
-// persists settings; links open in the system browser via the window-open
-// handler.
+// is pending), the workspace folder (click opens it in the Finder), and links
+// to the docs and project resources. Nothing here persists settings; links open
+// in the system browser via the window-open handler.
 
-import { ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon, FolderOpenIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
 import { useUpdateStatus } from "@/hooks/use-update-status";
-import { appApi, updateApi } from "@/rpc/api";
+import { appApi, updateApi, workspaceApi } from "@/rpc/api";
 import { Section, SettingsRow, SettingsRows } from "./parts";
 
 const RESOURCES = [
@@ -42,12 +42,17 @@ function LinkRow({ label, href }: { label: string; href: string }) {
 
 export function AboutSettings() {
   const [version, setVersion] = useState<string>();
+  const [workspace, setWorkspace] = useState<string>();
   const pendingUpdate = useUpdateStatus();
 
   useEffect(() => {
     appApi
       .version()
       .then(setVersion)
+      .catch(() => undefined);
+    workspaceApi
+      .dir()
+      .then(setWorkspace)
       .catch(() => undefined);
   }, []);
 
@@ -89,6 +94,22 @@ export function AboutSettings() {
               </ItemActions>
             </SettingsRow>
           )}
+          {/* The folder is hidden (~/.accountant24), so this row is how users
+              find it: the whole row is a button that opens it in the Finder.
+              Same layout idiom as LinkRow; `hover:bg-muted` is explicit because
+              the stock Item only styles the hover of anchor rows. */}
+          <SettingsRow
+            className="-mx-2 w-auto rounded-xl px-2 hover:bg-muted"
+            render={<button type="button" onClick={() => void workspaceApi.open().catch(() => undefined)} />}
+          >
+            <ItemContent>
+              <ItemTitle>Workspace</ItemTitle>
+            </ItemContent>
+            <ItemActions className="min-w-0">
+              <span className="text-muted-foreground truncate text-sm">{workspace}</span>
+              <FolderOpenIcon className="text-muted-foreground size-4 shrink-0" />
+            </ItemActions>
+          </SettingsRow>
         </SettingsRows>
       </Section>
 

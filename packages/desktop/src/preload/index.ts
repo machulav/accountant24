@@ -36,6 +36,8 @@ const INVOKE_CHANNELS = new Set([
   "analytics_track",
   "update_pending",
   "update_install",
+  "workspace_dir",
+  "workspace_open",
 ]);
 
 const EVENT_CHANNELS = new Set([

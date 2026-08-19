@@ -1,15 +1,15 @@
 // App settings — the app's OWN config, the single source of truth the Settings
-// UI reads/writes. Stored as ~/Accountant24/app-settings.json.
+// UI reads/writes. Stored as <workspace>/app-settings.json.
 //
 // It must NOT share pi's settings.json: pi reads/writes its own settings.json in
-// the same workspace (PI_CODING_AGENT_DIR), so sharing the file mixed pi's keys
-// (e.g. defaultProvider) into ours and risked clobbering. We keep a separate file
-// and only ever persist our own keys.
+// the same workspace (PI_CODING_AGENT_DIR), so sharing the file would mix pi's
+// keys (e.g. defaultProvider) into ours and risk clobbering. We keep a separate
+// file and only ever persist our own keys.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { ipcMain } from "electron";
 import type { AppSettings } from "../shared/types";
-import { appSettingsPath, legacySettingsPath, workspaceDir } from "./env";
+import { appSettingsPath, workspaceDir } from "./env";
 
 function parseFile(path: string): Record<string, unknown> | undefined {
   if (!existsSync(path)) return undefined;
@@ -41,30 +41,9 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
   return out;
 }
 
-/** One-time move of app keys out of the shared settings.json into app-settings.json,
- *  leaving pi's own keys behind in settings.json. Best-effort. */
-function migrateFromLegacy(): AppSettings {
-  const legacy = parseFile(legacySettingsPath());
-  if (!legacy) return {};
-  const app = pickAppKeys(legacy);
-  try {
-    mkdirSync(workspaceDir(), { recursive: true });
-    writeFileSync(appSettingsPath(), `${JSON.stringify(app, null, 2)}\n`);
-    // Strip our keys from pi's file so it's no longer a mix of both.
-    const cleaned = { ...legacy };
-    delete cleaned.defaultModel;
-    delete cleaned.enabledModels;
-    if (Object.keys(cleaned).length > 0) writeFileSync(legacySettingsPath(), `${JSON.stringify(cleaned, null, 2)}\n`);
-  } catch {
-    // Best-effort; the in-memory `app` is still correct for this session.
-  }
-  return app;
-}
-
 function readSettings(): AppSettings {
   const own = parseFile(appSettingsPath());
-  if (own) return pickAppKeys(own);
-  return migrateFromLegacy();
+  return own ? pickAppKeys(own) : {};
 }
 
 /** Merge-patch the settings file and return the merged result. */

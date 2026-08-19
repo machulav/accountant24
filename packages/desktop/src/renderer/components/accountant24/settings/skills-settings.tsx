@@ -1,6 +1,6 @@
 // Skills — what the chat agent can do. Two kinds: native skills embedded in
 // the app bundle (always on, no controls) and custom skills added as
-// folders in the workspace (~/Accountant24/skills), which can be toggled,
+// folders in the workspace (<workspace>/skills), which can be toggled,
 // removed, or added from a public GitHub repo. The agent child is restarted
 // after any change so its --skill flags reflect the store. Mirrors the
 // Providers/Models pages: same sections, rows, badges, and busy patterns.

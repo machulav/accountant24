@@ -31,72 +31,79 @@ afterEach(() => {
 
 describe("workspace paths", () => {
   it("should all live directly under the workspace", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
-    process.env.ACCOUNTANT24_HOME = "/ws";
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
     try {
       const mod = await import("../env");
       expect(mod.skillsDir()).toBe("/ws/skills");
       expect(mod.sessionsDir()).toBe("/ws/sessions");
       expect(mod.mainJournalPath()).toBe("/ws/ledger/main.journal");
       expect(mod.appSettingsPath()).toBe("/ws/app-settings.json");
-      expect(mod.legacySettingsPath()).toBe("/ws/settings.json");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
   });
 });
 
 describe("workspaceDir()", () => {
-  it("should use ACCOUNTANT24_HOME verbatim when it is a non-empty path", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
-    process.env.ACCOUNTANT24_HOME = "/custom/ws";
+  it("should use ACCOUNTANT24_WORKSPACE verbatim when it is a non-empty path", async () => {
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/custom/ws";
     try {
       const mod = await import("../env");
       expect(mod.workspaceDir()).toBe("/custom/ws");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
   });
 
-  it("should fall back to <homedir>/Accountant24 when ACCOUNTANT24_HOME is unset", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
-    delete process.env.ACCOUNTANT24_HOME;
+  it("should fall back to <homedir>/.accountant24 when ACCOUNTANT24_WORKSPACE is unset", async () => {
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    delete process.env.ACCOUNTANT24_WORKSPACE;
     h.homedir.mockReturnValue("/home/alice");
     try {
       const mod = await import("../env");
-      expect(mod.workspaceDir()).toBe("/home/alice/Accountant24");
+      expect(mod.workspaceDir()).toBe("/home/alice/.accountant24");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
   });
 
-  it("should fall back to the homedir default when ACCOUNTANT24_HOME is the empty string", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
-    process.env.ACCOUNTANT24_HOME = "";
+  it("should fall back to the homedir default when ACCOUNTANT24_WORKSPACE is the empty string", async () => {
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "";
     h.homedir.mockReturnValue("/home/bob");
     try {
       const mod = await import("../env");
-      expect(mod.workspaceDir()).toBe("/home/bob/Accountant24");
+      expect(mod.workspaceDir()).toBe("/home/bob/.accountant24");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
   });
 
   it("should place mainJournalPath under the homedir default workspace", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
-    delete process.env.ACCOUNTANT24_HOME;
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    delete process.env.ACCOUNTANT24_WORKSPACE;
     h.homedir.mockReturnValue("/home/carol");
     try {
       const mod = await import("../env");
-      expect(mod.mainJournalPath()).toBe("/home/carol/Accountant24/ledger/main.journal");
+      expect(mod.mainJournalPath()).toBe("/home/carol/.accountant24/ledger/main.journal");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
+  });
+});
+
+describe("defaultWorkspaceDir()", () => {
+  it("should be the hidden .accountant24 folder in the home directory", async () => {
+    h.homedir.mockReturnValue("/home/dave");
+    const mod = await import("../env");
+    expect(mod.defaultWorkspaceDir()).toBe("/home/dave/.accountant24");
   });
 });
 
@@ -122,20 +129,20 @@ describe("binDir()", () => {
 });
 
 describe("agentEnv()", () => {
-  it("should point ACCOUNTANT24_HOME and PI_CODING_AGENT_DIR at the workspace", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
+  it("should point ACCOUNTANT24_WORKSPACE and PI_CODING_AGENT_DIR at the workspace", async () => {
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
     const origRes = process.resourcesPath;
-    process.env.ACCOUNTANT24_HOME = "/ws";
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
     Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
     h.existsSync.mockReturnValue(false);
     try {
       const mod = await import("../env");
       const env = mod.agentEnv();
-      expect(env.ACCOUNTANT24_HOME).toBe("/ws");
+      expect(env.ACCOUNTANT24_WORKSPACE).toBe("/ws");
       expect(env.PI_CODING_AGENT_DIR).toBe("/ws");
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
       Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
     }
   });
@@ -245,9 +252,9 @@ describe("agentHostEntryPath()", () => {
 
 describe("agentHostConfig()", () => {
   it("should assemble every path the host needs from the workspace and resources", async () => {
-    const prev = process.env.ACCOUNTANT24_HOME;
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
     const origRes = process.resourcesPath;
-    process.env.ACCOUNTANT24_HOME = "/ws";
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
     Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
     try {
       const mod = await import("../env");
@@ -260,8 +267,8 @@ describe("agentHostConfig()", () => {
         systemPromptPath: "/pkg-res/system.md",
       });
     } finally {
-      if (prev === undefined) delete process.env.ACCOUNTANT24_HOME;
-      else process.env.ACCOUNTANT24_HOME = prev;
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
       Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
     }
   });

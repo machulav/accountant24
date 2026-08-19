@@ -8,7 +8,7 @@ import { describe, expect, test, vi } from "vitest";
 const WORKSPACE = join(homedir(), "Accountant 24");
 
 vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: WORKSPACE,
+  ACCOUNTANT24_WORKSPACE: WORKSPACE,
   LEDGER_DIR: join(WORKSPACE, "ledger"),
   MEMORY_PATH: join(WORKSPACE, "memory.md"),
   setBaseDir: () => {},

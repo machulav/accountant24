@@ -1,4 +1,4 @@
-// The on-disk skills store: ~/Accountant24/skills, one self-contained folder per
+// The on-disk skills store: <workspace>/skills, one self-contained folder per
 // skill (Agent Skills standard — a directory holding SKILL.md). This module owns
 // the folder-level logic shared by the agent spawn (which passes each enabled
 // skill via `--skill`) and the skills IPC module; it deliberately has no

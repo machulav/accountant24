@@ -1,10 +1,30 @@
 ---
 title: "Settings"
 sidebarTitle: "Settings"
-description: "Every option in Accountant24's app-settings.json settings file and the values each one accepts."
+description: "Where Accountant24 keeps your data, how to run it on a different workspace, and every option in its app-settings.json settings file."
 ---
 
-Accountant24 stores its settings in `~/Accountant24/app-settings.json`. The app updates the file when you change options in **Settings**. You can also edit it by hand; restart the app afterwards to apply the changes.
+## Workspace
+
+Everything Accountant24 knows about your money lives in one folder, the workspace: the ledger (`ledger/`), your stored documents (`files/`), the agent's memory (`memory.md`), installed skills (`skills/`), chat sessions, provider logins, and the app settings. The folder is a git repository, so every change to your books is recoverable.
+
+By default the workspace is `~/.accountant24`, a hidden folder in your home directory. **Settings → About** shows the exact path; click the row to open the folder in the Finder.
+
+### Use a different workspace
+
+You can point the app at another folder, for example a second set of books or a demo. Launch it with the `--workspace` flag from the terminal:
+
+```sh
+open -a Accountant24 --args --workspace ~/Demo
+```
+
+The path may be relative or start with `~`. A folder that does not exist yet is created and seeded with a fresh ledger, so a new workspace is just a new path. The flag applies to that launch only; without it the app opens `~/.accountant24` again.
+
+The app refuses to start, with an error message, when `--workspace` has no path or points to a file instead of a folder. It never falls back to another workspace silently.
+
+## App settings
+
+Accountant24 stores its settings in `app-settings.json` in the workspace. The app updates the file when you change options in **Settings**. You can also edit it by hand; restart the app afterwards to apply the changes.
 
 ```json
 {

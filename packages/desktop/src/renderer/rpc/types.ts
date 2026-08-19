@@ -34,7 +34,7 @@ export interface ModelInfo {
 /** provider id -> pi's default model id for it. */
 export type ProviderDefaults = Record<string, string>;
 
-// ---- App settings (app-owned config in ~/Accountant24/settings.json) -----
+// ---- App settings (app-owned config in <workspace>/app-settings.json) ---
 
 /** A concrete model pick: provider + the provider's model id. */
 export interface ModelRef {

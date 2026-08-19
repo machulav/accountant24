@@ -5,17 +5,21 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
-// IPC boundary: version for the info row, updateApi for the staged-update row.
+// IPC boundary: version for the info row, updateApi for the staged-update row,
+// workspaceApi for the workspace row.
 const h = vi.hoisted(() => ({
   version: vi.fn(),
   pending: vi.fn(),
   install: vi.fn(),
   onDownloaded: vi.fn(),
+  workspaceDir: vi.fn(),
+  openWorkspace: vi.fn(),
 }));
 
 vi.mock("@/rpc/api", () => ({
   appApi: { version: h.version },
   updateApi: { pending: h.pending, install: h.install, onDownloaded: h.onDownloaded },
+  workspaceApi: { dir: h.workspaceDir, open: h.openWorkspace },
 }));
 
 import { AboutSettings } from "../about-settings";
@@ -29,6 +33,8 @@ beforeEach(() => {
   h.pending.mockResolvedValue(null);
   h.install.mockResolvedValue(undefined);
   h.onDownloaded.mockReturnValue(() => {});
+  h.workspaceDir.mockResolvedValue("/home/user/.accountant24");
+  h.openWorkspace.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -109,5 +115,32 @@ describe("AboutSettings", () => {
     render(<AboutSettings />);
     await userEvent.click(await screen.findByRole("button", { name: "Relaunch to update" }));
     expect(h.install).toHaveBeenCalledTimes(1);
+  });
+
+  it("should show the workspace path once it resolves", async () => {
+    render(<AboutSettings />);
+    expect(await screen.findByText("/home/user/.accountant24")).toBeInTheDocument();
+  });
+
+  it("should open the workspace folder when the Workspace row is clicked", async () => {
+    render(<AboutSettings />);
+    await userEvent.click(await screen.findByRole("button", { name: "Workspace /home/user/.accountant24" }));
+    expect(h.openWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("should keep the Workspace row usable when opening the folder fails", async () => {
+    h.openWorkspace.mockRejectedValue(new Error("no finder"));
+    render(<AboutSettings />);
+    const row = await screen.findByRole("button", { name: "Workspace /home/user/.accountant24" });
+    await userEvent.click(row);
+    expect(h.openWorkspace).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Workspace /home/user/.accountant24" })).toBeInTheDocument();
+  });
+
+  it("should still render the Workspace row when the path lookup fails", async () => {
+    h.workspaceDir.mockRejectedValue(new Error("no workspace"));
+    render(<AboutSettings />);
+    await screen.findByText("v1.2.3");
+    expect(screen.getByRole("button", { name: "Workspace" })).toBeInTheDocument();
   });
 });

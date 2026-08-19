@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve } from "node:path";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
+import { ACCOUNTANT24_WORKSPACE, LEDGER_DIR } from "../config";
 import { JournalEditSession } from "./edit-session";
 import { HledgerCommandError, hledgerCheck, runHledger } from "./hledger";
 import { resolveSafePath } from "./paths";
@@ -116,7 +116,7 @@ export async function bulkEditTransactions(
   let ledgerIsValid = true;
   let validationError: string | undefined;
   try {
-    await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
+    await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_WORKSPACE, signal });
   } catch (e) {
     if (e instanceof HledgerCommandError) {
       ledgerIsValid = false;
@@ -215,7 +215,7 @@ async function discover(
 ): Promise<Match[]> {
   // Each query element is one argv token — spaces inside a term are preserved by spawn.
   const stdout = await runHledger(["print", "-f", mainPath, ...query, "-O", "json"], {
-    cwd: ACCOUNTANT24_HOME,
+    cwd: ACCOUNTANT24_WORKSPACE,
     signal,
   });
 
@@ -256,7 +256,7 @@ function parseSourcePos(tsourcepos: unknown): { sourceName: string; sourceLine: 
 
 /** Resolve an hledger source path to an absolute path, confirming it lives inside the ledger dir. */
 function resolveSourceFile(sourceName: string): string | null {
-  const abs = isAbsolute(sourceName) ? sourceName : resolve(ACCOUNTANT24_HOME, sourceName);
+  const abs = isAbsolute(sourceName) ? sourceName : resolve(ACCOUNTANT24_WORKSPACE, sourceName);
   try {
     resolveSafePath(relative(LEDGER_DIR, abs), LEDGER_DIR);
   } catch {

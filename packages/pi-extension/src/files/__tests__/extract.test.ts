@@ -8,7 +8,7 @@ const BASE = mkdtempSync(join(tmpdir(), "accountant24-file-extract-"));
 import { vi } from "vitest";
 
 vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: BASE,
+  ACCOUNTANT24_WORKSPACE: BASE,
   MEMORY_PATH: join(BASE, "memory.md"),
   LEDGER_DIR: join(BASE, "ledger"),
   setBaseDir: () => {},

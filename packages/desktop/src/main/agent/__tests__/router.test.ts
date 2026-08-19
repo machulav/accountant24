@@ -50,7 +50,7 @@ vi.mock("../../analytics", () => ({ trackAgentFailed: h.trackAgentFailed }));
 vi.mock("../../env", () => ({
   workspaceDir: () => "/ws",
   sessionsDir: () => "/ws/sessions",
-  agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws", DROPPED: undefined }),
+  agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws", DROPPED: undefined }),
   agentHostEntryPath: () => "/out/main/agent-host.js",
   agentHostConfig: () => ({ workspaceDir: "/ws", sessionsDir: "/ws/sessions" }),
 }));
@@ -123,7 +123,7 @@ describe("agent_send", () => {
     expect(opts.stdio).toEqual(["ignore", "pipe", "pipe"]);
     // Undefined env values are filtered; the Dock-icon-era ELECTRON_RUN_AS_NODE
     // must be gone.
-    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" });
   });
 
   it("should post the command to the host tagged with its session path", async () => {

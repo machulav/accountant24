@@ -1,5 +1,5 @@
 import { isAbsolute } from "node:path";
-import { ACCOUNTANT24_HOME } from "../config";
+import { ACCOUNTANT24_WORKSPACE } from "../config";
 import { resolveSafePath } from "../ledger/paths";
 
 export function resolveWorkspacePath(relativePath: string): string {
@@ -14,5 +14,5 @@ export function resolveWorkspacePath(relativePath: string): string {
     );
   }
 
-  return resolveSafePath(relativePath, ACCOUNTANT24_HOME);
+  return resolveSafePath(relativePath, ACCOUNTANT24_WORKSPACE);
 }

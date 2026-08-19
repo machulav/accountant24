@@ -1,16 +1,24 @@
-// The fs and git are real (a temp ACCOUNTANT24_HOME via makeTmpWorkspace) — what
+// The fs and git are real (a temp ACCOUNTANT24_WORKSPACE via makeTmpWorkspace) — what
 // the module leaves on disk is the whole point of it. Electron is the only faked
-// boundary, for the app metadata env.ts reads.
+// boundary: the app metadata env.ts reads, and ipcMain/shell for the IPC.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { ensureWorkspace } from "../workspace";
+import { ensureWorkspace, registerWorkspaceIpc } from "../workspace";
 import { makeTmpWorkspace } from "./tmpWorkspace";
+
+type Handler = (event: unknown, payload?: unknown) => unknown;
+const h = vi.hoisted(() => ({
+  handlers: new Map<string, (event: unknown, payload?: unknown) => unknown>(),
+  openPath: vi.fn(() => Promise.resolve("")),
+}));
 
 vi.mock("electron", () => ({
   app: { isPackaged: false, getAppPath: () => "/app" },
+  ipcMain: { handle: (channel: string, fn: Handler) => h.handlers.set(channel, fn) },
+  shell: { openPath: h.openPath },
 }));
 
 const ws = makeTmpWorkspace();
@@ -242,11 +250,35 @@ describe("ensureWorkspace()", () => {
   });
 
   test("should create the workspace root when it does not exist yet", async () => {
-    const nested = join(BASE, "nested", "Accountant24");
-    process.env.ACCOUNTANT24_HOME = nested;
+    const nested = join(BASE, "nested", ".accountant24");
+    process.env.ACCOUNTANT24_WORKSPACE = nested;
 
     await ensureWorkspace();
 
     expect(existsSync(join(nested, "ledger", "main.journal"))).toBe(true);
+  });
+});
+
+describe("registerWorkspaceIpc()", () => {
+  beforeEach(() => {
+    h.handlers.clear();
+    h.openPath.mockReset();
+    h.openPath.mockResolvedValue("");
+    registerWorkspaceIpc();
+  });
+
+  test("should answer workspace_dir with the active workspace path", async () => {
+    expect(await h.handlers.get("workspace_dir")?.({})).toBe(BASE);
+  });
+
+  test("should open the workspace folder in the file manager on workspace_open", async () => {
+    await h.handlers.get("workspace_open")?.({});
+    expect(h.openPath).toHaveBeenCalledTimes(1);
+    expect(h.openPath).toHaveBeenCalledWith(BASE);
+  });
+
+  test("should reject workspace_open when the file manager reports an error", async () => {
+    h.openPath.mockResolvedValue("No application can open this folder");
+    await expect(h.handlers.get("workspace_open")?.({})).rejects.toThrow("No application can open this folder");
   });
 });

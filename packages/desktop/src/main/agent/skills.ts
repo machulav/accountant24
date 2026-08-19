@@ -1,4 +1,4 @@
-// Skills — manage the Agent Skills store (~/Accountant24/skills) over IPC.
+// Skills — manage the Agent Skills store (<workspace>/skills) over IPC.
 //
 // Add = fetch the repo tarball from the GitHub API over plain HTTPS (no git
 // or npm on the user's machine) → extract into a temp dir → locate + validate

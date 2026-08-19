@@ -81,6 +81,13 @@ export const appApi = {
   version: () => api.invoke<string>("app_version"),
 };
 
+export const workspaceApi = {
+  /** Absolute path of the active workspace folder. */
+  dir: () => api.invoke<string>("workspace_dir"),
+  /** Open the workspace folder in the system file manager (Finder). */
+  open: () => api.invoke<void>("workspace_open"),
+};
+
 export const updateApi = {
   /** The version staged and ready to install, or null if none is pending. Read
    *  on mount since the download may have completed before we subscribed. */
@@ -110,7 +117,7 @@ export const filesApi = {
 const SETTINGS_CHANGED = "a24:settings-changed";
 
 export const settingsApi = {
-  /** Read the app's own settings (~/Accountant24/settings.json). */
+  /** Read the app's own settings (<workspace>/app-settings.json). */
   get: () => api.invoke<AppSettings>("settings_get"),
   /** Merge-patch the app settings; resolves with the merged result. */
   async set(patch: Partial<AppSettings>): Promise<AppSettings> {

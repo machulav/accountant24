@@ -21,6 +21,7 @@ const {
   settingsApi,
   skillsApi,
   updateApi,
+  workspaceApi,
 } = await import("../api");
 
 /** The only I/O boundary is `window.api`; reset it between tests. */
@@ -163,6 +164,29 @@ describe("appApi", () => {
 
       expect(result).toBe("0.2.7");
       expect(bridge.callsFor("app_version")).toEqual([undefined]);
+    });
+  });
+});
+
+describe("workspaceApi", () => {
+  describe("dir()", () => {
+    it("should invoke 'workspace_dir' with no payload and resolve the path", async () => {
+      bridge.setHandler("workspace_dir", () => "/home/user/.accountant24");
+
+      const result = await workspaceApi.dir();
+
+      expect(result).toBe("/home/user/.accountant24");
+      expect(bridge.callsFor("workspace_dir")).toEqual([undefined]);
+    });
+  });
+
+  describe("open()", () => {
+    it("should invoke 'workspace_open' with no payload", async () => {
+      bridge.setHandler("workspace_open", () => undefined);
+
+      await workspaceApi.open();
+
+      expect(bridge.callsFor("workspace_open")).toEqual([undefined]);
     });
   });
 });
