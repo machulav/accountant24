@@ -24,7 +24,6 @@ const h = vi.hoisted(() => ({
   createServices: vi.fn(async (_opts: unknown) => h.services),
   createFromServices: vi.fn(async (_opts: unknown) => ({ session: h.session, extensionsResult: {} })),
   createRuntime: vi.fn(),
-  enabledSkillPaths: vi.fn((_root: unknown) => ["/ws/skills/pdf", "/ws/skills/docx"]),
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
@@ -34,13 +33,14 @@ vi.mock("@earendil-works/pi-coding-agent", () => ({
   createAgentSessionFromServices: h.createFromServices,
   createAgentSessionRuntime: h.createRuntime,
 }));
-vi.mock("../skills-store", () => ({ enabledSkillPaths: h.enabledSkillPaths }));
 
 const cfg: AgentHostConfig = {
   workspaceDir: "/ws",
   sessionsDir: "/ws/sessions",
-  skillsDir: "/ws/skills",
-  nativeSkillsDir: "/res/skills",
+  skills: [
+    { path: "/res/plugins/accountant24/skills/recurring-spending", name: "accountant24:recurring-spending" },
+    { path: "/ws/plugins/budget/skills/monthly-review", name: "budget:monthly-review" },
+  ],
   extensionPath: "/res/accountant24-extension.js",
   systemPromptPath: "/res/system.md",
 };
@@ -123,11 +123,57 @@ describe("createRuntimeFactory()", () => {
         noSkills: true,
         noPromptTemplates: true,
         systemPrompt: "/res/system.md",
-        additionalSkillPaths: ["/res/skills", "/ws/skills/pdf", "/ws/skills/docx"],
+        additionalSkillPaths: [
+          "/res/plugins/accountant24/skills/recurring-spending",
+          "/ws/plugins/budget/skills/monthly-review",
+        ],
+        skillsOverride: expect.any(Function),
         additionalExtensionPaths: ["/res/accountant24-extension.js"],
       },
     });
-    expect(h.enabledSkillPaths).toHaveBeenCalledWith("/ws/skills");
+  });
+
+  describe("skillsOverride", () => {
+    /** The hook pi applies to the loaded skill set, pulled off the recorded
+     *  createAgentSessionServices call. */
+    async function loadOverride() {
+      await createRuntimeForSession();
+      const opts = h.createServices.mock.calls[0][0] as {
+        resourceLoaderOptions: {
+          skillsOverride: (base: { skills: unknown[]; diagnostics: unknown[] }) => {
+            skills: { name: string }[];
+            diagnostics: unknown[];
+          };
+        };
+      };
+      return opts.resourceLoaderOptions.skillsOverride;
+    }
+
+    it("should rename a loaded skill to its <plugin>:<skill> name", async () => {
+      const override = await loadOverride();
+      const result = override({
+        skills: [{ name: "monthly-review", baseDir: "/ws/plugins/budget/skills/monthly-review", description: "d" }],
+        diagnostics: [],
+      });
+      expect(result.skills).toEqual([
+        { name: "budget:monthly-review", baseDir: "/ws/plugins/budget/skills/monthly-review", description: "d" },
+      ]);
+    });
+
+    it("should leave a skill loaded from an unknown folder untouched", async () => {
+      const override = await loadOverride();
+      const result = override({
+        skills: [{ name: "stray", baseDir: "/somewhere/else", description: "d" }],
+        diagnostics: [],
+      });
+      expect(result.skills).toEqual([{ name: "stray", baseDir: "/somewhere/else", description: "d" }]);
+    });
+
+    it("should pass diagnostics through untouched", async () => {
+      const override = await loadOverride();
+      const diagnostics = [{ type: "warning", message: "w" }];
+      expect(override({ skills: [], diagnostics }).diagnostics).toBe(diagnostics);
+    });
   });
 
   it("should create the session from services WITHOUT a model or thinking level", async () => {

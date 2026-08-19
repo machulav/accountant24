@@ -11,7 +11,7 @@ import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 vi.mock("@/rpc/api", () => ({
   ledgerApi: { mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }) },
   // The composer's `/` skills picker lists skills over IPC.
-  skillsApi: { list: vi.fn().mockResolvedValue({ skills: [] }) },
+  pluginsApi: { list: vi.fn().mockResolvedValue({ plugins: [] }), onEvent: vi.fn(async () => () => {}) },
   settingsApi: {
     get: vi.fn().mockResolvedValue({ enabledModels: [], defaultModel: undefined }),
     onChange: () => () => {},

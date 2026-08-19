@@ -84,33 +84,39 @@ export function trackUpdateFailed(kind: "check" | "download"): void {
   track("update_failed", { kind });
 }
 
-/** Record a skill add from a repository landing in the store. Counts only —
- *  custom skill names and repos never leave the machine. */
-export function trackSkillAdded(addedCount: number, skippedCount: number): void {
-  track("skill_added", { added_count: addedCount, skipped_count: skippedCount });
+/** Record a plugin install landing in the store. Counts only — plugin names
+ *  and repos never leave the machine. */
+export function trackPluginAdded(skillCount: number): void {
+  track("plugin_added", { skill_count: skillCount });
 }
 
-export type SkillAddFailReason = "invalid_source" | "not_found" | "no_skills" | "fetch_failed" | "other";
+export type PluginAddFailReason =
+  | "invalid_source"
+  | "not_found"
+  | "no_plugin"
+  | "invalid_plugin"
+  | "app_too_old"
+  | "collision"
+  | "fetch_failed"
+  | "other";
 
-/** Record a failed skill add. Structural reason only — error text can carry
- *  repo names and paths, so it never leaves the machine. */
-export function trackSkillAddFailed(reason: SkillAddFailReason): void {
-  track("skill_add_failed", { reason });
+/** Record a failed plugin install. Structural reason only — error text can
+ *  carry repo names and paths, so it never leaves the machine. */
+export function trackPluginAddFailed(reason: PluginAddFailReason): void {
+  track("plugin_add_failed", { reason });
 }
 
-/** Record a custom skill being removed (built-ins can't be). */
-export function trackSkillRemoved(): void {
-  track("skill_removed");
+/** Record an installed plugin being removed (built-ins can't be). */
+export function trackPluginRemoved(): void {
+  track("plugin_removed");
 }
 
-/** Record a custom skill being switched on. */
-export function trackSkillEnabled(): void {
-  track("skill_enabled");
-}
+export type MarketplaceFetchFailKind = "fetch_failed" | "invalid_index" | "timeout";
 
-/** Record a custom skill being switched off. */
-export function trackSkillDisabled(): void {
-  track("skill_disabled");
+/** Record the marketplace index failing to load. Coarse kind only, like the
+ *  updater: mostly offline noise, and the messages can carry URLs. */
+export function trackMarketplaceFetchFailed(kind: MarketplaceFetchFailKind): void {
+  track("marketplace_fetch_failed", { kind });
 }
 
 /** Register the renderer→main analytics channel. The renderer fires

@@ -103,6 +103,12 @@ describe("deriveChatTitle", () => {
     it("titles an argument-less invocation as the skill name", () => {
       expect(deriveChatTitle({ texts: [":skill[pdf]"], imageNames: [] })).toBe("pdf");
     });
+
+    it("shows a namespaced <plugin>:<skill> invocation as its plain name", () => {
+      expect(deriveChatTitle({ texts: [":skill[my-plugin:my-skill] summarize this"], imageNames: [] })).toBe(
+        "my-plugin:my-skill summarize this",
+      );
+    });
   });
 
   describe("truncation (max 60 chars)", () => {

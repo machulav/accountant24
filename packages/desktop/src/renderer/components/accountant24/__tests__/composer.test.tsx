@@ -11,7 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 // a real main process.
 vi.mock("@/rpc/api", () => ({
   ledgerApi: { mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }) },
-  skillsApi: { list: vi.fn().mockResolvedValue({ skills: [] }) },
+  pluginsApi: { list: vi.fn().mockResolvedValue({ plugins: [] }), onEvent: vi.fn(async () => () => {}) },
   settingsApi: {
     get: vi.fn().mockResolvedValue({ enabledModels: [], defaultModel: undefined }),
     onChange: () => () => {},

@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { ipcMain } from "electron";
-import type { AppSettings } from "../shared/types";
+import type { AppSettings, PluginRegistry, PluginRegistryEntry } from "../shared/types";
 import { appSettingsPath, legacySettingsPath, workspaceDir } from "./env";
 
 function parseFile(path: string): Record<string, unknown> | undefined {
@@ -37,6 +37,30 @@ function pickAppKeys(raw: Record<string, unknown>): AppSettings {
   if (typeof raw.analyticsEnabled === "boolean") out.analyticsEnabled = raw.analyticsEnabled;
   if (Array.isArray(raw.onceEvents)) {
     out.onceEvents = (raw.onceEvents as unknown[]).filter((x): x is string => typeof x === "string");
+  }
+  const plugins = pickPluginRegistry(raw.plugins);
+  if (plugins) out.plugins = plugins;
+  if (Array.isArray(raw.defaultPluginsInstalled)) {
+    out.defaultPluginsInstalled = (raw.defaultPluginsInstalled as unknown[]).filter(
+      (x): x is string => typeof x === "string",
+    );
+  }
+  return out;
+}
+
+/** Keep only well-formed plugin entries: the record is provenance, so an entry
+ *  that is not an object is dropped and the rest are kept. */
+function pickPluginRegistry(raw: unknown): PluginRegistry | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: PluginRegistry = {};
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const entry = value as Record<string, unknown>;
+    const kept: PluginRegistryEntry = {};
+    for (const key of ["source", "commit", "addedAt"] as const) {
+      if (typeof entry[key] === "string") kept[key] = entry[key] as string;
+    }
+    out[name] = kept;
   }
   return out;
 }
@@ -86,6 +110,29 @@ export function registerSettingsIpc(): void {
 /** Whether anonymous usage analytics are enabled (default on, opt-out). */
 export function isAnalyticsEnabled(): boolean {
   return readSettings().analyticsEnabled ?? true;
+}
+
+/** Which installed plugins are approved, keyed by plugin name. */
+export function readPluginRegistry(): PluginRegistry {
+  return readSettings().plugins ?? {};
+}
+
+/** Replace the plugin registry wholesale — plugin operations always compute the
+ *  full map, and a merge would resurrect entries a removal just dropped. */
+export function writePluginRegistry(plugins: PluginRegistry): void {
+  writeSettings({ plugins });
+}
+
+/** The default plugins this install has already been given, as repository
+ *  slugs. A slug here is never installed again, which is what makes an
+ *  uninstall stick. */
+export function readDefaultPluginsInstalled(): string[] {
+  return readSettings().defaultPluginsInstalled ?? [];
+}
+
+/** Replace the list wholesale, for the same reason as the registry. */
+export function writeDefaultPluginsInstalled(repos: string[]): void {
+  writeSettings({ defaultPluginsInstalled: repos });
 }
 
 /** Returns true exactly once per key and persists the consumed key, so one-time

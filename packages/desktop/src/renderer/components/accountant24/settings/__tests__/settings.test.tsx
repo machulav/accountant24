@@ -16,7 +16,7 @@ const h = vi.hoisted(() => ({
   get: vi.fn(),
   set: vi.fn(),
   restart: vi.fn(),
-  skillsList: vi.fn(),
+  pluginsList: vi.fn(),
   updatePending: vi.fn(),
 }));
 
@@ -33,12 +33,14 @@ vi.mock("@/rpc/api", () => ({
   },
   settingsApi: { get: h.get, set: h.set, onChange: vi.fn(() => () => {}) },
   agentApi: { restart: h.restart, onModelsChanged: vi.fn(() => () => {}) },
-  skillsApi: {
-    list: h.skillsList,
+  pluginsApi: {
+    list: h.pluginsList,
+    inspect: vi.fn(),
     add: vi.fn(),
     remove: vi.fn(),
     setEnabled: vi.fn(),
     onEvent: vi.fn(async () => () => {}),
+    marketplace: vi.fn(async () => ({ type: "ok", plugins: [], fetchedAt: "2026-08-16T09:00:00.000Z" })),
   },
 }));
 
@@ -62,7 +64,7 @@ beforeEach(() => {
   h.get.mockResolvedValue({});
   h.set.mockResolvedValue({});
   h.restart.mockResolvedValue(undefined);
-  h.skillsList.mockResolvedValue({ skills: [] });
+  h.pluginsList.mockResolvedValue({ plugins: [] });
   h.updatePending.mockResolvedValue(null);
 });
 
@@ -79,7 +81,7 @@ const renderSettings = (open = true) => {
 describe("Settings shell", () => {
   it("should render every category in the nav when open", () => {
     renderSettings(true);
-    for (const label of ["Providers", "Models", "Skills", "Shortcuts", "About"]) {
+    for (const label of ["Providers", "Models", "Plugins", "Shortcuts", "About"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
@@ -102,10 +104,10 @@ describe("Settings shell", () => {
     expect(screen.queryByText("Loading providers…")).toBeNull();
   });
 
-  it("should swap to the Skills pane when Skills is clicked", async () => {
+  it("should swap to the Plugins pane when Plugins is clicked", async () => {
     renderSettings(true);
-    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
-    expect(await screen.findByText("Add from GitHub repository")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Plugins" }));
+    expect(await screen.findByText("Marketplace")).toBeInTheDocument();
     expect(screen.queryByText("Loading providers…")).toBeNull();
   });
 

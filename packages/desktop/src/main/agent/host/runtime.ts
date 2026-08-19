@@ -3,7 +3,7 @@
 //
 //   --no-extensions --no-skills --no-prompt-templates  → resourceLoaderOptions no*
 //   --system-prompt <system.md>                        → resourceLoaderOptions.systemPrompt
-//   --skill <native> --skill <enabled…>                → additionalSkillPaths
+//   --skill <every enabled plugin's skills…>           → additionalSkillPaths
 //   -e <accountant24-extension.js>                     → additionalExtensionPaths
 //   --session <path> --session-dir <sessions>          → SessionManager.open(path, dir)
 //   cwd / PI_CODING_AGENT_DIR                          → cwd / agentDir options
@@ -24,10 +24,16 @@ import {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentHostConfig } from "../../../shared/agentHost";
-import { enabledSkillPaths } from "../skills-store";
 import type { RuntimeFactory, UiBridge } from "./host";
 
 export function createRuntimeFactory(cfg: AgentHostConfig): RuntimeFactory {
+  // Skills reach the model under their plugin-namespaced `<plugin>:<skill>`
+  // name. pi derives a skill's name from its SKILL.md, so the rename happens
+  // here via skillsOverride — the hook pi applies to the loaded set before
+  // anything (system prompt, `/skill:` resolution, command list) reads it.
+  // Keyed by folder because that is what identifies a skill on disk; pi sets
+  // `baseDir` to the very path we passed in.
+  const nameBySkillDir = new Map(cfg.skills.map((skill) => [skill.path, skill.name]));
   // One auth/models runtime shared by every session in this host — reading
   // the workspace files the llm-providers/ modules write. Killing the host (the
   // agent_restart flow) is what picks up credential changes.
@@ -56,7 +62,14 @@ export function createRuntimeFactory(cfg: AgentHostConfig): RuntimeFactory {
           noSkills: true,
           noPromptTemplates: true,
           systemPrompt: cfg.systemPromptPath,
-          additionalSkillPaths: [cfg.nativeSkillsDir, ...enabledSkillPaths(cfg.skillsDir)],
+          additionalSkillPaths: cfg.skills.map((skill) => skill.path),
+          skillsOverride: (base) => ({
+            ...base,
+            skills: base.skills.map((skill) => {
+              const name = nameBySkillDir.get(skill.baseDir);
+              return name ? { ...skill, name } : skill;
+            }),
+          }),
           additionalExtensionPaths: [cfg.extensionPath],
         },
       });

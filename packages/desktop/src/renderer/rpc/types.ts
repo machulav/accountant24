@@ -3,7 +3,7 @@
 // Shapes that cross the IPC bridge are defined once in src/shared/types.ts and
 // re-exported here, so consumers keep importing everything from "@/rpc/types".
 
-import type { SkillInfo } from "../../shared/types";
+import type { PluginInfo, PluginPreview } from "../../shared/types";
 
 export type {
   AccountBalance,
@@ -13,11 +13,16 @@ export type {
   LedgerPosting,
   LedgerTransaction,
   LedgerTransactionStatus,
+  MarketplaceEntry,
+  MarketplaceRequest,
+  MarketplaceResult,
   NetWorth,
   NetWorthSection,
   NetWorthTotal,
-  SkillAddRequest,
-  SkillInfo,
+  PluginAddRequest,
+  PluginInfo,
+  PluginPreview,
+  PluginSkillInfo,
 } from "../../shared/types";
 
 // ---- Models -------------------------------------------------------------
@@ -42,24 +47,25 @@ export interface ModelRef {
   modelId: string;
 }
 
-// ---- Skills (Settings → Skills) ------------------------------------------
+// ---- Plugins (Settings → Plugins) ----------------------------------------
 
-export interface SkillsList {
-  skills: SkillInfo[];
+export interface PluginsList {
+  plugins: PluginInfo[];
 }
 
-export interface SkillAddResult {
+/** What a repository turned out to contain, before anything is installed. */
+export type PluginInspectResult = { type: "plugin"; plugin: PluginPreview } | { type: "error"; message?: string };
+
+export interface PluginAddResult {
   type: "done" | "error";
   message?: string;
-  added?: string[];
-  skipped?: { name: string; message: string }[];
+  name?: string;
 }
 
-/** Progress line streamed over `skills-event` while an add runs. */
-export interface SkillsEvent {
-  type: "progress";
-  message: string;
-}
+/** What main reports over `plugins-event`: progress lines while an install
+ *  runs, and a nudge whenever the store changed on its own (the default
+ *  plugins landing on a first launch), so open lists reload. */
+export type PluginsEvent = { type: "progress"; message: string } | { type: "changed" };
 
 // ---- Auth helper records (`accountant24 auth ...`) ----------------------
 

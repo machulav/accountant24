@@ -102,7 +102,7 @@ vi.mock("@/rpc/api", () => ({
     mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }),
     balances: vi.fn().mockResolvedValue([]),
   },
-  skillsApi: { list: vi.fn().mockResolvedValue({ skills: [] }) },
+  pluginsApi: { list: vi.fn().mockResolvedValue({ plugins: [] }), onEvent: vi.fn(async () => () => {}) },
   sessionsApi: { list: vi.fn().mockResolvedValue({ type: "ok", sessions: [] }) },
   appApi: { version: vi.fn().mockResolvedValue("1.0.0") },
 }));

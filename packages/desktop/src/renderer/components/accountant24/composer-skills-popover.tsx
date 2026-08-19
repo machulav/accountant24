@@ -46,23 +46,47 @@ type SkillRowEntry = {
   /** Flat index into the items array — the keyboard-nav/highlight contract. */
   index: number;
   /** Section label rendered above this row, on group boundaries only. */
-  header?: "Built-in" | "Custom";
+  header?: "Official" | "Community";
 };
 
-/** Mark group boundaries in the (already natives-first) item list. Headers
+/** Mark group boundaries in the (already official-first) item list. Headers
  *  appear only when BOTH groups are present: a lone label over a homogeneous
  *  list is noise. Exported for tests. */
 export function groupSkillRows(items: readonly Unstable_TriggerItem[]): SkillRowEntry[] {
-  const isNative = (item: Unstable_TriggerItem) => item.metadata?.native === true;
-  const mixed = items.some(isNative) && items.some((item) => !isNative(item));
+  const isOfficialItem = (item: Unstable_TriggerItem) => item.metadata?.official === true;
+  const mixed = items.some(isOfficialItem) && items.some((item) => !isOfficialItem(item));
   let prev: boolean | null = null;
   return items.map((item, index) => {
-    const native = isNative(item);
-    const header = mixed && native !== prev ? (native ? ("Built-in" as const) : ("Custom" as const)) : undefined;
-    prev = native;
+    const official = isOfficialItem(item);
+    const header = mixed && official !== prev ? (official ? ("Official" as const) : ("Community" as const)) : undefined;
+    prev = official;
     return header ? { item, index, header } : { item, index };
   });
 }
+
+/** A skill's full name, `plugin:skill`, with the plugin part played down.
+ *  Every skill from one plugin starts with the same prefix, so the eye that is
+ *  scanning for a skill has to skip it on every row; muting it puts the part
+ *  that differs in the foreground. The prefix stays, because two plugins can
+ *  ship a skill with the same name, and it is what the chip and the model see.
+ *  Split on the first colon only: a plugin name never holds one, a skill name
+ *  might. Exported for tests. */
+export const SkillName: FC<{ name: string }> = ({ name }) => {
+  const colon = name.indexOf(":");
+  if (colon < 0) {
+    return (
+      <span className="truncate" title={name}>
+        {name}
+      </span>
+    );
+  }
+  return (
+    <span className="truncate" title={name}>
+      <span className="text-muted-foreground font-normal">{name.slice(0, colon + 1)}</span>
+      {name.slice(colon + 1)}
+    </span>
+  );
+};
 
 /** Flat skill rows (no categories, no back navigation — skills are one list). */
 const SkillRows: FC<{ emptyLabel: string }> = ({ emptyLabel }) => {
@@ -112,9 +136,7 @@ const SkillRows: FC<{ emptyLabel: string }> = ({ emptyLabel }) => {
                 >
                   <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
                     <ZapIcon className="text-muted-foreground size-4 shrink-0" />
-                    <span className="truncate" title={item.label}>
-                      {item.label}
-                    </span>
+                    <SkillName name={item.label} />
                   </span>
                   {item.description && (
                     // Skill descriptions are long by design (they steer the model);

@@ -20,17 +20,17 @@ import {
 } from "@/components/shadcn/sidebar";
 import { AboutSettings } from "./about-settings";
 import { ModelsSettings } from "./models-settings";
+import { PluginsSettings } from "./plugins-settings";
 import { ProvidersSettings } from "./providers-settings";
 import { ShortcutsSettings } from "./shortcuts-settings";
-import { SkillsSettings } from "./skills-settings";
 import { StarCallout } from "./star-callout";
 
-export type SettingsSection = "providers" | "models" | "skills" | "shortcuts" | "about";
+export type SettingsSection = "providers" | "models" | "plugins" | "shortcuts" | "about";
 
 const NAV: { id: SettingsSection; label: string; icon: typeof CpuIcon }[] = [
   { id: "providers", label: "Providers", icon: PlugIcon },
   { id: "models", label: "Models", icon: CpuIcon },
-  { id: "skills", label: "Skills", icon: ZapIcon },
+  { id: "plugins", label: "Plugins", icon: ZapIcon },
   { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon },
   { id: "about", label: "About", icon: InfoIcon },
 ];
@@ -80,7 +80,7 @@ export function Settings({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <main className="min-w-0 flex-1 overflow-y-auto">
             {section === "providers" && <ProvidersSettings />}
             {section === "models" && <ModelsSettings />}
-            {section === "skills" && <SkillsSettings />}
+            {section === "plugins" && <PluginsSettings />}
             {section === "shortcuts" && <ShortcutsSettings />}
             {section === "about" && <AboutSettings />}
           </main>

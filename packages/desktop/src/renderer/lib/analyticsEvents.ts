@@ -49,6 +49,6 @@ export function trackAttachmentAdded(kind: "image" | "pdf" | "csv" | "other"): v
 /** Record a skill being pulled into a chat. `skill` is a built-in's name or
  *  the literal "custom" — custom skill names never leave the machine. Manual =
  *  the user's `/` invocation; auto = the model reading the skill file itself. */
-export function trackSkillUsed(skill: string, kind: "native" | "custom", method: "manual" | "auto"): void {
+export function trackSkillUsed(skill: string, kind: "official" | "custom", method: "manual" | "auto"): void {
   analyticsApi.track("skill_used", { skill, kind, method });
 }

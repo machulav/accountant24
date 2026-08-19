@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app } from "electron";
-import type { AgentHostConfig } from "../shared/agentHost";
+import type { AgentHostConfig, AgentHostSkill } from "../shared/agentHost";
 
 /** ~/Accountant24 — the agent's cwd and the home of the ledger/auth/models. */
 export function workspaceDir(): string {
@@ -17,11 +17,11 @@ export function workspaceDir(): string {
   return env && env.length > 0 ? env : path.join(homedir(), "Accountant24");
 }
 
-/** ~/Accountant24/skills — one self-contained folder per installed skill
- *  (Agent Skills standard: a dir with SKILL.md). Each enabled skill is passed
- *  to the agent child via a `--skill` flag. */
-export function skillsDir(): string {
-  return path.join(workspaceDir(), "skills");
+/** ~/Accountant24/plugins — one self-contained folder per installed plugin
+ *  (Agent Plugins standard: a plugin.json plus skills/<name>/SKILL.md). The
+ *  skills of every enabled plugin are passed to the agent child. */
+export function pluginsDir(): string {
+  return path.join(workspaceDir(), "plugins");
 }
 
 /** ~/Accountant24/sessions — pi's session files, one JSONL per chat thread.
@@ -77,14 +77,6 @@ export function systemPromptPath(): string {
   return path.join(resourceDir(), "system.md");
 }
 
-/** Native (built-in) skills embedded in the app bundle — one folder per skill,
- *  committed under packages/desktop/resources/skills. Always loaded (a single
- *  `--skill` flag; pi recurses the directory), never present in the workspace
- *  skills folder, so users can't remove or disable them. */
-export function nativeSkillsDir(): string {
-  return path.join(resourceDir(), "skills");
-}
-
 /** Built agent-host utilityProcess entry — emitted as a sibling of the main
  *  bundle (out/main/agent-host.js) in both dev and packaged builds, so it
  *  resolves relative to this module's own URL. */
@@ -92,13 +84,15 @@ export function agentHostEntryPath(): string {
   return fileURLToPath(new URL("./agent-host.js", import.meta.url));
 }
 
-/** Static config for the agent host, passed as JSON in argv[2] at fork time. */
-export function agentHostConfig(): AgentHostConfig {
+/** Static config for the agent host, passed as JSON in argv[2] at fork time.
+ *  Skills are resolved by the caller (agent/plugins.ts) rather than here: they
+ *  depend on the app settings, and this module must stay a pure path resolver
+ *  that settings.ts can import. */
+export function agentHostConfig(skills: AgentHostSkill[]): AgentHostConfig {
   return {
     workspaceDir: workspaceDir(),
     sessionsDir: sessionsDir(),
-    skillsDir: skillsDir(),
-    nativeSkillsDir: nativeSkillsDir(),
+    skills,
     extensionPath: extensionPath(),
     systemPromptPath: systemPromptPath(),
   };

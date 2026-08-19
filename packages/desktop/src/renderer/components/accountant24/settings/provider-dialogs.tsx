@@ -6,6 +6,7 @@
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
+import { ExternalLink } from "@/components/accountant24/external-link";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
@@ -229,14 +230,9 @@ function OAuthSignInBody({
           <div className="bg-muted/50 flex flex-col items-center gap-3 rounded-md p-4">
             <p className="text-muted-foreground text-xs">
               Enter this code at{" "}
-              <a
-                href={oauth.deviceCode.verificationUri}
-                target="_blank"
-                rel="noreferrer"
-                className="text-foreground underline underline-offset-3"
-              >
+              <ExternalLink href={oauth.deviceCode.verificationUri} className="text-foreground">
                 {oauth.deviceCode.verificationUri}
-              </a>
+              </ExternalLink>
             </p>
             <div className="flex items-center gap-2">
               <span className="font-mono text-xl font-semibold tracking-widest">{oauth.deviceCode.userCode}</span>
@@ -276,15 +272,7 @@ function OAuthSignInBody({
 
         {waiting && oauth.authUrl && (
           <p className="text-muted-foreground text-xs">
-            Browser didn't open?{" "}
-            <a
-              href={oauth.authUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground underline underline-offset-3"
-            >
-              Open the sign-in page
-            </a>
+            Browser didn't open? <ExternalLink href={oauth.authUrl}>Open the sign-in page</ExternalLink>
           </p>
         )}
 

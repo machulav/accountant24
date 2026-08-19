@@ -35,7 +35,7 @@ describe("workspace paths", () => {
     process.env.ACCOUNTANT24_HOME = "/ws";
     try {
       const mod = await import("../env");
-      expect(mod.skillsDir()).toBe("/ws/skills");
+      expect(mod.pluginsDir()).toBe("/ws/plugins");
       expect(mod.sessionsDir()).toBe("/ws/sessions");
       expect(mod.mainJournalPath()).toBe("/ws/ledger/main.journal");
       expect(mod.appSettingsPath()).toBe("/ws/app-settings.json");
@@ -219,19 +219,6 @@ describe("systemPromptPath()", () => {
   });
 });
 
-describe("nativeSkillsDir()", () => {
-  it("should resolve the skills dir in the packaged resources dir", async () => {
-    const orig = process.resourcesPath;
-    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
-    try {
-      const mod = await import("../env");
-      expect(mod.nativeSkillsDir()).toBe("/pkg-res/skills");
-    } finally {
-      Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
-    }
-  });
-});
-
 describe("agentHostEntryPath()", () => {
   it("should resolve agent-host.js next to the built main bundle", async () => {
     const mod = await import("../env");
@@ -245,17 +232,17 @@ describe("agentHostEntryPath()", () => {
 
 describe("agentHostConfig()", () => {
   it("should assemble every path the host needs from the workspace and resources", async () => {
+    const skills = [{ path: "/ws/plugins/budget/skills/review", name: "budget:review" }];
     const prev = process.env.ACCOUNTANT24_HOME;
     const origRes = process.resourcesPath;
     process.env.ACCOUNTANT24_HOME = "/ws";
     Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
     try {
       const mod = await import("../env");
-      expect(mod.agentHostConfig()).toEqual({
+      expect(mod.agentHostConfig(skills)).toEqual({
         workspaceDir: "/ws",
         sessionsDir: "/ws/sessions",
-        skillsDir: "/ws/skills",
-        nativeSkillsDir: "/pkg-res/skills",
+        skills,
         extensionPath: "/pkg-res/accountant24-extension.js",
         systemPromptPath: "/pkg-res/system.md",
       });

@@ -131,3 +131,58 @@ describe("settings_set IPC", () => {
     });
   });
 });
+
+describe("readDefaultPluginsInstalled()", () => {
+  it("should be empty for a workspace that never had one installed", async () => {
+    const { readDefaultPluginsInstalled } = await setup();
+    expect(readDefaultPluginsInstalled()).toEqual([]);
+  });
+
+  it("should return the repositories already installed", async () => {
+    seed({ defaultPluginsInstalled: ["accountant24/skills"] });
+    const { readDefaultPluginsInstalled } = await setup();
+    expect(readDefaultPluginsInstalled()).toEqual(["accountant24/skills"]);
+  });
+
+  it("should drop entries that are not repository slugs", async () => {
+    seed({ defaultPluginsInstalled: ["accountant24/skills", 7, null, { repo: "x" }] });
+    const { readDefaultPluginsInstalled } = await setup();
+    expect(readDefaultPluginsInstalled()).toEqual(["accountant24/skills"]);
+  });
+
+  it("should ignore a stored value of the wrong shape", async () => {
+    seed({ defaultPluginsInstalled: { "accountant24/skills": true } });
+    const { readDefaultPluginsInstalled } = await setup();
+    expect(readDefaultPluginsInstalled()).toEqual([]);
+  });
+});
+
+describe("writeDefaultPluginsInstalled()", () => {
+  it("should persist the list", async () => {
+    const { writeDefaultPluginsInstalled } = await setup();
+    writeDefaultPluginsInstalled(["accountant24/skills"]);
+    expect(stored()).toMatchObject({ defaultPluginsInstalled: ["accountant24/skills"] });
+  });
+
+  it("should keep the rest of the settings", async () => {
+    seed({ analyticsEnabled: false, plugins: { budget: { source: "acme/budget" } } });
+    const { writeDefaultPluginsInstalled } = await setup();
+
+    writeDefaultPluginsInstalled(["accountant24/skills"]);
+
+    expect(stored()).toMatchObject({
+      analyticsEnabled: false,
+      plugins: { budget: { source: "acme/budget" } },
+      defaultPluginsInstalled: ["accountant24/skills"],
+    });
+  });
+
+  it("should replace the list wholesale, so a removed entry does not come back", async () => {
+    seed({ defaultPluginsInstalled: ["accountant24/skills", "acme/other"] });
+    const { writeDefaultPluginsInstalled } = await setup();
+
+    writeDefaultPluginsInstalled(["accountant24/skills"]);
+
+    expect(stored().defaultPluginsInstalled).toEqual(["accountant24/skills"]);
+  });
+});

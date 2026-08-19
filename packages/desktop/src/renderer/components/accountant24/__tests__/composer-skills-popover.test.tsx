@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 // Spec for the `/` skills popover UI: a flat, keyboard-navigable list that opens
-// only for a *leading* slash, renders Built-in/Custom section labels on group
+// only for a *leading* slash, renders Official/Custom section labels on group
 // boundaries, and shows an empty label when nothing matches. The grouping helper
 // (groupSkillRows) is unit-tested in composer-skills.test.tsx; this file covers
 // the rendered popover itself.
@@ -17,7 +17,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
-import { ComposerSkillsPopover, type SkillsTriggerAdapter } from "../composer-skills-popover";
+import { ComposerSkillsPopover, SkillName, type SkillsTriggerAdapter } from "../composer-skills-popover";
 
 beforeAll(() => {
   installJsdomPolyfills();
@@ -31,8 +31,8 @@ afterEach(() => {
 });
 
 const MIXED_SKILLS: Unstable_TriggerItem[] = [
-  { id: "pdf", type: "skill", label: "pdf", description: "Read PDF files.", metadata: { native: true } },
-  { id: "invoices", type: "skill", label: "invoices", description: "Draft invoices.", metadata: { native: false } },
+  { id: "pdf", type: "skill", label: "pdf", description: "Read PDF files.", metadata: { official: true } },
+  { id: "invoices", type: "skill", label: "invoices", description: "Draft invoices.", metadata: { official: false } },
 ];
 
 /** A flat skills adapter: no categories, a search that filters on the label
@@ -60,7 +60,7 @@ function Picker({ adapter, emptyLabel }: { adapter: SkillsTriggerAdapter; emptyL
   );
 }
 
-function renderPicker(adapter = makeAdapter(), emptyLabel = "No skills yet. Add them in Settings → Skills") {
+function renderPicker(adapter = makeAdapter(), emptyLabel = "No matching skills") {
   function Chrome({ children }: { children: ReactNode }) {
     const store: ExternalStoreAdapter = { messages: [], onNew: async () => {} };
     const runtime = useExternalStoreRuntime(store);
@@ -104,27 +104,29 @@ describe("ComposerSkillsPopover", () => {
     expect(screen.getByText("Draft invoices.")).toBeInTheDocument();
   });
 
-  it("should label the Built-in and Custom groups when both are present", async () => {
+  it("should label the Official and Custom groups when both are present", async () => {
     const input = renderPicker();
     type(input, "/");
-    await waitFor(() => expect(screen.getByText("Built-in")).toBeInTheDocument());
-    expect(screen.getByText("Custom")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Official")).toBeInTheDocument());
+    expect(screen.getByText("Community")).toBeInTheDocument();
   });
 
   it("should not draw group labels for a homogeneous list", async () => {
     const input = renderPicker(
-      makeAdapter([{ id: "pdf", type: "skill", label: "pdf", description: "Read PDFs.", metadata: { native: true } }]),
+      makeAdapter([
+        { id: "pdf", type: "skill", label: "pdf", description: "Read PDFs.", metadata: { official: true } },
+      ]),
     );
     type(input, "/");
     await waitFor(() => expect(screen.getByText("pdf")).toBeInTheDocument());
-    expect(screen.queryByText("Built-in")).toBeNull();
-    expect(screen.queryByText("Custom")).toBeNull();
+    expect(screen.queryByText("Official")).toBeNull();
+    expect(screen.queryByText("Community")).toBeNull();
   });
 
   it("should show the empty label when the query matches no skill", async () => {
     const input = renderPicker();
     type(input, "/zzz");
-    await waitFor(() => expect(screen.getByText("No skills yet. Add them in Settings → Skills")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("No matching skills")).toBeInTheDocument());
   });
 
   it("should filter the list down to the matching skill as the query narrows", async () => {
@@ -148,5 +150,34 @@ describe("ComposerSkillsPopover", () => {
     await waitFor(() => expect(screen.getByText("pdf")).toBeInTheDocument());
     fireEvent.click(screen.getByText("pdf"));
     await waitFor(() => expect(screen.queryByText("invoices")).toBeNull());
+  });
+});
+
+describe("SkillName", () => {
+  it("should play down the plugin part and keep the skill part plain", () => {
+    render(<SkillName name="accountant24-skills:recurring-spending" />);
+    const prefix = screen.getByText("accountant24-skills:");
+    expect(prefix).toHaveClass("text-muted-foreground");
+    // The skill part is not wrapped in the muted span.
+    expect(prefix.parentElement).toHaveTextContent("accountant24-skills:recurring-spending");
+    expect(prefix.parentElement?.childNodes).toHaveLength(2);
+  });
+
+  it("should keep the full name as the row's tooltip", () => {
+    render(<SkillName name="accountant24-skills:recurring-spending" />);
+    expect(screen.getByTitle("accountant24-skills:recurring-spending")).toBeInTheDocument();
+  });
+
+  it("should split on the first colon only when the skill part holds one", () => {
+    render(<SkillName name="tools:a:b" />);
+    expect(screen.getByText("tools:")).toBeInTheDocument();
+    expect(screen.getByTitle("tools:a:b")).toHaveTextContent("tools:a:b");
+  });
+
+  it("should show a name with no plugin part as it is", () => {
+    render(<SkillName name="review" />);
+    const el = screen.getByTitle("review");
+    expect(el).toHaveTextContent("review");
+    expect(el.querySelector(".text-muted-foreground")).toBeNull();
   });
 });

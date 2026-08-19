@@ -15,11 +15,11 @@
       },
       {
         "group": "Features",
-        "pages": ["docs/skills"]
+        "pages": ["docs/plugins", "docs/marketplace"]
       },
       {
         "group": "Guides",
-        "pages": ["docs/go-fully-local"]
+        "pages": ["docs/create-a-plugin", "docs/go-fully-local"]
       },
       {
         "group": "Resources",
@@ -30,7 +30,8 @@
   "redirects": [
     { "source": "/use-cases", "destination": "/docs/use-cases" },
     { "source": "/quickstart", "destination": "/docs/quickstart" },
-    { "source": "/skills", "destination": "/docs/skills" },
+    { "source": "/skills", "destination": "/docs/plugins" },
+    { "source": "/docs/skills", "destination": "/docs/plugins" },
     { "source": "/go-fully-local", "destination": "/docs/go-fully-local" },
     { "source": "/comparison", "destination": "/docs/comparison" },
     { "source": "/faq", "destination": "/docs/faq" }

@@ -13,14 +13,17 @@ import type {
   AuthStatus,
   LedgerMentions,
   LedgerTransaction,
+  MarketplaceRequest,
+  MarketplaceResult,
   NetWorth,
   OllamaInfo,
+  PluginAddRequest,
+  PluginAddResult,
+  PluginInspectResult,
+  PluginsEvent,
+  PluginsList,
   SessionAgentEvent,
   SessionSummary,
-  SkillAddRequest,
-  SkillAddResult,
-  SkillsEvent,
-  SkillsList,
 } from "./types";
 
 const api = window.api;
@@ -134,19 +137,23 @@ export const ledgerApi = {
   transactions: () => api.invoke<LedgerTransaction[]>("ledger_transactions"),
 };
 
-export const skillsApi = {
-  /** Native (built-in) + custom skills from the workspace store. */
-  list: () => api.invoke<SkillsList>("skills_list"),
-  /** Add skills from a public GitHub repo URL. Progress lines stream via
-   *  onEvent; callers restart the agent afterwards. */
-  add: (req: SkillAddRequest) => api.invoke<SkillAddResult>("skills_add", req),
-  /** Delete a custom skill folder. */
-  remove: (name: string) => api.invoke<{ type: string; message?: string }>("skills_remove", { name }),
-  /** Flip a custom skill's approval in the store registry. */
-  setEnabled: (name: string, enabled: boolean) => api.invoke<{ type: string }>("skills_set_enabled", { name, enabled }),
-  /** Subscribe to add-progress pushes; returns an unsubscribe function. */
-  onEvent: async (cb: (event: SkillsEvent) => void): Promise<() => void> =>
-    api.on("skills-event", (payload) => cb(payload as SkillsEvent)),
+export const pluginsApi = {
+  /** Built-in + installed plugins, each with the skills it provides. */
+  list: () => api.invoke<PluginsList>("plugins_list"),
+  /** Fetch a plugin from a public GitHub repo URL and report what it contains,
+   *  without installing it. Progress lines stream via onEvent. */
+  inspect: (req: PluginAddRequest) => api.invoke<PluginInspectResult>("plugins_inspect", req),
+  /** Install the plugin the last inspect staged; callers restart the agent
+   *  afterwards. */
+  add: () => api.invoke<PluginAddResult>("plugins_add"),
+  /** Delete an installed plugin folder. */
+  remove: (name: string) => api.invoke<{ type: string; message?: string }>("plugins_remove", { name }),
+  /** Subscribe to install-progress pushes; returns an unsubscribe function. */
+  onEvent: async (cb: (event: PluginsEvent) => void): Promise<() => void> =>
+    api.on("plugins-event", (payload) => cb(payload as PluginsEvent)),
+  /** The published plugins, from the marketplace index. Main caches it for a
+   *  few minutes; `force` is the Refresh button. */
+  marketplace: (req: MarketplaceRequest = {}) => api.invoke<MarketplaceResult>("plugins_marketplace", req),
 };
 
 export const analyticsApi = {

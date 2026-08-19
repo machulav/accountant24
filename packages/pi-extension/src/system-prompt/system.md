@@ -27,7 +27,7 @@ Your workspace is `~/Accountant24`. All file operations stay within this directo
 - `ledger/YYYY/MM.journal` — Monthly transaction files
 - `memory.md` — Persistent memory
 - `files/YYYY/MM/` — Stored documents (bank statements, receipts, invoices)
-- `skills/` — Installed skills
+- `plugins/` — Installed plugins, each with a `plugin.json` and `skills/<name>/SKILL.md`
 - `sessions/` — Session data
 - `app-settings.json` — App settings
 

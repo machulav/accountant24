@@ -32,6 +32,18 @@ describe("parseSkillBlock()", () => {
     expect(parsed?.userMessage).toBe("line one\nline two");
   });
 
+  it("should parse a namespaced <plugin>:<skill> name", () => {
+    const block =
+      '<skill name="my-plugin:my-skill" location="/ws/plugins/my-plugin/skills/my-skill/SKILL.md">\n' +
+      "body\n" +
+      "</skill>";
+    expect(parseSkillBlock(block)).toEqual({
+      name: "my-plugin:my-skill",
+      location: "/ws/plugins/my-plugin/skills/my-skill/SKILL.md",
+      content: "body",
+    });
+  });
+
   it("should return null for plain text", () => {
     expect(parseSkillBlock("summarize this receipt")).toBeNull();
   });
@@ -64,6 +76,22 @@ describe("hoistSkillDirective()", () => {
     expect(hoistSkillDirective(":skill[pdf] summarize this receipt")).toBe("/skill:pdf summarize this receipt");
   });
 
+  it("should hoist a namespaced <plugin>:<skill> chip", () => {
+    expect(hoistSkillDirective(":skill[my-plugin:my-skill] summarize this receipt")).toBe(
+      "/skill:my-plugin:my-skill summarize this receipt",
+    );
+  });
+
+  it("should send just the token for a namespaced chip with no other text", () => {
+    expect(hoistSkillDirective(":skill[my-plugin:my-skill]")).toBe("/skill:my-plugin:my-skill");
+  });
+
+  it("should hoist a namespaced chip from the middle of the message to the front", () => {
+    expect(hoistSkillDirective("use :skill[web:web-search] for current prices")).toBe(
+      "/skill:web:web-search use for current prices",
+    );
+  });
+
   it("should hoist a chip from the middle of the message to the front", () => {
     expect(hoistSkillDirective("use :skill[web-search] for current prices")).toBe(
       "/skill:web-search use for current prices",
@@ -92,6 +120,16 @@ describe("hoistSkillDirective()", () => {
     expect(hoistSkillDirective(":skill[Not Valid!] hi")).toBe(":skill[Not Valid!] hi");
     expect(hoistSkillDirective(":skill[] hi")).toBe(":skill[] hi");
   });
+
+  it("should ignore a name with more than one namespace level", () => {
+    // A skill is `<plugin>:<skill>` — never deeper.
+    expect(hoistSkillDirective(":skill[a:b:c] hi")).toBe(":skill[a:b:c] hi");
+  });
+
+  it("should ignore an uppercase plugin namespace", () => {
+    // Both halves are lowercase a-z, 0-9 and hyphens.
+    expect(hoistSkillDirective(":skill[My-Plugin:my-skill] hi")).toBe(":skill[My-Plugin:my-skill] hi");
+  });
 });
 
 describe("collapseSkillText()", () => {
@@ -116,6 +154,30 @@ describe("collapseSkillText()", () => {
       "</skill>\n\nsummarize this receipt";
     expect(wire).toBe("/skill:pdf summarize this receipt");
     expect(collapseSkillText(expanded)).toBe(composerText);
+  });
+
+  it("should collapse an expanded block with a namespaced name", () => {
+    const expanded =
+      '<skill name="my-plugin:my-skill" location="/ws/plugins/my-plugin/skills/my-skill/SKILL.md">\n' +
+      "instructions\n" +
+      "</skill>\n\nsummarize this receipt";
+    expect(collapseSkillText(expanded)).toBe(":skill[my-plugin:my-skill] summarize this receipt");
+  });
+
+  it("should round-trip a namespaced skill exactly with the send-time hoist", () => {
+    const composerText = ":skill[my-plugin:my-skill] summarize this receipt";
+    const wire = hoistSkillDirective(composerText);
+    const expanded =
+      '<skill name="my-plugin:my-skill" location="/ws/plugins/my-plugin/skills/my-skill/SKILL.md">\n' +
+      "body\n" +
+      "</skill>\n\nsummarize this receipt";
+    expect(wire).toBe("/skill:my-plugin:my-skill summarize this receipt");
+    expect(collapseSkillText(expanded)).toBe(composerText);
+  });
+
+  it("should collapse an unexpanded namespaced /skill: prefix", () => {
+    expect(collapseSkillText("/skill:my-plugin:my-skill do things")).toBe(":skill[my-plugin:my-skill] do things");
+    expect(collapseSkillText("/skill:my-plugin:my-skill")).toBe(":skill[my-plugin:my-skill]");
   });
 
   it("should collapse an unexpanded /skill: prefix (unknown skill passed through by pi)", () => {

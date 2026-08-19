@@ -40,8 +40,9 @@ import { extractAttachmentRefs } from "../lib/attachmentMarker";
 import { parseModelId } from "../lib/enabledModels";
 import { isMemoryUpdateCall } from "../lib/memory-tool";
 import { mentionsToPlainText } from "../lib/mentions";
+import { isOfficial } from "../lib/pluginRepo";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
-import { agentApi, authApi, sessionsApi, settingsApi, skillsApi } from "../rpc/api";
+import { agentApi, authApi, pluginsApi, sessionsApi, settingsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
 import { agentBridge } from "./agentBridge";
 import { newChatModel } from "./newChatModel";
@@ -102,24 +103,48 @@ export function createElectronPiClient(): PiClient {
   // each event is tagged with — so background runs stay accurately "running".
   // A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
-  // skill_used analytics: resolve a skill to native-or-custom without leaking
+  // skill_used analytics: resolve a skill to official-or-custom without leaking
   // custom identities. The lookup refreshes on the same signal as the composer
-  // picker (every skills mutation restarts the agent). A use landing before
+  // picker (every plugin mutation restarts the agent). A use landing before
   // the first fetch resolves reports "custom" — acceptable for analytics.
-  let nativeSkills = new Set<string>();
-  const refreshNativeSkills = () => {
-    skillsApi
+  // Keyed by both names a use can arrive under — the `<plugin>:<skill>` name a
+  // manual pick carries, and the bare folder name a SKILL.md read yields — each
+  // mapping to the namespaced name the event reports.
+  let officialSkills = new Map<string, string>();
+  const refreshOfficialSkills = () => {
+    pluginsApi
       .list()
       .then((r) => {
-        nativeSkills = new Set(r.skills.filter((s) => s.native).map((s) => s.name));
+        // A bare name is only a safe key when one plugin ships it: a community
+        // plugin with a folder of the same name would otherwise have its uses
+        // counted as the official skill's.
+        const bare = (name: string) => name.slice(name.indexOf(":") + 1);
+        const shared = new Set<string>();
+        const seen = new Set<string>();
+        for (const skill of r.plugins.flatMap((p) => p.skills)) {
+          const raw = bare(skill.name);
+          if (seen.has(raw)) shared.add(raw);
+          seen.add(raw);
+        }
+        officialSkills = new Map(
+          r.plugins
+            .filter(isOfficial)
+            .flatMap((p) =>
+              p.skills.flatMap((s) =>
+                shared.has(bare(s.name))
+                  ? [[s.name, s.name] as const]
+                  : [[s.name, s.name] as const, [bare(s.name), s.name] as const],
+              ),
+            ),
+        );
       })
       .catch(() => undefined);
   };
-  refreshNativeSkills();
-  agentApi.onModelsChanged(refreshNativeSkills);
+  refreshOfficialSkills();
+  agentApi.onModelsChanged(refreshOfficialSkills);
   const trackSkillByName = (name: string, method: "manual" | "auto") => {
-    const native = nativeSkills.has(name);
-    trackSkillUsed(native ? name : "custom", native ? "native" : "custom", method);
+    const official = officialSkills.get(name);
+    trackSkillUsed(official ?? "custom", official ? "official" : "custom", method);
   };
   // Memory updates ride on the generic edit/write tools (recognized by path in
   // the start event); end events carry no args, so the ids are correlated here

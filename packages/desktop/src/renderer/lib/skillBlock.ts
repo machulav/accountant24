@@ -33,12 +33,15 @@ export function parseSkillBlock(text: string): SkillBlock | null {
 }
 
 // The composer represents a picked skill as a `:skill[name]` directive chip
-// (mention-style; skill names are spec-limited to lowercase a-z, 0-9, hyphens).
-const SKILL_DIRECTIVE_RE = /:skill\[([a-z0-9-]{1,64})\]/;
+// (mention-style). A skill is named `<plugin>:<skill>`, each half spec-limited
+// to lowercase a-z, 0-9 and hyphens; the plugin half is optional so chips in
+// sessions recorded before plugins still round-trip.
+const SKILL_NAME = "[a-z0-9-]{1,64}(?::[a-z0-9-]{1,64})?";
+const SKILL_DIRECTIVE_RE = new RegExp(`:skill\\[(${SKILL_NAME})\\]`);
 
 // The unexpanded wire form (pi passes it through literally when the skill is
 // unknown, e.g. it was disabled between picking and sending).
-const SKILL_PREFIX_RE = /^\/skill:([a-z0-9-]{1,64})(?:\s+([\s\S]*))?$/;
+const SKILL_PREFIX_RE = new RegExp(`^/skill:(${SKILL_NAME})(?:\\s+([\\s\\S]*))?$`);
 
 const toDirective = (name: string, args: string | undefined): string =>
   args ? `:skill[${name}] ${args}` : `:skill[${name}]`;

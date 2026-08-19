@@ -202,33 +202,38 @@ describe("trackQuit()", () => {
   });
 });
 
-describe("skill events", () => {
-  it("should emit skill_added with numeric counts", async () => {
-    const { trackSkillAdded } = await setup();
-    trackSkillAdded(2, 1);
-    expect(events()).toEqual([["skill_added", { added_count: 2, skipped_count: 1 }]]);
+describe("plugin events", () => {
+  it("should emit plugin_added with the installed skill count", async () => {
+    const { trackPluginAdded } = await setup();
+    trackPluginAdded(2);
+    expect(events()).toEqual([["plugin_added", { skill_count: 2 }]]);
   });
 
-  it("should emit skill_add_failed with the structural reason", async () => {
-    const { trackSkillAddFailed } = await setup();
-    trackSkillAddFailed("not_found");
-    expect(events()).toEqual([["skill_add_failed", { reason: "not_found" }]]);
+  it("should emit marketplace_fetch_failed with the failure kind", async () => {
+    const { trackMarketplaceFetchFailed } = await setup();
+    trackMarketplaceFetchFailed("timeout");
+    expect(events()).toEqual([["marketplace_fetch_failed", { kind: "timeout" }]]);
   });
 
-  it("should emit skill_removed, skill_enabled, and skill_disabled without props", async () => {
-    const { trackSkillRemoved, trackSkillEnabled, trackSkillDisabled } = await setup();
-    trackSkillRemoved();
-    trackSkillEnabled();
-    trackSkillDisabled();
-    expect(events()).toEqual([["skill_removed"], ["skill_enabled"], ["skill_disabled"]]);
+  it("should emit plugin_add_failed with the structural reason", async () => {
+    const { trackPluginAddFailed } = await setup();
+    trackPluginAddFailed("not_found");
+    expect(events()).toEqual([["plugin_add_failed", { reason: "not_found" }]]);
+  });
+
+  it("should emit plugin_removed without props", async () => {
+    const { trackPluginRemoved } = await setup();
+    trackPluginRemoved();
+    expect(events()).toEqual([["plugin_removed"]]);
   });
 
   it("should emit nothing when analytics are opted out", async () => {
     patchSettings({ analyticsEnabled: false });
-    const { trackSkillAdded, trackSkillAddFailed, trackSkillRemoved } = await setup();
-    trackSkillAdded(1, 0);
-    trackSkillAddFailed("other");
-    trackSkillRemoved();
+    const { trackPluginAdded, trackPluginAddFailed, trackPluginRemoved, trackMarketplaceFetchFailed } = await setup();
+    trackPluginAdded(1);
+    trackPluginAddFailed("other");
+    trackPluginRemoved();
+    trackMarketplaceFetchFailed("fetch_failed");
     expect(events()).toEqual([]);
   });
 });

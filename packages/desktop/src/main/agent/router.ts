@@ -16,6 +16,7 @@ import { type BrowserWindow, ipcMain, type UtilityProcess, utilityProcess } from
 import type { AgentHostNotice, AgentHostRequest } from "../../shared/agentHost";
 import { trackAgentFailed } from "../analytics";
 import { agentEnv, agentHostConfig, agentHostEntryPath, sessionsDir, workspaceDir } from "../env";
+import { agentSkills } from "./plugins";
 import { resolveSessionPath } from "./session-paths";
 
 /** How long a session delete waits for the host's dispose ack before
@@ -75,7 +76,7 @@ function ensureHost(getWin: () => BrowserWindow | null): HostHandle {
   const env = Object.fromEntries(
     Object.entries(agentEnv()).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
   );
-  const proc = utilityProcess.fork(agentHostEntryPath(), [JSON.stringify(agentHostConfig())], {
+  const proc = utilityProcess.fork(agentHostEntryPath(), [JSON.stringify(agentHostConfig(agentSkills()))], {
     cwd: workspace,
     env,
     stdio: ["ignore", "pipe", "pipe"],

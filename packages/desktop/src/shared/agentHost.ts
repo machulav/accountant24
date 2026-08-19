@@ -42,13 +42,26 @@ export type AgentHostNotice =
       requestId?: string;
     };
 
+/** One skill folder the host should load, with the `<plugin>:<skill>` name it
+ *  must be surfaced under. Main resolves these from the plugin store (which
+ *  needs the app settings, hence Electron) and passes the result down, so the
+ *  host never reads the store itself. */
+export interface AgentHostSkill {
+  /** Absolute path of the skill folder (the one holding SKILL.md). */
+  path: string;
+  /** Namespaced name the model and the UI both use. */
+  name: string;
+}
+
 /** Static host configuration, passed as JSON in argv[2] at fork time so it is
  *  available at module load, before the first message can arrive. */
 export interface AgentHostConfig {
   workspaceDir: string;
   sessionsDir: string;
-  skillsDir: string;
-  nativeSkillsDir: string;
+  /** Skills of the built-in plugins plus every enabled installed plugin.
+   *  Rebuilt on each host fork, so the agent_restart after a plugin change is
+   *  what makes it take effect. */
+  skills: AgentHostSkill[];
   extensionPath: string;
   systemPromptPath: string;
 }

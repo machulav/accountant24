@@ -11,7 +11,7 @@ import { Switch } from "@/components/shadcn/switch";
 import { defaultModelPatch } from "@/lib/defaultModelPick";
 import { authApi, settingsApi } from "@/rpc/api";
 import type { AppSettings, ModelInfo } from "@/rpc/types";
-import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
+import { ErrorBanner, Section, SettingsEmpty, SettingsRow, SettingsRows } from "./parts";
 
 const idOf = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
 
@@ -33,7 +33,7 @@ function DefaultModelSection({
   );
 
   if (models.length === 0) {
-    return <p className="text-muted-foreground text-sm">Connect a provider to choose a default model.</p>;
+    return <SettingsEmpty>Connect a provider to choose a default model.</SettingsEmpty>;
   }
 
   return (
@@ -122,7 +122,7 @@ function ModelToggleSections({
   if (models.length === 0) {
     return (
       <Section title="Enabled" description="Shown in the chat model selector.">
-        <p className="text-muted-foreground text-sm">Connect a provider to choose which models appear.</p>
+        <SettingsEmpty>Connect a provider to choose which models appear.</SettingsEmpty>
       </Section>
     );
   }

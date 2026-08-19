@@ -67,6 +67,11 @@ describe("DirectiveText", () => {
     expect(chipFor("Budgeting")).toHaveAttribute("data-directive-type", "skill");
   });
 
+  it("should render a namespaced <plugin>:<skill> directive as one skill chip", () => {
+    renderText(":skill[my-plugin:my-skill] summarize this");
+    expect(chipFor("my-plugin:my-skill")).toHaveAttribute("data-directive-type", "skill");
+  });
+
   it("should leave an unknown directive type as literal text", () => {
     renderText("See :foo[bar] here");
     expect(screen.getByText("See :foo[bar] here")).toBeInTheDocument();

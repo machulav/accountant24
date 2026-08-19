@@ -17,9 +17,9 @@ const {
   dlog,
   filesApi,
   ledgerApi,
+  pluginsApi,
   sessionsApi,
   settingsApi,
-  skillsApi,
   updateApi,
 } = await import("../api");
 
@@ -349,60 +349,87 @@ describe("ledgerApi", () => {
   });
 });
 
-describe("skillsApi", () => {
+describe("pluginsApi", () => {
   describe("list()", () => {
-    it("should invoke 'skills_list' and resolve the skills list", async () => {
-      const list = { native: [], custom: [] };
-      bridge.setHandler("skills_list", () => list);
+    it("should invoke 'plugins_list' and resolve the plugin list", async () => {
+      const list = { plugins: [{ name: "pdf-tools", description: "PDFs.", enabled: true, skills: [] }] };
+      bridge.setHandler("plugins_list", () => list);
 
-      const result = await skillsApi.list();
+      const result = await pluginsApi.list();
 
       expect(result).toEqual(list);
-      expect(bridge.callsFor("skills_list")).toEqual([undefined]);
+      expect(bridge.callsFor("plugins_list")).toEqual([undefined]);
+    });
+  });
+
+  describe("inspect()", () => {
+    it("should invoke 'plugins_inspect' with the request object", async () => {
+      const req = { source: "acme/pdf-tools", ref: "main" };
+      const preview = { name: "pdf-tools", description: "PDFs.", repo: "acme/pdf-tools", repoUrl: "", skills: [] };
+      bridge.setHandler("plugins_inspect", () => ({ type: "plugin", plugin: preview }));
+
+      const result = await pluginsApi.inspect(req);
+
+      expect(onlyPayload("plugins_inspect")).toEqual(req);
+      expect(result).toEqual({ type: "plugin", plugin: preview });
     });
   });
 
   describe("add()", () => {
-    it("should invoke 'skills_add' with the request object", async () => {
-      const req = { url: "https://github.com/acme/skill" };
-      bridge.setHandler("skills_add", () => ({ type: "added" }));
+    it("should invoke 'plugins_add' with no payload (main installs the staged inspect)", async () => {
+      bridge.setHandler("plugins_add", () => ({ type: "done", name: "pdf-tools" }));
 
-      const result = await skillsApi.add(req as never);
+      const result = await pluginsApi.add();
 
-      expect(onlyPayload("skills_add")).toEqual(req);
-      expect(result).toEqual({ type: "added" });
+      expect(onlyPayload("plugins_add")).toBeUndefined();
+      expect(result).toEqual({ type: "done", name: "pdf-tools" });
     });
   });
 
   describe("remove()", () => {
-    it("should invoke 'skills_remove' with the { name } payload", async () => {
-      bridge.setHandler("skills_remove", () => ({ type: "removed" }));
+    it("should invoke 'plugins_remove' with the { name } payload", async () => {
+      bridge.setHandler("plugins_remove", () => ({ type: "done" }));
 
-      await skillsApi.remove("my-skill");
+      await pluginsApi.remove("pdf-tools");
 
-      expect(onlyPayload("skills_remove")).toEqual({ name: "my-skill" });
-    });
-  });
-
-  describe("setEnabled()", () => {
-    it("should invoke 'skills_set_enabled' with { name, enabled }", async () => {
-      bridge.setHandler("skills_set_enabled", () => ({ type: "ok" }));
-
-      await skillsApi.setEnabled("my-skill", false);
-
-      expect(onlyPayload("skills_set_enabled")).toEqual({ name: "my-skill", enabled: false });
+      expect(onlyPayload("plugins_remove")).toEqual({ name: "pdf-tools" });
     });
   });
 
   describe("onEvent()", () => {
-    it("should pass the skills-event payload through to the callback", async () => {
+    it("should pass the plugins-event payload through to the callback", async () => {
       const cb = vi.fn();
-      await skillsApi.onEvent(cb);
-      const event = { type: "progress", line: "cloning..." };
+      await pluginsApi.onEvent(cb);
+      const event = { type: "progress", message: "Downloading acme/pdf-tools…" };
 
-      bridge.emit("skills-event", event);
+      bridge.emit("plugins-event", event);
 
       expect(cb).toHaveBeenCalledWith(event);
+    });
+  });
+
+  describe("marketplace()", () => {
+    it("should invoke 'plugins_marketplace' and resolve the published plugins", async () => {
+      const result = { type: "ok", plugins: [], fetchedAt: "2026-08-16T09:00:00.000Z" };
+      bridge.setHandler("plugins_marketplace", () => result);
+
+      expect(await pluginsApi.marketplace()).toEqual(result);
+    });
+
+    it("should ask for the cached index by default", async () => {
+      bridge.setHandler("plugins_marketplace", () => ({ type: "ok", plugins: [], fetchedAt: "" }));
+
+      await pluginsApi.marketplace();
+
+      expect(onlyPayload("plugins_marketplace")).toEqual({});
+    });
+
+    it("should ask for a fresh index when a refresh is forced", async () => {
+      bridge.setHandler("plugins_marketplace", () => ({ type: "ok", plugins: [], fetchedAt: "" }));
+
+      await pluginsApi.marketplace({ force: true });
+
+      expect(onlyPayload("plugins_marketplace")).toEqual({ force: true });
     });
   });
 });

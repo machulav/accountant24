@@ -124,31 +124,111 @@ export interface AppSettings {
    *  "user_first_message_sent"), so each is emitted at most once per install.
    *  Written and read by the main process only; the renderer never touches it. */
   onceEvents?: string[];
+  /** Where each installed plugin came from, keyed by plugin name. Lives here
+   *  rather than in the store so the store stays a folder of plain plugin
+   *  folders. */
+  plugins?: PluginRegistry;
+  /** The default plugins already installed for this workspace, as `owner/repo`
+   *  slugs. The app installs them the first time it can reach the network, and
+   *  a slug recorded here is never installed again, so an uninstalled one
+   *  stays gone. */
+  defaultPluginsInstalled?: string[];
 }
 
-// ---- Skills (Settings → Skills) --------------------------------------------
+/** Where one installed plugin came from. Presence in the store is what makes a
+ *  plugin active, so this record is provenance only. */
+export interface PluginRegistryEntry {
+  /** GitHub `owner/repo` it was installed from; absent = dropped in by hand. */
+  source?: string;
+  /** Commit SHA the installed tarball was cut from. */
+  commit?: string;
+  /** ISO timestamp of the (latest) install. */
+  addedAt?: string;
+}
 
-/** A skill the agent can use: native (embedded in the app bundle) or
- *  third-party (a folder in ~/Accountant24/skills). */
-export interface SkillInfo {
-  /** Skill identity: the store folder name for third-party skills, the
-   *  frontmatter name for native ones. */
+export type PluginRegistry = Record<string, PluginRegistryEntry>;
+
+// ---- Plugins (Settings → Plugins) ------------------------------------------
+
+/** One skill a plugin provides, as the UI shows it. */
+export interface PluginSkillInfo {
+  /** `<plugin>:<skill>` — what the picker inserts and the model sees. */
   name: string;
   description: string;
-  enabled: boolean;
-  /** Built into the app bundle: always enabled, cannot be removed/disabled. */
-  native?: boolean;
-  /** GitHub `owner/repo` it was added from; absent = dropped in manually. */
-  source?: string;
-  /** Present when the folder's SKILL.md fails validation. */
+  /** Present when the skill can't be loaded (e.g. another plugin already
+   *  claims its unnamespaced name). */
   error?: string;
 }
 
-export interface SkillAddRequest {
-  /** `owner/repo` or a github.com URL (optionally /tree/<ref>/<subpath>). */
-  source: string;
-  ref?: string;
-  subpath?: string;
-  /** Frontmatter names to add; absent = every skill found. */
-  skills?: string[];
+/** An installed or built-in plugin, as Settings → Plugins shows it. */
+export interface PluginInfo {
+  /** Manifest name, which is also the folder name. */
+  name: string;
+  description: string;
+  version?: string;
+  author?: string;
+  /** GitHub `owner/repo` it was installed from; absent = dropped in by hand. */
+  source?: string;
+  /** Where the manifest says the source lives. A claim, unlike `source`. */
+  repository?: string;
+  skills: PluginSkillInfo[];
+  /** Present when the folder isn't a usable plugin. */
+  error?: string;
 }
+
+export interface PluginAddRequest {
+  /** The repository to install, as `owner/repo`. */
+  source: string;
+}
+
+/** What installing would add, shown for confirmation before anything is copied
+ *  into the workspace. */
+export interface PluginPreview {
+  name: string;
+  description: string;
+  version?: string;
+  author?: string;
+  /** `owner/repo` the plugin would be installed from. */
+  repo: string;
+  /** Public GitHub URL of that repo, for the "view source" link. */
+  repoUrl: string;
+  skills: PluginSkillInfo[];
+}
+
+// ---- Marketplace (Settings → Plugins → Marketplace) -------------------------
+
+/** One plugin of the marketplace index (accountant24/marketplace), flattened by
+ *  main out of the index's `manifest` (what the author declares) and `repo`
+ *  (what GitHub reports). Whether it is already installed is resolved in the
+ *  renderer against the plugins list it already holds. */
+export interface MarketplaceEntry {
+  /** GitHub `owner/repo`: the index key, and the install source. */
+  repo: string;
+  /** The repository's page, for the "view source" link. */
+  repoUrl: string;
+  /** Manifest name, which is also the installed folder name. */
+  name: string;
+  /** The author's own description, falling back to the repository's. */
+  description: string;
+  version?: string;
+  author?: string;
+  homepage?: string;
+  keywords?: string[];
+  /** Published by Accountant24 itself. A signal, never a permission. */
+  official: boolean;
+  /** Oldest app version that can run it. */
+  minAppVersion?: string;
+  /** Set when `minAppVersion` is newer than the running app. */
+  appTooOld?: boolean;
+  /** `<plugin>:<skill>` names, as the composer's picker lists them. */
+  skills: PluginSkillInfo[];
+}
+
+export interface MarketplaceRequest {
+  /** Skip the cache and re-download the index. */
+  force?: boolean;
+}
+
+export type MarketplaceResult =
+  | { type: "ok"; plugins: MarketplaceEntry[]; fetchedAt: string }
+  | { type: "error"; message: string };

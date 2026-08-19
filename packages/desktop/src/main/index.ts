@@ -3,9 +3,11 @@
 
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
+import { registerMarketplaceIpc } from "./agent/marketplace";
+import { registerPluginsIpc } from "./agent/plugins";
+import { installDefaultPlugins } from "./agent/plugins-defaults";
 import { killAllAgents, registerAgentIpc } from "./agent/router";
 import { registerSessionsIpc } from "./agent/sessions";
-import { registerSkillsIpc } from "./agent/skills";
 import { initAnalytics, registerAnalyticsIpc, trackLaunch, trackQuit } from "./analytics";
 import { registerFilesIpc } from "./files";
 import { registerLedgerIpc } from "./ledger";
@@ -50,11 +52,17 @@ app.whenReady().then(() => {
   registerOauthIpc(getWin);
   registerOllamaIpc();
   registerSessionsIpc();
-  registerSkillsIpc(getWin);
+  registerPluginsIpc(getWin);
+  registerMarketplaceIpc();
   registerSettingsIpc();
   registerFilesIpc();
   registerLedgerIpc();
   registerAnalyticsIpc();
+
+  // The plugins a new workspace starts with are downloaded from their own
+  // repositories, like any other. Not awaited: startup never waits on the
+  // network, and a launch that can't reach it just tries again next time.
+  void installDefaultPlugins(getWin);
 
   // Count this launch (and a one-time install), respecting the opt-out.
   trackLaunch();

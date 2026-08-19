@@ -44,8 +44,14 @@ const h = vi.hoisted(() => ({
   clearQueueResult: { steering: [] as string[], followUp: [] as string[] },
   /** compactionState response — per-test override for the heal-on-subscribe. */
   compaction: undefined as { active: boolean; reason?: string; everCompacted: boolean } | undefined,
-  /** skills_list response — feeds the skill_used native/custom lookup. */
-  skills: [] as { name: string; description: string; enabled: boolean; native?: boolean }[],
+  /** plugins_list response — feeds the skill_used official/custom lookup. */
+  plugins: [] as {
+    name: string;
+    description: string;
+    enabled: boolean;
+    source?: string;
+    skills: { name: string; description: string }[];
+  }[],
   track: vi.fn(),
   trackOnce: vi.fn(),
 }));
@@ -95,7 +101,7 @@ vi.mock("../../rpc/api", () => ({
       return h.settings;
     },
   },
-  skillsApi: { list: async () => ({ skills: h.skills }) },
+  pluginsApi: { list: async () => ({ plugins: h.plugins }) },
   authApi: { models: async () => ({ type: "models", models: h.availableModels }) },
   agentApi: {
     onModelsChanged: () => () => {},
@@ -151,7 +157,16 @@ beforeEach(() => {
   h.compaction = undefined;
   resetPendingCompactionMarkers();
   h.state = { model: { provider: "anthropic", id: "claude-x" }, sessionFile: "/ws/sessions/s1.jsonl" };
-  h.skills = [{ name: "subscription-audit", description: "Audit.", enabled: true, native: true }];
+  // Every skill is provided by a plugin and named `<plugin>:<skill>`.
+  h.plugins = [
+    {
+      name: "accountant24",
+      description: "The skills built into the app.",
+      enabled: true,
+      source: "accountant24/skills",
+      skills: [{ name: "accountant24:subscription-audit", description: "Audit." }],
+    },
+  ];
   newChatModel.set(undefined);
 });
 
@@ -241,14 +256,14 @@ describe("createElectronPiClient() analytics", () => {
   });
 
   describe("skill usage", () => {
-    it("should track a manual native invocation by name", async () => {
+    it("should track a manual official invocation by name", async () => {
       const client = createElectronPiClient();
       await flushLookup();
       const snapshot = await client.createThread({});
-      await client.sendMessage(snapshot.metadata.id, message(":skill[subscription-audit] check my subs"));
+      await client.sendMessage(snapshot.metadata.id, message(":skill[accountant24:subscription-audit] check my subs"));
       expect(h.track).toHaveBeenCalledWith("skill_used", {
-        skill: "subscription-audit",
-        kind: "native",
+        skill: "accountant24:subscription-audit",
+        kind: "official",
         method: "manual",
       });
     });
@@ -257,7 +272,7 @@ describe("createElectronPiClient() analytics", () => {
       const client = createElectronPiClient();
       await flushLookup();
       const snapshot = await client.createThread({});
-      await client.sendMessage(snapshot.metadata.id, message(":skill[nutrition-coach] log lunch"));
+      await client.sendMessage(snapshot.metadata.id, message(":skill[health:nutrition-coach] log lunch"));
       expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "manual" });
     });
 
@@ -269,20 +284,72 @@ describe("createElectronPiClient() analytics", () => {
       expect(skillUsedCalls()).toHaveLength(0);
     });
 
-    it("should track the model reading a native SKILL.md as auto usage by name", async () => {
+    it("should track the model reading an official SKILL.md as auto usage by name", async () => {
       createElectronPiClient();
       await flushLookup();
+      // The folder is named after the skill alone; the plugin namespace is
+      // applied on top of it, so the built-in skill must still be recognized.
       emitL({
         type: "tool_execution_start",
         toolCallId: "t2",
         toolName: "read",
-        args: { path: "/app/resources/skills/subscription-audit/SKILL.md" },
+        args: { path: "/app/resources/plugins/accountant24/skills/subscription-audit/SKILL.md" },
       });
       expect(h.track).toHaveBeenCalledWith("skill_used", {
-        skill: "subscription-audit",
-        kind: "native",
+        skill: "accountant24:subscription-audit",
+        kind: "official",
         method: "auto",
       });
+    });
+
+    it("should not credit an official skill when a community plugin uses the same folder name", async () => {
+      // Both plugins ship a `subscription-audit` folder, so the bare name a
+      // SKILL.md read yields no longer says which of the two ran.
+      h.plugins = [
+        ...h.plugins,
+        {
+          name: "budget-pro",
+          description: "Community plugin.",
+          enabled: true,
+          source: "someone/budget-pro",
+          skills: [{ name: "budget-pro:subscription-audit", description: "Audit, differently." }],
+        },
+      ];
+      createElectronPiClient();
+      await flushLookup();
+
+      emitL({
+        type: "tool_execution_start",
+        toolCallId: "t2b",
+        toolName: "read",
+        args: { path: "/ws/plugins/budget-pro/skills/subscription-audit/SKILL.md" },
+      });
+
+      expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "auto" });
+    });
+
+    it("should still credit an official skill picked by its full name when the folder name is shared", async () => {
+      h.plugins = [
+        ...h.plugins,
+        {
+          name: "budget-pro",
+          description: "Community plugin.",
+          enabled: true,
+          source: "someone/budget-pro",
+          skills: [{ name: "budget-pro:subscription-audit", description: "Audit, differently." }],
+        },
+      ];
+      createElectronPiClient();
+      await flushLookup();
+
+      emitL({
+        type: "tool_execution_start",
+        toolCallId: "t2c",
+        toolName: "read",
+        args: { path: "/app/resources/plugins/accountant24/skills/subscription-audit/SKILL.md" },
+      });
+
+      expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "auto" });
     });
 
     it("should track the model reading a custom SKILL.md anonymously (file_path arg variant)", async () => {
@@ -292,7 +359,7 @@ describe("createElectronPiClient() analytics", () => {
         type: "tool_execution_start",
         toolCallId: "t3",
         toolName: "read",
-        args: { file_path: "/ws/skills/nutrition-coach/SKILL.md" },
+        args: { file_path: "/ws/plugins/health/skills/nutrition-coach/SKILL.md" },
       });
       expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "auto" });
     });

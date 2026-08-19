@@ -3,7 +3,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
-import { ErrorBanner, Section, SettingsRow, SettingsRows } from "../parts";
+import { ErrorBanner, Section, SettingsEmpty, SettingsRow, SettingsRows } from "../parts";
 
 beforeAll(() => {
   installJsdomPolyfills();
@@ -92,6 +92,23 @@ describe("SettingsRow", () => {
       </SettingsRow>,
     );
     expect(screen.getByText("row-content")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsEmpty", () => {
+  it("should say what will appear in the section", () => {
+    render(<SettingsEmpty>Connect a provider to choose a default model.</SettingsEmpty>);
+    expect(screen.getByText("Connect a provider to choose a default model.")).toBeInTheDocument();
+  });
+
+  it("should render an action when the section offers one", () => {
+    render(<SettingsEmpty action={<button type="button">Add plugin</button>}>Nothing yet.</SettingsEmpty>);
+    expect(screen.getByRole("button", { name: "Add plugin" })).toBeInTheDocument();
+  });
+
+  it("should render no action when the section offers none", () => {
+    render(<SettingsEmpty>Nothing yet.</SettingsEmpty>);
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });
 

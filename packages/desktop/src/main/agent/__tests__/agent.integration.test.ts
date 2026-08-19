@@ -30,6 +30,9 @@ vi.mock("electron", () => ({
 }));
 vi.mock("node:fs", () => ({ mkdirSync: h.mkdirSync, rmSync: h.rmSync }));
 vi.mock("../../analytics", () => ({ trackAgentFailed: h.trackAgentFailed }));
+// The plugin store is exercised in plugins.test.ts; here the host just
+// needs a skill list to fork with.
+vi.mock("../plugins", () => ({ agentSkills: () => [] }));
 vi.mock("../../env", () => ({
   workspaceDir: () => "/ws",
   sessionsDir: () => "/ws/sessions",
