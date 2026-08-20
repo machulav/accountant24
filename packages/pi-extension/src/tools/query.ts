@@ -64,7 +64,10 @@ export const queryTool: ToolDefinition<typeof Params, QueryLedgerResult> = {
   description:
     "Run an hledger report against the journal. Supports balance, register, income statement, balance sheet, and more with structured filters.",
   promptSnippet: "Run hledger reports (balance, register, income statement, etc.)",
-  promptGuidelines: [`Available query report types: ${REPORT_TYPES}.`],
+  promptGuidelines: [
+    `Available query report types: ${REPORT_TYPES}.`,
+    "Large results (over ~200 lines) are written to a scratch file instead of returned inline - the response tells you the path; read it with bash or a script rather than re-running the query.",
+  ],
   parameters: Params,
 
   async execute(_id, params, signal) {
