@@ -1,3 +1,4 @@
 # Vendored native tools (bundled into the .app at build time).
-# Place macOS builds of: hledger, pdftotext (poppler), tesseract here.
-# They are resolved by absolute path via injected PATH (see src/env.rs).
+# hledger, pdftotext (poppler), tesseract, and python/ (a python-build-standalone
+# interpreter) are written here by scripts/vendor-bin.ts. They are resolved by
+# absolute path via injected PATH (see electron/main/env.ts).

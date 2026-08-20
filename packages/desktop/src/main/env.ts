@@ -2,8 +2,8 @@
 //
 // The workspace (~/.accountant24 by default) holds the ledger + auth.json +
 // models.json; PATH exposes the vendored native tools (hledger/pdftotext/
-// tesseract) to the agent's bash/tool subprocesses; TESSDATA_PREFIX points at
-// the OCR data.
+// tesseract/python3) to the agent's bash/tool subprocesses; TESSDATA_PREFIX
+// points at the OCR data.
 //
 // ACCOUNTANT24_WORKSPACE is the single channel that names the workspace: set
 // by the `--workspace` launch flag (cli.ts) or by the caller's environment, read
@@ -69,6 +69,13 @@ export function binDir(): string {
   return path.join(resourceDir(), "bin");
 }
 
+/** bin/python/bin under binDir() - the vendored python-build-standalone
+ *  interpreter (see scripts/vendor-bin.ts), so skills invoking `python3` don't
+ *  depend on whatever (if anything) is on the user's own PATH. */
+export function pythonBinDir(): string {
+  return path.join(binDir(), "python", "bin");
+}
+
 /** The bundled extension passed to `pi -e`. Loaded as JS in both dev and
  *  packaged (Electron-as-Node can't parse the TS source); produced by
  *  scripts/bundle-extension.ts. */
@@ -125,6 +132,8 @@ export function agentEnv(): NodeJS.ProcessEnv {
   const res = resourceDir();
   const bin = binDir();
   if (existsSync(bin)) env.PATH = `${bin}${path.delimiter}${env.PATH ?? ""}`;
+  const pyBin = pythonBinDir();
+  if (existsSync(pyBin)) env.PATH = `${pyBin}${path.delimiter}${env.PATH ?? ""}`;
   const tessdata = path.join(res, "tessdata");
   if (existsSync(tessdata)) env.TESSDATA_PREFIX = tessdata;
   return env;
