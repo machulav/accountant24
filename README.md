@@ -49,7 +49,7 @@ Tell the agent once — it remembers and applies it when it matters.
 
 > Create a skill that compares my spending this month to the previous month and shows where I spent more.
 
-Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. Install them from the plugin marketplace or create your own.
+Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. Install them from the [plugin marketplace](https://accountant24.ai/docs/marketplace) or [create your own](https://accountant24.ai/docs/create-a-plugin).
 
 ### Track every change with git
 
@@ -135,9 +135,9 @@ Both are remarkable pieces of software.
 
 This is a personal project I use every day, and I'd love to hear from anyone else using it. Bug reports, ideas, feedback, pull requests — all welcome. If you're planning a bigger change, open an issue first so we can talk it through.
 
-## Third-party plugins
+## Marketplace
 
-Plugins are third-party software. Accountant24 does not write, review or approve community plugins, and the marketplace is an automatic index of public GitHub repositories rather than a curated store. A plugin is licensed and maintained by its own author, it can change after you install it, and once installed it runs with the same access as the app itself: your ledger, your files, your machine. Read the repository before you install one. Accountant24 is provided as is, without warranty of any kind, and takes no responsibility for what a plugin does with your data. See [docs](https://accountant24.ai/docs/plugins#who-is-responsible-for-what-a-plugin-does) for more information.
+Accountant24 has a [marketplace](https://accountant24.ai/docs/marketplace) for plugins: browse what the community has published and install a plugin right from **Settings → Plugins** in the app. Listing is automatic and nobody reviews the plugins, so [install only plugins you trust](https://accountant24.ai/docs/plugins#install-only-plugins-you-trust). To build and publish a plugin of your own, see [Create a plugin](https://accountant24.ai/docs/create-a-plugin).
 
 ## License
 
