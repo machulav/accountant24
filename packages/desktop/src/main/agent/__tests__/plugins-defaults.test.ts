@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
   sendToWindow: vi.fn(),
   killAllAgents: vi.fn(),
   warn: vi.fn(),
+  pluginInstalled: vi.fn(),
+  pluginInstallFailed: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -24,9 +26,9 @@ vi.mock("electron", () => ({
   ipcMain: { handle: () => undefined },
 }));
 vi.mock("../../analytics", () => ({
-  trackPluginAdded: vi.fn(),
-  trackPluginAddFailed: vi.fn(),
-  trackPluginRemoved: vi.fn(),
+  trackPluginInstalled: h.pluginInstalled,
+  trackPluginInstallFailed: h.pluginInstallFailed,
+  trackPluginUninstalled: vi.fn(),
 }));
 vi.mock("../../env", () => ({
   workspaceDir: () => h.ws,
@@ -126,6 +128,8 @@ beforeEach(async () => {
   h.sendToWindow.mockClear();
   h.killAllAgents.mockClear();
   h.warn.mockClear();
+  h.pluginInstalled.mockClear();
+  h.pluginInstallFailed.mockClear();
   vi.spyOn(console, "warn").mockImplementation(h.warn);
   vi.resetModules();
   mod = await import("../plugins-defaults");
@@ -393,6 +397,53 @@ describe("installDefaultPlugins(), when the download fails", () => {
     await run();
 
     expect(stored("accountant24-skills")).toBe(true);
+  });
+});
+
+describe("installDefaultPlugins(), what it counts", () => {
+  it("should count the seeded install as ours, so first launches can be told apart", async () => {
+    await serve();
+
+    await run();
+
+    expect(h.pluginInstalled).toHaveBeenCalledWith("default", true, 1);
+    expect(h.pluginInstallFailed).not.toHaveBeenCalled();
+  });
+
+  it("should count nothing on a launch with nothing left to install", async () => {
+    await serve();
+    await run();
+    h.pluginInstalled.mockClear();
+
+    await run();
+
+    expect(h.pluginInstalled).not.toHaveBeenCalled();
+  });
+
+  it("should count a launch that could not reach the repository", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+
+    await run();
+
+    // A first launch offline leaves the workspace with no skills at all, which
+    // shows nowhere in the app.
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("default", "fetch_failed");
+    expect(h.pluginInstalled).not.toHaveBeenCalled();
+  });
+
+  it("should count a seed that stood down for something the user already had", async () => {
+    addStorePlugin("accountant24-skills", ["monthly-review"]);
+    await serve();
+
+    await run();
+
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("default", "collision");
+    expect(h.pluginInstalled).not.toHaveBeenCalled();
   });
 });
 

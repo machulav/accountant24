@@ -11,8 +11,10 @@
 // state, not an error to report.
 
 import type { BrowserWindow } from "electron";
+import { trackPluginInstalled, trackPluginInstallFailed } from "../analytics";
 import { readDefaultPluginsInstalled, readPluginRegistry, writeDefaultPluginsInstalled } from "../settings";
 import { commitToStore, fetchPluginFromRepo, storedPlugins, withInstallLock } from "./plugins";
+import { isOfficialSource } from "./plugins-store";
 import { killAllAgents } from "./router";
 
 /** What a fresh workspace is given, as `owner/repo`. */
@@ -69,8 +71,11 @@ async function install(repo: string): Promise<Outcome> {
     if (!fetched.ok) {
       // Offline, rate-limited, or a repository that moved. Nothing is shown:
       // the plugin is listed in the marketplace meanwhile, and the next launch
-      // tries again.
+      // tries again. Counted, though — a first launch that never reaches the
+      // network leaves the workspace with no skills at all, and that is
+      // otherwise invisible.
       console.warn(`[plugins] ${repo}: ${fetched.message}`);
+      trackPluginInstallFailed("default", fetched.reason);
       return "retry";
     }
     try {
@@ -79,9 +84,12 @@ async function install(repo: string): Promise<Outcome> {
           fetched.plugin.name,
           fetched.plugin.skills.map((skill) => skill.rawName),
         )
-      )
+      ) {
+        trackPluginInstallFailed("default", "collision");
         return "done";
+      }
       commitToStore(fetched);
+      trackPluginInstalled("default", isOfficialSource(repo), fetched.plugin.skills.length);
       return "installed";
     } finally {
       fetched.cleanup();

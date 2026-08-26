@@ -190,6 +190,13 @@ const GH_NAME_RE = /^[A-Za-z0-9_.-]+$/;
  *  from it is ours, whatever it calls itself in its manifest. */
 export const OFFICIAL_OWNER = "accountant24";
 
+/** Whether a recorded install source is one of ours. Case-folded, like the
+ *  renderer's own isOfficial: GitHub owners are case-insensitive, and a source
+ *  is recorded with whatever casing the marketplace index reported. */
+export function isOfficialSource(source: string | undefined): boolean {
+  return source?.toLowerCase().startsWith(`${OFFICIAL_OWNER}/`) === true;
+}
+
 /** A GitHub owner or repository name. Dots are allowed inside one (`next.js`),
  *  but a name that is only dots is a path segment, not a name: GitHub never
  *  issues one, and `..` in the API path would silently address something else. */

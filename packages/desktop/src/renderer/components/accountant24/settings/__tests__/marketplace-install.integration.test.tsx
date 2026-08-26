@@ -97,7 +97,12 @@ beforeEach(() => {
     return { type: "done", name: "pdf-tools" };
   });
   bridge.setHandler("agent_restart", () => undefined);
+  bridge.setHandler("analytics_track", () => undefined);
 });
+
+/** The analytics events that crossed the bridge, in order. */
+const tracked = () =>
+  bridge.callsFor("analytics_track").map((payload) => payload as { event: string; props?: unknown });
 
 describe("installing a plugin from the marketplace", () => {
   it("should install the plugin the user picked, ready to use", async () => {
@@ -123,12 +128,15 @@ describe("installing a plugin from the marketplace", () => {
     await waitFor(() => expect(bridge.callsFor("agent_restart")).toHaveLength(1));
     expect(bridge.callsFor("plugins_inspect")).toEqual([{ source: "acme/pdf-tools" }]);
     expect(bridge.callsFor("plugins_add")).toEqual([undefined]);
-    expect(bridge.calls.map((c) => c.channel).filter((c) => c !== "plugins_marketplace")).toEqual([
-      "plugins_list",
-      "plugins_inspect",
-      "plugins_add",
-      "agent_restart",
-      "plugins_list",
+    expect(
+      bridge.calls.map((c) => c.channel).filter((c) => c !== "plugins_marketplace" && c !== "analytics_track"),
+    ).toEqual(["plugins_list", "plugins_inspect", "plugins_add", "agent_restart", "plugins_list"]);
+
+    // The funnel, end to end: the list was seen, one install was started, and
+    // the install itself is counted in main (plugins_add), not here.
+    expect(tracked()).toEqual([
+      { event: "marketplace_viewed", props: { plugin_count: 2 } },
+      { event: "plugin_install_started", props: { official: false } },
     ]);
 
     // The plugin now sits under Installed, ready to use, alongside the seeded
@@ -149,5 +157,8 @@ describe("installing a plugin from the marketplace", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(bridge.callsFor("plugins_add")).toEqual([]);
     expect(bridge.callsFor("agent_restart")).toEqual([]);
+    // The started install is still counted, with no install to match it: an
+    // abandoned confirmation is the number the warning is judged by.
+    expect(tracked().map((e) => e.event)).toEqual(["marketplace_viewed", "plugin_install_started"]);
   });
 });

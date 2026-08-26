@@ -27,14 +27,19 @@ import { app, type BrowserWindow, ipcMain } from "electron";
 import * as tar from "tar";
 import type { AgentHostSkill } from "../../shared/agentHost";
 import type { PluginAddRequest, PluginInfo, PluginPreview, PluginRegistry, PluginSkillInfo } from "../../shared/types";
-import { type PluginAddFailReason, trackPluginAdded, trackPluginAddFailed, trackPluginRemoved } from "../analytics";
+import {
+  type PluginInstallFailReason,
+  trackPluginInstalled,
+  trackPluginInstallFailed,
+  trackPluginUninstalled,
+} from "../analytics";
 import { pluginsDir } from "../env";
 import { readPluginRegistry, writePluginRegistry } from "../settings";
 import { checkMinAppVersion } from "./plugin-manifest";
 import {
   hostSkills,
+  isOfficialSource,
   MANIFEST_NAME,
-  OFFICIAL_OWNER,
   parseGitHubSource,
   readPluginDir,
   readPlugins,
@@ -59,12 +64,10 @@ function allPlugins(): StoredPlugin[] {
 /** Plugins installed from the Accountant24 account, then the rest. Stable, so
  *  each group keeps the store's own (alphabetical) order. Exported for tests. */
 export function officialFirst(plugins: StoredPlugin[], registry = readPluginRegistry()): StoredPlugin[] {
-  // Case-folded, like the renderer's own isOfficial: GitHub owners are
-  // case-insensitive, and the source is recorded with whatever casing the
-  // index reported. A miss here would let a community plugin take a skill name
-  // off one of ours, which is exactly what this ordering exists to prevent.
-  const official = (plugin: StoredPlugin) =>
-    registry[plugin.name]?.source?.toLowerCase().startsWith(`${OFFICIAL_OWNER}/`) === true;
+  // A miss here would let a community plugin take a skill name off one of
+  // ours, which is exactly what this ordering exists to prevent, so the
+  // case-folding rule lives in one place (isOfficialSource) for everyone.
+  const official = (plugin: StoredPlugin) => isOfficialSource(registry[plugin.name]?.source);
   return [...plugins].sort((a, b) => Number(official(b)) - Number(official(a)));
 }
 
@@ -154,10 +157,10 @@ function clearStaged(): void {
   staged = null;
 }
 
-const fail = (reason: PluginAddFailReason, message: string) => {
+const fail = (reason: PluginInstallFailReason, message: string) => {
   // Analytics carry the structural failure reason only, never the message
   // (it names repos and paths).
-  trackPluginAddFailed(reason);
+  trackPluginInstallFailed("marketplace", reason);
   return { type: "error" as const, message };
 };
 
@@ -178,7 +181,7 @@ export interface FetchedPlugin {
 
 export interface FetchFailure {
   ok: false;
-  reason: PluginAddFailReason;
+  reason: PluginInstallFailReason;
   message: string;
 }
 
@@ -190,7 +193,7 @@ export async function fetchPluginFromRepo(
   repo: string,
   progress: (message: string) => void = () => {},
 ): Promise<FetchedPlugin | FetchFailure> {
-  const bad = (reason: PluginAddFailReason, message: string): FetchFailure => ({ ok: false, reason, message });
+  const bad = (reason: PluginInstallFailReason, message: string): FetchFailure => ({ ok: false, reason, message });
   const tmp = mkdtempSync(resolve(tmpdir(), "a24-plugin-"));
   let keep = false;
   try {
@@ -337,7 +340,7 @@ function pluginsAdd() {
     }
 
     commitToStore(staged);
-    trackPluginAdded(plugin.skills.length);
+    trackPluginInstalled("marketplace", isOfficialSource(repo), plugin.skills.length);
     // Only a successful install consumes the staged copy; after a refusal the
     // dialog still shows the plugin, so keep it installable once the user has
     // dealt with whatever blocked it.
@@ -387,7 +390,7 @@ export function storedPlugins(): StoredPlugin[] {
   return allPlugins();
 }
 
-// ---- remove / toggle ---------------------------------------------------------
+// ---- uninstall ----------------------------------------------------------------
 
 function pluginsRemove(name: string) {
   // The delete lands on a folder directly inside the store, or nowhere: the
@@ -400,14 +403,16 @@ function pluginsRemove(name: string) {
   }
   rmSync(target, { recursive: true, force: true });
 
-  // The registry entry (provenance + approval) goes with the folder.
+  // The registry entry (provenance + approval) goes with the folder. Read
+  // whose plugin it was before dropping it: that is the only record of it.
   const registry = readPluginRegistry();
+  const official = isOfficialSource(registry[name]?.source);
   if (registry[name]) {
     const { [name]: _removed, ...rest } = registry;
     writePluginRegistry(rest);
   }
 
-  trackPluginRemoved();
+  trackPluginUninstalled(official);
   return { type: "done", name };
 }
 

@@ -203,37 +203,50 @@ describe("trackQuit()", () => {
 });
 
 describe("plugin events", () => {
-  it("should emit plugin_added with the installed skill count", async () => {
-    const { trackPluginAdded } = await setup();
-    trackPluginAdded(2);
-    expect(events()).toEqual([["plugin_added", { skill_count: 2 }]]);
+  it("should emit plugin_installed with the source, the publisher and the skill count", async () => {
+    const { trackPluginInstalled } = await setup();
+    trackPluginInstalled("marketplace", false, 2);
+    expect(events()).toEqual([["plugin_installed", { source: "marketplace", official: false, skill_count: 2 }]]);
   });
 
-  it("should emit marketplace_fetch_failed with the failure kind", async () => {
-    const { trackMarketplaceFetchFailed } = await setup();
-    trackMarketplaceFetchFailed("timeout");
-    expect(events()).toEqual([["marketplace_fetch_failed", { kind: "timeout" }]]);
+  it("should mark an install of one of ours as official", async () => {
+    const { trackPluginInstalled } = await setup();
+    trackPluginInstalled("default", true, 3);
+    expect(events()).toEqual([["plugin_installed", { source: "default", official: true, skill_count: 3 }]]);
   });
 
-  it("should emit plugin_add_failed with the structural reason", async () => {
-    const { trackPluginAddFailed } = await setup();
-    trackPluginAddFailed("not_found");
-    expect(events()).toEqual([["plugin_add_failed", { reason: "not_found" }]]);
+  it("should emit marketplace_load_failed with the failure kind", async () => {
+    const { trackMarketplaceLoadFailed } = await setup();
+    trackMarketplaceLoadFailed("timeout");
+    expect(events()).toEqual([["marketplace_load_failed", { kind: "timeout" }]]);
   });
 
-  it("should emit plugin_removed without props", async () => {
-    const { trackPluginRemoved } = await setup();
-    trackPluginRemoved();
-    expect(events()).toEqual([["plugin_removed"]]);
+  it("should emit plugin_install_failed with the source and the structural reason", async () => {
+    const { trackPluginInstallFailed } = await setup();
+    trackPluginInstallFailed("marketplace", "not_found");
+    expect(events()).toEqual([["plugin_install_failed", { source: "marketplace", reason: "not_found" }]]);
+  });
+
+  it("should tell a failed default install apart from one the user started", async () => {
+    const { trackPluginInstallFailed } = await setup();
+    trackPluginInstallFailed("default", "fetch_failed");
+    expect(events()).toEqual([["plugin_install_failed", { source: "default", reason: "fetch_failed" }]]);
+  });
+
+  it("should emit plugin_uninstalled with the publisher", async () => {
+    const { trackPluginUninstalled } = await setup();
+    trackPluginUninstalled(true);
+    expect(events()).toEqual([["plugin_uninstalled", { official: true }]]);
   });
 
   it("should emit nothing when analytics are opted out", async () => {
     patchSettings({ analyticsEnabled: false });
-    const { trackPluginAdded, trackPluginAddFailed, trackPluginRemoved, trackMarketplaceFetchFailed } = await setup();
-    trackPluginAdded(1);
-    trackPluginAddFailed("other");
-    trackPluginRemoved();
-    trackMarketplaceFetchFailed("fetch_failed");
+    const { trackPluginInstalled, trackPluginInstallFailed, trackPluginUninstalled, trackMarketplaceLoadFailed } =
+      await setup();
+    trackPluginInstalled("marketplace", false, 1);
+    trackPluginInstallFailed("marketplace", "other");
+    trackPluginUninstalled(false);
+    trackMarketplaceLoadFailed("fetch_failed");
     expect(events()).toEqual([]);
   });
 });

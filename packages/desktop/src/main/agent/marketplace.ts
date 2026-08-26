@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, ipcMain } from "electron";
 import type { MarketplaceEntry, MarketplaceRequest, MarketplaceResult, PluginSkillInfo } from "../../shared/types";
-import { type MarketplaceFetchFailKind, trackMarketplaceFetchFailed } from "../analytics";
+import { type MarketplaceLoadFailKind, trackMarketplaceLoadFailed } from "../analytics";
 import { checkMinAppVersion, pluginNameError } from "./plugin-manifest";
 import { effectiveSkillName, parseGitHubSource } from "./plugins-store";
 
@@ -158,9 +158,9 @@ let cache: { plugins: MarketplaceEntry[]; fetchedAt: number } | null = null;
  *  download. */
 let inflight: Promise<MarketplaceResult> | null = null;
 
-function fail(kind: MarketplaceFetchFailKind, message: string): MarketplaceResult {
+function fail(kind: MarketplaceLoadFailKind, message: string): MarketplaceResult {
   // Analytics carry the kind only: the messages name URLs.
-  trackMarketplaceFetchFailed(kind);
+  trackMarketplaceLoadFailed(kind);
   return { type: "error", message };
 }
 

@@ -52,3 +52,19 @@ export function trackAttachmentAdded(kind: "image" | "pdf" | "csv" | "other"): v
 export function trackSkillUsed(skill: string, kind: "official" | "custom", method: "manual" | "auto"): void {
   analyticsApi.track("skill_used", { skill, kind, method });
 }
+
+/** Record the marketplace list reaching Settings → Plugins, once per visit.
+ *  `plugin_count` is everything published, before the installed ones are
+ *  filtered out, so it also says whether the index arrived populated. This is
+ *  the denominator the install events are read against. */
+export function trackMarketplaceViewed(pluginCount: number): void {
+  analyticsApi.track("marketplace_viewed", { plugin_count: pluginCount });
+}
+
+/** Record the install confirmation opening, before anything is downloaded.
+ *  Against `plugin_installed` this is how often the dialog is approved rather
+ *  than abandoned — for a community plugin, the answer to whether people go
+ *  ahead past the "not reviewed" warning. */
+export function trackPluginInstallStarted(official: boolean): void {
+  analyticsApi.track("plugin_install_started", { official });
+}

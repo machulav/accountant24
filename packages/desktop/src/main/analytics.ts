@@ -8,7 +8,9 @@ import { initialize, trackEvent } from "@aptabase/electron/main";
 import { ipcMain } from "electron";
 import { consumeOnce, isAnalyticsEnabled } from "./settings";
 
-type EventProps = Record<string, string | number>;
+/** Aptabase's own prop types. Booleans carry the flags a plugin event is read
+ *  along (official or not) without spending a string on "true"/"false". */
+type EventProps = Record<string, string | number | boolean>;
 
 // Not a secret — Aptabase app keys are embedded in the client, like a website
 // analytics id. EU region instance.
@@ -84,13 +86,21 @@ export function trackUpdateFailed(kind: "check" | "download"): void {
   track("update_failed", { kind });
 }
 
-/** Record a plugin install landing in the store. Counts only — plugin names
- *  and repos never leave the machine. */
-export function trackPluginAdded(skillCount: number): void {
-  track("plugin_added", { skill_count: skillCount });
+/** Who asked for an install: the user picking a plugin out of the marketplace,
+ *  or the app installing one of the plugins a new workspace starts with. The
+ *  two fail for different reasons and only one of them is ever retried, so
+ *  every install event carries which it was. */
+export type PluginInstallSource = "marketplace" | "default";
+
+/** Record a plugin install landing in the store. Counts and flags only —
+ *  plugin names and repos never leave the machine. `official` says it came
+ *  from the Accountant24 account, which is the split every plugin number is
+ *  read along. */
+export function trackPluginInstalled(source: PluginInstallSource, official: boolean, skillCount: number): void {
+  track("plugin_installed", { source, official, skill_count: skillCount });
 }
 
-export type PluginAddFailReason =
+export type PluginInstallFailReason =
   | "invalid_source"
   | "not_found"
   | "no_plugin"
@@ -101,22 +111,25 @@ export type PluginAddFailReason =
   | "other";
 
 /** Record a failed plugin install. Structural reason only — error text can
- *  carry repo names and paths, so it never leaves the machine. */
-export function trackPluginAddFailed(reason: PluginAddFailReason): void {
-  track("plugin_add_failed", { reason });
+ *  carry repo names and paths, so it never leaves the machine. A `default`
+ *  failure is retried on the next launch, so it counts attempts rather than
+ *  users. */
+export function trackPluginInstallFailed(source: PluginInstallSource, reason: PluginInstallFailReason): void {
+  track("plugin_install_failed", { source, reason });
 }
 
-/** Record an installed plugin being removed (built-ins can't be). */
-export function trackPluginRemoved(): void {
-  track("plugin_removed");
+/** Record an installed plugin being uninstalled. Uninstalling is the only way
+ *  to turn a plugin off, so this carries the signal a disable switch would. */
+export function trackPluginUninstalled(official: boolean): void {
+  track("plugin_uninstalled", { official });
 }
 
-export type MarketplaceFetchFailKind = "fetch_failed" | "invalid_index" | "timeout";
+export type MarketplaceLoadFailKind = "fetch_failed" | "invalid_index" | "timeout";
 
 /** Record the marketplace index failing to load. Coarse kind only, like the
  *  updater: mostly offline noise, and the messages can carry URLs. */
-export function trackMarketplaceFetchFailed(kind: MarketplaceFetchFailKind): void {
-  track("marketplace_fetch_failed", { kind });
+export function trackMarketplaceLoadFailed(kind: MarketplaceLoadFailKind): void {
+  track("marketplace_load_failed", { kind });
 }
 
 /** Register the renderer→main analytics channel. The renderer fires

@@ -5,11 +5,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { MarketplaceEntry, MarketplaceResult, PluginInfo } from "@/rpc/types";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
-// IPC boundary: the section reads the index through pluginsApi only.
-const h = vi.hoisted(() => ({ marketplace: vi.fn<() => Promise<MarketplaceResult>>() }));
+// IPC boundary: the section reads the index through pluginsApi, and reports
+// what it showed through analyticsApi.
+const h = vi.hoisted(() => ({
+  marketplace: vi.fn<() => Promise<MarketplaceResult>>(),
+  track: vi.fn(),
+}));
 
 vi.mock("@/rpc/api", () => ({
   pluginsApi: { marketplace: h.marketplace, inspect: vi.fn(), add: vi.fn(), onEvent: vi.fn(async () => () => {}) },
+  analyticsApi: { track: h.track, trackOnce: vi.fn() },
 }));
 
 import { MarketplaceSection } from "../marketplace-section";
@@ -54,6 +59,7 @@ const show = (plugins: PluginInfo[] = []) => render(<MarketplaceSection plugins=
 
 beforeEach(() => {
   onInstalled.mockClear();
+  h.track.mockClear();
   h.marketplace.mockResolvedValue(served([entry()]));
 });
 
@@ -249,6 +255,47 @@ describe("MarketplaceSection", () => {
     await screen.findByText("budget");
     fireEvent.change(screen.getByLabelText("Search plugins"), { target: { value: "crypto" } });
     expect(screen.getByText('No plugins match "crypto".')).toBeTruthy();
+  });
+
+  it("should count the visit with everything the index published", async () => {
+    // Published, not on offer: the count says whether the index arrived
+    // populated, which filtering the installed ones out would hide.
+    h.marketplace.mockResolvedValue(served([entry(), entry({ repo: "acme/taxes", name: "taxes" })]));
+    show([plugin({ name: "budget" })]);
+
+    await waitFor(() => expect(h.track).toHaveBeenCalledWith("marketplace_viewed", { plugin_count: 2 }));
+  });
+
+  it("should count one visit however often the list is refreshed", async () => {
+    show();
+    await screen.findByText("budget");
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    await waitFor(() => expect(h.marketplace).toHaveBeenCalledTimes(2));
+    expect(h.track.mock.calls.filter(([event]) => event === "marketplace_viewed")).toHaveLength(1);
+  });
+
+  it("should count no visit when the index never arrives", async () => {
+    h.marketplace.mockResolvedValue({ type: "error", message: "Couldn't reach the plugin marketplace." });
+    show();
+
+    await screen.findByText("Couldn't reach the plugin marketplace.");
+    expect(h.track).not.toHaveBeenCalledWith("marketplace_viewed", expect.anything());
+  });
+
+  it("should count an install as started when the confirmation opens, not when it lands", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+
+    expect(h.track).toHaveBeenCalledWith("plugin_install_started", { official: false });
+  });
+
+  it("should mark an install started on one of our own plugins as official", async () => {
+    h.marketplace.mockResolvedValue(served([entry({ repo: "accountant24/skills", official: true })]));
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+
+    expect(h.track).toHaveBeenCalledWith("plugin_install_started", { official: true });
   });
 
   it("should drop an index that arrives after the section is gone", async () => {

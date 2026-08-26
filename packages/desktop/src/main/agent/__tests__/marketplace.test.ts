@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, Handler>(),
   appVersion: "1.0.0",
   packaged: false,
-  fetchFailed: vi.fn(),
+  loadFailed: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -30,7 +30,7 @@ vi.mock("electron", () => ({
     },
   },
 }));
-vi.mock("../../analytics", () => ({ trackMarketplaceFetchFailed: h.fetchFailed }));
+vi.mock("../../analytics", () => ({ trackMarketplaceLoadFailed: h.loadFailed }));
 
 // The index keeps what an author declares (`manifest`) apart from what GitHub
 // reports (`repo`); the app flattens the two into one row.
@@ -111,7 +111,7 @@ let mod: typeof import("../marketplace");
 
 beforeEach(async () => {
   h.handlers.clear();
-  h.fetchFailed.mockClear();
+  h.loadFailed.mockClear();
   h.appVersion = "1.0.0";
   h.packaged = false;
   delete process.env.A24_MARKETPLACE_URL;
@@ -370,7 +370,7 @@ describe("plugins_marketplace", () => {
   it("should report a refused download and count it", async () => {
     serve(index([BUDGET]), 404);
     expect(await fetchIndex()).toEqual({ type: "error", message: "The plugin marketplace returned 404." });
-    expect(h.fetchFailed).toHaveBeenCalledWith("fetch_failed");
+    expect(h.loadFailed).toHaveBeenCalledWith("fetch_failed");
   });
 
   it("should report an unreachable marketplace and count it", async () => {
@@ -379,7 +379,7 @@ describe("plugins_marketplace", () => {
       type: "error",
       message: "Couldn't reach the plugin marketplace. Check your connection and try again.",
     });
-    expect(h.fetchFailed).toHaveBeenCalledWith("fetch_failed");
+    expect(h.loadFailed).toHaveBeenCalledWith("fetch_failed");
   });
 
   it("should report a marketplace that answers too slowly and count it", async () => {
@@ -388,7 +388,7 @@ describe("plugins_marketplace", () => {
       type: "error",
       message: "The plugin marketplace took too long to respond. Check your connection and try again.",
     });
-    expect(h.fetchFailed).toHaveBeenCalledWith("timeout");
+    expect(h.loadFailed).toHaveBeenCalledWith("timeout");
   });
 
   it("should report a body that is not JSON and count it as unreadable", async () => {
@@ -399,7 +399,7 @@ describe("plugins_marketplace", () => {
       type: "error",
       message: "The plugin marketplace sent something this version can't read.",
     });
-    expect(h.fetchFailed).toHaveBeenCalledWith("invalid_index");
+    expect(h.loadFailed).toHaveBeenCalledWith("invalid_index");
   });
 
   it("should report an index this version cannot read and count it", async () => {
@@ -408,7 +408,7 @@ describe("plugins_marketplace", () => {
       type: "error",
       message: "The plugin marketplace sent something this version can't read.",
     });
-    expect(h.fetchFailed).toHaveBeenCalledWith("invalid_index");
+    expect(h.loadFailed).toHaveBeenCalledWith("invalid_index");
   });
 
   it("should keep serving the last downloaded index after a failed refresh", async () => {

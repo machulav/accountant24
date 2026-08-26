@@ -25,6 +25,8 @@ vi.mock("@/rpc/api", () => ({
     marketplace: h.marketplace,
   },
   agentApi: { restart: h.restart },
+  // The marketplace section inside the page reports what it listed.
+  analyticsApi: { track: vi.fn(), trackOnce: vi.fn() },
 }));
 
 import { PluginsSettings } from "../plugins-settings";

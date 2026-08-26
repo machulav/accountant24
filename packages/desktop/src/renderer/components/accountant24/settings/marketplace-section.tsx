@@ -15,6 +15,7 @@ import { Button } from "@/components/shadcn/button";
 import { ItemActions } from "@/components/shadcn/item";
 import { Spinner } from "@/components/shadcn/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
+import { trackMarketplaceViewed, trackPluginInstallStarted } from "@/lib/analyticsEvents";
 import { filterMarketplace, isInstalled, sortMarketplace } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { pluginsApi } from "@/rpc/api";
@@ -107,12 +108,21 @@ export function MarketplaceSection({
   // The plugin the install dialog is confirming, straight from the row: the
   // dialog shows what the marketplace published rather than fetching it again.
   const [installing, setInstalling] = useState<MarketplaceEntry | null>(null);
+  // Counted where the dialog opens, not where it succeeds, so an install the
+  // user thinks better of after reading the warning is counted too.
+  const startInstall = useCallback((entry: MarketplaceEntry) => {
+    trackPluginInstallStarted(entry.official);
+    setInstalling(entry);
+  }, []);
   const [entries, setEntries] = useState<MarketplaceEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   // A fetch that lands after the dialog closed must not set state.
   const alive = useRef(true);
+  // One "viewed" per visit, not per Refresh: the event counts people reaching
+  // the marketplace, and a refresh is the same visit.
+  const reported = useRef(false);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -129,8 +139,13 @@ export function MarketplaceSection({
       if (!alive.current) return;
       // A failed refresh keeps whatever was listed before: an offline laptop
       // still shows the last list, with the error above it.
-      if (result.type === "ok") setEntries(sortMarketplace(result.plugins));
-      else setError(result.message);
+      if (result.type === "ok") {
+        setEntries(sortMarketplace(result.plugins));
+        if (!reported.current) {
+          reported.current = true;
+          trackMarketplaceViewed(result.plugins.length);
+        }
+      } else setError(result.message);
     } catch {
       if (alive.current) setError("Couldn't load the plugin marketplace.");
     } finally {
@@ -198,7 +213,7 @@ export function MarketplaceSection({
       ) : (
         <SettingsRows>
           {filtered.map((entry) => (
-            <MarketplaceRow key={entry.repo} entry={entry} onInstall={setInstalling} />
+            <MarketplaceRow key={entry.repo} entry={entry} onInstall={startInstall} />
           ))}
         </SettingsRows>
       )}

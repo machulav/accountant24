@@ -27,11 +27,9 @@ const h = vi.hoisted(() => ({
   sendToWindow: vi.fn(),
   ws: "",
   appVersion: "1.0.0",
-  pluginAdded: vi.fn(),
-  pluginAddFailed: vi.fn(),
-  pluginRemoved: vi.fn(),
-  pluginEnabled: vi.fn(),
-  pluginDisabled: vi.fn(),
+  pluginInstalled: vi.fn(),
+  pluginInstallFailed: vi.fn(),
+  pluginUninstalled: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -44,11 +42,9 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../../analytics", () => ({
-  trackPluginAdded: h.pluginAdded,
-  trackPluginAddFailed: h.pluginAddFailed,
-  trackPluginRemoved: h.pluginRemoved,
-  trackPluginEnabled: h.pluginEnabled,
-  trackPluginDisabled: h.pluginDisabled,
+  trackPluginInstalled: h.pluginInstalled,
+  trackPluginInstallFailed: h.pluginInstallFailed,
+  trackPluginUninstalled: h.pluginUninstalled,
 }));
 vi.mock("../../env", () => ({
   workspaceDir: () => h.ws,
@@ -210,7 +206,7 @@ let mod: typeof import("../plugins");
 
 beforeEach(async () => {
   h.handlers.clear();
-  for (const fn of [h.pluginAdded, h.pluginAddFailed, h.pluginRemoved, h.pluginEnabled, h.pluginDisabled]) {
+  for (const fn of [h.pluginInstalled, h.pluginInstallFailed, h.pluginUninstalled]) {
     fn.mockClear();
   }
   h.sendToWindow.mockClear();
@@ -425,7 +421,7 @@ describe("plugins_inspect", () => {
   it("should reject a source that is not a plain owner/repo", async () => {
     const result = (await invoke("plugins_inspect", { source: "https://example.com/x" })) as Result;
     expect(result).toEqual({ type: "error", message: "Not a GitHub repository: https://example.com/x" });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("invalid_source");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "invalid_source");
   });
 
   it("should reject a repository URL carrying a ref or a subdirectory", async () => {
@@ -433,7 +429,7 @@ describe("plugins_inspect", () => {
       source: "https://github.com/owner/repo/tree/v2/plugins/budget",
     })) as Result;
     expect(result).toMatchObject({ type: "error" });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("invalid_source");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "invalid_source");
   });
 
   it("should reject a repository without a manifest", async () => {
@@ -443,7 +439,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "No plugin found in owner/repo: a plugin needs a plugin.json file.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("no_plugin");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "no_plugin");
   });
 
   it("should reject a manifest the format does not allow", async () => {
@@ -456,7 +452,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "plugin.json: name may only contain lowercase letters, numbers, and hyphens.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("invalid_plugin");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "invalid_plugin");
   });
 
   it("should reject a plugin with no skills", async () => {
@@ -482,7 +478,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "budget needs Accountant24 v2.0.0 or newer. Update the app and try again.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("app_too_old");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "app_too_old");
   });
 
   it("should accept a plugin whose minimum app version this build meets", async () => {
@@ -502,7 +498,7 @@ describe("plugins_inspect", () => {
     serveStatus(404);
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
     expect(result).toEqual({ type: "error", message: "Repository not found: owner/repo" });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("not_found");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "not_found");
   });
 
   it("should report a rate limit in terms the user can act on", async () => {
@@ -512,7 +508,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "GitHub rate limit reached — try again in a few minutes.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("fetch_failed");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "fetch_failed");
   });
 
   it("should report any other GitHub failure with its status", async () => {
@@ -530,7 +526,7 @@ describe("plugins_inspect", () => {
     );
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
     expect(result).toEqual({ type: "error", message: "offline" });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("fetch_failed");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "fetch_failed");
   });
 
   it("should record where the plugin came from in the settings registry", async () => {
@@ -548,7 +544,13 @@ describe("plugins_inspect", () => {
   it("should count the install once it lands", async () => {
     await serve(BUDGET);
     await install();
-    expect(h.pluginAdded).toHaveBeenCalledWith(2);
+    expect(h.pluginInstalled).toHaveBeenCalledWith("marketplace", false, 2);
+  });
+
+  it("should count an install from our own account as official", async () => {
+    await serve(BUDGET);
+    await install("Accountant24/Budget");
+    expect(h.pluginInstalled).toHaveBeenCalledWith("marketplace", true, 2);
   });
 
   it("should refuse a second read while one is already running", async () => {
@@ -595,7 +597,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "A plugin folder named budget is already in your workspace.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("collision");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "collision");
   });
 
   it("should refuse to clobber a plugin installed from another repository", async () => {
@@ -635,7 +637,7 @@ describe("plugins_inspect", () => {
       type: "error",
       message: "The skill monthly-review is already provided by the accountant24 plugin.",
     });
-    expect(h.pluginAddFailed).toHaveBeenCalledWith("collision");
+    expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "collision");
   });
 
   it("should leave the store untouched when an install is refused", async () => {
@@ -662,7 +664,7 @@ describe("plugins_inspect", () => {
       await serve(BUDGET);
       const result = await install();
       expect(result.type).toBe("error");
-      expect(h.pluginAddFailed).toHaveBeenCalledWith("other");
+      expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "other");
     } finally {
       chmodSync(root, 0o700);
     }
@@ -689,7 +691,14 @@ describe("plugins_remove", () => {
     expect(invoke("plugins_remove", { name: "budget" })).toEqual({ type: "done", name: "budget" });
     expect(existsSync(join(h.ws, "plugins", "budget"))).toBe(false);
     expect(registry()).toEqual({});
-    expect(h.pluginRemoved).toHaveBeenCalledOnce();
+    expect(h.pluginUninstalled).toHaveBeenCalledWith(false);
+  });
+
+  it("should record whose plugin was uninstalled before the provenance goes", async () => {
+    await serve(BUDGET);
+    await install("accountant24/budget");
+    invoke("plugins_remove", { name: "budget" });
+    expect(h.pluginUninstalled).toHaveBeenCalledWith(true);
   });
 
   it("should uninstall a plugin the app seeded, like any other", () => {
