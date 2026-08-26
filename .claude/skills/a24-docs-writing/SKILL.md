@@ -1,5 +1,5 @@
 ---
-name: docs-writing
+name: a24-docs-writing
 description: House rules for writing and editing the docs site (docs/**/*.mdx), distilled from review feedback. Use when adding or reworking docs pages, before asking for a review.
 ---
 
@@ -26,6 +26,6 @@ Style mechanics (voice, sentence length, banned words, heading case) are the `/w
 
 ## Process
 
-- Preview with the `docs-preview` skill while editing; changes hot-reload.
+- Preview with the `a24-docs-preview` skill while editing; changes hot-reload.
 - After renaming any heading, re-check internal links and anchors across the repo (and the app, which links into the docs).
 - Finish with a `/writing-guidelines` review pass.

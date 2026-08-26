@@ -1,5 +1,5 @@
 ---
-name: docs-preview
+name: a24-docs-preview
 description: Run the docs website locally for review. Use when docs pages (docs/**/*.mdx) changed and the user wants to see or verify them in a browser, or asks to start/stop the docs preview.
 ---
 
