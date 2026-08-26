@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  type LatestPrice,
+  mergePrices,
   mergeValuedBalanceSheet,
   parseAssertions,
   parseBalanceSheetJson,
+  parseInvestments,
   parseLatestPriceTarget,
+  parseNetLots,
+  parsePrices,
   parseTransactionsJson,
   type RawBalanceSheet,
+  type RawLot,
 } from "../ledger-json";
 
 // parseBalanceSheetJson turns `hledger bs -O json` output into sections and
@@ -576,5 +582,246 @@ describe("parseLatestPriceTarget()", () => {
     expect(parseLatestPriceTarget("P 2026-07-22 UAH")).toBeNull();
     expect(parseLatestPriceTarget("P 2026-07-22 UAH 0.01958")).toBeNull();
     expect(parseLatestPriceTarget("P not-a-date UAH 1 EUR")).toBeNull();
+  });
+});
+
+describe("parsePrices()", () => {
+  it("should return an empty map for empty or malformed text", () => {
+    expect(parsePrices("")).toEqual(new Map());
+    expect(parsePrices("hledger: no journal")).toEqual(new Map());
+  });
+
+  it("should keep each commodity's LATEST price (the last line wins)", () => {
+    const prices = parsePrices(["P 2026-07-10 SXR8 200.00 EUR", "P 2026-07-22 SXR8 250.00 EUR"].join("\n"));
+    expect(prices.get("SXR8")).toEqual({ price: 250, base: "EUR", precision: 2 });
+  });
+
+  it("should parse quoted and bare symbols alike", () => {
+    const prices = parsePrices('P 2026-07-22 "SXR8" 250.00 EUR\nP 2026-07-22 AAPL 190.00 EUR');
+    expect(prices.get("SXR8")).toEqual({ price: 250, base: "EUR", precision: 2 });
+    expect(prices.get("AAPL")).toEqual({ price: 190, base: "EUR", precision: 2 });
+  });
+
+  it("should tolerate digit-group commas and keep the decimal precision", () => {
+    const prices = parsePrices("P 2026-07-22 SXR8 1,250.5 EUR");
+    expect(prices.get("SXR8")).toEqual({ price: 1250.5, base: "EUR", precision: 1 });
+  });
+
+  it("should skip lines that do not parse as prices", () => {
+    const prices = parsePrices("P 2026-07-22 SXR8\nP 2026-07-22 SXR8 abc EUR");
+    expect(prices.size).toBe(0);
+  });
+});
+
+describe("mergePrices()", () => {
+  it("should let a declared price win over a cost-inferred one for the same commodity", () => {
+    const declared = new Map([["SXR8", { price: 250, base: "EUR", precision: 2 }]]);
+    const inferred = new Map([["SXR8", { price: 210, base: "EUR", precision: 2 }]]);
+    expect(mergePrices(declared, inferred).get("SXR8")).toEqual({ price: 250, base: "EUR", precision: 2 });
+  });
+
+  it("should fill in commodities only the inferred set prices", () => {
+    const declared = new Map([["SXR8", { price: 250, base: "EUR", precision: 2 }]]);
+    const inferred = new Map([["WRLD", { price: 210, base: "EUR", precision: 2 }]]);
+    const merged = mergePrices(declared, inferred);
+    expect(merged.get("SXR8")).toEqual({ price: 250, base: "EUR", precision: 2 });
+    expect(merged.get("WRLD")).toEqual({ price: 210, base: "EUR", precision: 2 });
+  });
+});
+
+describe("parseNetLots()", () => {
+  const netAmount = (commodity: string, floatingPoint: number, cost?: { commodity: string; unit: number }) => ({
+    acommodity: commodity,
+    aquantity: { decimalMantissa: 0, decimalPlaces: 2, floatingPoint },
+    astyle: { asprecision: 2 },
+    acost: cost
+      ? {
+          contents: {
+            acommodity: cost.commodity,
+            aquantity: { decimalMantissa: 0, decimalPlaces: 2, floatingPoint: cost.unit },
+            astyle: { asprecision: 2 },
+          },
+        }
+      : undefined,
+  });
+  const net = (amounts: unknown[]) => JSON.stringify({ cbrTotals: { prrAmounts: [amounts] } });
+
+  it("should return [] for empty or invalid JSON", () => {
+    expect(parseNetLots("")).toEqual([]);
+    expect(parseNetLots("not json")).toEqual([]);
+  });
+
+  it("should keep each lot's per-unit cost and cost commodity", () => {
+    expect(parseNetLots(net([netAmount("SXR8", 10, { commodity: "EUR", unit: 210 })]))).toEqual([
+      {
+        commodity: "SXR8",
+        quantity: 10,
+        precision: 2,
+        unitCost: 210,
+        costCommodity: "EUR",
+        costPrecision: 2,
+      },
+    ]);
+  });
+
+  it("should carry a null cost for a lot acquired without a price", () => {
+    expect(parseNetLots(net([netAmount("BTC", 0.16)]))).toEqual([
+      { commodity: "BTC", quantity: 0.16, precision: 2, unitCost: null, costCommodity: null, costPrecision: 2 },
+    ]);
+  });
+
+  it("should skip amounts whose quantity is not a finite number", () => {
+    expect(parseNetLots(net([{ acommodity: "SXR8", aquantity: { floatingPoint: "oops" } }]))).toEqual([]);
+  });
+});
+
+describe("parseInvestments()", () => {
+  const lot = (
+    commodity: string,
+    quantity: number,
+    opts: { unitCost?: number; costCommodity?: string; precision?: number } = {},
+  ): RawLot => ({
+    commodity,
+    quantity,
+    precision: opts.precision ?? 2,
+    unitCost: opts.unitCost ?? null,
+    costCommodity: opts.costCommodity ?? null,
+    costPrecision: 2,
+  });
+  const px = (price: number, base: string, precision = 2): LatestPrice => ({ price, base, precision });
+
+  it("should value base-commodity-cost lots and price them at the latest price", () => {
+    const holdings = parseInvestments(
+      [lot("SXR8", 10, { unitCost: 210, costCommodity: "EUR" })],
+      "EUR",
+      new Map([["SXR8", px(250, "EUR")]]),
+    );
+    expect(holdings).toEqual({
+      rows: [
+        {
+          commodity: "SXR8",
+          quantity: { quantity: 10, commodity: "SXR8", precision: 2 },
+          price: { quantity: 250, commodity: "EUR", precision: 2 },
+          marketValue: { quantity: 2500, commodity: "EUR", precision: 2 },
+          costBasis: { quantity: 2100, commodity: "EUR", precision: 2 },
+          unrealizedPnl: { quantity: 400, commodity: "EUR", precision: 2 },
+        },
+      ],
+      totalMarketValue: [{ quantity: 2500, commodity: "EUR", precision: 2 }],
+      totalCostBasis: [{ quantity: 2100, commodity: "EUR", precision: 2 }],
+    });
+  });
+
+  it("should keep quantity and value but drop cost when the cost is in another commodity", () => {
+    // AAPL was bought with USD while the base is EUR: no honest conversion,
+    // so costBasis and P&L stay off. The declared EUR price still values it.
+    const holdings = parseInvestments(
+      [lot("AAPL", 5, { unitCost: 180, costCommodity: "USD" })],
+      "EUR",
+      new Map([["AAPL", px(190, "EUR")]]),
+    );
+    expect(holdings.rows[0]).toMatchObject({
+      marketValue: { quantity: 950, commodity: "EUR", precision: 2 },
+      costBasis: null,
+      unrealizedPnl: null,
+    });
+    expect(holdings.totalCostBasis).toEqual([]);
+  });
+
+  it("should drop cost when a lot has no purchase price (received, mined)", () => {
+    const holdings = parseInvestments([lot("BTC", 0.5)], "EUR", new Map([["BTC", px(40000, "EUR")]]));
+    expect(holdings.rows[0]).toMatchObject({
+      marketValue: { quantity: 20000, commodity: "EUR", precision: 2 },
+      costBasis: null,
+      unrealizedPnl: null,
+    });
+  });
+
+  it("should list a holding without any value when no price points to the base", () => {
+    // The only recorded price quotes USD, not the EUR base.
+    const holdings = parseInvestments([lot("SXR8", 10, { unitCost: 210, costCommodity: "EUR" })], "EUR", new Map());
+    expect(holdings.rows[0]).toEqual({
+      commodity: "SXR8",
+      quantity: { quantity: 10, commodity: "SXR8", precision: 2 },
+      price: null,
+      marketValue: null,
+      costBasis: { quantity: 2100, commodity: "EUR", precision: 2 },
+      unrealizedPnl: null,
+    });
+    expect(holdings.totalMarketValue).toEqual([]);
+    expect(holdings.totalCostBasis).toEqual([{ quantity: 2100, commodity: "EUR", precision: 2 }]);
+  });
+
+  it("should sum cost across lots of the same commodity", () => {
+    const holdings = parseInvestments(
+      [
+        lot("SXR8", 10, { unitCost: 200, costCommodity: "EUR" }),
+        lot("SXR8", 2, { unitCost: 220, costCommodity: "EUR" }),
+      ],
+      "EUR",
+      new Map([["SXR8", px(250, "EUR")]]),
+    );
+    expect(holdings.rows[0]).toMatchObject({
+      quantity: { quantity: 12, commodity: "SXR8", precision: 2 },
+      marketValue: { quantity: 3000, commodity: "EUR", precision: 2 },
+      costBasis: { quantity: 2440, commodity: "EUR", precision: 2 },
+      unrealizedPnl: { quantity: 560, commodity: "EUR", precision: 2 },
+    });
+  });
+
+  it("should null the whole holding's cost when any lot breaks the base-cost rule", () => {
+    const holdings = parseInvestments(
+      [
+        lot("SXR8", 10, { unitCost: 200, costCommodity: "EUR" }),
+        lot("SXR8", 2, { unitCost: 220, costCommodity: "USD" }),
+      ],
+      "EUR",
+      new Map([["SXR8", px(250, "EUR")]]),
+    );
+    expect(holdings.rows[0].costBasis).toBeNull();
+    expect(holdings.rows[0].unrealizedPnl).toBeNull();
+    expect(holdings.totalCostBasis).toEqual([]);
+  });
+
+  it("should exclude the base commodity and zero-quantity commodities", () => {
+    const holdings = parseInvestments(
+      [lot("EUR", 5000), lot("SXR8", 0), lot("SXR8", 10, { unitCost: 210, costCommodity: "EUR" })],
+      "EUR",
+      new Map([
+        ["SXR8", px(250, "EUR")],
+        ["EUR", px(1, "EUR")],
+      ]),
+    );
+    expect(holdings.rows).toHaveLength(1);
+    expect(holdings.rows[0].commodity).toBe("SXR8");
+  });
+
+  it("should sort most valuable first, valueless holdings last by name", () => {
+    const holdings = parseInvestments(
+      [
+        lot("BTC", 0.5, { unitCost: 20000, costCommodity: "EUR" }), // priced, valued last
+        lot("AAPL", 5, { unitCost: 180, costCommodity: "EUR" }),
+        lot("SXR8", 10, { unitCost: 210, costCommodity: "EUR" }),
+      ],
+      "EUR",
+      new Map([
+        ["SXR8", px(250, "EUR")],
+        ["AAPL", px(190, "EUR")],
+      ]),
+    );
+    expect(holdings.rows.map((r) => r.commodity)).toEqual(["SXR8", "AAPL", "BTC"]);
+  });
+
+  it("should skip a commodity the journal can neither price nor cost (leftover foreign cash)", () => {
+    const holdings = parseInvestments(
+      [lot("SXR8", 10, { unitCost: 210, costCommodity: "EUR" }), lot("USD", -900)],
+      "EUR",
+      new Map([["SXR8", px(250, "EUR")]]),
+    );
+    expect(holdings.rows.map((r) => r.commodity)).toEqual(["SXR8"]);
+  });
+
+  it("should produce empty sections when the net row has nothing to hold", () => {
+    expect(parseInvestments([], "EUR", new Map())).toEqual({ rows: [], totalMarketValue: [], totalCostBasis: [] });
   });
 });

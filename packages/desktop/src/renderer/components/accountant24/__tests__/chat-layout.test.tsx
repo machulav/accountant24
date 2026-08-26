@@ -129,6 +129,7 @@ vi.mock("../thread-list", () => ({
 }));
 vi.mock("../net-worth-view", () => ({ NetWorthView: () => <div data-testid="net-worth-view" /> }));
 vi.mock("../net-worth-badge", () => ({ NetWorthBadge: () => null }));
+vi.mock("../investments-view", () => ({ InvestmentsView: () => <div data-testid="investments-view" /> }));
 vi.mock("../transactions-view", () => ({ TransactionsView: () => <div data-testid="transactions-view" /> }));
 // The Settings dialog is a real dialog elsewhere; here a light stub that mirrors
 // the `open` prop, so we can assert ChatLayout opens/closes it.
@@ -356,6 +357,50 @@ describe("ChatLayout Net Worth view", () => {
     expect((screen.getByTestId("net-worth-view").parentElement as HTMLElement).className).toContain("invisible");
     expect(threadWrapper().className).not.toContain("hidden");
     expect(h.switchToNewThread).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ChatLayout Investments view", () => {
+  const investmentsButton = () => screen.getByRole("button", { name: "Investments" });
+  /** The wrapper ChatLayout hides (display:none) while a report page is
+   *  open — the CSS contract for "the chat survives the switch". */
+  const threadWrapper = () => screen.getByTestId("thread").parentElement as HTMLElement;
+
+  it("should not show the Investments view initially", () => {
+    render(<ChatLayout />);
+    expect(screen.queryByTestId("investments-view")).toBeNull();
+    expect(investmentsButton()).not.toHaveAttribute("data-active");
+  });
+
+  it("should show the Investments view and keep the chat mounted but hidden when Investments is clicked", () => {
+    render(<ChatLayout />);
+    fireEvent.click(investmentsButton());
+
+    expect(screen.getByTestId("investments-view")).toBeInTheDocument();
+    // The thread is still in the document (state preserved), only hidden.
+    expect(screen.getByTestId("thread")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(investmentsButton()).toHaveAttribute("data-active");
+  });
+
+  it("should keep the Investments open when the active entry is clicked again", () => {
+    render(<ChatLayout />);
+    fireEvent.click(investmentsButton());
+    fireEvent.click(investmentsButton());
+
+    expect(screen.getByTestId("investments-view")).toBeInTheDocument();
+    expect(threadWrapper().className).toContain("hidden");
+    expect(investmentsButton()).toHaveAttribute("data-active");
+  });
+
+  it("should return to the chat when a thread is selected in the sidebar", () => {
+    render(<ChatLayout />);
+    fireEvent.click(investmentsButton());
+    fireEvent.click(screen.getByRole("button", { name: "Select thread stub" }));
+
+    // Hidden, not unmounted — the page's state survives the round trip.
+    expect((screen.getByTestId("investments-view").parentElement as HTMLElement).className).toContain("invisible");
+    expect(threadWrapper().className).not.toContain("hidden");
   });
 });
 

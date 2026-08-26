@@ -15,11 +15,13 @@
 
 import type {
   AccountBalance,
+  InvestmentHolding,
   LedgerAmount,
   LedgerPosting,
   LedgerTransaction,
   LedgerTransactionStatus,
   NetWorth,
+  NetWorthInvestments,
   NetWorthSection,
 } from "../shared/types";
 
@@ -279,7 +281,7 @@ export function parseTransactionsJson(json: string): LedgerTransaction[] {
 export function mergeValuedBalanceSheet(
   raw: RawBalanceSheet,
   valued: RawBalanceSheet | null,
-): Omit<NetWorth, "baseCommodity"> {
+): Omit<NetWorth, "baseCommodity" | "investments"> {
   const orRaw = (amounts: LedgerAmount[], candidate: LedgerAmount[] | undefined): LedgerAmount[] =>
     candidate ?? amounts;
   const sections: NetWorthSection[] = raw.sections.map((section, s) => {
@@ -295,4 +297,220 @@ export function mergeValuedBalanceSheet(
     };
   });
   return { sections, net: { amounts: raw.net, value: orRaw(raw.net, valued?.net) } };
+}
+
+// ---- Investments (priced holdings) -----------------------------------------
+
+/** The latest market price of one unit of a commodity, toward the base. */
+export interface LatestPrice {
+  /** Price of one unit, in the base commodity. */
+  price: number;
+  /** The commodity the price is quoted in (the base). */
+  base: string;
+  /** Display precision of the quoted amount, from its decimal places. */
+  precision: number;
+}
+
+/** Parse `hledger prices` output into each commodity's LATEST declared price
+ *  (`P 2025-03-15 "SXR8" 250.00 EUR` — the symbol may be quoted or bare, and
+ *  hledger sorts by date, so the last line per commodity wins). Comma digit
+ *  groups are tolerated; anything unparseable is skipped. */
+export function parsePrices(text: string): Map<string, LatestPrice> {
+  const prices = new Map<string, LatestPrice>();
+  for (const line of text.split("\n")) {
+    const m = line.match(/^P\s+\d{4}-\d{2}-\d{2}\s+(?:"([^"]+)"|(\S+))\s+([\d.,+-]+)\s+(\S+)\s*$/);
+    if (!m) continue;
+    const commodity = m[1] ?? m[2];
+    const price = parseFloat(m[3].replace(/,/g, ""));
+    const base = m[4].replace(/^"|"$/g, "");
+    if (!commodity || !base || !Number.isFinite(price)) continue;
+    prices.set(commodity, { price, base, precision: m[3].split(".")[1]?.length ?? 0 });
+  }
+  return prices;
+}
+
+/** Declared prices win; cost-inferred prices fill in only the commodities
+ *  the journal never prices explicitly — the same declared-first rule the
+ *  `-X` valuation applies. */
+export function mergePrices(
+  declared: Map<string, LatestPrice>,
+  inferred: Map<string, LatestPrice>,
+): Map<string, LatestPrice> {
+  const merged = new Map(declared);
+  for (const [commodity, price] of inferred) {
+    if (!merged.has(commodity)) merged.set(commodity, price);
+  }
+  return merged;
+}
+
+/** One balance-sheet net-row amount, cost lots kept separate: the JSON
+ *  carries each lot's per-unit cost (the `@` price) on the amount itself. */
+export interface RawLot {
+  commodity: string;
+  quantity: number;
+  precision: number;
+  /** Per-unit cost of the lot, in `costCommodity`; null when the holding was
+   *  acquired without a transaction price. */
+  unitCost: number | null;
+  costCommodity: string | null;
+  /** Display precision of the cost amount. */
+  costPrecision: number;
+}
+
+/** The amount's display precision: its journal-declared style, its own
+ *  decimal places, or the 2-place fallback. */
+function amountPrecision(a: { aquantity?: unknown; astyle?: unknown } | undefined): number {
+  const style = (a?.astyle as { asprecision?: unknown } | undefined)?.asprecision;
+  const places = (a?.aquantity as { decimalPlaces?: unknown } | undefined)?.decimalPlaces;
+  return typeof style === "number" && style >= 0 ? style : typeof places === "number" && places >= 0 ? places : 2;
+}
+
+/** Parse the net row of a `bs -O json` report into lots (the same
+ *  `cbrTotals` shape `parseBalanceSheetJson` reads, with the cost side kept). */
+export function parseNetLots(json: string): RawLot[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  const totals = (data as { cbrTotals?: { prrAmounts?: unknown } })?.cbrTotals?.prrAmounts;
+  const first = Array.isArray(totals) ? totals[0] : undefined;
+  if (!Array.isArray(first)) return [];
+  const lots: RawLot[] = [];
+  for (const amount of first) {
+    const a = amount as {
+      acommodity?: unknown;
+      aquantity?: { floatingPoint?: unknown; decimalPlaces?: unknown };
+      astyle?: { asprecision?: unknown };
+      acost?: {
+        contents?: {
+          acommodity?: unknown;
+          aquantity?: { floatingPoint?: unknown };
+          astyle?: { asprecision?: unknown };
+        };
+      };
+    };
+    const commodity = a?.acommodity;
+    const quantity = a?.aquantity?.floatingPoint;
+    if (typeof commodity !== "string" || !commodity) continue;
+    if (typeof quantity !== "number" || !Number.isFinite(quantity)) continue;
+    const cost = a?.acost?.contents;
+    const unitCost = cost?.aquantity?.floatingPoint;
+    lots.push({
+      commodity,
+      quantity,
+      precision: amountPrecision(a),
+      unitCost: typeof unitCost === "number" && Number.isFinite(unitCost) ? unitCost : null,
+      costCommodity: typeof cost?.acommodity === "string" && cost.acommodity ? cost.acommodity : null,
+      costPrecision: amountPrecision(cost),
+    });
+  }
+  return lots;
+}
+
+/** The Investments section from the net row's lots: every non-base commodity
+ *  with a nonzero balance, valued at its latest price toward the base, cost
+ *  basis summed from the lots' per-unit costs. A holding's costBasis is null
+ *  unless EVERY lot was acquired at a price in the base commodity — a mixed
+ *  or absent cost has no honest conversion, so P&L stays off rather than
+ *  inventing one. Market value needs a price toward the base; without it the
+ *  holding still lists quantity and cost. Sorted by market value, most
+ *  valuable first (valueless holdings last, by name). */
+export function parseInvestments(
+  lots: RawLot[],
+  base: string | null,
+  prices: Map<string, LatestPrice>,
+): NetWorthInvestments {
+  type Agg = {
+    quantity: number;
+    precision: number;
+    costTotal: number;
+    costPrecision: number;
+    /** False once any lot lacks a base-commodity cost (or any cost at all). */
+    costInBase: boolean;
+  };
+  const agg = new Map<string, Agg>();
+  for (const lot of lots) {
+    if (lot.commodity === base || isZero(lot.quantity)) continue;
+    const a = agg.get(lot.commodity) ?? {
+      quantity: 0,
+      precision: lot.precision,
+      costTotal: 0,
+      costPrecision: 2,
+      costInBase: true,
+    };
+    a.quantity += lot.quantity;
+    a.precision = Math.max(a.precision, lot.precision);
+    if (lot.unitCost !== null && lot.costCommodity !== null && lot.costCommodity === base) {
+      a.costTotal += lot.quantity * lot.unitCost;
+      a.costPrecision = Math.max(a.costPrecision, lot.costPrecision);
+    } else {
+      a.costInBase = false;
+    }
+    agg.set(lot.commodity, a);
+  }
+
+  const rows: InvestmentHolding[] = [];
+  let totalMarketValue = 0;
+  let totalMarketPrecision = 2;
+  let totalCostBasis = 0;
+  let totalCostPrecision = 2;
+  let anyValue = false;
+  let anyCost = false;
+  for (const [commodity, a] of agg) {
+    const price = prices.get(commodity);
+    // A price counts only when it quotes toward the base — the same rule the
+    // `-X` valuation follows (a USD price can't value a holding in EUR).
+    const valued = base !== null && price !== undefined && price.base === base ? a.quantity * price.price : null;
+    const costBasis = a.costInBase && base !== null ? a.costTotal : null;
+    // A position the journal can neither price nor cost is just another
+    // commodity (foreign cash, a closed position's leftover) — not a holding.
+    if (valued === null && costBasis === null) continue;
+    if (valued !== null && base !== null) {
+      totalMarketValue += valued;
+      totalMarketPrecision = Math.max(totalMarketPrecision, price?.precision ?? 2);
+      anyValue = true;
+    }
+    if (costBasis !== null && base !== null) {
+      totalCostBasis += costBasis;
+      totalCostPrecision = Math.max(totalCostPrecision, a.costPrecision);
+      anyCost = true;
+    }
+    rows.push({
+      commodity,
+      quantity: { quantity: a.quantity, commodity, precision: a.precision },
+      price:
+        valued !== null && base !== null
+          ? { quantity: price?.price ?? 0, commodity: base, precision: price?.precision ?? 2 }
+          : null,
+      marketValue:
+        valued !== null && base !== null
+          ? { quantity: valued, commodity: base, precision: price?.precision ?? 2 }
+          : null,
+      costBasis:
+        costBasis !== null && base !== null
+          ? { quantity: costBasis, commodity: base, precision: a.costPrecision }
+          : null,
+      unrealizedPnl:
+        valued !== null && costBasis !== null && base !== null
+          ? { quantity: valued - costBasis, commodity: base, precision: a.costPrecision }
+          : null,
+    });
+  }
+  // Most valuable first; holdings without a value sort after, by name.
+  rows.sort((x, y) => {
+    const xv = x.marketValue?.quantity ?? Number.NEGATIVE_INFINITY;
+    const yv = y.marketValue?.quantity ?? Number.NEGATIVE_INFINITY;
+    return yv - xv || x.commodity.localeCompare(y.commodity);
+  });
+  return {
+    rows,
+    totalMarketValue:
+      anyValue && base !== null
+        ? [{ quantity: totalMarketValue, commodity: base, precision: totalMarketPrecision }]
+        : [],
+    totalCostBasis:
+      anyCost && base !== null ? [{ quantity: totalCostBasis, commodity: base, precision: totalCostPrecision }] : [],
+  };
 }

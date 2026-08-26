@@ -23,7 +23,14 @@ export function useNetWorth(active = true): NetWorth | null {
         if (!cancelled) setData(d);
       })
       .catch(() => {
-        if (!cancelled) setData({ sections: [], net: { amounts: [], value: [] }, baseCommodity: null });
+        // hledger failed or there's no journal yet — the empty page.
+        if (!cancelled) {
+          setData({
+            sections: [],
+            net: { amounts: [], value: [] },
+            baseCommodity: null,
+          });
+        }
       });
     return () => {
       cancelled = true;

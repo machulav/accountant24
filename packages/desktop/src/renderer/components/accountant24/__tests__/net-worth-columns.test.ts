@@ -24,15 +24,21 @@ beforeEach(() => {
 });
 
 describe("loadTableConfig()", () => {
-  it("should hide both assertion columns by default with no custom widths", () => {
-    expect(loadTableConfig()).toEqual({ visibility: { asserted: false, assertedAmount: false }, sizing: {} });
+  it("should hide the optional assertion pair by default with no custom widths", () => {
+    expect(loadTableConfig()).toEqual({
+      visibility: { asserted: false, assertedAmount: false },
+      sizing: {},
+    });
   });
 
   it("should round-trip the config under the net-worth key", () => {
     const config = { visibility: { asserted: true, assertedAmount: false }, sizing: { account: 320 } };
     saveTableConfig(config);
     expect(JSON.parse(window.localStorage.getItem(NET_WORTH_TABLE_KEY) ?? "")).toEqual(config);
-    expect(loadTableConfig()).toEqual(config);
+    expect(loadTableConfig()).toEqual({
+      visibility: config.visibility,
+      sizing: config.sizing,
+    });
   });
 
   it("should clamp stored sub-minimum widths up to each column's minimum", () => {

@@ -61,7 +61,7 @@ export function saveTableConfig(config: NetWorthTableConfig): void {
   saveStoredTableConfig(NET_WORTH_TABLE_KEY, config);
 }
 
-/** The width the section tables render at (the visible columns, resized or
+/** The width the account tables render at (the visible columns, resized or
  *  default) — what the page sizes the shared width wrapper (section bands,
  *  the Net band) with. Mirrors TanStack's getTotalSize() INCLUDING its
  *  minimum clamp: a live drag past a column's minimum stores the raw
