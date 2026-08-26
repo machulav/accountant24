@@ -42,6 +42,7 @@ function writePlugin(
   const manifest =
     options.manifest ??
     JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
       name: options.name ?? folder,
       ...(options.description ? { description: options.description } : {}),
     });
@@ -144,6 +145,7 @@ describe("readPluginDir()", () => {
     writeFileSync(
       join(dir, "plugin.json"),
       JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
         version: "2.0.0",
         author: { name: "Ada" },
@@ -164,7 +166,11 @@ describe("readPluginDir()", () => {
 
   it("should surface the minimum app version a plugin declares", () => {
     const dir = writePlugin("budget", {
-      manifest: JSON.stringify({ name: "budget", extensions: { "ai.accountant24": { minAppVersion: "9.9.9" } } }),
+      manifest: JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        extensions: { "ai.accountant24": { minAppVersion: "9.9.9" } },
+      }),
       skills: [{ name: "review" }],
     });
     expect(readPluginDir(dir).minAppVersion).toBe("9.9.9");

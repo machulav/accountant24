@@ -139,6 +139,11 @@ export function parsePluginManifest(text: string): ParsedManifest {
   const nameError = pluginNameError(raw.name);
   if (nameError) return { ok: false, error: nameError };
 
+  // The format requires $schema (any version); the marketplace refuses to
+  // list a manifest without it, so requiring it here keeps a plugin that
+  // installs by hand publishable as it is.
+  if (typeof raw.$schema !== "string") return { ok: false, error: "plugin.json: $schema is required." };
+
   const manifest: PluginManifest = { name: raw.name };
 
   for (const key of ["version", "description", "homepage", "repository", "license"] as const) {

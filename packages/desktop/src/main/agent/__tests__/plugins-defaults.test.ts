@@ -44,7 +44,11 @@ const win = { isDestroyed: () => false, webContents: { send: h.sendToWindow } };
 const REPO = "accountant24/skills";
 
 const SKILLS: Fixture = {
-  manifest: { name: "accountant24-skills", description: "The skills the app comes with." },
+  manifest: {
+    $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+    name: "accountant24-skills",
+    description: "The skills the app comes with.",
+  },
   skills: [{ name: "monthly-review", description: "Reviews the month." }],
 };
 
@@ -90,7 +94,14 @@ function serveStatus(status: number): ReturnType<typeof vi.fn> {
 function addStorePlugin(name: string, skills: string[]): void {
   const dir = join(h.ws, "plugins", name);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name, description: `${name} plugin` }));
+  writeFileSync(
+    join(dir, "plugin.json"),
+    JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      name,
+      description: `${name} plugin`,
+    }),
+  );
   for (const skill of skills) {
     const skillDir = join(dir, "skills", skill);
     mkdirSync(skillDir, { recursive: true });

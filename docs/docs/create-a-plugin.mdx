@@ -1,0 +1,220 @@
+---
+title: "Create a plugin"
+sidebarTitle: "Create a plugin"
+description: "A plugin packages one or more skills into a folder the agent can load. Build one, test it, and publish it to the marketplace."
+---
+
+You don't have to write a plugin yourself. Describe the routine in chat, and the agent builds it for you. For example:
+
+> Create a plugin with a skill that compares my spending this month to the previous month and shows where I spent more.
+
+## Plugin folder layout
+
+```text
+monthly-review/
+├── plugin.json                  the manifest (required)
+└── skills/                      one folder per skill (at least one required)
+    └── monthly-review/
+        ├── SKILL.md             the skill itself (required)
+        ├── scripts/             optional helper scripts
+        └── references/          optional reference material
+```
+
+Put the folder at `~/Accountant24/plugins/<plugin-name>`. It appears under **Settings → Plugins**. Restart the app to make its skills available in chat.
+
+The folder name must match the `name` in `plugin.json`.
+
+## plugin.json
+
+`plugin.json` is the plugin's manifest. It gives the plugin its name and tells the app and the marketplace what the plugin is.
+
+A minimal example:
+
+```json
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "monthly-review"
+}
+```
+
+### Every field
+
+| Field                                         | Type     | Required | Description                                                                                    |
+| --------------------------------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `$schema`                                     | string   | Yes      | The manifest format the file follows. Editors use it for autocomplete.                         |
+| `name`                                        | string   | Yes      | The plugin's identity, used as the folder name and the namespace for its skills. Up to 64 characters. |
+| `version`                                     | string   | No       | Shown next to the name. Up to 64 characters.                                                   |
+| `description`                                 | string   | No       | Shown in the plugin list and the install confirmation. Clipped at 1024 characters.             |
+| `author.name`                                 | string   | No       | Matched by the marketplace search. Up to 128 characters.                                       |
+| `author.email`                                | string   | No       | Contact address. Up to 254 characters.                                                         |
+| `author.url`                                  | string   | No       | The author's page. Up to 512 characters.                                                       |
+| `homepage`                                    | string   | No       | The plugin's own page. Up to 512 characters.                                                   |
+| `repository`                                  | string   | No       | Where the source lives. The marketplace publishes the repository it indexed instead.           |
+| `license`                                     | string   | No       | The license you declare. Up to 64 characters.                                                  |
+| `keywords`                                    | string[] | No       | Extra words the marketplace search matches. First 20 kept, each up to 64 characters.           |
+| `extensions`                                  | object   | No       | Settings for a specific app, under a reverse-domain key.                                       |
+| `extensions["ai.accountant24"].minAppVersion` | string   | No       | The oldest Accountant24 the plugin runs on (see more below). Must read like `1.2.3`.           |
+
+Any other field, or a field of the wrong type, fails the install with an error.
+
+### Naming rules
+
+Plugin names use lowercase letters, digits and hyphens, with hyphens only in the middle. `monthly-review` is fine, while `Monthly_Review`, `-review` and `my--plugin` are not. Up to 64 characters. The name is also the namespace for the plugin's skills, so keep it short.
+
+The same rules apply to skill folder names.
+
+### Requiring a minimum app version
+
+Anything specific to Accountant24 lives under the app's own namespace:
+
+```json
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "monthly-review",
+  "extensions": {
+    "ai.accountant24": {
+      "minAppVersion": "0.3.0"
+    }
+  }
+}
+```
+
+`minAppVersion` must read as `major.minor.patch`. An older app refuses to install the plugin and says which version it needs. The marketplace still lists it and shows the reason in the row.
+
+`ai.accountant24` is reserved for Accountant24. Other agents ignore it, and Accountant24 ignores theirs, so the same plugin stays portable.
+
+## Write each skill in a SKILL.md
+
+Each folder under `skills/` holds one skill, defined by a `SKILL.md` with frontmatter and instructions:
+
+```markdown
+---
+name: monthly-review
+description: Reviews last month's spending against the month before, by account, and flags anything unusual. Use when the user asks for a monthly review, asks how last month went, or asks where their money went.
+---
+
+# Monthly review
+
+1. Run a monthly expense report for the last two full months.
+2. Compare the two, account by account.
+3. Report, in this order:
+   - Total spending each month, and the difference.
+   - The three accounts with the largest increase.
+   - Any account with spending this month but none in the month before.
+4. Keep it to a short table plus two or three sentences of commentary.
+```
+
+| Part          | Required | Description                                                                                                                  |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | Yes      | Frontmatter. Must match the folder name, and follows the same naming rules as a plugin name.                                 |
+| `description` | Yes      | Frontmatter. How the agent decides when to use the skill. Say what the skill does, then give a few phrasings a user would type. A vague description means the skill never activates on its own. Clipped at 1024 characters. |
+| Instructions  | Yes      | The steps the agent follows, written as markdown below the frontmatter. |
+
+This skill appears in the `/` picker as `monthly-review:monthly-review`, since the plugin and the skill are both named `monthly-review`.
+
+A plugin needs at least one usable skill.
+
+## Reference material
+
+Put reference material in the skill's `references/` folder, and point the agent at a file in the step that needs it. The agent loads reference files through progressive disclosure. It reads them only when they are needed.
+
+## Helper scripts
+
+Put helper code in the skill's `scripts/` folder, and tell the agent in the instructions when to run it.
+
+## Several skills in one plugin
+
+A plugin can provide any number of skills, one folder each:
+
+```text
+budget/
+├── plugin.json
+└── skills/
+    ├── monthly-review/
+    │   └── SKILL.md
+    └── yearly-review/
+        └── SKILL.md
+```
+
+They appear in the `/` picker as `budget:monthly-review` and `budget:yearly-review`. The marketplace lists up to 50 skills per plugin.
+
+Two plugins cannot provide skill folders with the same name, even though the app shows them namespaced.
+
+## Test the plugin
+
+1. Open **Settings → Plugins** and check the plugin is listed without an error.
+2. Type `/` in the message box and pick the skill by its `plugin:skill` name.
+3. Ask in your own words, without the picker, to check that the description triggers it.
+
+If a skill does not appear, open **Settings → Plugins** and look for an error on the plugin's row.
+
+## Publish to the marketplace
+
+Publishing takes two steps, with no form to fill in and no review queue:
+
+1. Push the plugin to a public GitHub repository with `plugin.json` at the root. One repository holds one plugin.
+2. Add the topic `accountant24-plugin` to the repository (the gear next to **About** on the repository page).
+
+The plugin appears in the [marketplace](/docs/marketplace) at the next refresh, within about 30 minutes, and anyone can install it from **Settings → Plugins**.
+
+The app installs the tip of your default branch, so what you push is what the next install gets. A user moves to your latest version by uninstalling and installing again. [accountant24/skills](https://github.com/accountant24/skills) is a complete example of the layout.
+
+### What gets listed
+
+| Requirement                               | Detail                                     |
+| ----------------------------------------- | ------------------------------------------ |
+| Public repository                         | Private repositories are not indexed       |
+| Topic `accountant24-plugin`               | The only way in                            |
+| `plugin.json` at the repository root      | With `$schema` and a `name` that passes the naming rules |
+| Not a fork                                | Publish from a repository of its own       |
+| Not archived                              | Unarchive it to be indexed                 |
+| At least one commit on the default branch | The index reads that branch's tip          |
+| Not on the blocklist                      | See moderation, below                      |
+| At least one valid skill                  | The index drops a skill whose `SKILL.md` name doesn't match its folder or has no description. A plugin with no valid skills still lists, but the app refuses to install it. |
+
+### Check your entry before publishing
+
+To see the entry the index would publish for a repository, or the reason it skipped something:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scripts/index.mjs | node - --repo owner/name
+```
+
+### Moderation
+
+[`blocklist.json`](https://github.com/accountant24/marketplace/blob/main/blocklist.json) lists repositories that are never indexed.
+
+## Publishing checklist
+
+- `plugin.json` at the root, with a `name` that matches the folder and follows the naming rules.
+- At least one `skills/<name>/SKILL.md`, its frontmatter `name` matching its folder, with a description written for matching.
+- No unknown fields in the manifest.
+- Tested in the app, both from the `/` picker and by asking in your own words.
+- Public repository with the `accountant24-plugin` topic, previewed with the command above.
+
+## How the app installs a plugin
+
+1. When the user confirms the install, the app downloads the repository as an archive over HTTPS and unpacks it to a temporary folder.
+2. It reads `plugin.json` and the skills, and refuses anything that isn't a usable plugin.
+3. It copies the plugin into `~/Accountant24/plugins/<plugin-name>/`.
+4. It records the source repository in [app-settings.json](/docs/settings#plugins).
+5. The agent restarts, and the new skills are available in chat.
+
+A plugin's instructions and scripts run later, when the agent uses one of its skills.
+
+## Troubleshooting
+
+The app shows these messages in the install dialog when an install fails, or on the plugin's row in **Settings → Plugins** when an installed plugin is broken.
+
+| What you see                                              | What it means                                                                                                                            |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| "No plugin found in …: a plugin needs a plugin.json file" | The repository has no `plugin.json` at its root.                                                                                         |
+| "plugin.json: $schema is required."                       | The manifest is missing `$schema`. Copy the line from the example above.                                                                 |
+| "plugin.json: unknown field …"                            | A key the format doesn't define, usually a typo. The manifest is validated strictly so a misspelled field can't be silently ignored.     |
+| "Plugin has no skills."                                   | No usable skill under `skills/`. Every skill needs `skills/<name>/SKILL.md` with a `name` matching its folder and a `description`.       |
+| "… needs Accountant24 vx.y.z or newer"                    | The plugin declares a minimum app version. Update the app.                                                                               |
+| "… is already installed from owner/repo"                  | A different repository already provides a plugin with this name. Uninstall that one first.                                               |
+| "A plugin folder named … is already in your workspace"    | You (or the agent) put a folder with that name in `~/Accountant24/plugins`. Rename or delete it first.                                   |
+| "The skill … is already provided by the … plugin"         | Two plugins ship a skill folder with the same name. Only one can be active, so rename the skill in yours, or uninstall the other plugin. |
+| "GitHub rate limit reached"                               | Too many downloads from your address in a short window. Wait a few minutes.                                                              |
+| A plugin is listed but shows a red **Invalid** badge      | The folder is present but unusable. The row says why. Fix it, or uninstall the plugin.                                                   |

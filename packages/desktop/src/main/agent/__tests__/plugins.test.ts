@@ -133,7 +133,13 @@ async function buildTarball(fixture: Fixture): Promise<Buffer> {
 
 /** The plugin most tests install: two skills and one extra asset. */
 const BUDGET: Fixture = {
-  manifest: { name: "budget", description: "Budget reviews.", version: "1.1.0", author: { name: "Ada" } },
+  manifest: {
+    $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+    name: "budget",
+    description: "Budget reviews.",
+    version: "1.1.0",
+    author: { name: "Ada" },
+  },
   skills: [
     { name: "monthly-review", description: "Reviews the month.", extra: "notes\n" },
     { name: "yearly-review", description: "Reviews the year." },
@@ -161,7 +167,10 @@ function serveStatus(status: number): void {
 function addNativePlugin(name: string, skills: string[], description = "Seeded."): void {
   const dir = join(h.ws, "plugins", name);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name, description }));
+  writeFileSync(
+    join(dir, "plugin.json"),
+    JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, description }),
+  );
   for (const skill of skills) {
     const skillDir = join(dir, "skills", skill);
     mkdirSync(skillDir, { recursive: true });
@@ -173,7 +182,14 @@ function addNativePlugin(name: string, skills: string[], description = "Seeded."
 function addStorePlugin(name: string, skills: string[]): void {
   const dir = join(h.ws, "plugins", name);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name, description: `${name} plugin` }));
+  writeFileSync(
+    join(dir, "plugin.json"),
+    JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      name,
+      description: `${name} plugin`,
+    }),
+  );
   for (const skill of skills) {
     const skillDir = join(dir, "skills", skill);
     mkdirSync(skillDir, { recursive: true });
@@ -223,7 +239,11 @@ describe("plugins_list", () => {
     mkdirSync(join(dir, "skills", "review"), { recursive: true });
     writeFileSync(
       join(dir, "plugin.json"),
-      JSON.stringify({ name: "budget", repository: "https://github.com/acme/budget" }),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        repository: "https://github.com/acme/budget",
+      }),
     );
     writeFileSync(join(dir, "skills", "review", "SKILL.md"), "---\nname: review\ndescription: d\n---\n");
 
@@ -410,7 +430,10 @@ describe("plugins_inspect", () => {
   });
 
   it("should reject a manifest the format does not allow", async () => {
-    await serve({ manifest: { name: "com.example.budget" }, skills: [{ name: "review" }] });
+    await serve({
+      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "com.example.budget" },
+      skills: [{ name: "review" }],
+    });
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
     expect(result).toEqual({
       type: "error",
@@ -420,7 +443,9 @@ describe("plugins_inspect", () => {
   });
 
   it("should reject a plugin with no skills", async () => {
-    await serve({ manifest: { name: "budget" } });
+    await serve({
+      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "budget" },
+    });
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
     expect(result).toEqual({ type: "error", message: "Plugin has no skills." });
   });
@@ -428,7 +453,11 @@ describe("plugins_inspect", () => {
   it("should reject a plugin that needs a newer app", async () => {
     h.appVersion = "1.0.0";
     await serve({
-      manifest: { name: "budget", extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } } },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } },
+      },
       skills: [{ name: "review" }],
     });
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
@@ -442,7 +471,11 @@ describe("plugins_inspect", () => {
   it("should accept a plugin whose minimum app version this build meets", async () => {
     h.appVersion = "2.0.0";
     await serve({
-      manifest: { name: "budget", extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } } },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } },
+      },
       skills: [{ name: "review" }],
     });
     expect(((await invoke("plugins_inspect", { source: "owner/repo" })) as Result).type).toBe("plugin");
@@ -570,7 +603,10 @@ describe("plugins_inspect", () => {
   it("should reinstall over the same repository, replacing what was there", async () => {
     await serve(BUDGET);
     await install();
-    await serve({ manifest: { name: "budget" }, skills: [{ name: "monthly-review" }] });
+    await serve({
+      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "budget" },
+      skills: [{ name: "monthly-review" }],
+    });
     expect(await install()).toEqual({ type: "done", name: "budget" });
     expect(existsSync(join(h.ws, "plugins", "budget", "skills", "yearly-review"))).toBe(false);
   });
@@ -616,7 +652,10 @@ describe("plugins_inspect", () => {
   });
 
   it("should keep other plugins' registry entries when one is installed", async () => {
-    await serve({ manifest: { name: "taxes" }, skills: [{ name: "estimate" }] });
+    await serve({
+      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "taxes" },
+      skills: [{ name: "estimate" }],
+    });
     await install("owner/taxes");
     await serve(BUDGET);
     await install();
@@ -687,7 +726,10 @@ describe("plugins_remove", () => {
   });
 
   it("should keep other plugins' registry entries", async () => {
-    await serve({ manifest: { name: "taxes" }, skills: [{ name: "estimate" }] });
+    await serve({
+      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "taxes" },
+      skills: [{ name: "estimate" }],
+    });
     await install("owner/taxes");
     await serve(BUDGET);
     await install();

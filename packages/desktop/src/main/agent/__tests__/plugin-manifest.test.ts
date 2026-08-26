@@ -7,7 +7,10 @@ import { checkMinAppVersion, parsePluginManifest, pluginNameError } from "../plu
 // and a minimum app version that gates installs.
 
 /** Serialize an object literal the way a plugin.json on disk would read. */
-const manifest = (value: unknown): string => JSON.stringify(value);
+const SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
+
+/** A manifest with the required $schema filled in, unless the case overrides it. */
+const manifest = (value: Record<string, unknown>): string => JSON.stringify({ $schema: SCHEMA_URL, ...value });
 
 describe("pluginNameError()", () => {
   it("should accept a lowercase name with interior hyphens", () => {
@@ -99,7 +102,21 @@ describe("checkMinAppVersion()", () => {
 });
 
 describe("parsePluginManifest()", () => {
-  it("should accept a manifest with only a name", () => {
+  it("should refuse a manifest without $schema", () => {
+    expect(parsePluginManifest(JSON.stringify({ name: "budget" }))).toEqual({
+      ok: false,
+      error: "plugin.json: $schema is required.",
+    });
+  });
+
+  it("should refuse a $schema that is not a string", () => {
+    expect(parsePluginManifest(manifest({ $schema: 7, name: "budget" }))).toEqual({
+      ok: false,
+      error: "plugin.json: $schema is required.",
+    });
+  });
+
+  it("should accept a manifest with only $schema and a name", () => {
     const result = parsePluginManifest(manifest({ name: "budget" }));
     expect(result).toEqual({ ok: true, manifest: { name: "budget" } });
   });

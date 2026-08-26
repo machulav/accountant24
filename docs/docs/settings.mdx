@@ -4,30 +4,72 @@ sidebarTitle: "Settings"
 description: "Every option in Accountant24's app-settings.json settings file and the values each one accepts."
 ---
 
-Accountant24 stores its settings in `~/Accountant24/app-settings.json`. The app updates the file when you change options in **Settings**. You can also edit it by hand; restart the app afterwards to apply the changes.
-
-```json
-{
-  "defaultModel": "anthropic/claude-sonnet-4-5",
-  "enabledModels": ["anthropic/claude-sonnet-4-5", "ollama/qwen3"],
-  "analyticsEnabled": false
-}
-```
+Accountant24 stores its settings in `~/Accountant24/app-settings.json`. The app updates the file when you change options in **Settings**. You can also edit it by hand. Restart the app afterwards to apply the changes.
 
 ## `defaultModel`
 
-The model new chats start with. A model id in the `provider/model` form, for example `anthropic/claude-sonnet-4-5`. Managed in **Settings → Models**.
+The model new chats start with, as a model id in the `provider/model` form. Managed in **Settings → Models**.
+
+```json
+{
+  "defaultModel": "anthropic/claude-sonnet-4-5"
+}
+```
 
 ## `enabledModels`
 
-The models available in the chat's model picker. A list of `provider/model` ids. An empty list or a missing key means all models of the connected providers are available. Managed in **Settings → Models**.
+The models available in the chat's model picker, as a list of `provider/model` ids. An empty list or a missing key means all models of the connected providers are available. Managed in **Settings → Models**.
+
+```json
+{
+  "enabledModels": ["anthropic/claude-sonnet-4-5", "ollama/qwen3"]
+}
+```
 
 ## `analyticsEnabled`
 
-Whether the app sends anonymous usage analytics: `true` or `false`. A missing key means `true`.
+Whether the app sends anonymous usage analytics. A missing key means `true`.
+
+```json
+{
+  "analyticsEnabled": false
+}
+```
 
 The app sends basic usage events together with the app version, operating system, and country to [Aptabase](https://aptabase.com/legal/privacy), a privacy-first analytics service hosted in the EU. They contain nothing that can identify you. Your personal or financial data, messages, and files are never sent.
 
 ## `onceEvents`
 
-A list of one-time analytics milestones the app has already sent, so each is sent at most once per install. The app manages this key. There is no reason to edit it.
+A list of one-time analytics milestones the app has already sent, so each is sent at most once per install. The app manages this key.
+
+```json
+{
+  "onceEvents": ["app_installed", "onboarding_completed"]
+}
+```
+
+## `plugins`
+
+Remembers which GitHub repository each plugin was installed from. The app adds an entry when you install a plugin and removes it when you uninstall one. The app manages this key.
+
+```json
+{
+  "plugins": {
+    "accountant24-skills": {
+      "source": "accountant24/skills",
+      "commit": "e034131",
+      "addedAt": "2026-08-17T16:40:09.975Z"
+    }
+  }
+}
+```
+
+## `defaultPluginsInstalled`
+
+Remembers which [built-in plugins](/docs/plugins#built-in-plugins) the app has already installed. The app never installs a repository on this list again, so a built-in plugin you uninstalled stays uninstalled. The app manages this key.
+
+```json
+{
+  "defaultPluginsInstalled": ["accountant24/skills"]
+}
+```
