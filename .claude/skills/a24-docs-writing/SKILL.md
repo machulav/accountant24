@@ -5,7 +5,7 @@ description: House rules for writing and editing the docs site (docs/**/*.mdx), 
 
 # Writing docs for Accountant24
 
-Style mechanics (voice, sentence length, banned words, heading case) are the `/writing-guidelines` skill's job: run it once the text is ready, and fix what it finds. The rules below are the house rules on top of it.
+Style mechanics (voice, sentence length, banned words, heading case) are the `a24-writing-guidelines` skill's job: run it once the text is ready, and fix what it finds. The rules below are the house rules on top of it.
 
 ## Content
 
@@ -28,4 +28,4 @@ Style mechanics (voice, sentence length, banned words, heading case) are the `/w
 
 - Preview with the `a24-docs-preview` skill while editing; changes hot-reload.
 - After renaming any heading, re-check internal links and anchors across the repo (and the app, which links into the docs).
-- Finish with a `/writing-guidelines` review pass.
+- Finish with an `a24-writing-guidelines` review pass.
