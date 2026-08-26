@@ -6,36 +6,21 @@ description: "A plugin is a small package of skills for the agent. Install plugi
 
 ## Built-in plugins
 
-Accountant24 comes with the [accountant24-skills](https://github.com/accountant24/skills) plugin, which holds a set of helpful skills. The app installs built-in plugins the first time it starts. Plugins published by Accountant24 carry the **Official** badge in **Settings → Plugins**.
+Accountant24 comes with the [accountant24-skills](https://github.com/accountant24/skills) plugin, which holds a set of helpful skills. The app installs built-in plugins the first time it starts. Plugins published by Accountant24 have the **Official** badge in the [marketplace](/docs/marketplace).
 
 ## Community plugins
 
-The [marketplace](/docs/marketplace) lists plugins published by other people.
+The [marketplace](/docs/marketplace) lists plugins published by the community.
 
 ## Your own plugins
 
-Ask the agent to create a skill by describing the routine you want, for example:
-
-> Create a skill that compares my spending this month to the previous month and shows where I spent more.
-
-The agent saves the new plugin to `~/Accountant24/plugins/<plugin-name>`. Restart the app to make its skills available in chat.
-
-You can also write a plugin manually. See [Create a plugin](/docs/create-a-plugin).
+Ask the agent to create a skill in chat, or write a plugin manually. See [Create a plugin](/docs/create-a-plugin) for more details.
 
 ## Manage plugins
 
 ### Install a plugin
 
-Find the plugin under **Marketplace** in **Settings → Plugins**, click **Install**, review the plugin details, then **confirm**. The app downloads nothing before you confirm.
-
-During the install, the app:
-
-1. Downloads the repository from GitHub as an archive, over HTTPS.
-2. Checks that the repository holds a valid plugin, and stops with an error otherwise.
-3. Copies the plugin into your workspace, at `~/Accountant24/plugins/<plugin-name>`.
-4. Restarts the agent, so the plugin's skills are ready to use in chat.
-
-Nothing from the plugin runs during the install. Its instructions and scripts run later, when the agent uses one of its skills.
+Find the plugin under **Marketplace** in **Settings → Plugins**, click **Install**, review the plugin details, then **confirm**. The app downloads nothing before you confirm, and nothing from the plugin runs during the install. See [How the app installs a plugin](/docs/create-a-plugin#how-the-app-installs-a-plugin) for the details.
 
 ### Uninstall a plugin
 
