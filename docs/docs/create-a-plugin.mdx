@@ -116,7 +116,7 @@ A plugin needs at least one usable skill.
 
 ## Reference material
 
-Put reference material in the skill's `references/` folder, and point the agent at a file in the step that needs it. The agent loads reference files through progressive disclosure. It reads them only when they are needed.
+Put reference material in the skill's `references/` folder. Point the agent at a file in the step that needs it. The agent loads reference files through progressive disclosure. It reads them only when they are needed.
 
 ## Helper scripts
 
@@ -155,7 +155,7 @@ Publishing takes two steps, with no form to fill in and no review queue:
 1. Push the plugin to a public GitHub repository with `plugin.json` at the root. One repository holds one plugin.
 2. Add the topic `accountant24-plugin` to the repository (the gear next to **About** on the repository page).
 
-The plugin appears in the [marketplace](/docs/marketplace) at the next refresh, within about 30 minutes, and anyone can install it from **Settings → Plugins**.
+The plugin appears in the [marketplace](/docs/marketplace) at the next refresh, within about 30 minutes. Anyone can then install it from **Settings → Plugins**.
 
 The app installs the tip of your default branch, so what you push is what the next install gets. A user moves to your latest version by uninstalling and installing again. [accountant24/skills](https://github.com/accountant24/skills) is a complete example of the layout.
 
@@ -194,7 +194,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 
 ## How the app installs a plugin
 
-1. When the user confirms the install, the app downloads the repository as an archive over HTTPS and unpacks it to a temporary folder.
+1. When a user confirms the install, the app downloads the repository as an archive over HTTPS and unpacks it to a temporary folder.
 2. It reads `plugin.json` and the skills, and refuses anything that isn't a usable plugin.
 3. It copies the plugin into `~/Accountant24/plugins/<plugin-name>/`.
 4. It records the source repository in [app-settings.json](/docs/settings#plugins).
@@ -204,7 +204,7 @@ A plugin's instructions and scripts run later, when the agent uses one of its sk
 
 ## Troubleshooting
 
-The app shows these messages in the install dialog when an install fails, or on the plugin's row in **Settings → Plugins** when an installed plugin is broken.
+The app shows these messages in the install dialog when an install fails. A broken installed plugin shows its message on its own row in **Settings → Plugins**.
 
 | What you see                                              | What it means                                                                                                                            |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |

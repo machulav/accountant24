@@ -137,7 +137,7 @@ This is a personal project I use every day, and I'd love to hear from anyone els
 
 ## Marketplace
 
-Accountant24 has a [marketplace](https://accountant24.ai/docs/marketplace) for plugins: browse what the community has published and install a plugin right from **Settings → Plugins** in the app. Listing is automatic and nobody reviews the plugins, so [install only plugins you trust](https://accountant24.ai/docs/marketplace#install-only-plugins-you-trust). To build and publish a plugin of your own, see [Create a plugin](https://accountant24.ai/docs/create-a-plugin).
+Accountant24 has a [marketplace](https://accountant24.ai/docs/marketplace) for plugins. Browse what the community has published and install a plugin right from **Settings → Plugins** in the app. Listing is automatic and nobody reviews the plugins, so [install only plugins you trust](https://accountant24.ai/docs/marketplace#install-only-plugins-you-trust). To build and publish a plugin of your own, see [Create a plugin](https://accountant24.ai/docs/create-a-plugin).
 
 ## License
 
