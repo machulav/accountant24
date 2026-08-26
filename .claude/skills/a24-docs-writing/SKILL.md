@@ -23,6 +23,7 @@ Style mechanics (voice, sentence length, banned words, heading case) are the `a2
 - Sibling sections mirror each other's structure and phrasing (Install and Uninstall both open with one action sentence, then "During the …, the app …").
 - Main topics get root-level headings; group sections only when the group name adds meaning. Every heading is self-contained: "Publish your own plugin", never "Publish your own".
 - Link text names its destination. Never hang a link on another concept's words.
+- Separate clauses with periods, never with colons or semicolons. A colon is fine only to introduce a list, an example, or a code block.
 
 ## Process
 
