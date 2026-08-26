@@ -27,7 +27,7 @@ const h = vi.hoisted(() => ({
   sendToWindow: vi.fn(),
   ws: "",
   appVersion: "1.0.0",
-  pluginInstalled: vi.fn(),
+  pluginInstallSucceeded: vi.fn(),
   pluginInstallFailed: vi.fn(),
   pluginUninstalled: vi.fn(),
 }));
@@ -42,7 +42,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../../analytics", () => ({
-  trackPluginInstalled: h.pluginInstalled,
+  trackPluginInstallSucceeded: h.pluginInstallSucceeded,
   trackPluginInstallFailed: h.pluginInstallFailed,
   trackPluginUninstalled: h.pluginUninstalled,
 }));
@@ -206,7 +206,7 @@ let mod: typeof import("../plugins");
 
 beforeEach(async () => {
   h.handlers.clear();
-  for (const fn of [h.pluginInstalled, h.pluginInstallFailed, h.pluginUninstalled]) {
+  for (const fn of [h.pluginInstallSucceeded, h.pluginInstallFailed, h.pluginUninstalled]) {
     fn.mockClear();
   }
   h.sendToWindow.mockClear();
@@ -544,13 +544,13 @@ describe("plugins_inspect", () => {
   it("should count the install once it lands", async () => {
     await serve(BUDGET);
     await install();
-    expect(h.pluginInstalled).toHaveBeenCalledWith("marketplace", false, 2);
+    expect(h.pluginInstallSucceeded).toHaveBeenCalledWith("marketplace", false, 2);
   });
 
   it("should count an install from our own account as official", async () => {
     await serve(BUDGET);
     await install("Accountant24/Budget");
-    expect(h.pluginInstalled).toHaveBeenCalledWith("marketplace", true, 2);
+    expect(h.pluginInstallSucceeded).toHaveBeenCalledWith("marketplace", true, 2);
   });
 
   it("should refuse a second read while one is already running", async () => {

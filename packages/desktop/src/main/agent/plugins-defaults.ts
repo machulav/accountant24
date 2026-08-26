@@ -11,7 +11,7 @@
 // state, not an error to report.
 
 import type { BrowserWindow } from "electron";
-import { trackPluginInstalled, trackPluginInstallFailed } from "../analytics";
+import { trackPluginInstallFailed, trackPluginInstallSucceeded } from "../analytics";
 import { readDefaultPluginsInstalled, readPluginRegistry, writeDefaultPluginsInstalled } from "../settings";
 import { commitToStore, fetchPluginFromRepo, storedPlugins, withInstallLock } from "./plugins";
 import { isOfficialSource } from "./plugins-store";
@@ -89,7 +89,7 @@ async function install(repo: string): Promise<Outcome> {
         return "done";
       }
       commitToStore(fetched);
-      trackPluginInstalled("default", isOfficialSource(repo), fetched.plugin.skills.length);
+      trackPluginInstallSucceeded("default", isOfficialSource(repo), fetched.plugin.skills.length);
       return "installed";
     } finally {
       fetched.cleanup();

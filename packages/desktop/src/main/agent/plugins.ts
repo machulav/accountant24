@@ -29,8 +29,8 @@ import type { AgentHostSkill } from "../../shared/agentHost";
 import type { PluginAddRequest, PluginInfo, PluginPreview, PluginRegistry, PluginSkillInfo } from "../../shared/types";
 import {
   type PluginInstallFailReason,
-  trackPluginInstalled,
   trackPluginInstallFailed,
+  trackPluginInstallSucceeded,
   trackPluginUninstalled,
 } from "../analytics";
 import { pluginsDir } from "../env";
@@ -340,7 +340,7 @@ function pluginsAdd() {
     }
 
     commitToStore(staged);
-    trackPluginInstalled("marketplace", isOfficialSource(repo), plugin.skills.length);
+    trackPluginInstallSucceeded("marketplace", isOfficialSource(repo), plugin.skills.length);
     // Only a successful install consumes the staged copy; after a refusal the
     // dialog still shows the plugin, so keep it installable once the user has
     // dealt with whatever blocked it.

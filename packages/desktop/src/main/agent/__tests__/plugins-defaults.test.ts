@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
   sendToWindow: vi.fn(),
   killAllAgents: vi.fn(),
   warn: vi.fn(),
-  pluginInstalled: vi.fn(),
+  pluginInstallSucceeded: vi.fn(),
   pluginInstallFailed: vi.fn(),
 }));
 
@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: () => undefined },
 }));
 vi.mock("../../analytics", () => ({
-  trackPluginInstalled: h.pluginInstalled,
+  trackPluginInstallSucceeded: h.pluginInstallSucceeded,
   trackPluginInstallFailed: h.pluginInstallFailed,
   trackPluginUninstalled: vi.fn(),
 }));
@@ -128,7 +128,7 @@ beforeEach(async () => {
   h.sendToWindow.mockClear();
   h.killAllAgents.mockClear();
   h.warn.mockClear();
-  h.pluginInstalled.mockClear();
+  h.pluginInstallSucceeded.mockClear();
   h.pluginInstallFailed.mockClear();
   vi.spyOn(console, "warn").mockImplementation(h.warn);
   vi.resetModules();
@@ -406,18 +406,18 @@ describe("installDefaultPlugins(), what it counts", () => {
 
     await run();
 
-    expect(h.pluginInstalled).toHaveBeenCalledWith("default", true, 1);
+    expect(h.pluginInstallSucceeded).toHaveBeenCalledWith("default", true, 1);
     expect(h.pluginInstallFailed).not.toHaveBeenCalled();
   });
 
   it("should count nothing on a launch with nothing left to install", async () => {
     await serve();
     await run();
-    h.pluginInstalled.mockClear();
+    h.pluginInstallSucceeded.mockClear();
 
     await run();
 
-    expect(h.pluginInstalled).not.toHaveBeenCalled();
+    expect(h.pluginInstallSucceeded).not.toHaveBeenCalled();
   });
 
   it("should count a launch that could not reach the repository", async () => {
@@ -433,7 +433,7 @@ describe("installDefaultPlugins(), what it counts", () => {
     // A first launch offline leaves the workspace with no skills at all, which
     // shows nowhere in the app.
     expect(h.pluginInstallFailed).toHaveBeenCalledWith("default", "fetch_failed");
-    expect(h.pluginInstalled).not.toHaveBeenCalled();
+    expect(h.pluginInstallSucceeded).not.toHaveBeenCalled();
   });
 
   it("should count a seed that stood down for something the user already had", async () => {
@@ -443,7 +443,7 @@ describe("installDefaultPlugins(), what it counts", () => {
     await run();
 
     expect(h.pluginInstallFailed).toHaveBeenCalledWith("default", "collision");
-    expect(h.pluginInstalled).not.toHaveBeenCalled();
+    expect(h.pluginInstallSucceeded).not.toHaveBeenCalled();
   });
 });
 

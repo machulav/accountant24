@@ -203,16 +203,18 @@ describe("trackQuit()", () => {
 });
 
 describe("plugin events", () => {
-  it("should emit plugin_installed with the source, the publisher and the skill count", async () => {
-    const { trackPluginInstalled } = await setup();
-    trackPluginInstalled("marketplace", false, 2);
-    expect(events()).toEqual([["plugin_installed", { source: "marketplace", official: false, skill_count: 2 }]]);
+  it("should emit plugin_install_succeeded with the source, the publisher and the skill count", async () => {
+    const { trackPluginInstallSucceeded } = await setup();
+    trackPluginInstallSucceeded("marketplace", false, 2);
+    expect(events()).toEqual([
+      ["plugin_install_succeeded", { source: "marketplace", official: false, skill_count: 2 }],
+    ]);
   });
 
   it("should mark an install of one of ours as official", async () => {
-    const { trackPluginInstalled } = await setup();
-    trackPluginInstalled("default", true, 3);
-    expect(events()).toEqual([["plugin_installed", { source: "default", official: true, skill_count: 3 }]]);
+    const { trackPluginInstallSucceeded } = await setup();
+    trackPluginInstallSucceeded("default", true, 3);
+    expect(events()).toEqual([["plugin_install_succeeded", { source: "default", official: true, skill_count: 3 }]]);
   });
 
   it("should emit marketplace_load_failed with the failure kind", async () => {
@@ -241,9 +243,13 @@ describe("plugin events", () => {
 
   it("should emit nothing when analytics are opted out", async () => {
     patchSettings({ analyticsEnabled: false });
-    const { trackPluginInstalled, trackPluginInstallFailed, trackPluginUninstalled, trackMarketplaceLoadFailed } =
-      await setup();
-    trackPluginInstalled("marketplace", false, 1);
+    const {
+      trackPluginInstallSucceeded,
+      trackPluginInstallFailed,
+      trackPluginUninstalled,
+      trackMarketplaceLoadFailed,
+    } = await setup();
+    trackPluginInstallSucceeded("marketplace", false, 1);
     trackPluginInstallFailed("marketplace", "other");
     trackPluginUninstalled(false);
     trackMarketplaceLoadFailed("fetch_failed");

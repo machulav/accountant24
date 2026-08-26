@@ -92,12 +92,14 @@ export function trackUpdateFailed(kind: "check" | "download"): void {
  *  every install event carries which it was. */
 export type PluginInstallSource = "marketplace" | "default";
 
-/** Record a plugin install landing in the store. Counts and flags only —
- *  plugin names and repos never leave the machine. `official` says it came
- *  from the Accountant24 account, which is the split every plugin number is
- *  read along. */
-export function trackPluginInstalled(source: PluginInstallSource, official: boolean, skillCount: number): void {
-  track("plugin_installed", { source, official, skill_count: skillCount });
+/** Record a plugin install landing in the store — the ending of the
+ *  `plugin_install_*` lifecycle that `plugin_install_started` opens and
+ *  `plugin_install_failed` is the other half of. Counts and flags only: plugin
+ *  names and repos never leave the machine. `official` says it came from the
+ *  Accountant24 account, which is the split every plugin number is read
+ *  along. */
+export function trackPluginInstallSucceeded(source: PluginInstallSource, official: boolean, skillCount: number): void {
+  track("plugin_install_succeeded", { source, official, skill_count: skillCount });
 }
 
 export type PluginInstallFailReason =
@@ -110,16 +112,19 @@ export type PluginInstallFailReason =
   | "fetch_failed"
   | "other";
 
-/** Record a failed plugin install. Structural reason only — error text can
- *  carry repo names and paths, so it never leaves the machine. A `default`
- *  failure is retried on the next launch, so it counts attempts rather than
- *  users. */
+/** Record a plugin install that did not land, the other ending to
+ *  `plugin_install_succeeded`. Structural reason only — error text can carry
+ *  repo names and paths, so it never leaves the machine. A `default` failure
+ *  is retried on the next launch, so it counts attempts rather than users. */
 export function trackPluginInstallFailed(source: PluginInstallSource, reason: PluginInstallFailReason): void {
   track("plugin_install_failed", { source, reason });
 }
 
-/** Record an installed plugin being uninstalled. Uninstalling is the only way
- *  to turn a plugin off, so this carries the signal a disable switch would. */
+/** Record an installed plugin being uninstalled. One event rather than a
+ *  `plugin_uninstall_*` lifecycle: uninstalling is a local delete with nothing
+ *  to fail on and no confirmation worth measuring separately. Uninstalling is
+ *  the only way to turn a plugin off, so this carries the signal a disable
+ *  switch would. */
 export function trackPluginUninstalled(official: boolean): void {
   track("plugin_uninstalled", { official });
 }

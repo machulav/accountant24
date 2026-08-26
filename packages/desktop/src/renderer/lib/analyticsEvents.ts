@@ -61,10 +61,11 @@ export function trackMarketplaceViewed(pluginCount: number): void {
   analyticsApi.track("marketplace_viewed", { plugin_count: pluginCount });
 }
 
-/** Record the install confirmation opening, before anything is downloaded.
- *  Against `plugin_installed` this is how often the dialog is approved rather
- *  than abandoned — for a community plugin, the answer to whether people go
- *  ahead past the "not reviewed" warning. */
+/** Record the install confirmation opening, before anything is downloaded —
+ *  the opening of the `plugin_install_*` lifecycle that main closes with
+ *  `plugin_install_succeeded` or `plugin_install_failed`. Against those two it
+ *  is how often the dialog is approved rather than abandoned: for a community
+ *  plugin, whether people go ahead past the "not reviewed" warning. */
 export function trackPluginInstallStarted(official: boolean): void {
   analyticsApi.track("plugin_install_started", { official });
 }
