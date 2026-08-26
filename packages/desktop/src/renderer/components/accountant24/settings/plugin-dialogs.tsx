@@ -191,6 +191,16 @@ function InstallPluginForm({
       const inspected = await pluginsApi.inspect({ source: target.repo });
       if (cancelled()) return;
       if (inspected.type !== "plugin") throw new Error(inspected.message ?? "Failed to read the plugin");
+      // What the dialog showed came from the index, which is rebuilt every
+      // half hour and cached for minutes after that; what would be installed
+      // is the manifest just read out of the repository. A repository renamed
+      // since the last rebuild would install a plugin the user never approved,
+      // so the mismatch stops here rather than being copied in.
+      if (inspected.plugin.name !== target.name) {
+        throw new Error(
+          `${target.repo} now holds a plugin named ${inspected.plugin.name}, not ${target.name}. Refresh the marketplace and try again.`,
+        );
+      }
       const added = await pluginsApi.add();
       if (cancelled()) return;
       if (added.type === "error") throw new Error(added.message ?? "Failed to install the plugin");

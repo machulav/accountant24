@@ -59,7 +59,12 @@ function allPlugins(): StoredPlugin[] {
 /** Plugins installed from the Accountant24 account, then the rest. Stable, so
  *  each group keeps the store's own (alphabetical) order. Exported for tests. */
 export function officialFirst(plugins: StoredPlugin[], registry = readPluginRegistry()): StoredPlugin[] {
-  const official = (plugin: StoredPlugin) => registry[plugin.name]?.source?.startsWith(`${OFFICIAL_OWNER}/`) === true;
+  // Case-folded, like the renderer's own isOfficial: GitHub owners are
+  // case-insensitive, and the source is recorded with whatever casing the
+  // index reported. A miss here would let a community plugin take a skill name
+  // off one of ours, which is exactly what this ordering exists to prevent.
+  const official = (plugin: StoredPlugin) =>
+    registry[plugin.name]?.source?.toLowerCase().startsWith(`${OFFICIAL_OWNER}/`) === true;
   return [...plugins].sort((a, b) => Number(official(b)) - Number(official(a)));
 }
 

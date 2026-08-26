@@ -395,3 +395,40 @@ describe("installDefaultPlugins(), when the download fails", () => {
     expect(stored("accountant24-skills")).toBe(true);
   });
 });
+
+describe("installDefaultPlugins(), when the store cannot be written", () => {
+  /** A `plugins` path that is a file, so every write into the store fails —
+   *  standing in for a read-only home or a full disk. */
+  const blockTheStore = () => writeFileSync(join(h.ws, "plugins"), "not a directory");
+
+  it("should not reject, since the caller launches it without awaiting it", async () => {
+    await serve();
+    blockTheStore();
+
+    await expect(run()).resolves.toBeUndefined();
+  });
+
+  it("should record nothing, so the next launch tries again", async () => {
+    await serve();
+    blockTheStore();
+
+    await run();
+
+    expect(installedRepos()).toEqual([]);
+    expect(h.killAllAgents).not.toHaveBeenCalled();
+    expect(h.sendToWindow).not.toHaveBeenCalled();
+  });
+
+  it("should install on the next launch once the store is writable again", async () => {
+    await serve();
+    blockTheStore();
+    await run();
+
+    rmSync(join(h.ws, "plugins"), { force: true });
+    await serve();
+    await run();
+
+    expect(stored("accountant24-skills")).toBe(true);
+    expect(installedRepos()).toEqual([REPO]);
+  });
+});

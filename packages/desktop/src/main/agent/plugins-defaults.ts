@@ -25,6 +25,20 @@ type Outcome = "installed" | "done" | "retry";
 /** Install the default plugins this workspace hasn't been given yet. Never
  *  throws: startup does not depend on it, and neither does anything else. */
 export async function installDefaultPlugins(getWin: () => BrowserWindow | null): Promise<void> {
+  try {
+    await installEach(getWin);
+  } catch (error) {
+    // Copying into the store and recording the result are plain file writes,
+    // and they can fail for reasons that have nothing to do with plugins: a
+    // read-only home, a full disk, a `plugins` path that is not a directory.
+    // None of that is worth taking the launch down for — and the caller fires
+    // this without awaiting it, so a rejection here would go unhandled. The
+    // next launch tries again.
+    console.warn(`[plugins] defaults: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function installEach(getWin: () => BrowserWindow | null): Promise<void> {
   const done = new Set(readDefaultPluginsInstalled());
   let installed = false;
 

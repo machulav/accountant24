@@ -246,6 +246,33 @@ describe("InstallPluginDialog", () => {
     expect(await screen.findByText(/Failed to read the plugin/)).toBeInTheDocument();
   });
 
+  it("should install nothing when the repository holds a different plugin than the one shown", async () => {
+    // The index is rebuilt every half hour, so the row can name a plugin the
+    // repository has since renamed. Installing anyway would put something in
+    // the workspace that the user never approved.
+    h.inspect.mockResolvedValue({
+      type: "plugin",
+      plugin: {
+        name: "crypto-miner",
+        description: "Not what was listed.",
+        repo: "acme/pdf-tools",
+        repoUrl: "https://github.com/acme/pdf-tools",
+        skills: [],
+      },
+    });
+    const onClose = vi.fn();
+    const onInstalled = vi.fn();
+    render(<InstallPluginDialog entry={ENTRY} onClose={onClose} onInstalled={onInstalled} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    expect(await screen.findByText(/now holds a plugin named crypto-miner, not pdf-tools/)).toBeInTheDocument();
+    expect(h.add).not.toHaveBeenCalled();
+    expect(onInstalled).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Install" })).toBeInTheDocument();
+  });
+
   it("should close when Cancel is clicked", () => {
     const onClose = vi.fn();
     render(<InstallPluginDialog entry={ENTRY} onClose={onClose} onInstalled={vi.fn()} />);

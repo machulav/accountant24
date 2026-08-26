@@ -316,6 +316,23 @@ describe("plugins_list", () => {
     expect(mod.agentSkills().map((s) => s.name)).toContain("accountant24-skills:monthly-review");
   });
 
+  it("should recognize its own plugin however the repository owner is capitalized", async () => {
+    // GitHub owners are case-insensitive and the index reports the account's
+    // own casing, so the source can land in the registry as "Accountant24/…".
+    addStorePlugin("aaa-tools", ["monthly-review"]);
+    addNativePlugin("accountant24-skills", ["monthly-review"]);
+    writeFileSync(
+      join(h.ws, "app-settings.json"),
+      JSON.stringify({
+        plugins: { "accountant24-skills": { source: "Accountant24/Skills", addedAt: "2026-01-01T00:00:00.000Z" } },
+      }),
+    );
+
+    const community = list().find((p) => p.name === "aaa-tools");
+    expect(community?.skills[0]?.error).toBe("Skill name already used by the accountant24-skills plugin.");
+    expect(mod.agentSkills().map((s) => s.name)).toEqual(["accountant24-skills:monthly-review"]);
+  });
+
   it("should forget provenance for a plugin folder that is gone", async () => {
     await serve(BUDGET);
     await install();

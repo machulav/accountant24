@@ -10,6 +10,7 @@ packages/desktop/resources/bin/*
 .env
 .claude/worktrees/
 coverage/
+*.tsbuildinfo
 # Playwright E2E artifacts
 test-results/
 playwright-report/
