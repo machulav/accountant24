@@ -3,8 +3,10 @@ name: a24-writing-guidelines
 description: Review docs and prose (docs/**/*.mdx, README) for writing-style compliance. Use when asked to review writing, check docs style, or as the final pass after editing docs pages.
 ---
 
-<!-- Vendored from https://github.com/vercel-labs/writing-guidelines (command.md, MIT).
-     To update, re-download that file and keep this frontmatter + note. -->
+<!-- Adapted from https://github.com/vercel-labs/writing-guidelines (command.md, MIT):
+     Vercel-specific rules (their platform frontmatter, dashboard links, team
+     process) are removed or generalized. To update, re-download that file and
+     re-apply this note's adaptations. -->
 
 # Writing Guidelines
 
@@ -16,8 +18,7 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 
 ### Planning & content type
 
-- Every page has a plan (overview, goal, audience, content plan, open questions) referenced or linked
-- Content type declared in `meta.contentType`: `Tutorial`, `How-to`, `Reference`, `Conceptual`, `Troubleshooting`, or `Landing`
+- Know the page's content type: tutorial, how-to, reference, conceptual, troubleshooting, or landing
 - Title is user-shaped (the user's question), not feature-shaped (the engineer's name)
 - Page does one job: tutorial OR how-to OR reference, not three at once
 - Goal is verb-driven (Bloom's taxonomy): "configure", "explain", "debug" (testable)
@@ -31,7 +32,7 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 - Sentences under 20 words target
 - Contractions encouraged (`you'll`, `it's`) for warmth
 - Present tense unless describing future behavior
-- Limit `we`: only for deliberate Vercel actions ("we recommend", "we deprecated"), never as a stand-in for "you"
+- Limit `we`: only for deliberate product-team actions ("we recommend", "we deprecated"), never as a stand-in for "you"
 - No rhetorical questions (sounds like marketing)
 - Second-read test: read each sentence once at speech pace; if you re-read to parse it, name the subject, the action, and the consequence (kill metaphor verbs and pronouns reaching back several sentences)
 
@@ -44,7 +45,7 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 
 - Earn every detail: cut a number, name, or implementation detail if a more general phrasing wouldn't change the reader's understanding or action
 - Weasel words: replace vague qualifiers (`significantly`, `many`, `often`, `typically`, `generally`) with a specific number or claim
-- Vague quantifiers: no `near-zero`, `sub-second`, `most requests`; give the figure and cite it (`99.37% of requests see zero cold starts`)
+- Vague quantifiers: no `near-zero`, `sub-second`, `most requests`; give the figure and cite it
 - Filler/metaphor verbs: name the action instead of reaching for cadence (`moves through`, `lands`, `carries`, `hits` → the literal step)
 
 ### AI-generated tells (flag these)
@@ -68,7 +69,7 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 
 - Sentence case for page headings (`H1` `H2` `H3`): "Configure environment variables", not "Configure Environment Variables"
 - Title case for nav labels: "Configuring Environment Variables"
-- `meta.title` becomes the `H1`; `meta.navLabel` becomes the sidebar entry
+- The frontmatter `title` becomes the `H1`; `sidebarTitle` becomes the sidebar entry
 - Subheadings descriptive, not cute: "Caveats when self-hosting on Cloudflare", not "Caveats"
 - Reader should be able to guess section content from the heading alone
 
@@ -148,44 +149,19 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 
 - Define every term the first time it appears, link to its conceptual page
 - Anchor text names the destination; never bare URLs or `here`/`link`
-- Dashboard deep links use the standard format: `https://vercel.com/d?to=%2F%5Bteam%5D%2F~%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys`
-- Link to canonical product docs where relevant: `https://vercel.com/docs/vercel-sandbox`, `https://vercel.com/docs/ai-gateway`
-- AI Gateway model catalog: `https://vercel.com/ai-gateway/models`
 
 ### Models in examples
 
-- Always use the latest model strings: `anthropic/claude-opus-4-7`, not `anthropic/claude-sonnet-4` or older
-- For image generation default: `google/gemini-3.1-flash-image-preview`
-
-### AI workflow
-
-- You are accountable for the content you produce, however it is created
-- You are the final arbiter; the model proposes, you dispose
-- Hold technical accuracy to a high standard: docs are also consumed by LLMs, wrong docs train wrong models
-- Use only enterprise models that do not train on your data (especially for unreleased products)
-- Disclose AI use in the PR (model + prompts if useful)
-- Plan first by hand; the plan is the spec the model works against
-- Use plan-mode in your editor (Cursor, Claude) before letting the model write
-- Tell the model to follow `AGENTS.md` and the linting checklist
-- Run a test prompt against the preview: "given this plan's goal, can the model complete the task using only this page?"
-- Final human review always
+- Name current models in examples, never outdated ones
 
 ### Quality checklist (required boxes are non-negotiable)
 
-- **Findability**: sidebar bucket set via `meta.category`; UI links to docs from any dashboard surface that exposes the feature
-- **Accuracy**: code samples actually run; screenshots map 1:1 to current UI and use the ACME demo account
+- **Findability**: page listed in the sidebar navigation; the app links to docs where it exposes the feature
+- **Accuracy**: code samples actually run; screenshots map 1:1 to the current UI and show demo data, never real data
 - **Relevance**: code samples included where applicable (TypeScript first; `<Steps/>` for multi-step flows)
-- **Clarity**: overview addresses who/what/where/why; high-level use cases laid out; quickstart for new products; prerequisites listed on tutorials; sample repo in `vercel/examples` for multi-step tutorials; steps detailed not vague; visual aids in confusing sections; simplest path recommended when multiple exist
-- **Completeness**: limits documented; all-limits tables updated; content plan followed and goals addressed
+- **Clarity**: overview addresses who/what/where/why; high-level use cases laid out; prerequisites listed on tutorials; steps detailed not vague; simplest path recommended when multiple exist
+- **Completeness**: limits documented; limit tables updated
 - **Readability**: nav names scannable and use action verbs; content types accurately used; subheadings descriptive; topics start with summaries; code blocks formatted correctly; active voice where warranted
-
-### Review
-
-- PR description links to the content plan, lists what to review, and links the preview URL
-- Ping the team via the PR link (not the plan or preview directly)
-- Author is accountable, not the reviewer; reviewers are liberal with approvals
-- Suggestion comments for small text fixes; preview comments for anything bigger
-- Disagreement is fine; reject with a one-line reason and move on
 
 ### Anti-patterns (flag these)
 
@@ -210,7 +186,7 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 - Rhetorical questions
 - Filler words: `very`, `just`, `really`, `simply`
 - References to "the full example file at the end of the guide" rather than inlining the code
-- Outdated model strings in examples (`anthropic/claude-sonnet-4`, `gpt-4o`, DALL-E)
+- Outdated model names in examples
 - Hardcoded date/number formats instead of `Intl.DateTimeFormat` / `Intl.NumberFormat` in code samples
 - "Loading..." instead of "Loading…"
 - Summary-style transitions recapping the previous paragraph (`With this setup complete…`)
@@ -231,28 +207,16 @@ Read files, check against rules below. Output concise but comprehensive: sacrifi
 Group by file. Use `file:line` format (VS Code clickable). Terse findings.
 
 ```text
-## content/docs/sandbox.mdx
+## docs/docs/plugins.mdx
 
-content/docs/sandbox.mdx:1 - missing meta.contentType
-content/docs/sandbox.mdx:12 - title "Vercel Sandbox" is feature-shaped, not user-question
-content/docs/sandbox.mdx:24 - passive voice ("the sandbox is created...")
-content/docs/sandbox.mdx:31 - banned word "easy"
-content/docs/sandbox.mdx:47 - "..." → "…"
-content/docs/sandbox.mdx:58 - code block missing language tag
-content/docs/sandbox.mdx:71 - placeholder <TOKEN> → your_access_token_here
-content/docs/sandbox.mdx:89 - "64KB" → "64 KB"
-content/docs/sandbox.mdx:102 - H2 "Caveats" too generic; add specificity
-content/docs/sandbox.mdx:118 - em dash in prose, replace with colon/comma
+docs/docs/plugins.mdx:24 - passive voice ("the plugin is created...")
+docs/docs/plugins.mdx:31 - banned word "easy"
+docs/docs/plugins.mdx:47 - "..." → "…"
+docs/docs/plugins.mdx:58 - code block missing language tag
+docs/docs/plugins.mdx:102 - H2 "Caveats" too generic; add specificity
+docs/docs/plugins.mdx:118 - em dash in prose, replace with colon/comma
 
-## content/docs/ai-gateway.mdx
-
-content/docs/ai-gateway.mdx:5 - title case in H1; sentence case only
-content/docs/ai-gateway.mdx:18 - acronym AI Gateway used before being spelled out
-content/docs/ai-gateway.mdx:34 - bold for emphasis, not UI element
-content/docs/ai-gateway.mdx:52 - `anthropic/claude-sonnet-4` outdated; use `anthropic/claude-opus-4-7`
-content/docs/ai-gateway.mdx:71 - hard-wrapped paragraph (lines 71-74)
-
-## content/docs/cron.mdx
+## docs/docs/marketplace.mdx
 
 ✓ pass
 ```
