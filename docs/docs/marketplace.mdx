@@ -1,23 +1,16 @@
 ---
 title: "Marketplace"
 sidebarTitle: "Marketplace"
-description: "Browse plugins published by other people and install them from inside Accountant24."
+description: "The marketplace lists plugins published by other people."
 ---
 
-The marketplace lists plugins published by other people, and installs one without leaving the app. It lives in **Settings → Plugins**.
+The marketplace lives in **Settings → Plugins**, where you can browse and install plugins without leaving the app.
 
-A plugin is a small package of skills. A skill is a reusable playbook the agent follows, like a monthly review or a subscription audit. Installing a plugin gives its skills to the agent. See [Plugins](/docs/plugins) for how they work.
-
-## Install a plugin
-
-1. Open **Settings → Plugins** and find the plugin under **Marketplace**.
-2. Click **Install**, review the plugin details, then confirm.
-
-The app downloads nothing before you confirm, and nothing from the plugin runs while it installs. After the install finishes, the plugin's skills are ready to use in chat.
+A plugin is a small package of skills. A skill is a reusable playbook the agent follows, like a monthly review or a subscription audit. See [Plugins](/docs/plugins) for how they work.
 
 ## How the list is built
 
-An automatic index builds the list: it includes every public GitHub repository with the `accountant24-plugin` topic that holds a valid plugin. A listing means only that the author added that topic to their own repository. The list refreshes about every 30 minutes, and the **Refresh** button downloads the current one. You can browse the same index at [accountant24/marketplace](https://github.com/accountant24/marketplace).
+An automatic index builds the list. It includes every public GitHub repository with the `accountant24-plugin` topic that holds a valid plugin. A listing means only that the author added that topic to their own repository. The list refreshes about every 30 minutes, and the **Refresh** button downloads the current one. You can browse the same index at [accountant24/marketplace](https://github.com/accountant24/marketplace).
 
 To report a plugin, open an issue or a pull request against [`blocklist.json`](https://github.com/accountant24/marketplace/blob/main/blocklist.json) in the marketplace repository. The index never lists blocked repositories.
 
@@ -39,6 +32,6 @@ Check the plugin's source code in its repository before you install it. Start wi
 
 Installing a plugin is your decision and your risk. Accountant24 comes as is, without warranty of any kind. It takes no responsibility for what a plugin does with your data.
 
-## Publish your own
+## Publish your own plugin
 
 Put your plugin in a public GitHub repository and add the topic `accountant24-plugin`. It appears at the next refresh. See the [Create a plugin](/docs/create-a-plugin) page for the plugin format and publishing details.

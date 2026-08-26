@@ -1,0 +1,48 @@
+---
+title: "Plugins"
+sidebarTitle: "Plugins"
+description: "A plugin is a small package of skills for the agent. Install plugins from the marketplace or create your own."
+---
+
+## Built-in plugins
+
+Accountant24 comes with the [accountant24-skills](https://github.com/accountant24/skills) plugin, which holds a set of helpful skills. The app installs built-in plugins the first time it starts. Plugins published by Accountant24 carry the **Official** badge in **Settings → Plugins**.
+
+## Community plugins
+
+The [marketplace](/docs/marketplace) lists plugins published by other people.
+
+## Your own plugins
+
+Ask the agent to create a skill by describing the routine you want, for example:
+
+> Create a skill that compares my spending this month to the previous month and shows where I spent more.
+
+The agent saves the new plugin to `~/Accountant24/plugins/<plugin-name>`. Restart the app to make its skills available in chat.
+
+You can also write a plugin manually. See [Create a plugin](/docs/create-a-plugin).
+
+## Manage plugins
+
+### Install a plugin
+
+Find the plugin under **Marketplace** in **Settings → Plugins**, click **Install**, review the plugin details, then **confirm**. The app downloads nothing before you confirm.
+
+During the install, the app:
+
+1. Downloads the repository from GitHub as an archive, over HTTPS.
+2. Checks that the repository holds a valid plugin, and stops with an error otherwise.
+3. Copies the plugin into your workspace, at `~/Accountant24/plugins/<plugin-name>`.
+4. Restarts the agent, so the plugin's skills are ready to use in chat.
+
+Nothing from the plugin runs during the install. Its instructions and scripts run later, when the agent uses one of its skills.
+
+### Uninstall a plugin
+
+Click **Uninstall** in **Settings → Plugins** to remove the plugin and its skills. This works for the built-in plugins too.
+
+During the uninstall, the app deletes the plugin's folder, `~/Accountant24/plugins/<plugin-name>`.
+
+### Update a plugin
+
+To update a plugin to a newer version, uninstall it and install it again.
