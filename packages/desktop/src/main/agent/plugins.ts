@@ -1,4 +1,4 @@
-// Plugins — manage the plugin store (~/Accountant24/plugins) over IPC.
+// Plugins — manage the plugin store (<workspace>/plugins) over IPC.
 //
 // The store is the whole picture: the plugins a new workspace starts with are
 // installed into it on first launch (plugins-defaults), from their own

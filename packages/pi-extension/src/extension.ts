@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { listAccounts, listPayees, listTags } from "./ledger";
 import { getMemory, guardMemoryToolCall } from "./memory";
-import { ensureScaffolded } from "./scaffold/scaffold";
 import { buildContextSection, buildToolsSection, patchBakedDate } from "./system-prompt";
 import {
   addBalanceAssertionsTool,
@@ -15,8 +14,9 @@ import {
 } from "./tools";
 
 // The desktop app renders all UI from the RPC event stream, so this extension
-// registers only domain behavior — tools, scaffolding, and the system prompt.
-// No pi TUI customization (headers, footer, editor, autocomplete, etc.).
+// registers only domain behavior — tools and the system prompt. No pi TUI
+// customization (headers, footer, editor, autocomplete, etc.), and no workspace
+// setup: the app seeds the workspace at launch (main/workspace.ts).
 export function createAccountantExtension(pi: ExtensionAPI): void {
   // Register custom tools (pi registers its own built-in tools, bound to the agent
   // cwd, which the app sets to the workspace).
@@ -28,11 +28,6 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   pi.registerTool(commitAndPushTool);
   pi.registerTool(extractTextTool);
   pi.registerTool(validateTool);
-
-  // Scaffold the workspace on session start
-  pi.on("session_start", async () => {
-    await ensureScaffolded();
-  });
 
   // memory.md has no dedicated tool — the agent maintains it with pi's built-in
   // edit tool. This hook blocks the two escape hatches the system prompt cannot

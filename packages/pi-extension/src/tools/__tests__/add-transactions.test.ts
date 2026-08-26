@@ -11,7 +11,7 @@ const BASE = mkdtempSync(join(tmpdir(), "accountant24-add-tx-"));
 const LEDGER = join(BASE, "ledger");
 
 vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: BASE,
+  ACCOUNTANT24_WORKSPACE: BASE,
   LEDGER_DIR: LEDGER,
   MEMORY_PATH: join(BASE, "memory.md"),
   setBaseDir: () => {},

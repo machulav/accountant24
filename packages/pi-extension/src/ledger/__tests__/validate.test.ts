@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-validate-"));
 vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: BASE,
+  ACCOUNTANT24_WORKSPACE: BASE,
   LEDGER_DIR: join(BASE, "ledger"),
   MEMORY_PATH: join(BASE, "memory.md"),
   setBaseDir: () => {},

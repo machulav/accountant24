@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { generateDiffString } from "@earendil-works/pi-coding-agent";
-import { ACCOUNTANT24_HOME, LEDGER_DIR } from "../config";
+import { ACCOUNTANT24_WORKSPACE, LEDGER_DIR } from "../config";
 import { HledgerCommandError, hledgerCheck } from "./hledger";
 import { resolveSafePath } from "./paths";
 
@@ -223,7 +223,7 @@ function declareMissingCommodities(currencies: string[]): void {
 async function validateLedger(formatted: FormattedEntry[], signal?: AbortSignal): Promise<void> {
   const mainPath = resolveSafePath("main.journal", LEDGER_DIR);
   try {
-    await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_HOME, signal });
+    await hledgerCheck(mainPath, { cwd: ACCOUNTANT24_WORKSPACE, signal });
   } catch (e) {
     if (e instanceof HledgerCommandError) {
       const filePaths = [...new Set(formatted.map((f) => f.fullFilePath))].join(", ");

@@ -31,7 +31,7 @@ vi.mock("../env", () => ({
   workspaceDir: () => "/ws",
   binDir: () => "/vendored/bin",
   mainJournalPath: () => "/ws/ledger/main.journal",
-  agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" }),
+  agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" }),
 }));
 
 /** A canned hledger result per subcommand: an array of stdout lines, or an
@@ -177,7 +177,7 @@ describe("ledger_mentions", () => {
       const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
       expect(args).toEqual([args[0], "-f", journal]);
       expect(opts.cwd).toBe("/ws");
-      expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+      expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" });
       expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
     }
   });
@@ -311,7 +311,7 @@ describe("ledger_net_worth", () => {
     for (const call of h.execFile.mock.calls) {
       const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
       expect(opts.cwd).toBe("/ws");
-      expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+      expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" });
       expect(opts.maxBuffer).toBe(16 * 1024 * 1024);
     }
   });
@@ -461,7 +461,7 @@ describe("ledger_transactions", () => {
     expect(call[1]).toEqual(["print", "-O", "json", "-I", "-f", "/ws/ledger/main.journal"]);
     const opts = call[2] as { cwd: string; env: unknown; maxBuffer: number };
     expect(opts.cwd).toBe("/ws");
-    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_HOME: "/ws" });
+    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" });
     // A journal of ~6k transactions overflows the 16 MB default; the register
     // needs the raised cap so years of history don't render as "empty".
     expect(opts.maxBuffer).toBe(256 * 1024 * 1024);

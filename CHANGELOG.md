@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.16
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.15...v0.2.16)
+
+### 🚀 Features
+
+- Add action buttons to the empty Transactions and Net Worth pages ([#54](https://github.com/machulav/accountant24/pull/54))
+- Set initial window size and position and remember user changes ([#55](https://github.com/machulav/accountant24/pull/55))
+- Preselect a default model for connected providers ([#60](https://github.com/machulav/accountant24/pull/60))
+
+### 🐞 Bug Fixes
+
+- Keep file cards compact beside tall images in sent messages ([#56](https://github.com/machulav/accountant24/pull/56))
+
+### 📖 Documentation
+
+- Replace the README screenshot with a demo video ([#57](https://github.com/machulav/accountant24/pull/57))
+- Play the demo video with sound ([704696d](https://github.com/machulav/accountant24/commit/704696d))
+- Add demo video with audio ([15fba1b](https://github.com/machulav/accountant24/commit/15fba1b))
+- Add demo videos to the use cases page ([#59](https://github.com/machulav/accountant24/pull/59))
+
 ## v0.2.15
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.14...v0.2.15)

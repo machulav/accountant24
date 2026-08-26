@@ -3,7 +3,7 @@
 # Complements release.yml's `checks` job (which only runs at release time) so
 # regressions are caught on the PR, not at the cut. Same CLI-tool setup: the
 # suite includes integration tests that run the real shipped tools (hledger,
-# pdftotext/tesseract) and a real `git commit` (scaffold), so the runner needs
+# pdftotext/tesseract) and real `git` commands, so the runner needs
 # those tools and a git identity or those tests fail with empty results.
 
 name: CI

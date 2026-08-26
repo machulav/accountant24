@@ -1,6 +1,6 @@
 // Shared helpers for the Electron E2E smoke tests.
 //
-// Each test launches the built app pointed at a fresh temp ACCOUNTANT24_HOME.
+// Each test launches the built app pointed at a fresh temp ACCOUNTANT24_WORKSPACE.
 // Empty, it boots deterministically to the onboarding screen (no providers =>
 // no models => onboarding, and the pi agent child is never spawned); a `seed`
 // callback can pre-populate the home (e.g. auth.json) to boot into the chat
@@ -23,18 +23,21 @@ export interface LaunchedApp {
   close(): Promise<void>;
 }
 
-/** Launch the built app with an isolated temp workspace. */
+/** Launch the built app with an isolated temp workspace. ACCOUNTANT24_WORKSPACE is
+ *  always set, even for tests that pass `--workspace` via `args`: a broken
+ *  flag parser must fall through to a temp dir, never to the developer's real
+ *  default workspace. */
 export async function launchApp(
-  opts: { env?: Record<string, string>; seed?: (home: string) => void } = {},
+  opts: { args?: string[]; env?: Record<string, string>; seed?: (home: string) => void } = {},
 ): Promise<LaunchedApp> {
   const home = mkdtempSync(path.join(tmpdir(), "a24-e2e-"));
   opts.seed?.(home);
   const app = await electron.launch({
-    args: [MAIN_ENTRY],
+    args: [MAIN_ENTRY, ...(opts.args ?? [])],
     cwd: DESKTOP_DIR,
     env: {
       ...process.env,
-      ACCOUNTANT24_HOME: home,
+      ACCOUNTANT24_WORKSPACE: home,
       // Never talk to the update feed or analytics in tests.
       A24_FAKE_UPDATE: "",
       CI: "1",

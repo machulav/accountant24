@@ -7,17 +7,28 @@ description: Verify desktop-app UI changes by launching the Electron dev app and
 
 ## Launch
 
-From `packages/desktop`, run `npm run dev` in the background. The main process
-(`src/main/index.ts`) auto-enables CDP on **port 9223** in dev — no extra
-flags needed.
+Never run against the real workspace (`~/.accountant24`): always create a fresh
+test workspace and launch on it. From `packages/desktop`, in the background:
+
+```sh
+npm run dev -- -- --workspace "$(mktemp -d /tmp/a24-verify-XXXX)" --remote-debugging-port=9224
+```
+
+The main process logs `[workspace] using <dir> (flag|env|default)` at startup;
+`(default)` means the instance is on the user's real data: stop it and relaunch.
+A fresh workspace boots to the onboarding screen (no providers), where Cmd+,
+does nothing: open Settings by clicking "Use an API key", or seed the folder
+first (e.g. an `auth.json`) to boot into the chat layout.
 
 Gotchas:
 
-- **Check for leftovers first**: `lsof -nP -iTCP:9223 -iTCP:5173 -sTCP:LISTEN`.
-  A previous dev instance (possibly the user's) may hold 9223; a second launch
-  then fails to bind CDP with `bind() failed: Address already in use` but still
-  opens a window you can't drive. A leftover with an **empty** `/json/list` is
-  a windowless instance (macOS keeps the app alive after the window closes).
+- **Check for leftovers first**: `lsof -nP -iTCP:9223 -iTCP:9224 -iTCP:5173 -sTCP:LISTEN`.
+  The user's own dev instance usually holds CDP 9223 and vite 5173, which is why
+  you launch on 9224 (vite auto-increments to 5174). A second launch on an
+  occupied CDP port fails to bind with `bind() failed: Address already in use`
+  but still opens a window you can't drive. A leftover with an **empty**
+  `/json/list` is a windowless instance (macOS keeps the app alive after the
+  window closes).
 - Port 9222 is usually the user's Chrome — don't use it.
 - Wait for a `"type": "page"` target to appear before driving (~10s).
 - Don't `echo ===` in zsh compound commands — zsh treats `=word` as path
@@ -40,10 +51,10 @@ with commands: `targets`, `eval <js>` (Runtime.evaluate with awaitPromise),
 - Rows re-sort after toggles (enabled/available lists) — re-query coordinates
   before every tap; never tap the same coordinates twice.
 
-## Restore state
+## Clean up
 
-Toggles persist to `~/Accountant24/app-settings.json` immediately. If probing
-changed `enabledModels`, restore the file afterwards
-(all-models-enabled is stored as `enabledModels: []`). Kill your dev instance
-when done: `pkill -f "accountant24/node_modules/electron"` and
-`pkill -f "accountant24/node_modules/.bin/electron-vite"`.
+Kill only your own instance: the Electron PID listening on your CDP port
+(`lsof -nP -iTCP:9224 -sTCP:LISTEN -t`), its `electron-vite` parent, and the
+`npm run dev` grandparent. Never `pkill -f electron` or
+`pkill -f electron-vite`: those also match the user's running instance and other
+worktrees. Then delete the test workspace folder.

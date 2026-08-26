@@ -1,5 +1,5 @@
 // Archives every user-attached file into the workspace (files/YYYY/MM, timestamped
-// + deduplicated, relative to ACCOUNTANT24_HOME) and returns its workspace-relative
+// + deduplicated, relative to ACCOUNTANT24_WORKSPACE) and returns its workspace-relative
 // path. The renderer sends the file bytes (base64) rather than a source path, so
 // this works for picked, dropped, and pasted files alike. The agent then receives
 // a ready workspace path — pi-supported types (images) also ride along as native

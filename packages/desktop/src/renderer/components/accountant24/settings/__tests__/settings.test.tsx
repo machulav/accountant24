@@ -23,6 +23,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@/rpc/api", () => ({
   appApi: { version: h.version },
   updateApi: { pending: h.updatePending, install: vi.fn(), onDownloaded: vi.fn(() => () => {}) },
+  workspaceApi: { dir: vi.fn(async () => "/home/user/.accountant24"), open: vi.fn() },
   authApi: {
     status: h.status,
     detectOllama: h.detectOllama,

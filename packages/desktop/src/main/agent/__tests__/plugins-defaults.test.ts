@@ -34,7 +34,6 @@ vi.mock("../../env", () => ({
   workspaceDir: () => h.ws,
   pluginsDir: () => join(h.ws, "plugins"),
   appSettingsPath: () => join(h.ws, "app-settings.json"),
-  legacySettingsPath: () => join(h.ws, "settings.json"),
 }));
 vi.mock("../router", () => ({ killAllAgents: h.killAllAgents }));
 

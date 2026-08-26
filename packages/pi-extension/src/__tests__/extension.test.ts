@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
@@ -16,6 +16,7 @@ afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 
 beforeEach(() => {
   rmSync(BASE, { recursive: true, force: true });
+  mkdirSync(BASE, { recursive: true });
   setBaseDir(BASE);
 });
 
@@ -40,11 +41,10 @@ describe("accountant24Extension()", () => {
     expect(pi.registerTool).toHaveBeenCalledTimes(8);
   });
 
-  test("should register session_start, tool_call, and before_agent_start handlers", () => {
+  test("should register tool_call and before_agent_start handlers", () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    expect(pi.on).toHaveBeenCalledTimes(3);
-    expect(pi.handlers.session_start).toBeDefined();
+    expect(pi.on).toHaveBeenCalledTimes(2);
     expect(pi.handlers.tool_call).toBeDefined();
     expect(pi.handlers.before_agent_start).toBeDefined();
   });
@@ -54,7 +54,6 @@ describe("tool_call handler (memory guard wiring)", () => {
   test("should block a write to memory.md when memory has content", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
     writeFileSync(join(BASE, "memory.md"), "## Defaults\n- currency: EUR\n");
 
     const result = await pi.handlers.tool_call(
@@ -67,7 +66,6 @@ describe("tool_call handler (memory guard wiring)", () => {
   test("should allow an edit to memory.md", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
     writeFileSync(join(BASE, "memory.md"), "## Defaults\n- currency: EUR\n");
 
     const result = await pi.handlers.tool_call(
@@ -80,16 +78,6 @@ describe("tool_call handler (memory guard wiring)", () => {
       { cwd: BASE },
     );
     expect(result).toBeUndefined();
-  });
-});
-
-describe("ensureScaffolded (via session_start)", () => {
-  test("should scaffold workspace on session_start", async () => {
-    const pi = createMockPi();
-    accountant24Extension(pi as any);
-    await pi.handlers.session_start();
-
-    expect(existsSync(join(BASE, "ledger"))).toBe(true);
   });
 });
 
@@ -122,7 +110,6 @@ describe("before_agent_start handler", () => {
   test("should return object with systemPrompt key", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     expect(result).toHaveProperty("systemPrompt");
@@ -133,7 +120,6 @@ describe("before_agent_start handler", () => {
   test("should forward pi's enabled-tool snippets into the tools section", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;
@@ -147,7 +133,6 @@ describe("before_agent_start handler", () => {
   test("should omit tools without a snippet", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const event = {
       systemPrompt: basePrompt,
@@ -166,7 +151,6 @@ describe("before_agent_start handler", () => {
   test("should include context wrapper around dynamic sections", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;
@@ -181,7 +165,6 @@ describe("before_agent_start handler", () => {
   test("should include pi's tool guidelines", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;
@@ -192,7 +175,6 @@ describe("before_agent_start handler", () => {
   test("should preserve pi's assembled base prompt (system.md + skills block) at the start", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;
@@ -204,7 +186,6 @@ describe("before_agent_start handler", () => {
   test("should re-stamp pi's baked date line with today's date", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;
@@ -216,7 +197,6 @@ describe("before_agent_start handler", () => {
   test("should append tools and context after the base prompt", async () => {
     const pi = createMockPi();
     accountant24Extension(pi as any);
-    await pi.handlers.session_start();
 
     const result = await pi.handlers.before_agent_start(beforeEvent);
     const prompt = result.systemPrompt as string;

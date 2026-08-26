@@ -109,7 +109,7 @@ export interface LedgerTransaction {
   postings: LedgerPosting[];
 }
 
-// ---- App settings (app-owned config in ~/Accountant24/app-settings.json) ---
+// ---- App settings (app-owned config in <workspace>/app-settings.json) -----
 
 /** The app's own settings schema (app-owned keys, distinct from pi's config,
  *  which we don't write). */

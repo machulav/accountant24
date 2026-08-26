@@ -6,7 +6,7 @@ import { makeTmpWorkspace } from "./tmpWorkspace";
 // files.ts archives renderer-supplied bytes (base64) into the workspace under
 // files/YYYY/MM with a timestamped name, and returns the workspace-relative
 // path. Electron IPC is the only faked boundary; the fs is real (a temp
-// ACCOUNTANT24_HOME via makeTmpWorkspace) so the round-trip is honest.
+// ACCOUNTANT24_WORKSPACE via makeTmpWorkspace) so the round-trip is honest.
 type Handler = (event: unknown, payload?: unknown) => unknown;
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, Handler>() }));

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { spawnText } from "../../spawn";
 import { commitAndPush } from "../commit-push";
-import { commitAll, gitInit, hasChanges } from "../git";
+import { commitAll, hasChanges } from "../git";
 
 vi.mock("../../spawn");
 
@@ -31,8 +31,8 @@ function freshDir(): string {
   return mkdtempSync(join(BASE, "repo-"));
 }
 
-async function initRepo(dir: string): Promise<void> {
-  await gitInit(dir);
+function initRepo(dir: string): void {
+  git(["init"], dir);
   git(["config", "user.email", "test@test.com"], dir);
   git(["config", "user.name", "Test"], dir);
 }
@@ -40,7 +40,7 @@ async function initRepo(dir: string): Promise<void> {
 describe("commitAndPush()", () => {
   test("should commit with the provided message", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
 
     const result = await commitAndPush("Add file.txt for testing", dir);
@@ -57,7 +57,7 @@ describe("commitAndPush()", () => {
 
   test("should return multiple committed files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "a.txt"), "a");
     writeFileSync(join(dir, "b.txt"), "b");
 
@@ -70,7 +70,7 @@ describe("commitAndPush()", () => {
 
   test("should return no_changes when there are no changes", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
     await commitAll(dir, "initial");
 
@@ -87,7 +87,7 @@ describe("commitAndPush()", () => {
     git(["init", "--bare"], bareDir);
 
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     git(["remote", "add", "origin", bareDir], dir);
 
     writeFileSync(join(dir, "file.txt"), "content");
@@ -102,7 +102,7 @@ describe("commitAndPush()", () => {
 
   test("should return no_changes when only session files changed", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "init.txt"), "init");
     await commitAll(dir, "initial");
 
@@ -118,7 +118,7 @@ describe("commitAndPush()", () => {
 
   test("should commit session files along with meaningful changes", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
 
     mkdirSync(join(dir, "sessions"), { recursive: true });
     writeFileSync(join(dir, "sessions", "abc.json"), '{"messages":[]}');
@@ -139,7 +139,7 @@ describe("commitAndPush()", () => {
 
   test("should exclude all session files from committedFiles", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
 
     mkdirSync(join(dir, "sessions"), { recursive: true });
     writeFileSync(join(dir, "sessions", "s1.json"), "{}");

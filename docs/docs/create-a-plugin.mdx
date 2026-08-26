@@ -20,7 +20,7 @@ monthly-review/
         └── references/          optional reference material
 ```
 
-Put the folder at `~/Accountant24/plugins/<plugin-name>`. It appears under **Settings → Plugins**. Restart the app to make its skills available in chat.
+Put the folder at `~/.accountant24/plugins/<plugin-name>`. It appears under **Settings → Plugins**. Restart the app to make its skills available in chat.
 
 The folder name must match the `name` in `plugin.json`.
 
@@ -196,7 +196,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 
 1. When a user confirms the install, the app downloads the repository as an archive over HTTPS and unpacks it to a temporary folder.
 2. It reads `plugin.json` and the skills, and refuses anything that isn't a usable plugin.
-3. It copies the plugin into `~/Accountant24/plugins/<plugin-name>/`.
+3. It copies the plugin into `~/.accountant24/plugins/<plugin-name>/`.
 4. It records the source repository in [app-settings.json](/docs/settings#plugins).
 5. The agent restarts, and the new skills are available in chat.
 
@@ -214,7 +214,7 @@ The app shows these messages in the install dialog when an install fails. A brok
 | "Plugin has no skills."                                   | No usable skill under `skills/`. Every skill needs `skills/<name>/SKILL.md` with a `name` matching its folder and a `description`.       |
 | "… needs Accountant24 vx.y.z or newer"                    | The plugin declares a minimum app version. Update the app.                                                                               |
 | "… is already installed from owner/repo"                  | A different repository already provides a plugin with this name. Uninstall that one first.                                               |
-| "A plugin folder named … is already in your workspace"    | You (or the agent) put a folder with that name in `~/Accountant24/plugins`. Rename or delete it first.                                   |
+| "A plugin folder named … is already in your workspace"    | You (or the agent) put a folder with that name in `~/.accountant24/plugins`. Rename or delete it first.                                   |
 | "The skill … is already provided by the … plugin"         | Two plugins ship a skill folder with the same name. Only one can be active, so rename the skill in yours, or uninstall the other plugin. |
 | "GitHub rate limit reached"                               | Too many downloads from your address in a short window. Wait a few minutes.                                                              |
 | A plugin is listed but shows a red **Invalid** badge      | The folder is present but unusable. The row says why. Fix it, or uninstall the plugin.                                                   |

@@ -1,5 +1,5 @@
 // Plugins — what the chat agent can do. Every plugin lives in the workspace
-// store (~/Accountant24/plugins), including the ones the app ships with, which
+// store (<workspace>/plugins), including the ones the app ships with, which
 // are copied there on first run, and everything else comes from the
 // marketplace. Installed means active; uninstalling is how
 // one is turned off, and that goes for the app's own plugins too. A row says

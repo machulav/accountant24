@@ -1,4 +1,4 @@
-import { ACCOUNTANT24_HOME } from "../config";
+import { ACCOUNTANT24_WORKSPACE } from "../config";
 import { commitAll, diffStat, hasRemotes, push } from "./git";
 
 export interface CommitAndPushResult {
@@ -9,7 +9,7 @@ export interface CommitAndPushResult {
   pushed: boolean;
 }
 
-export async function commitAndPush(message: string, cwd = ACCOUNTANT24_HOME): Promise<CommitAndPushResult> {
+export async function commitAndPush(message: string, cwd = ACCOUNTANT24_WORKSPACE): Promise<CommitAndPushResult> {
   const files = await diffStat(cwd);
   const meaningful = files.filter((f) => !f.startsWith("sessions/"));
   if (meaningful.length === 0) return { status: "no_changes", committedFiles: [], commitMessage: "", pushed: false };

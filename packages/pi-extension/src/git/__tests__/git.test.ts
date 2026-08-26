@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { spawnText } from "../../spawn";
-import { commitAll, diffStat, gitInit, hasChanges, hasRemotes, push } from "../git";
+import { commitAll, diffStat, hasChanges, hasRemotes, push } from "../git";
 
 vi.mock("../../spawn");
 
@@ -30,37 +30,18 @@ function freshDir(): string {
   return mkdtempSync(join(BASE, "repo-"));
 }
 
-async function initRepo(dir: string): Promise<void> {
-  await gitInit(dir);
+function initRepo(dir: string): void {
+  git(["init"], dir);
   git(["config", "user.email", "test@test.com"], dir);
   git(["config", "user.name", "Test"], dir);
 }
-
-// ── gitInit() ───────────────────────────────────────────────────────
-
-describe("gitInit()", () => {
-  test("should create a .git directory and return true", async () => {
-    const dir = freshDir();
-    const result = await gitInit(dir);
-    const { existsSync } = await import("node:fs");
-    expect(existsSync(join(dir, ".git"))).toBe(true);
-    expect(result).toBe(true);
-  });
-
-  test("should return false when .git already exists", async () => {
-    const dir = freshDir();
-    await gitInit(dir);
-    const result = await gitInit(dir);
-    expect(result).toBe(false);
-  });
-});
 
 // ── hasChanges() ────────────────────────────────────────────────────
 
 describe("hasChanges()", () => {
   test("should return false in a clean repo", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     // Need at least one commit for a clean state
     writeFileSync(join(dir, "init.txt"), "init");
     await commitAll(dir, "initial commit");
@@ -70,7 +51,7 @@ describe("hasChanges()", () => {
 
   test("should return true when there are untracked files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "new-file.txt"), "hello");
 
     expect(await hasChanges(dir)).toBe(true);
@@ -78,7 +59,7 @@ describe("hasChanges()", () => {
 
   test("should return true when tracked files are modified", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "original");
     await commitAll(dir, "add file");
 
@@ -88,7 +69,7 @@ describe("hasChanges()", () => {
 
   test("should return true in a fresh repo with no commits", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
 
     expect(await hasChanges(dir)).toBe(true);
@@ -100,14 +81,14 @@ describe("hasChanges()", () => {
 describe("hasRemotes()", () => {
   test("should return false when no remotes configured", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
 
     expect(await hasRemotes(dir)).toBe(false);
   });
 
   test("should return true when a remote is configured", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     git(["remote", "add", "origin", "https://example.com/repo.git"], dir);
 
     expect(await hasRemotes(dir)).toBe(true);
@@ -119,7 +100,7 @@ describe("hasRemotes()", () => {
 describe("commitAll()", () => {
   test("should commit all changes with the given message", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
 
     await commitAll(dir, "test commit message");
@@ -130,7 +111,7 @@ describe("commitAll()", () => {
 
   test("should include untracked files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "tracked.txt"), "tracked");
     await commitAll(dir, "initial");
 
@@ -144,7 +125,7 @@ describe("commitAll()", () => {
 
   test("should include deleted files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "to-delete.txt"), "content");
     await commitAll(dir, "initial");
 
@@ -156,7 +137,7 @@ describe("commitAll()", () => {
 
   test("should include files in subdirectories", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     mkdirSync(join(dir, "ledger"), { recursive: true });
     writeFileSync(join(dir, "ledger", "2025.journal"), "transaction data");
 
@@ -171,7 +152,7 @@ describe("commitAll()", () => {
 describe("diffStat()", () => {
   test("should return list of changed file paths", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "a.txt"), "a");
     writeFileSync(join(dir, "b.txt"), "b");
 
@@ -183,7 +164,7 @@ describe("diffStat()", () => {
 
   test("should return empty array when no changes", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
     await commitAll(dir, "initial");
 
@@ -193,7 +174,7 @@ describe("diffStat()", () => {
 
   test("should include files in subdirectories with relative paths", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     mkdirSync(join(dir, "ledger"), { recursive: true });
     writeFileSync(join(dir, "ledger", "2025.journal"), "data");
 
@@ -203,7 +184,7 @@ describe("diffStat()", () => {
 
   test("should include modified files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "original");
     await commitAll(dir, "initial");
 
@@ -214,7 +195,7 @@ describe("diffStat()", () => {
 
   test("should include deleted files", async () => {
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     writeFileSync(join(dir, "file.txt"), "content");
     await commitAll(dir, "initial");
 
@@ -233,7 +214,7 @@ describe("push()", () => {
     git(["init", "--bare"], bareDir);
 
     const dir = freshDir();
-    await initRepo(dir);
+    initRepo(dir);
     git(["remote", "add", "origin", bareDir], dir);
 
     writeFileSync(join(dir, "file.txt"), "content");
@@ -256,12 +237,6 @@ describe("when git is not installed", () => {
       throw err;
     });
   }
-
-  test("gitInit() should silently fail", async () => {
-    const dir = freshDir();
-    simulateGitMissing();
-    await expect(gitInit(dir)).resolves.toBe(true);
-  });
 
   test("hasChanges() should return false", async () => {
     const dir = freshDir();

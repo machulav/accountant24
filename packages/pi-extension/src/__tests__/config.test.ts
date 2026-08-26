@@ -1,58 +1,58 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { ACCOUNTANT24_HOME, LEDGER_DIR, MEMORY_PATH, setBaseDir } from "../config";
+import { ACCOUNTANT24_WORKSPACE, LEDGER_DIR, MEMORY_PATH, setBaseDir } from "../config";
 
-const originalHome = join(homedir(), "Accountant24");
+const originalHome = join(homedir(), ".accountant24");
 
 afterEach(() => {
   setBaseDir(originalHome);
 });
 
 describe("config defaults", () => {
-  test("should set ACCOUNTANT24_HOME to ~/Accountant24", () => {
+  test("should set ACCOUNTANT24_WORKSPACE to ~/.accountant24", () => {
     setBaseDir(originalHome);
-    expect(ACCOUNTANT24_HOME).toBe(join(homedir(), "Accountant24"));
+    expect(ACCOUNTANT24_WORKSPACE).toBe(join(homedir(), ".accountant24"));
   });
 
-  test("should set MEMORY_PATH to ~/Accountant24/memory.md", () => {
+  test("should set MEMORY_PATH to ~/.accountant24/memory.md", () => {
     setBaseDir(originalHome);
-    expect(MEMORY_PATH).toBe(join(homedir(), "Accountant24", "memory.md"));
+    expect(MEMORY_PATH).toBe(join(homedir(), ".accountant24", "memory.md"));
   });
 
-  test("should set LEDGER_DIR to ~/Accountant24/ledger", () => {
+  test("should set LEDGER_DIR to ~/.accountant24/ledger", () => {
     setBaseDir(originalHome);
-    expect(LEDGER_DIR).toBe(join(homedir(), "Accountant24", "ledger"));
+    expect(LEDGER_DIR).toBe(join(homedir(), ".accountant24", "ledger"));
   });
 });
 
-describe("ACCOUNTANT24_HOME env var (module eval)", () => {
+describe("ACCOUNTANT24_WORKSPACE env var (module eval)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
   });
 
-  test("should use ACCOUNTANT24_HOME when set and non-empty", async () => {
-    vi.stubEnv("ACCOUNTANT24_HOME", "/tmp/env-home");
+  test("should use ACCOUNTANT24_WORKSPACE when set and non-empty", async () => {
+    vi.stubEnv("ACCOUNTANT24_WORKSPACE", "/tmp/env-home");
     vi.resetModules();
     const config = await import("../config.js");
-    expect(config.ACCOUNTANT24_HOME).toBe("/tmp/env-home");
+    expect(config.ACCOUNTANT24_WORKSPACE).toBe("/tmp/env-home");
     expect(config.MEMORY_PATH).toBe(join("/tmp/env-home", "memory.md"));
     expect(config.LEDGER_DIR).toBe(join("/tmp/env-home", "ledger"));
   });
 
-  test("should fall back to ~/Accountant24 when ACCOUNTANT24_HOME is empty", async () => {
-    vi.stubEnv("ACCOUNTANT24_HOME", "");
+  test("should fall back to ~/.accountant24 when ACCOUNTANT24_WORKSPACE is empty", async () => {
+    vi.stubEnv("ACCOUNTANT24_WORKSPACE", "");
     vi.resetModules();
     const config = await import("../config.js");
-    expect(config.ACCOUNTANT24_HOME).toBe(join(homedir(), "Accountant24"));
+    expect(config.ACCOUNTANT24_WORKSPACE).toBe(join(homedir(), ".accountant24"));
   });
 });
 
 describe("setBaseDir()", () => {
-  test("should update ACCOUNTANT24_HOME to given dir", () => {
+  test("should update ACCOUNTANT24_WORKSPACE to given dir", () => {
     setBaseDir("/tmp/test-dir");
-    expect(ACCOUNTANT24_HOME).toBe("/tmp/test-dir");
+    expect(ACCOUNTANT24_WORKSPACE).toBe("/tmp/test-dir");
   });
 
   test("should update MEMORY_PATH to dir/memory.md", () => {

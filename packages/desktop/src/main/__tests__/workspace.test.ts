@@ -1,21 +1,31 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+// The fs and git are real (a temp ACCOUNTANT24_WORKSPACE via makeTmpWorkspace) — what
+// the module leaves on disk is the whole point of it. Electron is the only faked
+// boundary: the app metadata env.ts reads, and ipcMain/shell for the IPC.
+
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { spawnText } from "../../spawn";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { ensureWorkspace, registerWorkspaceIpc } from "../workspace";
+import { makeTmpWorkspace } from "./tmpWorkspace";
 
-const BASE = mkdtempSync(join(tmpdir(), "accountant24-scaffold-"));
-
-vi.mock("../../config.js", () => ({
-  ACCOUNTANT24_HOME: BASE,
-  MEMORY_PATH: join(BASE, "memory.md"),
-  LEDGER_DIR: join(BASE, "ledger"),
-  setBaseDir: () => {},
+type Handler = (event: unknown, payload?: unknown) => unknown;
+const h = vi.hoisted(() => ({
+  handlers: new Map<string, (event: unknown, payload?: unknown) => unknown>(),
+  openPath: vi.fn(() => Promise.resolve("")),
 }));
 
-const { ensureScaffolded } = await import("../scaffold.js");
+vi.mock("electron", () => ({
+  app: { isPackaged: false, getAppPath: () => "/app" },
+  ipcMain: { handle: (channel: string, fn: Handler) => h.handlers.set(channel, fn) },
+  shell: { openPath: h.openPath },
+}));
 
-/** Expected template files — mirrors the manifest in scaffold.ts. */
+const ws = makeTmpWorkspace();
+/** The workspace under test — a fresh temp dir for every test. */
+let BASE = "";
+
+/** Expected template files — mirrors the manifest in workspace.ts. */
 const EXPECTED_TEMPLATE_FILES = [
   "memory.md",
   ".gitignore",
@@ -24,34 +34,37 @@ const EXPECTED_TEMPLATE_FILES = [
   "ledger/main.journal",
 ];
 
-afterAll(() => {
-  rmSync(BASE, { recursive: true, force: true });
+beforeEach(() => {
+  BASE = ws.setup();
 });
 
-describe("ensureScaffolded()", () => {
-  beforeEach(() => {
-    // Clean BASE for each test
-    rmSync(BASE, { recursive: true, force: true });
-    mkdirSync(BASE, { recursive: true });
-  });
+afterEach(() => {
+  ws.cleanup();
+});
 
+/** `git log --oneline` over the workspace repo. */
+function gitLog(args: string[] = []): string {
+  return spawnSync("git", ["log", "--oneline", ...args], { cwd: BASE, encoding: "utf8" }).stdout ?? "";
+}
+
+describe("ensureWorkspace()", () => {
   test("should create ledger directory", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "ledger"))).toBe(true);
   });
 
   test("should create sessions directory", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "sessions"))).toBe(true);
   });
 
   test("should create files directory", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "files"))).toBe(true);
   });
 
   test("should write main.journal with header and include directives", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, "ledger", "main.journal"), "utf-8");
     expect(content).toContain("; Accountant24");
     expect(content).toContain("include commodities.journal");
@@ -59,7 +72,7 @@ describe("ensureScaffolded()", () => {
   });
 
   test("should create commodities.journal with header comment", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "ledger", "commodities.journal"))).toBe(true);
     expect(readFileSync(join(BASE, "ledger", "commodities.journal"), "utf-8")).toContain("; Commodity declarations");
   });
@@ -68,20 +81,20 @@ describe("ensureScaffolded()", () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "commodities.journal"), "commodity USD");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     expect(readFileSync(join(BASE, "ledger", "commodities.journal"), "utf-8")).toBe("commodity USD");
   });
 
   test("should write accounts.journal with semicolon comments", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
     expect(content).toContain("; Chart of accounts");
     expect(content).not.toMatch(/^#/m);
   });
 
   test("should write accounts.journal with all five account types", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
     expect(content).toContain("account Assets:");
     expect(content).toContain("account Liabilities:");
@@ -91,7 +104,7 @@ describe("ensureScaffolded()", () => {
   });
 
   test("should write accounts.journal with capitalized account names only", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
     const names = content.match(/^account (\S+)/gm) ?? [];
     expect(names.length).toBeGreaterThan(0);
@@ -101,7 +114,7 @@ describe("ensureScaffolded()", () => {
   });
 
   test("should keep expense accounts one level deep (high-level categories only)", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8");
     const expenseLines = content.split("\n").filter((l) => l.startsWith("account Expenses:"));
     expect(expenseLines.length).toBeGreaterThan(0);
@@ -116,13 +129,13 @@ describe("ensureScaffolded()", () => {
   });
 
   test("should write .gitignore with auth exclusion", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const content = readFileSync(join(BASE, ".gitignore"), "utf-8");
     expect(content).toContain("auth.json");
   });
 
   test("should produce an output file for every template file", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     for (const relPath of EXPECTED_TEMPLATE_FILES) {
       expect(existsSync(join(BASE, relPath))).toBe(true);
     }
@@ -132,7 +145,7 @@ describe("ensureScaffolded()", () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "main.journal"), "existing content");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("existing content");
   });
@@ -141,7 +154,7 @@ describe("ensureScaffolded()", () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "accounts.journal"), "user modified accounts");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     expect(readFileSync(join(BASE, "ledger", "accounts.journal"), "utf-8")).toBe("user modified accounts");
   });
@@ -149,19 +162,19 @@ describe("ensureScaffolded()", () => {
   test("should not overwrite existing .gitignore", async () => {
     writeFileSync(join(BASE, ".gitignore"), "custom gitignore");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     expect(readFileSync(join(BASE, ".gitignore"), "utf-8")).toBe("custom gitignore");
   });
 
   test("should not create settings.json or models.json", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "settings.json"))).toBe(false);
     expect(existsSync(join(BASE, "models.json"))).toBe(false);
   });
 
   test("should create empty memory.md", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, "memory.md"))).toBe(true);
     expect(readFileSync(join(BASE, "memory.md"), "utf-8")).toBe("");
   });
@@ -169,7 +182,7 @@ describe("ensureScaffolded()", () => {
   test("should not overwrite existing memory.md", async () => {
     writeFileSync(join(BASE, "memory.md"), "user memories");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     expect(readFileSync(join(BASE, "memory.md"), "utf-8")).toBe("user memories");
   });
@@ -178,7 +191,7 @@ describe("ensureScaffolded()", () => {
     mkdirSync(join(BASE, "ledger"), { recursive: true });
     writeFileSync(join(BASE, "ledger", "main.journal"), "custom main");
 
-    await ensureScaffolded();
+    await ensureWorkspace();
 
     // main.journal preserved
     expect(readFileSync(join(BASE, "ledger", "main.journal"), "utf-8")).toBe("custom main");
@@ -189,35 +202,83 @@ describe("ensureScaffolded()", () => {
   });
 
   test("should initialize a git repo", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     expect(existsSync(join(BASE, ".git"))).toBe(true);
   });
 
   test("should not reinitialize git repo on second run", async () => {
-    await ensureScaffolded();
+    await ensureWorkspace();
     const { statSync } = await import("node:fs");
     const firstGitTime = statSync(join(BASE, ".git")).birthtimeMs;
 
-    await ensureScaffolded();
+    await ensureWorkspace();
     const secondGitTime = statSync(join(BASE, ".git")).birthtimeMs;
 
     expect(secondGitTime).toBe(firstGitTime);
   });
 
   test("should create initial commit with scaffolded files", async () => {
-    await ensureScaffolded();
-    const { stdout: log } = await spawnText(["git", "log", "--oneline", "-1"], { cwd: BASE });
-    expect(log).toContain("Initial Accountant24 setup");
+    await ensureWorkspace();
+    expect(gitLog(["-1"])).toContain("Initial Accountant24 setup");
+  });
+
+  test("should commit the seeded files", async () => {
+    await ensureWorkspace();
+    const tracked = spawnSync("git", ["ls-files"], { cwd: BASE, encoding: "utf8" }).stdout;
+    expect(tracked).toContain("ledger/main.journal");
+    expect(tracked).toContain("memory.md");
+  });
+
+  test("should not commit auth.json", async () => {
+    mkdirSync(BASE, { recursive: true });
+    writeFileSync(join(BASE, "auth.json"), "{}");
+
+    await ensureWorkspace();
+
+    const tracked = spawnSync("git", ["ls-files"], { cwd: BASE, encoding: "utf8" }).stdout;
+    expect(tracked).not.toContain("auth.json");
   });
 
   test("should not create another commit on second run", async () => {
-    await ensureScaffolded();
-    await ensureScaffolded();
-    const { stdout: log } = await spawnText(["git", "log", "--oneline"], { cwd: BASE });
-    const lines = log
+    await ensureWorkspace();
+    await ensureWorkspace();
+    const lines = gitLog()
       .trim()
       .split("\n")
       .filter((l) => l.length > 0);
     expect(lines).toHaveLength(1);
+  });
+
+  test("should create the workspace root when it does not exist yet", async () => {
+    const nested = join(BASE, "nested", ".accountant24");
+    process.env.ACCOUNTANT24_WORKSPACE = nested;
+
+    await ensureWorkspace();
+
+    expect(existsSync(join(nested, "ledger", "main.journal"))).toBe(true);
+  });
+});
+
+describe("registerWorkspaceIpc()", () => {
+  beforeEach(() => {
+    h.handlers.clear();
+    h.openPath.mockReset();
+    h.openPath.mockResolvedValue("");
+    registerWorkspaceIpc();
+  });
+
+  test("should answer workspace_dir with the active workspace path", async () => {
+    expect(await h.handlers.get("workspace_dir")?.({})).toBe(BASE);
+  });
+
+  test("should open the workspace folder in the file manager on workspace_open", async () => {
+    await h.handlers.get("workspace_open")?.({});
+    expect(h.openPath).toHaveBeenCalledTimes(1);
+    expect(h.openPath).toHaveBeenCalledWith(BASE);
+  });
+
+  test("should reject workspace_open when the file manager reports an error", async () => {
+    h.openPath.mockResolvedValue("No application can open this folder");
+    await expect(h.handlers.get("workspace_open")?.({})).rejects.toThrow("No application can open this folder");
   });
 });

@@ -1,4 +1,4 @@
-// The on-disk plugin store: ~/Accountant24/plugins, one self-contained folder
+// The on-disk plugin store: <workspace>/plugins, one self-contained folder
 // per installed plugin in the Agent Plugins format (agent-plugins.org) — a
 // plugin.json manifest plus skills under skills/<name>/SKILL.md. Built-in
 // plugins have the identical layout inside the app bundle, so one reader

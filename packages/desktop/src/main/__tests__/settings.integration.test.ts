@@ -1,7 +1,7 @@
 // Integration: app-settings persistence over a REAL filesystem (a temp
-// ACCOUNTANT24_HOME via makeTmpWorkspace). Unlike the unit test (settings.test.ts,
-// in-memory fs map), this exercises the actual node:fs round-trip + the legacy
-// migration end-to-end. Only `electron` is faked (the IPC boundary).
+// ACCOUNTANT24_WORKSPACE via makeTmpWorkspace). Unlike the unit test (settings.test.ts,
+// in-memory fs map), this exercises the actual node:fs round-trip end-to-end.
+// Only `electron` is faked (the IPC boundary).
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -44,6 +44,18 @@ describe("settings persistence (real fs)", () => {
     expect(get()).toEqual({});
   });
 
+  it("should leave pi's settings.json alone: never read as ours, never rewritten", async () => {
+    await load();
+    // pi's own file in the same workspace, holding keys that look like ours.
+    const piSettings = JSON.stringify({ defaultModel: "a/1", enabledModels: ["a/1"], defaultProvider: "pi" });
+    writeFileSync(ws.path("settings.json"), piSettings);
+
+    expect(get()).toEqual({});
+    set({ defaultModel: "b/2" });
+    expect(readFileSync(ws.path("settings.json"), "utf8")).toBe(piSettings);
+    expect(readJson("app-settings.json")).toEqual({ defaultModel: "b/2" });
+  });
+
   it("should persist a set and read it back from app-settings.json on disk", async () => {
     await load();
     const merged = set({ defaultModel: "anthropic/opus" });
@@ -84,30 +96,6 @@ describe("settings persistence (real fs)", () => {
       JSON.stringify({ defaultModel: { provider: "anthropic", modelId: "opus" } }),
     );
     expect(get()).toEqual({ defaultModel: "anthropic/opus" });
-  });
-
-  describe("legacy migration (settings.json -> app-settings.json)", () => {
-    it("should move app keys out and leave pi keys behind", async () => {
-      await load();
-      // Only the legacy shared file exists, mixing app + pi keys.
-      writeFileSync(
-        ws.path("settings.json"),
-        JSON.stringify({ defaultModel: "a/1", enabledModels: ["a/1"], defaultProvider: "pi" }),
-      );
-
-      expect(get()).toEqual({ defaultModel: "a/1", enabledModels: ["a/1"] });
-      // app-settings.json now holds our keys...
-      expect(readJson("app-settings.json")).toEqual({ defaultModel: "a/1", enabledModels: ["a/1"] });
-      // ...and settings.json keeps only pi's.
-      expect(readJson("settings.json")).toEqual({ defaultProvider: "pi" });
-    });
-
-    it("should prefer an existing app-settings.json over the legacy file", async () => {
-      await load();
-      writeFileSync(ws.path("app-settings.json"), JSON.stringify({ defaultModel: "new/model" }));
-      writeFileSync(ws.path("settings.json"), JSON.stringify({ defaultModel: "old/model" }));
-      expect(get()).toEqual({ defaultModel: "new/model" });
-    });
   });
 
   describe("consumeOnce()", () => {

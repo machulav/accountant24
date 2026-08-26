@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// settings.ts persists app config in ~/Accountant24/app-settings.json. The fs is
+// settings.ts persists app config in <workspace>/app-settings.json. The fs is
 // the faked I/O boundary (an in-memory file map, so persistence semantics are
 // real); the module's own logic — key filtering, merging, one-time markers —
 // runs for real.
@@ -33,7 +33,6 @@ vi.mock("electron", () => ({
 vi.mock("../env", () => ({
   workspaceDir: () => "/ws",
   appSettingsPath: () => "/ws/app-settings.json",
-  legacySettingsPath: () => "/ws/settings.json",
 }));
 
 const SETTINGS_PATH = "/ws/app-settings.json";
