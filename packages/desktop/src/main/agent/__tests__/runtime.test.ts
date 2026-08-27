@@ -101,9 +101,11 @@ describe("createRuntimeFactory()", () => {
     expect("modelsStorePath" in options).toBe(false);
   });
 
-  it("should open the session at its minted path with the sessions dir (fresh AND reopen contract)", async () => {
+  it("should open the session at its minted path with the sessions dir and the workspace as cwd (fresh AND reopen contract)", async () => {
     await createRuntimeForSession();
-    expect(h.sessionOpen).toHaveBeenCalledWith(A, "/ws/sessions");
+    // The cwd override keeps a reopened session in the workspace even when the
+    // file was recorded under another path (a moved workspace folder).
+    expect(h.sessionOpen).toHaveBeenCalledWith(A, "/ws/sessions", "/ws");
     expect(h.createRuntime).toHaveBeenCalledWith(expect.any(Function), {
       cwd: "/ws",
       agentDir: "/ws",

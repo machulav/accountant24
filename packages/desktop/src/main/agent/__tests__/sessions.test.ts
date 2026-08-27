@@ -19,10 +19,10 @@ vi.mock("electron", () => ({
     },
   },
 }));
-vi.mock("../../env", () => ({ workspaceDir: () => "/ws", sessionsDir: () => "/ws/sessions" }));
+vi.mock("../../env", () => ({ sessionsDir: () => "/ws/sessions" }));
 vi.mock("../router", () => ({ killSessionAgent: h.killSessionAgent }));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
-  SessionManager: { list: (...args: unknown[]) => h.sessionList(...args) },
+  SessionManager: { listAll: (...args: unknown[]) => h.sessionList(...args) },
 }));
 vi.mock("node:fs", () => ({ rmSync: h.rmSync }));
 
@@ -71,7 +71,8 @@ describe("sessions_list", () => {
         },
       ],
     });
-    expect(h.sessionList).toHaveBeenCalledWith("/ws", "/ws/sessions");
+    // Every file in the workspace's own sessions dir, with no cwd filter.
+    expect(h.sessionList).toHaveBeenCalledWith("/ws/sessions");
   });
 
   it("should stringify a non-Date modified value", async () => {

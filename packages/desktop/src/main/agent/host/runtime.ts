@@ -5,7 +5,7 @@
 //   --system-prompt <system.md>                        → resourceLoaderOptions.systemPrompt
 //   --skill <every enabled plugin's skills…>           → additionalSkillPaths
 //   -e <accountant24-extension.js>                     → additionalExtensionPaths
-//   --session <path> --session-dir <sessions>          → SessionManager.open(path, dir)
+//   --session <path> --session-dir <sessions>          → SessionManager.open(path, dir, cwd)
 //   cwd / PI_CODING_AGENT_DIR                          → cwd / agentDir options
 //
 // No model/thinkingLevel is passed: pi restores both from the session file (or
@@ -82,8 +82,11 @@ export function createRuntimeFactory(cfg: AgentHostConfig): RuntimeFactory {
       agentDir: cfg.workspaceDir,
       // open() starts a fresh session at a not-yet-existing path and reopens an
       // existing file (restoring history/model/thinking) — the same contract the
-      // old `--session <path>` spawn relied on.
-      sessionManager: SessionManager.open(sessionPath, cfg.sessionsDir),
+      // old `--session <path>` spawn relied on. The cwd override pins the
+      // session to the workspace: without it a reopened file brings back the
+      // cwd it was recorded under, and pi runs bash/tools there — wrong (or
+      // gone) once the workspace folder has moved.
+      sessionManager: SessionManager.open(sessionPath, cfg.sessionsDir, cfg.workspaceDir),
     });
 
     await runtime.session.bindExtensions({
