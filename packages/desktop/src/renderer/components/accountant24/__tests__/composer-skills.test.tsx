@@ -36,7 +36,6 @@ import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
   type ExternalStoreAdapter,
-  type Unstable_TriggerItem,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import type { ReactNode } from "react";
@@ -47,7 +46,7 @@ import {
   pickerSkills,
   useEnabledSkills,
 } from "../composer-skills";
-import { ComposerSkillsPopover, groupSkillRows } from "../composer-skills-popover";
+import { ComposerSkillsPopover } from "../composer-skills-popover";
 
 beforeAll(() => {
   installJsdomPolyfills();
@@ -55,11 +54,6 @@ beforeAll(() => {
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};
 });
-
-/** Minimal trigger item for grouping specs. */
-function triggerItem(id: string, official: boolean): Unstable_TriggerItem {
-  return { id, type: "skill", label: id, metadata: { official } };
-}
 
 /** Probe rendering the hook's result as text. */
 function Probe() {
@@ -228,15 +222,6 @@ describe("createSkillsAdapter()", () => {
     expect(adapter.search?.("")?.map((i) => i.id)).toEqual(["official-b", "official-d", "custom-a", "custom-c"]);
   });
 
-  it("should carry the group on item metadata", () => {
-    const adapter = createSkillsAdapter([
-      { name: "official-b", description: "B.", official: true },
-      { name: "custom-a", description: "A.", official: false },
-    ]);
-    const items = adapter.search?.("") ?? [];
-    expect(items.map((i) => i.metadata)).toEqual([{ official: true }, { official: false }]);
-  });
-
   it("should expose no categories (skills are one flat list)", () => {
     const adapter = createSkillsAdapter(skills);
     expect(adapter.categories()).toEqual([]);
@@ -351,46 +336,6 @@ describe("createSkillsAdapter()", () => {
   });
 });
 
-describe("groupSkillRows()", () => {
-  it("should put a header on the first row of each group when both groups are present", () => {
-    const rows = groupSkillRows([
-      triggerItem("official-a", true),
-      triggerItem("official-b", true),
-      triggerItem("custom-c", false),
-      triggerItem("custom-d", false),
-    ]);
-    expect(rows.map((r) => r.header)).toEqual(["Official", undefined, "Community", undefined]);
-  });
-
-  it("should keep flat indices in item order (the keyboard-nav contract)", () => {
-    const rows = groupSkillRows([triggerItem("a", true), triggerItem("b", false), triggerItem("c", false)]);
-    expect(rows.map((r) => r.index)).toEqual([0, 1, 2]);
-    expect(rows.map((r) => r.item.id)).toEqual(["a", "b", "c"]);
-  });
-
-  it("should render no headers when only official skills match", () => {
-    const rows = groupSkillRows([triggerItem("a", true), triggerItem("b", true)]);
-    expect(rows.every((r) => r.header === undefined)).toBe(true);
-  });
-
-  it("should render no headers when only community skills match", () => {
-    const rows = groupSkillRows([triggerItem("a", false), triggerItem("b", false)]);
-    expect(rows.every((r) => r.header === undefined)).toBe(true);
-  });
-
-  it("should treat items without metadata as custom", () => {
-    const rows = groupSkillRows([
-      triggerItem("official-a", true),
-      { id: "bare", type: "skill", label: "bare" } as Unstable_TriggerItem,
-    ]);
-    expect(rows.map((r) => r.header)).toEqual(["Official", "Community"]);
-  });
-
-  it("should return an empty list for no items", () => {
-    expect(groupSkillRows([])).toEqual([]);
-  });
-});
-
 describe("<ComposerSkillsPopover />", () => {
   const SKILLS: PickerSkill[] = [
     { name: "docs:pdf", description: "Read and split PDFs.", official: true },
@@ -449,14 +394,6 @@ describe("<ComposerSkillsPopover />", () => {
     await waitFor(() => expect(getSkillRow("docs:pdf")).toBeInTheDocument());
     expect(getSkillRow("money:budget")).toBeInTheDocument();
     expect(screen.getByText("Read and split PDFs.")).toBeInTheDocument();
-  });
-
-  it("should show inline Official and Custom section headers when both groups are present", async () => {
-    const input = renderPicker();
-    type(input, "/");
-    await waitFor(() => expect(getSkillRow("docs:pdf")).toBeInTheDocument());
-    expect(screen.getByText("Official")).toBeInTheDocument();
-    expect(screen.getByText("Community")).toBeInTheDocument();
   });
 
   it("should narrow the list to the matching skill as the query is typed", async () => {

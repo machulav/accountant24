@@ -44,9 +44,8 @@ export function pickerSkills(plugins: PluginInfo[]): PickerSkill[] {
 /** Shape the skills into a flat trigger adapter: no categories, and a search
  *  that narrows by name first (empty query lists everything). The full
  *  description travels on the item — the popover clamps it visually. Official
- *  skills sort before community ones (the popover draws the group boundary
- *  from `metadata.official`); the sort is an explicit contract here, not an
- *  accident of the IPC payload order. */
+ *  skills sort before community ones; the sort is an explicit contract here,
+ *  not an accident of the IPC payload order. */
 export function createSkillsAdapter(skills: PickerSkill[]): SkillsTriggerAdapter {
   const items: Unstable_TriggerItem[] = [...skills]
     .sort((a, b) => Number(b.official) - Number(a.official))
@@ -55,7 +54,6 @@ export function createSkillsAdapter(skills: PickerSkill[]): SkillsTriggerAdapter
       type: "skill",
       label: skill.name,
       description: skill.description,
-      metadata: { official: skill.official },
     }));
   return {
     categories: () => [],

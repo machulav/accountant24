@@ -3,8 +3,7 @@
 // The `/` skills popover — a dedicated, skills-shaped sibling of the mentions
 // popover (composer-mentions-popover.tsx), split off so skill business logic
 // can evolve independently of mentions. Skills are one flat keyboard-navigable
-// list with inline Built-in/Custom section labels on the group boundaries;
-// selecting one replaces the typed `/…` trigger with a `:skill[name]` directive
+// list; selecting one replaces the typed `/…` trigger with a `:skill[name]` directive
 // chip (mention-style — no raw `/skill:` text in the composer). The outgoing
 // message is rewritten to pi's `/skill:name` wire form at send time
 // (hoistSkillDirective in electronPiClient). Rows always carry the skill glyph
@@ -17,13 +16,12 @@
 
 import {
   ComposerPrimitive,
-  type Unstable_TriggerItem,
   unstable_defaultDirectiveFormatter,
   unstable_useTriggerPopoverScopeContext,
   useAuiState,
 } from "@assistant-ui/react";
 import { ZapIcon } from "lucide-react";
-import { type ComponentPropsWithoutRef, type FC, Fragment, useEffect, useLayoutEffect, useRef } from "react";
+import { type ComponentPropsWithoutRef, type FC, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { COMPOSER_POPOVER_CHROME, POPOVER_ROW, POPOVER_WIDTH } from "./popover";
 
@@ -40,29 +38,6 @@ type ComposerSkillsPopoverProps = {
   emptyLabel: string;
   className?: string;
 };
-
-type SkillRowEntry = {
-  item: Unstable_TriggerItem;
-  /** Flat index into the items array — the keyboard-nav/highlight contract. */
-  index: number;
-  /** Section label rendered above this row, on group boundaries only. */
-  header?: "Official" | "Community";
-};
-
-/** Mark group boundaries in the (already official-first) item list. Headers
- *  appear only when BOTH groups are present: a lone label over a homogeneous
- *  list is noise. Exported for tests. */
-export function groupSkillRows(items: readonly Unstable_TriggerItem[]): SkillRowEntry[] {
-  const isOfficialItem = (item: Unstable_TriggerItem) => item.metadata?.official === true;
-  const mixed = items.some(isOfficialItem) && items.some((item) => !isOfficialItem(item));
-  let prev: boolean | null = null;
-  return items.map((item, index) => {
-    const official = isOfficialItem(item);
-    const header = mixed && official !== prev ? (official ? ("Official" as const) : ("Community" as const)) : undefined;
-    prev = official;
-    return header ? { item, index, header } : { item, index };
-  });
-}
 
 /** A skill's full name, `plugin:skill`, with the plugin part played down.
  *  Every skill from one plugin starts with the same prefix, so the eye that is
@@ -120,35 +95,27 @@ const SkillRows: FC<{ emptyLabel: string }> = ({ emptyLabel }) => {
           className="scroll-fade no-scrollbar max-h-[15.75rem] overflow-y-auto p-1.5"
         >
           <div className="flex flex-col">
-            {groupSkillRows(items).map(({ item, index, header }) => (
-              <Fragment key={item.id}>
-                {header && (
-                  // Non-interactive section label; recipe adapted from the
-                  // stock dropdown-menu label, sized for this dense list.
-                  <div className={cn("text-muted-foreground px-3 pb-1 text-xs font-medium", index > 0 && "pt-2")}>
-                    {header}
-                  </div>
-                )}
-                <ComposerPrimitive.Unstable_TriggerPopoverItem
-                  item={item}
-                  index={index}
-                  className={cn(POPOVER_ROW, "flex w-full flex-col items-start gap-0.5 text-start")}
-                >
-                  <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
-                    <ZapIcon className="text-muted-foreground size-4 shrink-0" />
-                    <SkillName name={item.label} />
+            {items.map((item, index) => (
+              <ComposerPrimitive.Unstable_TriggerPopoverItem
+                key={item.id}
+                item={item}
+                index={index}
+                className={cn(POPOVER_ROW, "flex w-full flex-col items-start gap-0.5 text-start")}
+              >
+                <span className="flex w-full min-w-0 items-center gap-2 text-sm font-medium">
+                  <ZapIcon className="text-muted-foreground size-4 shrink-0" />
+                  <SkillName name={item.label} />
+                </span>
+                {item.description && (
+                  // Skill descriptions are long by design (they steer the model);
+                  // show up to three lines and let the clamp ellipsize the rest.
+                  // ps-6 (not ms-6): the icon-width indent must live INSIDE the
+                  // w-full box — margin + w-full overflows the row by the margin.
+                  <span className="text-muted-foreground line-clamp-3 w-full min-w-0 ps-6 text-xs leading-tight">
+                    {item.description}
                   </span>
-                  {item.description && (
-                    // Skill descriptions are long by design (they steer the model);
-                    // show up to three lines and let the clamp ellipsize the rest.
-                    // ps-6 (not ms-6): the icon-width indent must live INSIDE the
-                    // w-full box — margin + w-full overflows the row by the margin.
-                    <span className="text-muted-foreground line-clamp-3 w-full min-w-0 ps-6 text-xs leading-tight">
-                      {item.description}
-                    </span>
-                  )}
-                </ComposerPrimitive.Unstable_TriggerPopoverItem>
-              </Fragment>
+                )}
+              </ComposerPrimitive.Unstable_TriggerPopoverItem>
             ))}
             {items.length === 0 && (
               <div className="text-muted-foreground w-full py-6 text-center text-sm">{emptyLabel}</div>
