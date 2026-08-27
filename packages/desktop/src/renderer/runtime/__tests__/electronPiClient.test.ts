@@ -52,6 +52,8 @@ const h = vi.hoisted(() => ({
     source?: string;
     skills: { name: string; description: string }[];
   }[],
+  /** plugins-event subscribers the client registered. */
+  pluginsEvents: [] as ((event: { type: string }) => void)[],
   track: vi.fn(),
   trackOnce: vi.fn(),
 }));
@@ -101,7 +103,13 @@ vi.mock("../../rpc/api", () => ({
       return h.settings;
     },
   },
-  pluginsApi: { list: async () => ({ plugins: h.plugins }) },
+  pluginsApi: {
+    list: async () => ({ plugins: h.plugins }),
+    onEvent: async (cb: (event: { type: string }) => void) => {
+      h.pluginsEvents.push(cb);
+      return () => {};
+    },
+  },
   authApi: { models: async () => ({ type: "models", models: h.availableModels }) },
   agentApi: {
     onModelsChanged: () => () => {},
@@ -143,6 +151,7 @@ const requestCmds = () => h.requests.map((r) => r.command);
 beforeEach(() => {
   h.listeners.length = 0;
   h.errorListeners.length = 0;
+  h.pluginsEvents.length = 0;
   h.sent.length = 0;
   h.requests.length = 0;
   h.newSessionPath = "/ws/sessions/new.jsonl";
@@ -274,6 +283,31 @@ describe("createElectronPiClient() analytics", () => {
       const snapshot = await client.createThread({});
       await client.sendMessage(snapshot.metadata.id, message(":skill[health:nutrition-coach] log lunch"));
       expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "manual" });
+    });
+
+    it("should refresh the official lookup when the plugin store changes", async () => {
+      const officialPlugins = h.plugins;
+      h.plugins = [];
+      const client = createElectronPiClient();
+      await flushLookup();
+      const snapshot = await client.createThread({});
+
+      // Installed after the client came up — a progress event alone must not
+      // refresh the lookup, so the skill still reports as custom.
+      h.plugins = officialPlugins;
+      for (const fn of h.pluginsEvents) fn({ type: "progress" });
+      await flushLookup();
+      await client.sendMessage(snapshot.metadata.id, message(":skill[accountant24:subscription-audit] check"));
+      expect(h.track).toHaveBeenCalledWith("skill_used", { skill: "custom", kind: "custom", method: "manual" });
+
+      for (const fn of h.pluginsEvents) fn({ type: "changed" });
+      await flushLookup();
+      await client.sendMessage(snapshot.metadata.id, message(":skill[accountant24:subscription-audit] check"));
+      expect(h.track).toHaveBeenCalledWith("skill_used", {
+        skill: "accountant24:subscription-audit",
+        kind: "official",
+        method: "manual",
+      });
     });
 
     it("should not track skill_used for a plain message", async () => {

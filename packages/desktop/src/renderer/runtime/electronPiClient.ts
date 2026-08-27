@@ -104,9 +104,10 @@ export function createElectronPiClient(): PiClient {
   // A persistent listener keeps it accurate even between subscriptions.
   const running = new Set<string>();
   // skill_used analytics: resolve a skill to official-or-custom without leaking
-  // custom identities. The lookup refreshes on the same signal as the composer
-  // picker (every plugin mutation restarts the agent). A use landing before
-  // the first fetch resolves reports "custom" — acceptable for analytics.
+  // custom identities. The lookup refreshes on the same signals as the composer
+  // picker (every plugin mutation restarts the agent or fires plugins-event).
+  // A use landing before the first fetch resolves reports "custom" —
+  // acceptable for analytics.
   // Keyed by both names a use can arrive under — the `<plugin>:<skill>` name a
   // manual pick carries, and the bare folder name a SKILL.md read yields — each
   // mapping to the namespaced name the event reports.
@@ -142,6 +143,10 @@ export function createElectronPiClient(): PiClient {
   };
   refreshOfficialSkills();
   agentApi.onModelsChanged(refreshOfficialSkills);
+  // Singleton client, never unmounted — the unsubscribe is deliberately dropped.
+  void pluginsApi.onEvent((event) => {
+    if (event.type === "changed") refreshOfficialSkills();
+  });
   const trackSkillByName = (name: string, method: "manual" | "auto") => {
     const official = officialSkills.get(name);
     trackSkillUsed(official ?? "custom", official ? "official" : "custom", method);

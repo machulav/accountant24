@@ -65,11 +65,13 @@ const B = "/ws/sessions/b.jsonl";
 
 let killSessionAgent: (sessionPath: string) => Promise<void>;
 let killAllAgents: () => void;
+let recycleAgentsWhenIdle: () => void;
 
 async function setup(getWin: () => unknown = () => win) {
   const mod = await import("../router");
   killSessionAgent = mod.killSessionAgent;
   killAllAgents = mod.killAllAgents;
+  recycleAgentsWhenIdle = mod.recycleAgentsWhenIdle;
   mod.registerAgentIpc(getWin as never);
 }
 
@@ -320,6 +322,167 @@ describe("intentional stops", () => {
   it("should do nothing when killAllAgents is called with no host", async () => {
     await setup();
     expect(() => killAllAgents()).not.toThrow();
+  });
+});
+
+describe("recycleAgentsWhenIdle", () => {
+  /** Relay one pi wire event line through the fake host. */
+  const line = (sessionPath: string, event: Record<string, unknown>, procIndex = 0) =>
+    notice({ kind: "event", sessionPath, line: JSON.stringify(event) }, procIndex);
+
+  it("should kill the host immediately when no run is in flight", async () => {
+    await setup();
+    send(A);
+
+    recycleAgentsWhenIdle();
+
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+    proc().emit("exit", 0);
+    expect(sent("agent-terminated")).toEqual([]);
+  });
+
+  it("should defer the kill while a run is in flight and kill once when it ends", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+
+    recycleAgentsWhenIdle();
+    expect(proc().kill).not.toHaveBeenCalled();
+
+    line(A, { type: "agent_end" });
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+
+    // A stray later end must not kill the replacement's slot again.
+    line(A, { type: "agent_end" });
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should treat a prompt send alone as a run in flight before agent_start arrives", async () => {
+    await setup();
+    send(A, { type: "prompt", message: "hi" });
+
+    recycleAgentsWhenIdle();
+    expect(proc().kill).not.toHaveBeenCalled();
+
+    line(A, { type: "agent_end" });
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should keep deferring across an agent_end that will retry", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+
+    line(A, { type: "agent_end", willRetry: true });
+    expect(proc().kill).not.toHaveBeenCalled();
+
+    line(A, { type: "agent_end" });
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should release the deferral when the prompt preflight fails", async () => {
+    await setup();
+    send(A, { type: "prompt", message: "hi" });
+    recycleAgentsWhenIdle();
+
+    line(A, { id: "1", type: "response", command: "prompt", success: false, error: "busy" });
+
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not end the run on a successful prompt preflight response", async () => {
+    await setup();
+    send(A, { type: "prompt", message: "hi" });
+    recycleAgentsWhenIdle();
+
+    line(A, { id: "1", type: "response", command: "prompt", success: true });
+
+    expect(proc().kill).not.toHaveBeenCalled();
+  });
+
+  it("should wait for every running session before killing", async () => {
+    await setup();
+    send(A);
+    send(B);
+    line(A, { type: "agent_start" });
+    line(B, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+
+    line(A, { type: "agent_end" });
+    expect(proc().kill).not.toHaveBeenCalled();
+
+    line(B, { type: "agent_end" });
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should kill when the last running session closes instead of ending", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+
+    notice({ kind: "session_closed", sessionPath: A, reason: "disposed" });
+
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should kill when the last running session errors instead of starting", async () => {
+    await setup();
+    send(A, { type: "prompt", message: "hi" });
+    recycleAgentsWhenIdle();
+
+    notice({ kind: "session_error", sessionPath: A, message: "boom" });
+
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should drop the pending recycle when the host crashes mid-run", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+    proc().emit("exit", 1);
+
+    send(A);
+    line(A, { type: "agent_start" }, 1);
+    line(A, { type: "agent_end" }, 1);
+
+    expect(proc(1).kill).not.toHaveBeenCalled();
+  });
+
+  it("should clear the run tracking on killAllAgents so a later recycle is immediate", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    killAllAgents();
+
+    send(A);
+    recycleAgentsWhenIdle();
+
+    expect(proc(1).kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should ignore a message merely containing the marker text", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+
+    line(A, { type: "message_update", text: 'the words "agent_end" quoted in a reply' });
+
+    expect(proc().kill).not.toHaveBeenCalled();
+  });
+
+  it("should ignore an unparsable event line", async () => {
+    await setup();
+    send(A);
+    line(A, { type: "agent_start" });
+    recycleAgentsWhenIdle();
+
+    notice({ kind: "event", sessionPath: A, line: 'not json but mentions "agent_end"' });
+
+    expect(proc().kill).not.toHaveBeenCalled();
   });
 });
 

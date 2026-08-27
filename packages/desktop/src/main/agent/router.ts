@@ -40,6 +40,50 @@ let current: HostHandle | null = null;
 // its exit event while a fresh one is already running.
 const intentionalKills = new Set<UtilityProcess>();
 
+// Sessions with a generation in flight: marked on a prompt send (optimistic,
+// like the renderer's running set) and on agent_start, cleared when the run
+// ends. Lets recycleAgentsWhenIdle wait for a quiet moment — an intentional
+// kill emits no agent-terminated, so killing mid-run would strand the chat
+// visually "running" with its answer cut short. Module-level, not per-handle:
+// it answers "is anything running right now", and every path that takes the
+// host down clears it.
+const runningSessions = new Set<string>();
+// A recycle requested while a run was in flight; honored when the last ends.
+let recyclePending = false;
+
+// The relayed lines that can flip a session's run state. The substring guard
+// keeps the hot relay path parse-free; a hit is confirmed on the parsed
+// object, so a message merely containing the marker text changes nothing.
+const RUN_MARKERS = ['"agent_start"', '"agent_end"', '"command":"prompt"'] as const;
+
+function trackRunSignals(sessionPath: string, line: string): void {
+  if (!RUN_MARKERS.some((marker) => line.includes(marker))) return;
+  let event: { type?: unknown; willRetry?: unknown; command?: unknown; success?: unknown };
+  try {
+    event = JSON.parse(line) as typeof event;
+  } catch {
+    return;
+  }
+  if (event.type === "agent_start") {
+    runningSessions.add(sessionPath);
+    return;
+  }
+  // A retried run keeps going after its agent_end; a failed prompt preflight
+  // means the optimistic mark from agent_send never became a run.
+  const runEnded =
+    (event.type === "agent_end" && event.willRetry !== true) ||
+    (event.type === "response" && event.command === "prompt" && event.success === false);
+  if (!runEnded) return;
+  runningSessions.delete(sessionPath);
+  finishPendingRecycle();
+}
+
+function finishPendingRecycle(): void {
+  if (!recyclePending || runningSessions.size > 0) return;
+  recyclePending = false;
+  killAllAgents();
+}
+
 /** Reject session paths outside the sessions dir — the path becomes the host's
  *  session-file target. */
 function assertSessionPath(sessionPath: unknown): string {
@@ -106,26 +150,38 @@ function ensureHost(getWin: () => BrowserWindow | null): HostHandle {
   proc.on("message", (message: AgentHostNotice) => {
     switch (message.kind) {
       case "event":
+        trackRunSignals(message.sessionPath, message.line);
         emit("agent-event", { sessionPath: message.sessionPath, line: message.line });
         return;
       case "session_error":
         console.error(`[agent] session failed to start: ${message.message}`);
         trackAgentFailed("spawn");
         handle.liveSessions.delete(message.sessionPath);
+        runningSessions.delete(message.sessionPath);
         emit("agent-error", { sessionPath: message.sessionPath, message: message.message });
+        finishPendingRecycle();
         return;
       case "session_closed":
         handle.liveSessions.delete(message.sessionPath);
+        runningSessions.delete(message.sessionPath);
         if (message.requestId !== undefined) {
           handle.pendingDisposes.get(message.requestId)?.();
           handle.pendingDisposes.delete(message.requestId);
         }
+        finishPendingRecycle();
         return;
     }
   });
 
   proc.on("exit", (code) => {
-    if (current === handle) current = null;
+    const wasCurrent = current === handle;
+    if (wasCurrent) {
+      current = null;
+      // The crash took every run with it; a pending recycle is moot — the
+      // next send re-forks with fresh skills anyway.
+      runningSessions.clear();
+      recyclePending = false;
+    }
     const affected = [...handle.liveSessions];
     settleHostState(handle);
     // Kills we initiated (restart / app quit) aren't crashes — don't surface them.
@@ -166,12 +222,27 @@ export async function killSessionAgent(sessionPath: string): Promise<void> {
 
 /** Kill the host (app exit / restart after provider/skills changes). */
 export function killAllAgents(): void {
+  runningSessions.clear();
+  recyclePending = false;
   const handle = current;
   if (!handle) return;
   intentionalKills.add(handle.proc);
   current = null;
   settleHostState(handle);
   handle.proc.kill();
+}
+
+/** Kill the host as soon as no run is in flight, so the next send re-forks
+ *  with the current skill set: immediately when everything is idle, otherwise
+ *  when the last running generation ends. Used by the plugins watcher — unlike
+ *  agent_restart it may fire while the agent is mid-answer (writing a plugin
+ *  is itself agent work), and that answer must finish. */
+export function recycleAgentsWhenIdle(): void {
+  if (runningSessions.size === 0) {
+    killAllAgents();
+    return;
+  }
+  recyclePending = true;
 }
 
 /** Register agent IPC. */
@@ -183,6 +254,9 @@ export function registerAgentIpc(getWin: () => BrowserWindow | null): void {
     if (typeof command !== "object" || command === null) throw new Error("invalid agent command");
     const handle = ensureHost(getWin);
     handle.liveSessions.add(target);
+    // Optimistic run mark (the renderer keeps the same one), closing the gap
+    // between this send and its agent_start; a failed preflight unmarks it.
+    if ((command as Record<string, unknown>).type === "prompt") runningSessions.add(target);
     handle.proc.postMessage({
       kind: "command",
       sessionPath: target,

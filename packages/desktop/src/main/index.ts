@@ -6,6 +6,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage } from "electron";
 import { registerMarketplaceIpc } from "./agent/marketplace";
 import { registerPluginsIpc } from "./agent/plugins";
 import { installDefaultPlugins } from "./agent/plugins-defaults";
+import { startPluginsWatcher } from "./agent/plugins-watch";
 import { killAllAgents, registerAgentIpc } from "./agent/router";
 import { registerSessionsIpc } from "./agent/sessions";
 import { initAnalytics, registerAnalyticsIpc, trackLaunch, trackQuit } from "./analytics";
@@ -109,6 +110,10 @@ app.whenReady().then(async () => {
   registerLedgerIpc();
   registerAnalyticsIpc();
   registerWorkspaceIpc();
+
+  // Pick up plugins written into the workspace behind the app's back (by the
+  // agent, or by hand) without a restart.
+  startPluginsWatcher(getWin);
 
   // The plugins a new workspace starts with are downloaded from their own
   // repositories, like any other. Not awaited: startup never waits on the
