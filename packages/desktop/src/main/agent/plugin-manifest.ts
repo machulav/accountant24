@@ -19,7 +19,7 @@ export interface PluginAuthor {
 export interface PluginManifest {
   name: string;
   version?: string;
-  description?: string;
+  description: string;
   author?: PluginAuthor;
   homepage?: string;
   repository?: string;
@@ -144,9 +144,14 @@ export function parsePluginManifest(text: string): ParsedManifest {
   // installs by hand publishable as it is.
   if (typeof raw.$schema !== "string") return { ok: false, error: "plugin.json: $schema is required." };
 
-  const manifest: PluginManifest = { name: raw.name };
+  // The description is what the plugin row and the install dialog show, and
+  // the marketplace requires it too — same reasoning as $schema.
+  if (typeof raw.description !== "string") return { ok: false, error: "plugin.json: description is required." };
+  if (raw.description.length === 0) return { ok: false, error: "plugin.json: description is empty." };
 
-  for (const key of ["version", "description", "homepage", "repository", "license"] as const) {
+  const manifest: PluginManifest = { name: raw.name, description: raw.description };
+
+  for (const key of ["version", "homepage", "repository", "license"] as const) {
     const parsed = optionalString(raw, key);
     if (!parsed.ok) return { ok: false, error: `plugin.json: ${key} must be a string.` };
     if (parsed.value !== undefined) manifest[key] = parsed.value;

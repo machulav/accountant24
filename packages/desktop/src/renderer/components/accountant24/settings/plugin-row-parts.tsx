@@ -86,9 +86,10 @@ export function ClampedDescription({ text }: { text: string }) {
   );
 }
 
-/** A plugin's own description, falling back to its first skill's when the
- *  manifest omits one (description is optional in the Agent Plugins format,
- *  and a single-skill plugin rarely repeats itself). */
+/** A plugin's own description, falling back to its first skill's when there is
+ *  none. The app requires a description in an installed plugin's manifest, but
+ *  a marketplace entry (whose manifest only the indexer saw) and an invalid
+ *  plugin's row can still arrive without one. */
 export function pluginDescription(plugin: { description: string; skills: PluginSkillInfo[] }): string {
   return plugin.description || plugin.skills[0]?.description || "";
 }

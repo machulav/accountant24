@@ -33,7 +33,8 @@ A minimal example:
 ```json
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "monthly-review"
+  "name": "monthly-review",
+  "description": "A monthly review of your spending."
 }
 ```
 
@@ -43,8 +44,8 @@ A minimal example:
 | --------------------------------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------- |
 | `$schema`                                     | string   | Yes      | The manifest format the file follows. Editors use it for autocomplete.                         |
 | `name`                                        | string   | Yes      | The plugin's identity, used as the folder name and the namespace for its skills. Up to 64 characters. |
+| `description`                                 | string   | Yes      | Shown in the plugin list and the install confirmation. Clipped at 1024 characters.             |
 | `version`                                     | string   | No       | Shown next to the name. Up to 64 characters.                                                   |
-| `description`                                 | string   | No       | Shown in the plugin list and the install confirmation. Clipped at 1024 characters.             |
 | `author.name`                                 | string   | No       | Matched by the marketplace search. Up to 128 characters.                                       |
 | `author.email`                                | string   | No       | Contact address. Up to 254 characters.                                                         |
 | `author.url`                                  | string   | No       | The author's page. Up to 512 characters.                                                       |
@@ -71,6 +72,7 @@ Anything specific to Accountant24 lives under the app's own namespace:
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "monthly-review",
+  "description": "A monthly review of your spending.",
   "extensions": {
     "ai.accountant24": {
       "minAppVersion": "0.3.0"
@@ -165,7 +167,7 @@ The app installs the tip of your default branch, so what you push is what the ne
 | ----------------------------------------- | ------------------------------------------ |
 | Public repository                         | Private repositories are not indexed       |
 | Topic `accountant24-plugin`               | The only way in                            |
-| `plugin.json` at the repository root      | With `$schema` and a `name` that passes the naming rules |
+| `plugin.json` at the repository root      | With `$schema`, a `name` that passes the naming rules, and a `description` |
 | Not a fork                                | Publish from a repository of its own       |
 | Not archived                              | Unarchive it to be indexed                 |
 | At least one commit on the default branch | The index reads that branch's tip          |
@@ -186,7 +188,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 
 ## Publishing checklist
 
-- `plugin.json` at the root, with a `name` that matches the folder and follows the naming rules.
+- `plugin.json` at the root, with a `name` that matches the folder and follows the naming rules, and a `description` of what the plugin does.
 - At least one `skills/<name>/SKILL.md`, its frontmatter `name` matching its folder, with a description written for matching.
 - No unknown fields in the manifest.
 - Tested in the app, both from the `/` picker and by asking in your own words.
@@ -210,6 +212,7 @@ The app shows these messages in the install dialog when an install fails. A brok
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | "No plugin found in …: a plugin needs a plugin.json file" | The repository has no `plugin.json` at its root.                                                                                         |
 | "plugin.json: $schema is required."                       | The manifest is missing `$schema`. Copy the line from the example above.                                                                 |
+| "plugin.json: description is required."                   | The manifest is missing `description`. Add one sentence on what the plugin does.                                                         |
 | "plugin.json: unknown field …"                            | A key the format doesn't define, usually a typo. The manifest is validated strictly so a misspelled field can't be silently ignored.     |
 | "Plugin has no skills."                                   | No usable skill under `skills/`. Every skill needs `skills/<name>/SKILL.md` with a `name` matching its folder and a `description`.       |
 | "… needs Accountant24 vx.y.z or newer"                    | The plugin declares a minimum app version. Update the app.                                                                               |

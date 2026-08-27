@@ -237,6 +237,7 @@ describe("plugins_list", () => {
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
+        description: "Budget reviews.",
         repository: "https://github.com/acme/budget",
       }),
     );
@@ -456,7 +457,11 @@ describe("plugins_inspect", () => {
 
   it("should reject a plugin with no skills", async () => {
     await serve({
-      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "budget" },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        description: "Budget reviews.",
+      },
     });
     const result = (await invoke("plugins_inspect", { source: "owner/repo" })) as Result;
     expect(result).toEqual({ type: "error", message: "Plugin has no skills." });
@@ -468,6 +473,7 @@ describe("plugins_inspect", () => {
       manifest: {
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
+        description: "Budget reviews.",
         extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } },
       },
       skills: [{ name: "review" }],
@@ -486,6 +492,7 @@ describe("plugins_inspect", () => {
       manifest: {
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
+        description: "Budget reviews.",
         extensions: { "ai.accountant24": { minAppVersion: "2.0.0" } },
       },
       skills: [{ name: "review" }],
@@ -622,7 +629,11 @@ describe("plugins_inspect", () => {
     await serve(BUDGET);
     await install();
     await serve({
-      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "budget" },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+        description: "Budget reviews.",
+      },
       skills: [{ name: "monthly-review" }],
     });
     expect(await install()).toEqual({ type: "done", name: "budget" });
@@ -671,7 +682,11 @@ describe("plugins_inspect", () => {
 
   it("should keep other plugins' registry entries when one is installed", async () => {
     await serve({
-      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "taxes" },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "taxes",
+        description: "Tax estimates.",
+      },
       skills: [{ name: "estimate" }],
     });
     await install("owner/taxes");
@@ -752,7 +767,11 @@ describe("plugins_remove", () => {
 
   it("should keep other plugins' registry entries", async () => {
     await serve({
-      manifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "taxes" },
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "taxes",
+        description: "Tax estimates.",
+      },
       skills: [{ name: "estimate" }],
     });
     await install("owner/taxes");

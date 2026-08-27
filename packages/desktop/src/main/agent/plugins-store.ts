@@ -104,7 +104,7 @@ export function readPluginDir(dir: string): StoredPlugin {
   const plugin: StoredPlugin = {
     name: manifest.name,
     dir,
-    description: manifest.description ?? "",
+    description: manifest.description,
     skills,
     ...(manifest.version ? { version: manifest.version } : {}),
     ...(manifest.author ? { author: manifest.author } : {}),

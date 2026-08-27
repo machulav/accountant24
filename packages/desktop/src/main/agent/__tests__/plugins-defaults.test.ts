@@ -381,6 +381,7 @@ describe("installDefaultPlugins(), when the download fails", () => {
   it("should try again when the plugin needs a newer app", async () => {
     await serve({
       manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "accountant24-skills",
         description: "Newer.",
         extensions: { "ai.accountant24": { minAppVersion: "99.0.0" } },

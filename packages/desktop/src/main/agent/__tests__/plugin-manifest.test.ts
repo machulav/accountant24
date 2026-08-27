@@ -9,8 +9,10 @@ import { checkMinAppVersion, parsePluginManifest, pluginNameError } from "../plu
 /** Serialize an object literal the way a plugin.json on disk would read. */
 const SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
 
-/** A manifest with the required $schema filled in, unless the case overrides it. */
-const manifest = (value: Record<string, unknown>): string => JSON.stringify({ $schema: SCHEMA_URL, ...value });
+/** A manifest with the required $schema and description filled in, unless the
+ *  case overrides them. */
+const manifest = (value: Record<string, unknown>): string =>
+  JSON.stringify({ $schema: SCHEMA_URL, description: "Budget reviews.", ...value });
 
 describe("pluginNameError()", () => {
   it("should accept a lowercase name with interior hyphens", () => {
@@ -116,9 +118,30 @@ describe("parsePluginManifest()", () => {
     });
   });
 
-  it("should accept a manifest with only $schema and a name", () => {
+  it("should accept a manifest with only $schema, a name and a description", () => {
     const result = parsePluginManifest(manifest({ name: "budget" }));
-    expect(result).toEqual({ ok: true, manifest: { name: "budget" } });
+    expect(result).toEqual({ ok: true, manifest: { name: "budget", description: "Budget reviews." } });
+  });
+
+  it("should refuse a manifest without a description", () => {
+    expect(parsePluginManifest(JSON.stringify({ $schema: SCHEMA_URL, name: "budget" }))).toEqual({
+      ok: false,
+      error: "plugin.json: description is required.",
+    });
+  });
+
+  it("should refuse a description that is not a string", () => {
+    expect(parsePluginManifest(manifest({ name: "budget", description: 7 }))).toEqual({
+      ok: false,
+      error: "plugin.json: description is required.",
+    });
+  });
+
+  it("should refuse an empty description", () => {
+    expect(parsePluginManifest(manifest({ name: "budget", description: "" }))).toEqual({
+      ok: false,
+      error: "plugin.json: description is empty.",
+    });
   });
 
   it("should keep every metadata field the format defines", () => {
@@ -218,7 +241,7 @@ describe("parsePluginManifest()", () => {
   it("should accept an empty author object", () => {
     expect(parsePluginManifest(manifest({ name: "budget", author: {} }))).toEqual({
       ok: true,
-      manifest: { name: "budget", author: {} },
+      manifest: { name: "budget", description: "Budget reviews.", author: {} },
     });
   });
 
@@ -237,20 +260,23 @@ describe("parsePluginManifest()", () => {
     const result = parsePluginManifest(
       manifest({ name: "budget", extensions: { "ai.accountant24": { minAppVersion: "1.4.0" } } }),
     );
-    expect(result).toEqual({ ok: true, manifest: { name: "budget", minAppVersion: "1.4.0" } });
+    expect(result).toEqual({
+      ok: true,
+      manifest: { name: "budget", description: "Budget reviews.", minAppVersion: "1.4.0" },
+    });
   });
 
   it("should ignore another client's extension namespace", () => {
     const result = parsePluginManifest(
       manifest({ name: "budget", extensions: { "com.example.client": { anything: [1, 2] } } }),
     );
-    expect(result).toEqual({ ok: true, manifest: { name: "budget" } });
+    expect(result).toEqual({ ok: true, manifest: { name: "budget", description: "Budget reviews." } });
   });
 
   it("should accept a manifest whose extensions omit the app's namespace", () => {
     expect(parsePluginManifest(manifest({ name: "budget", extensions: {} }))).toEqual({
       ok: true,
-      manifest: { name: "budget" },
+      manifest: { name: "budget", description: "Budget reviews." },
     });
   });
 
@@ -280,7 +306,7 @@ describe("parsePluginManifest()", () => {
   it("should accept a namespace entry without a minAppVersion", () => {
     expect(parsePluginManifest(manifest({ name: "budget", extensions: { "ai.accountant24": {} } }))).toEqual({
       ok: true,
-      manifest: { name: "budget" },
+      manifest: { name: "budget", description: "Budget reviews." },
     });
   });
 });

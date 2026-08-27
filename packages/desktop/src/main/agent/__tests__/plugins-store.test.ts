@@ -44,7 +44,7 @@ function writePlugin(
     JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
       name: options.name ?? folder,
-      ...(options.description ? { description: options.description } : {}),
+      description: options.description ?? "Does plugin things.",
     });
   writeFileSync(join(dir, "plugin.json"), manifest);
   for (const skill of options.skills ?? []) {
@@ -147,6 +147,7 @@ describe("readPluginDir()", () => {
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
+        description: "Budget reviews.",
         version: "2.0.0",
         author: { name: "Ada" },
         repository: "https://github.com/acme/budget",
@@ -169,6 +170,7 @@ describe("readPluginDir()", () => {
       manifest: JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: "budget",
+        description: "Budget reviews.",
         extensions: { "ai.accountant24": { minAppVersion: "9.9.9" } },
       }),
       skills: [{ name: "review" }],
@@ -204,9 +206,15 @@ describe("readPluginDir()", () => {
     expect(readPluginDir(dir).skills.map((s) => s.rawName)).toEqual(["good"]);
   });
 
-  it("should default the description to empty when the manifest omits one", () => {
-    const dir = writePlugin("budget", { skills: [{ name: "review" }] });
-    expect(readPluginDir(dir).description).toBe("");
+  it("should report a plugin whose manifest omits the description", () => {
+    const dir = writePlugin("budget", {
+      manifest: JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "budget",
+      }),
+      skills: [{ name: "review" }],
+    });
+    expect(readPluginDir(dir).error).toBe("plugin.json: description is required.");
   });
 });
 
