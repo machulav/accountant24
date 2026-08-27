@@ -198,6 +198,32 @@ describe("agentEnv()", () => {
     }
   });
 
+  it("should point ACCOUNTANT24_DOCS at the bundled docs when they exist", async () => {
+    h.app.isPackaged = true;
+    const origRes = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    h.existsSync.mockImplementation((p: string) => p === `/pkg-res${path.sep}docs`);
+    try {
+      const mod = await import("../env");
+      expect(mod.agentEnv().ACCOUNTANT24_DOCS).toBe("/pkg-res/docs");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
+    }
+  });
+
+  it("should leave ACCOUNTANT24_DOCS unset when the docs are missing", async () => {
+    h.app.isPackaged = true;
+    const origRes = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    h.existsSync.mockReturnValue(false);
+    try {
+      const mod = await import("../env");
+      expect(mod.agentEnv().ACCOUNTANT24_DOCS).toBeUndefined();
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
+    }
+  });
+
   it("should omit TESSDATA_PREFIX when the tessdata directory is missing", async () => {
     h.app.isPackaged = true;
     const origRes = process.resourcesPath;
@@ -220,6 +246,19 @@ describe("systemPromptPath()", () => {
     try {
       const mod = await import("../env");
       expect(mod.systemPromptPath()).toBe("/pkg-res/system.md");
+    } finally {
+      Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
+    }
+  });
+});
+
+describe("docsDir()", () => {
+  it("should resolve the bundled docs dir in the packaged resources dir", async () => {
+    const orig = process.resourcesPath;
+    Object.defineProperty(process, "resourcesPath", { value: "/pkg-res", configurable: true });
+    try {
+      const mod = await import("../env");
+      expect(mod.docsDir()).toBe("/pkg-res/docs");
     } finally {
       Object.defineProperty(process, "resourcesPath", { value: orig, configurable: true });
     }
