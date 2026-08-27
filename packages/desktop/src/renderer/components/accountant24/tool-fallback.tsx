@@ -18,6 +18,7 @@ import {
 import { Spinner } from "@/components/shadcn/spinner";
 import { formatDuration } from "@/lib/duration";
 import { isMemoryReadCall, isMemoryUpdateCall } from "@/lib/memory-tool";
+import { docsReadPages, skillReadName } from "@/lib/skill-docs-tool";
 import { TOOL_LABELS } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,19 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
 // TOOL_LABELS covers the custom tools and pi's built-ins (the event stream
 // only carries tool names). Tools without an entry show their raw name.
 export const toolLabel = (toolName: string) => TOOL_LABELS[toolName] ?? toolName;
+
+// Memory, skills and the bundled documentation ride on the generic file/shell
+// tools; only the step label is specialized so the user can see what is
+// touched, naming the skill or page when the call says which.
+export const toolCallLabel = (toolName: string, args: unknown) => {
+  if (isMemoryUpdateCall(toolName, args)) return "Update Memory";
+  if (isMemoryReadCall(toolName, args)) return "Read Memory";
+  const skill = skillReadName(toolName, args);
+  if (skill !== undefined) return skill ? `Use Skill: ${skill}` : "Use Skill";
+  const pages = docsReadPages(toolName, args);
+  if (pages !== undefined) return pages.length ? `Read Docs: ${pages.join(", ")}` : "Read Docs";
+  return toolLabel(toolName);
+};
 
 function ToolFallbackDuration() {
   const elapsedMs = useToolCallElapsed();
@@ -156,13 +170,7 @@ function ToolFallbackError({ status }: { status?: ToolCallMessagePartStatus }) {
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({ toolName, args, argsText, result, isError, status }) => {
   const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
-  // Memory access rides on the generic file tools; only the step label is
-  // specialized so the user can see when memory is touched.
-  const label = isMemoryUpdateCall(toolName, args)
-    ? "Update Memory"
-    : isMemoryReadCall(toolName, args)
-      ? "Read Memory"
-      : toolLabel(toolName);
+  const label = toolCallLabel(toolName, args);
 
   const [open, setOpen] = useState(false);
 

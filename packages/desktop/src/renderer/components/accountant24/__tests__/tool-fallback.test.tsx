@@ -3,7 +3,7 @@
 import type { ToolCallMessagePartStatus } from "@assistant-ui/react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { prettyPrintJson, ToolFallback, toolLabel } from "../tool-fallback";
+import { prettyPrintJson, ToolFallback, toolCallLabel, toolLabel } from "../tool-fallback";
 
 afterEach(cleanup);
 
@@ -266,6 +266,114 @@ describe("ToolFallback memory updates", () => {
     render(<ToolFallback {...partProps({ toolName: "read", args: { path: "ledger/main.journal" } })} />);
     expect(screen.getByText("Read File")).toBeTruthy();
     expect(screen.queryByText("Read Memory")).toBeNull();
+  });
+});
+
+describe("toolCallLabel()", () => {
+  it("should return 'Update Memory' for an edit of memory.md", () => {
+    expect(toolCallLabel("edit", { path: "memory.md", edits: [] })).toBe("Update Memory");
+  });
+
+  it("should return 'Read Memory' for a read of memory.md", () => {
+    expect(toolCallLabel("read", { path: "/ws/memory.md" })).toBe("Read Memory");
+  });
+
+  it("should name the skill for a read of its SKILL.md", () => {
+    expect(toolCallLabel("read", { path: "/ws/plugins/accountant24-skills/skills/docs/SKILL.md" })).toBe(
+      "Use Skill: docs",
+    );
+  });
+
+  it("should return a bare 'Use Skill' for a SKILL.md with no folder", () => {
+    expect(toolCallLabel("read", { path: "SKILL.md" })).toBe("Use Skill");
+  });
+
+  it("should name the page for a read of a bundled documentation page", () => {
+    expect(toolCallLabel("read", { path: "/Applications/Accountant24.app/Contents/Resources/docs/settings.md" })).toBe(
+      "Read Docs: settings",
+    );
+  });
+
+  it("should name the page for a command reading it via $ACCOUNTANT24_DOCS", () => {
+    expect(toolCallLabel("bash", { command: 'cat "$ACCOUNTANT24_DOCS/settings.md"' })).toBe("Read Docs: settings");
+  });
+
+  it("should list every page for a command reading several", () => {
+    expect(toolCallLabel("bash", { command: "cat $ACCOUNTANT24_DOCS/contents.md $ACCOUNTANT24_DOCS/faq.md" })).toBe(
+      "Read Docs: contents, faq",
+    );
+  });
+
+  it("should return a bare 'Read Docs' for a command touching the docs dir without a page", () => {
+    expect(toolCallLabel("bash", { command: "echo $ACCOUNTANT24_DOCS" })).toBe("Read Docs");
+  });
+
+  it("should return the plain tool label for any other file read", () => {
+    expect(toolCallLabel("read", { path: "ledger/main.journal" })).toBe("Read File");
+  });
+
+  it("should return the plain tool label for any other command", () => {
+    expect(toolCallLabel("bash", { command: "hledger bal" })).toBe("Run Command");
+  });
+
+  it("should return the plain tool label while args are still streaming", () => {
+    expect(toolCallLabel("read", undefined)).toBe("Read File");
+    expect(toolCallLabel("bash", {})).toBe("Run Command");
+  });
+
+  it("should return the raw name for unknown tools", () => {
+    expect(toolCallLabel("mystery_tool", { path: "SKILL.md" })).toBe("mystery_tool");
+  });
+});
+
+describe("ToolFallback skill and documentation reads", () => {
+  it("should label a read call on a SKILL.md with the skill name", () => {
+    render(<ToolFallback {...partProps({ toolName: "read", args: { path: "/ws/skills/pdf/SKILL.md" } })} />);
+    expect(screen.getByText("Use Skill: pdf")).toBeTruthy();
+    expect(screen.queryByText("Read File")).toBeNull();
+  });
+
+  it("should label a read call on a bundled documentation page with the page name", () => {
+    render(<ToolFallback {...partProps({ toolName: "read", args: { path: "/app/resources/docs/faq.md" } })} />);
+    expect(screen.getByText("Read Docs: faq")).toBeTruthy();
+    expect(screen.queryByText("Read File")).toBeNull();
+  });
+
+  it("should label a command reading the bundled documentation with the page name", () => {
+    render(
+      <ToolFallback
+        {...partProps({
+          toolName: "bash",
+          args: { command: "echo $ACCOUNTANT24_DOCS; cat $ACCOUNTANT24_DOCS/contents.md" },
+        })}
+      />,
+    );
+    expect(screen.getByText("Read Docs: contents")).toBeTruthy();
+    expect(screen.queryByText("Run Command")).toBeNull();
+  });
+
+  it("should keep the plain command label for other commands", () => {
+    render(<ToolFallback {...partProps({ toolName: "bash", args: { command: "hledger bal" } })} />);
+    expect(screen.getByText("Run Command")).toBeTruthy();
+    expect(screen.queryByText(/Read Docs/)).toBeNull();
+  });
+
+  it("should show the standard input and output like any other tool", () => {
+    render(
+      <ToolFallback
+        {...partProps({
+          toolName: "read",
+          args: { path: "/ws/skills/pdf/SKILL.md" },
+          argsText: '{"path":"/ws/skills/pdf/SKILL.md"}',
+          result: "---\nname: pdf\n---",
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByText("Use Skill: pdf"));
+    expect(screen.getByText("Input:")).toBeTruthy();
+    expect(screen.getByText("Output:")).toBeTruthy();
+    const args = document.querySelector("[data-slot=tool-fallback-args] pre");
+    expect(args?.textContent).toBe(`{\n  "path": "/ws/skills/pdf/SKILL.md"\n}`);
   });
 });
 
