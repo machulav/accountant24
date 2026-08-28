@@ -50,10 +50,11 @@ copyFileSync(SYSTEM_MD_SRC, SYSTEM_MD_OUT);
 
 // The docs site ships with the app as plain markdown, so the agent can answer
 // questions about the app from the docs of the version that is actually
-// running (offline, and never newer than the app). The folder is announced to
-// the agent as ACCOUNTANT24_DOCS (env.ts agentEnv). docs.json's navigation
+// running (offline, and never newer than the app). The folder reaches the
+// agent host as ACCOUNTANT24_DOCS (env.ts agentEnv) and the model as the
+// prompt's <docs-folder> block (the extension). docs.json's navigation
 // decides which pages ship and in what order, and contents.md is a generated
-// catalog of them, so the docs skill needs no hardcoded page list.
+// catalog of them, so the system prompt needs no hardcoded page list.
 const DOCS_SRC = join(ROOT, "docs");
 const DOCS_OUT = join(ROOT, "packages", "desktop", "resources", "docs");
 
