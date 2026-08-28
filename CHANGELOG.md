@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.2
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.3.1...v0.3.2)
+
+### 🚀 Features
+
+- Drop the Official and Community labels from the skills selector ([#70](https://github.com/machulav/accountant24/pull/70))
+- Reword the composer hint to "Type / to use skills" ([#71](https://github.com/machulav/accountant24/pull/71))
+- Name the skill and docs page in the chat's tool steps ([#72](https://github.com/machulav/accountant24/pull/72))
+- Answer questions about the app from the bundled docs directly ([#73](https://github.com/machulav/accountant24/pull/73))
+- Show the plugin name in the Use Skill step of the chat ([#74](https://github.com/machulav/accountant24/pull/74))
+- Label docs reads in the chat as Read Documentation ([#75](https://github.com/machulav/accountant24/pull/75))
+- Make the update banner say a new version is available ([#76](https://github.com/machulav/accountant24/pull/76))
+
 ## v0.3.1
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.3.0...v0.3.1)
