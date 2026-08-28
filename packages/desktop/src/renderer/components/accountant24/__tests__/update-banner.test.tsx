@@ -22,19 +22,19 @@ afterEach(() => {
 });
 
 describe("UpdateBanner", () => {
-  it("should invite the user to relaunch to update", () => {
+  it("should announce that an update is available", () => {
     render(<UpdateBanner version="1.2.3" />);
-    expect(screen.getByText("Relaunch to update")).toBeInTheDocument();
+    expect(screen.getByText("Update available")).toBeInTheDocument();
   });
 
-  it("should show the staged version prefixed with v", () => {
+  it("should invite the user to relaunch to install the staged version", () => {
     render(<UpdateBanner version="1.2.3" />);
-    expect(screen.getByText("v1.2.3")).toBeInTheDocument();
+    expect(screen.getByText("Relaunch to install v1.2.3")).toBeInTheDocument();
   });
 
   it("should render the version straight from its prop, not a fixed value", () => {
     render(<UpdateBanner version="9.9.0-beta.4" />);
-    expect(screen.getByText("v9.9.0-beta.4")).toBeInTheDocument();
+    expect(screen.getByText("Relaunch to install v9.9.0-beta.4")).toBeInTheDocument();
   });
 
   it("should expose the banner as a single clickable button", () => {

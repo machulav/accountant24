@@ -1,7 +1,7 @@
 // The version of a downloaded-and-staged update, or null when none is pending.
 // Seeded from update_pending on mount (the "update-downloaded" push may have
 // fired before we subscribed) and kept fresh by that push afterwards. Drives the
-// sidebar's "Relaunch to update" banner. In dev / rc builds this stays null.
+// sidebar's "Update available" banner. In dev / rc builds this stays null.
 
 import { useEffect, useState } from "react";
 import { updateApi } from "../rpc/api";

@@ -374,31 +374,31 @@ describe("ChatLayout keyboard shortcuts", () => {
 });
 
 describe("ChatLayout update banner", () => {
-  it("should not show the relaunch banner when no update is pending", async () => {
+  it("should not show the update banner when no update is pending", async () => {
     h.update.pendingValue = null;
     render(<ChatLayout />);
     // Let the pending() promise settle; it resolves null so nothing appears.
     await Promise.resolve();
-    expect(screen.queryByText("Relaunch to update")).toBeNull();
+    expect(screen.queryByText("Update available")).toBeNull();
   });
 
-  it("should show the relaunch banner with the pending version when an update is staged", async () => {
+  it("should show the update banner with the pending version when an update is staged", async () => {
     h.update.pendingValue = "2.3.0";
     render(<ChatLayout />);
-    expect(await screen.findByText("Relaunch to update")).toBeInTheDocument();
-    expect(screen.getByText("v2.3.0")).toBeInTheDocument();
+    expect(await screen.findByText("Update available")).toBeInTheDocument();
+    expect(screen.getByText("Relaunch to install v2.3.0")).toBeInTheDocument();
   });
 
-  it("should show the relaunch banner when an update-downloaded push arrives after mount", async () => {
+  it("should show the update banner when an update-downloaded push arrives after mount", async () => {
     h.update.pendingValue = null;
     render(<ChatLayout />);
     await waitFor(() => expect(h.update.downloadedCb).not.toBeNull());
-    expect(screen.queryByText("Relaunch to update")).toBeNull();
+    expect(screen.queryByText("Update available")).toBeNull();
 
     act(() => h.update.downloadedCb?.("3.1.0"));
 
-    expect(await screen.findByText("Relaunch to update")).toBeInTheDocument();
-    expect(screen.getByText("v3.1.0")).toBeInTheDocument();
+    expect(await screen.findByText("Update available")).toBeInTheDocument();
+    expect(screen.getByText("Relaunch to install v3.1.0")).toBeInTheDocument();
   });
 });
 

@@ -101,19 +101,19 @@ describe("AboutSettings", () => {
   it("should not show an update row when no update is staged", async () => {
     render(<AboutSettings />);
     await screen.findByText("v1.2.3");
-    expect(screen.queryByRole("button", { name: "Relaunch to update" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Relaunch to install" })).toBeNull();
   });
 
   it("should show the staged update version when one is pending", async () => {
     h.pending.mockResolvedValue("2.0.0");
     render(<AboutSettings />);
-    expect(await screen.findByText("Update ready: v2.0.0")).toBeInTheDocument();
+    expect(await screen.findByText("Update available: v2.0.0")).toBeInTheDocument();
   });
 
-  it("should install the update when Relaunch to update is clicked", async () => {
+  it("should install the update when Relaunch to install is clicked", async () => {
     h.pending.mockResolvedValue("2.0.0");
     render(<AboutSettings />);
-    await userEvent.click(await screen.findByRole("button", { name: "Relaunch to update" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Relaunch to install" }));
     expect(h.install).toHaveBeenCalledTimes(1);
   });
 

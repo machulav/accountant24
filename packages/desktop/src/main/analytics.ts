@@ -69,7 +69,7 @@ export function trackUpdateDownloaded(toVersion: string): void {
   track("update_downloaded", { to_version: toVersion });
 }
 
-/** Record the user clicking the "Relaunch to update" banner to apply an
+/** Record the user clicking the "Update available" banner to apply an
  *  already-downloaded update on demand (rather than waiting for the next quit).
  *  to_version is the staged version, mirroring update_downloaded, so the two
  *  form a funnel: downloaded → install_clicked. Best-effort — the app quits
