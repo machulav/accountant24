@@ -34,6 +34,7 @@ const INVOKE_CHANNELS = new Set([
   "ledger_mentions",
   "ledger_net_worth",
   "ledger_transactions",
+  "ledger_transaction_count",
   "analytics_track",
   "update_pending",
   "update_install",

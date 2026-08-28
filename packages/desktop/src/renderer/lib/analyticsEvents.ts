@@ -69,3 +69,10 @@ export function trackMarketplaceViewed(pluginCount: number): void {
 export function trackPluginInstallStarted(official: boolean): void {
   analyticsApi.track("plugin_install_started", { official });
 }
+
+/** Record a prompt idea on the New Chat page being clicked into the composer.
+ *  `idea` is the idea's stable id from the hardcoded list, never its text, so
+ *  the list can be reworded without breaking the series. */
+export function trackPromptIdeaUsed(idea: string): void {
+  analyticsApi.track("prompt_idea_used", { idea });
+}

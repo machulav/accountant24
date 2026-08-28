@@ -70,6 +70,7 @@ async function invoke<T>(channel: string): Promise<T> {
 const mentions = () => invoke<{ accounts: string[]; payees: string[]; tags: string[] }>("ledger_mentions");
 const netWorth = () => invoke<NetWorth>("ledger_net_worth");
 const transactions = () => invoke<LedgerTransaction[]>("ledger_transactions");
+const transactionCount = () => invoke<number>("ledger_transaction_count");
 
 beforeEach(() => {
   h.handlers.clear();
@@ -498,6 +499,64 @@ describe("ledger_transactions", () => {
     h.existsSync.mockReturnValue(false);
     stubHledger({ print: PRINT });
     await transactions();
+    expect(h.execFile.mock.calls[0]?.[0]).toBe("hledger");
+  });
+});
+
+describe("ledger_transaction_count", () => {
+  const STATS = [
+    "Main file           : /ws/ledger/main.journal",
+    "Txns span           : 2026-01-01 to 2026-03-01 (60 days)",
+    "Txns                : 12 (0.2 per day)",
+    "Txns last 30 days   : 4 (0.1 per day)",
+  ];
+
+  it("should return the transaction count parsed from hledger stats", async () => {
+    stubHledger({ stats: STATS });
+    expect(await transactionCount()).toBe(12);
+  });
+
+  it("should run one stats query with assertions ignored, against the workspace journal, in the workspace cwd, with the agent env", async () => {
+    // -I: a failed balance assertion must not blank the count — the prompt
+    // ideas keep matching the ledger's real size while it is being fixed.
+    stubHledger({ stats: STATS });
+    await transactionCount();
+
+    expect(h.execFile.mock.calls).toHaveLength(1);
+    const call = h.execFile.mock.calls[0] as unknown[];
+    expect(call[1]).toEqual(["stats", "-I", "-f", "/ws/ledger/main.journal"]);
+    const opts = call[2] as { cwd: string; env: unknown };
+    expect(opts.cwd).toBe("/ws");
+    expect(opts.env).toEqual({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" });
+  });
+
+  it("should return 0 when hledger fails (no journal yet)", async () => {
+    stubHledger({ stats: new Error("hledger: no journal") });
+    expect(await transactionCount()).toBe(0);
+  });
+
+  it("should return 0 when hledger is missing entirely", async () => {
+    const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
+    stubHledger({ stats: enoent });
+    expect(await transactionCount()).toBe(0);
+  });
+
+  it("should return 0 when the stats output has no count line", async () => {
+    stubHledger({ stats: ["Main file           : /ws/ledger/main.journal"] });
+    expect(await transactionCount()).toBe(0);
+  });
+
+  it("should run the vendored hledger binary when it exists in binDir", async () => {
+    h.existsSync.mockReturnValue(true);
+    stubHledger({ stats: STATS });
+    await transactionCount();
+    expect(h.execFile.mock.calls[0]?.[0]).toBe("/vendored/bin/hledger");
+  });
+
+  it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {
+    h.existsSync.mockReturnValue(false);
+    stubHledger({ stats: STATS });
+    await transactionCount();
     expect(h.execFile.mock.calls[0]?.[0]).toBe("hledger");
   });
 });

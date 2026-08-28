@@ -1,6 +1,7 @@
 // Ledger data served straight from the main process: the @-mention picker's
-// entity lists, the Net Worth view's balance report, and the Transactions
-// view's journal register.
+// entity lists, the Net Worth view's balance report, the Transactions
+// view's journal register, and the transaction count behind the New Chat
+// page's prompt ideas.
 //
 // Runs the same `hledger` queries the pi-extension uses, but directly so the
 // renderer gets its data without round-tripping through the agent's RPC stream.
@@ -20,6 +21,7 @@ import {
   parseAssertions,
   parseBalanceSheetJson,
   parseLatestPriceTarget,
+  parseTransactionCount,
   parseTransactionsJson,
 } from "./ledger-json";
 
@@ -141,9 +143,19 @@ async function ledgerTransactions(): Promise<LedgerTransaction[]> {
   return parseTransactionsJson(stdout);
 }
 
+/** How many transactions the journal holds, from `hledger stats`: a few
+ *  hundred bytes for any journal size, where the register runs ~2.6 KB per
+ *  transaction. `-I` keeps the count when a balance assertion fails. 0 when
+ *  there is no journal or hledger yet: the count only picks the prompt
+ *  ideas, and a fresh ledger's set is the right fallback. */
+async function ledgerTransactionCount(): Promise<number> {
+  return parseTransactionCount((await hledgerResult(["stats", "-I", "-f", mainJournalPath()])) ?? "");
+}
+
 /** Register the ledger IPC handlers. */
 export function registerLedgerIpc(): void {
   ipcMain.handle("ledger_mentions", () => ledgerMentions());
   ipcMain.handle("ledger_net_worth", () => ledgerNetWorth());
   ipcMain.handle("ledger_transactions", () => ledgerTransactions());
+  ipcMain.handle("ledger_transaction_count", () => ledgerTransactionCount());
 }

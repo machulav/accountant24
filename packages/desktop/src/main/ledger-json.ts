@@ -296,3 +296,12 @@ export function mergeValuedBalanceSheet(
   });
   return { sections, net: { amounts: raw.net, value: orRaw(raw.net, valued?.net) } };
 }
+
+/** The transaction count from `hledger stats` output. The report is a short
+ *  `Label : value` table; the line is `Txns                : 3 (1.0 per day)`.
+ *  Anchored to the line start so `Txns span` / `Txns last 30 days` never
+ *  match. 0 when the line is missing (empty or unexpected output). */
+export function parseTransactionCount(text: string): number {
+  const match = /^Txns\s*:\s*(\d+)/m.exec(text);
+  return match ? Number(match[1]) : 0;
+}
