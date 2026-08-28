@@ -292,24 +292,14 @@ describe("toolCallLabel()", () => {
     expect(toolCallLabel("read", { path: "SKILL.md" })).toBe("Use Skill");
   });
 
-  it("should name the page for a read of a bundled documentation page", () => {
+  it("should return 'Read Documentation' for a read of a bundled documentation file", () => {
     expect(toolCallLabel("read", { path: "/Applications/Accountant24.app/Contents/Resources/docs/settings.md" })).toBe(
-      "Read Docs: settings",
+      "Read Documentation",
     );
   });
 
-  it("should name the page for a command reading it via $ACCOUNTANT24_DOCS", () => {
-    expect(toolCallLabel("bash", { command: 'cat "$ACCOUNTANT24_DOCS/settings.md"' })).toBe("Read Docs: settings");
-  });
-
-  it("should list every page for a command reading several", () => {
-    expect(toolCallLabel("bash", { command: "cat $ACCOUNTANT24_DOCS/contents.md $ACCOUNTANT24_DOCS/faq.md" })).toBe(
-      "Read Docs: contents, faq",
-    );
-  });
-
-  it("should return a bare 'Read Docs' for a command touching the docs dir without a page", () => {
-    expect(toolCallLabel("bash", { command: "echo $ACCOUNTANT24_DOCS" })).toBe("Read Docs");
+  it("should return 'Read Documentation' for a command reading the docs via $ACCOUNTANT24_DOCS", () => {
+    expect(toolCallLabel("bash", { command: 'cat "$ACCOUNTANT24_DOCS/settings.md"' })).toBe("Read Documentation");
   });
 
   it("should return the plain tool label for any other file read", () => {
@@ -349,13 +339,13 @@ describe("ToolFallback skill and documentation reads", () => {
     expect(screen.getByText("Use Skill")).toBeTruthy();
   });
 
-  it("should label a read call on a bundled documentation page with the page name", () => {
+  it("should label a read call on a bundled documentation file as 'Read Documentation'", () => {
     render(<ToolFallback {...partProps({ toolName: "read", args: { path: "/app/resources/docs/faq.md" } })} />);
-    expect(screen.getByText("Read Docs: faq")).toBeTruthy();
+    expect(screen.getByText("Read Documentation")).toBeTruthy();
     expect(screen.queryByText("Read File")).toBeNull();
   });
 
-  it("should label a command reading the bundled documentation with the page name", () => {
+  it("should label a command reading the bundled documentation as 'Read Documentation'", () => {
     render(
       <ToolFallback
         {...partProps({
@@ -364,14 +354,14 @@ describe("ToolFallback skill and documentation reads", () => {
         })}
       />,
     );
-    expect(screen.getByText("Read Docs: contents")).toBeTruthy();
+    expect(screen.getByText("Read Documentation")).toBeTruthy();
     expect(screen.queryByText("Run Command")).toBeNull();
   });
 
   it("should keep the plain command label for other commands", () => {
     render(<ToolFallback {...partProps({ toolName: "bash", args: { command: "hledger bal" } })} />);
     expect(screen.getByText("Run Command")).toBeTruthy();
-    expect(screen.queryByText(/Read Docs/)).toBeNull();
+    expect(screen.queryByText("Read Documentation")).toBeNull();
   });
 
   it("should show the standard input and output like any other tool", () => {

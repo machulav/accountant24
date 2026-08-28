@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { docsReadPages, skillReadName, skillReadQualifiedName } from "../skill-docs-tool";
+import { isDocsReadCall, skillReadName, skillReadQualifiedName } from "../skill-docs-tool";
 
 describe("skillReadName()", () => {
   it("should return the skill folder name for a read of its SKILL.md", () => {
@@ -101,114 +101,83 @@ describe("skillReadQualifiedName()", () => {
   });
 });
 
-describe("docsReadPages()", () => {
+describe("isDocsReadCall()", () => {
   describe("read tool", () => {
-    it("should return the page name for a page under the packaged macOS docs dir", () => {
+    it("should return true for a file under the packaged macOS docs dir", () => {
       expect(
-        docsReadPages("read", { path: "/Applications/Accountant24.app/Contents/Resources/docs/settings.md" }),
-      ).toEqual(["settings"]);
+        isDocsReadCall("read", { path: "/Applications/Accountant24.app/Contents/Resources/docs/settings.md" }),
+      ).toBe(true);
     });
 
-    it("should return the page name for a page under the dev docs dir", () => {
-      expect(docsReadPages("read", { path: "/repo/packages/desktop/resources/docs/contents.md" })).toEqual([
-        "contents",
-      ]);
+    it("should return true for a file under the dev docs dir", () => {
+      expect(isDocsReadCall("read", { path: "/repo/packages/desktop/resources/docs/contents.md" })).toBe(true);
     });
 
-    it("should return the page name for a backslash path under the docs dir", () => {
-      expect(docsReadPages("read", { path: "C:\\Accountant24\\resources\\docs\\faq.md" })).toEqual(["faq"]);
-    });
-
-    it("should keep a multi-word page name intact", () => {
-      expect(docsReadPages("read", { path: "/app/resources/docs/create-a-plugin.md" })).toEqual(["create-a-plugin"]);
-    });
-
-    it("should keep a file name without the .md extension as is", () => {
-      expect(docsReadPages("read", { path: "/app/resources/docs/README" })).toEqual(["README"]);
+    it("should return true for a backslash path under the docs dir", () => {
+      expect(isDocsReadCall("read", { path: "C:\\Accountant24\\resources\\docs\\faq.md" })).toBe(true);
     });
 
     it("should accept the legacy file_path argument name", () => {
-      expect(docsReadPages("read", { file_path: "/app/resources/docs/faq.md" })).toEqual(["faq"]);
+      expect(isDocsReadCall("read", { file_path: "/app/resources/docs/faq.md" })).toBe(true);
     });
 
-    it("should return undefined for a skill inside the app resources", () => {
-      expect(
-        docsReadPages("read", { path: "/app/resources/plugins/accountant24/skills/docs/SKILL.md" }),
-      ).toBeUndefined();
+    it("should return false for a skill inside the app resources", () => {
+      expect(isDocsReadCall("read", { path: "/app/resources/plugins/accountant24/skills/docs/SKILL.md" })).toBe(false);
     });
 
-    it("should return undefined for a docs folder outside the app resources", () => {
-      expect(docsReadPages("read", { path: "/ws/docs/notes.md" })).toBeUndefined();
+    it("should return false for a docs folder outside the app resources", () => {
+      expect(isDocsReadCall("read", { path: "/ws/docs/notes.md" })).toBe(false);
     });
 
-    it("should return undefined for the docs dir itself with no page", () => {
-      expect(docsReadPages("read", { path: "/app/resources/docs" })).toBeUndefined();
-      expect(docsReadPages("read", { path: "/app/resources/docs/" })).toBeUndefined();
+    it("should return false for the docs dir itself with no file", () => {
+      expect(isDocsReadCall("read", { path: "/app/resources/docs" })).toBe(false);
+      expect(isDocsReadCall("read", { path: "/app/resources/docs/" })).toBe(false);
     });
 
-    it("should return undefined while args are missing or partial (streaming)", () => {
-      expect(docsReadPages("read", undefined)).toBeUndefined();
-      expect(docsReadPages("read", {})).toBeUndefined();
-      expect(docsReadPages("read", { path: 42 })).toBeUndefined();
+    it("should return false while args are missing or partial (streaming)", () => {
+      expect(isDocsReadCall("read", undefined)).toBe(false);
+      expect(isDocsReadCall("read", {})).toBe(false);
+      expect(isDocsReadCall("read", { path: 42 })).toBe(false);
     });
   });
 
   describe("bash tool", () => {
-    it("should return the page name for a cat of a quoted page via $ACCOUNTANT24_DOCS", () => {
-      expect(docsReadPages("bash", { command: 'cat "$ACCOUNTANT24_DOCS/settings.md"' })).toEqual(["settings"]);
+    it("should return true for a cat of a file via $ACCOUNTANT24_DOCS", () => {
+      expect(isDocsReadCall("bash", { command: 'cat "$ACCOUNTANT24_DOCS/settings.md"' })).toBe(true);
     });
 
-    it("should return the page name when the env var is referenced with braces", () => {
+    it("should return true when the env var is referenced with braces", () => {
       // Assembled so the shell's `${…}` is not read as a template placeholder.
       const command = ["cat $", "{ACCOUNTANT24_DOCS}/contents.md"].join("");
-      expect(docsReadPages("bash", { command })).toEqual(["contents"]);
+      expect(isDocsReadCall("bash", { command })).toBe(true);
     });
 
-    it("should return the page name for a compound command that also echoes the dir", () => {
-      expect(docsReadPages("bash", { command: "echo $ACCOUNTANT24_DOCS; cat $ACCOUNTANT24_DOCS/contents.md" })).toEqual(
-        ["contents"],
-      );
+    it("should return true for a command that only echoes or lists the docs dir", () => {
+      expect(isDocsReadCall("bash", { command: "echo $ACCOUNTANT24_DOCS; ls $ACCOUNTANT24_DOCS" })).toBe(true);
     });
 
-    it("should return every distinct page when a command reads several", () => {
-      expect(
-        docsReadPages("bash", {
-          command: "cat $ACCOUNTANT24_DOCS/contents.md $ACCOUNTANT24_DOCS/settings.md $ACCOUNTANT24_DOCS/contents.md",
-        }),
-      ).toEqual(["contents", "settings"]);
+    it("should return false when the env var is only mentioned by name", () => {
+      expect(isDocsReadCall("bash", { command: "env | grep ACCOUNTANT24_DOCS" })).toBe(false);
     });
 
-    it("should stop the page name at a pipe", () => {
-      expect(docsReadPages("bash", { command: "cat $ACCOUNTANT24_DOCS/faq.md|head -20" })).toEqual(["faq"]);
+    it("should return false for a different env var with the same prefix", () => {
+      expect(isDocsReadCall("bash", { command: "echo $ACCOUNTANT24_DOCS_EXTRA" })).toBe(false);
+      expect(isDocsReadCall("bash", { command: "echo $ACCOUNTANT24_WORKSPACE" })).toBe(false);
     });
 
-    it("should return an empty list when the docs dir is touched without a page", () => {
-      expect(docsReadPages("bash", { command: "echo $ACCOUNTANT24_DOCS" })).toEqual([]);
-      expect(docsReadPages("bash", { command: 'ls "$ACCOUNTANT24_DOCS"' })).toEqual([]);
+    it("should return false for unrelated commands", () => {
+      expect(isDocsReadCall("bash", { command: "hledger bal" })).toBe(false);
     });
 
-    it("should return undefined when the env var is only mentioned by name", () => {
-      expect(docsReadPages("bash", { command: "env | grep ACCOUNTANT24_DOCS" })).toBeUndefined();
-    });
-
-    it("should return undefined for a different env var with the same prefix", () => {
-      expect(docsReadPages("bash", { command: "echo $ACCOUNTANT24_DOCS_EXTRA" })).toBeUndefined();
-      expect(docsReadPages("bash", { command: "echo $ACCOUNTANT24_WORKSPACE" })).toBeUndefined();
-    });
-
-    it("should return undefined for unrelated commands", () => {
-      expect(docsReadPages("bash", { command: "hledger bal" })).toBeUndefined();
-    });
-
-    it("should return undefined while args are missing or partial (streaming)", () => {
-      expect(docsReadPages("bash", undefined)).toBeUndefined();
-      expect(docsReadPages("bash", {})).toBeUndefined();
-      expect(docsReadPages("bash", { command: 42 })).toBeUndefined();
+    it("should return false while args are missing or partial (streaming)", () => {
+      expect(isDocsReadCall("bash", undefined)).toBe(false);
+      expect(isDocsReadCall("bash", {})).toBe(false);
+      expect(isDocsReadCall("bash", { command: 42 })).toBe(false);
     });
   });
 
-  it("should return undefined for other tools even when the target matches", () => {
-    expect(docsReadPages("edit", { path: "/app/resources/docs/faq.md" })).toBeUndefined();
-    expect(docsReadPages("query", { command: "cat $ACCOUNTANT24_DOCS/faq.md" })).toBeUndefined();
+  it("should return false for other tools even when the target matches", () => {
+    expect(isDocsReadCall("edit", { path: "/app/resources/docs/faq.md" })).toBe(false);
+    expect(isDocsReadCall("query", { command: "cat $ACCOUNTANT24_DOCS/faq.md" })).toBe(false);
   });
 });

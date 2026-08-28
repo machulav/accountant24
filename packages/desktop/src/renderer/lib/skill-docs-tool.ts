@@ -38,28 +38,19 @@ export function skillReadQualifiedName(toolName: string, args: unknown): string 
 
 // Dev: packages/desktop/resources/docs; packaged: <app>/Contents/Resources/docs
 // on macOS, <app>/resources/docs elsewhere.
-const DOCS_DIR_SEGMENT = /\/resources\/docs\/([^/]+)$/i;
+const DOCS_DIR_SEGMENT = /\/resources\/docs\/[^/]+$/i;
 const DOCS_ENV_REFERENCE = /\$\{?ACCOUNTANT24_DOCS\b\}?/;
-// Every page path spelled after the env var in a shell command; a page name
-// ends at whitespace or shell punctuation.
-const DOCS_ENV_PAGE = /\$\{?ACCOUNTANT24_DOCS\}?\/([^\s"'`;|&)<>]+)/g;
 
-/** The documentation page name from a file name: `settings.md` → `settings`. */
-const pageName = (file: string) => file.replace(/\.md$/i, "");
-
-/** The documentation pages a call reads, as bare page names (`settings`), when
- *  the call targets the bundled docs; undefined when it does not. Empty when
- *  the docs are touched without a page (`echo $ACCOUNTANT24_DOCS`). */
-export function docsReadPages(toolName: string, args: unknown): string[] | undefined {
+/** Whether the call reads the bundled documentation: a file under the docs
+ *  folder with the read tool, or a command spelling `$ACCOUNTANT24_DOCS`. */
+export function isDocsReadCall(toolName: string, args: unknown): boolean {
   if (toolName === "read") {
-    const match = pathArg(args)?.replace(/\\/g, "/").match(DOCS_DIR_SEGMENT);
-    return match ? [pageName(match[1])] : undefined;
+    const path = pathArg(args);
+    return path !== undefined && DOCS_DIR_SEGMENT.test(path.replace(/\\/g, "/"));
   }
   if (toolName === "bash") {
     const { command } = (args ?? {}) as { command?: unknown };
-    if (typeof command !== "string" || !DOCS_ENV_REFERENCE.test(command)) return undefined;
-    const pages = [...command.matchAll(DOCS_ENV_PAGE)].map((m) => pageName(m[1].split("/").at(-1) ?? ""));
-    return [...new Set(pages)];
+    return typeof command === "string" && DOCS_ENV_REFERENCE.test(command);
   }
-  return undefined;
+  return false;
 }
