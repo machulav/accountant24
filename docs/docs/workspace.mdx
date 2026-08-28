@@ -1,0 +1,34 @@
+---
+title: "Workspace"
+sidebarTitle: "Workspace"
+description: "Everything Accountant24 knows about your money lives in one folder on your machine, the workspace."
+---
+
+## Where the workspace is
+
+By default the workspace is `~/.accountant24`, a hidden folder in your home directory. **Settings → About** shows the exact path. Click the row to open the folder in the Finder.
+
+## What the workspace holds
+
+The workspace is a git repository, so every change to your books is recoverable.
+
+| Path                | What it holds                                                           | Versioned with git |
+| ------------------- | ----------------------------------------------------------------------- | ------------------ |
+| `ledger/`           | Your books as plain-text hledger journal files                          | Yes                |
+| `files/`            | The bank statements, receipts, and other documents you attached in chat | Yes                |
+| `memory.md`         | The agent's [memory](/docs/memory)                                      | Yes                |
+| `plugins/`          | Your installed [plugins](/docs/plugins)                                 | Yes                |
+| `app-settings.json` | The [app settings](/docs/settings)                                      | Yes                |
+| `models.json`       | Your local Ollama models, and any custom models you add by hand         | Yes                |
+| `sessions/`         | Your chats                                                              | No                 |
+| `auth.json`         | Your provider logins                                                    | No                 |
+
+## Use a different workspace
+
+You can point the app at another folder, for example a second set of books, or a scratch workspace to try things out. Launch it with the `--workspace` flag from the terminal:
+
+```sh
+open -a Accountant24 --args --workspace ~/Demo
+```
+
+The path may be relative or start with `~`. A folder that does not exist yet is created and seeded with a fresh ledger. The flag applies to that launch only. Without it the app opens `~/.accountant24` again.
