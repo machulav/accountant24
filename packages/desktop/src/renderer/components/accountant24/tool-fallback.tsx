@@ -18,7 +18,7 @@ import {
 import { Spinner } from "@/components/shadcn/spinner";
 import { formatDuration } from "@/lib/duration";
 import { isMemoryReadCall, isMemoryUpdateCall } from "@/lib/memory-tool";
-import { docsReadPages, skillReadName } from "@/lib/skill-docs-tool";
+import { docsReadPages, skillReadQualifiedName } from "@/lib/skill-docs-tool";
 import { TOOL_LABELS } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 
@@ -37,11 +37,12 @@ export const toolLabel = (toolName: string) => TOOL_LABELS[toolName] ?? toolName
 
 // Memory, skills and the bundled documentation ride on the generic file/shell
 // tools; only the step label is specialized so the user can see what is
-// touched, naming the skill or page when the call says which.
+// touched, naming the skill (as `plugin:skill`, the name the composer uses for
+// a pick) or the page when the call says which.
 export const toolCallLabel = (toolName: string, args: unknown) => {
   if (isMemoryUpdateCall(toolName, args)) return "Update Memory";
   if (isMemoryReadCall(toolName, args)) return "Read Memory";
-  const skill = skillReadName(toolName, args);
+  const skill = skillReadQualifiedName(toolName, args);
   if (skill !== undefined) return skill ? `Use Skill: ${skill}` : "Use Skill";
   const pages = docsReadPages(toolName, args);
   if (pages !== undefined) return pages.length ? `Read Docs: ${pages.join(", ")}` : "Read Docs";

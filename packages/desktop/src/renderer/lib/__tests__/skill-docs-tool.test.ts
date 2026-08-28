@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { docsReadPages, skillReadName } from "../skill-docs-tool";
+import { docsReadPages, skillReadName, skillReadQualifiedName } from "../skill-docs-tool";
 
 describe("skillReadName()", () => {
   it("should return the skill folder name for a read of its SKILL.md", () => {
@@ -48,6 +48,56 @@ describe("skillReadName()", () => {
     expect(skillReadName("read", null)).toBeUndefined();
     expect(skillReadName("read", {})).toBeUndefined();
     expect(skillReadName("read", { path: 42 })).toBeUndefined();
+  });
+});
+
+describe("skillReadQualifiedName()", () => {
+  it("should return plugin:skill for a SKILL.md inside a plugin's skills folder", () => {
+    expect(
+      skillReadQualifiedName("read", { path: "/ws/plugins/accountant24-skills/skills/recurring-spending/SKILL.md" }),
+    ).toBe("accountant24-skills:recurring-spending");
+  });
+
+  it("should return plugin:skill for a relative plugin path", () => {
+    expect(skillReadQualifiedName("read", { path: "plugins/budget-pro/skills/subscription-audit/SKILL.md" })).toBe(
+      "budget-pro:subscription-audit",
+    );
+  });
+
+  it("should return plugin:skill for a backslash plugin path", () => {
+    expect(skillReadQualifiedName("read", { path: "C:\\ws\\plugins\\health\\skills\\nutrition\\SKILL.md" })).toBe(
+      "health:nutrition",
+    );
+  });
+
+  it("should return the bare folder name for a SKILL.md outside a plugin", () => {
+    expect(skillReadQualifiedName("read", { path: "/ws/skills/pdf/SKILL.md" })).toBe("pdf");
+    expect(skillReadQualifiedName("read", { path: "skills/pdf/SKILL.md" })).toBe("pdf");
+  });
+
+  it("should return the bare folder name when the layout only resembles a plugin", () => {
+    expect(skillReadQualifiedName("read", { path: "/ws/plugins/budget-pro/pdf/SKILL.md" })).toBe("pdf");
+    expect(skillReadQualifiedName("read", { path: "/ws/skills/pdf/SKILL.md" })).toBe("pdf");
+  });
+
+  it("should return an empty name for a bare SKILL.md with no folder", () => {
+    expect(skillReadQualifiedName("read", { path: "SKILL.md" })).toBe("");
+  });
+
+  it("should accept the legacy file_path argument name", () => {
+    expect(skillReadQualifiedName("read", { file_path: "/ws/plugins/health/skills/nutrition/SKILL.md" })).toBe(
+      "health:nutrition",
+    );
+  });
+
+  it("should return undefined for reads of other files and for non-read tools", () => {
+    expect(skillReadQualifiedName("read", { path: "plugins/health/skills/nutrition/README.md" })).toBeUndefined();
+    expect(skillReadQualifiedName("edit", { path: "plugins/health/skills/nutrition/SKILL.md" })).toBeUndefined();
+  });
+
+  it("should return undefined while args are missing or partial (streaming)", () => {
+    expect(skillReadQualifiedName("read", undefined)).toBeUndefined();
+    expect(skillReadQualifiedName("read", {})).toBeUndefined();
   });
 });
 

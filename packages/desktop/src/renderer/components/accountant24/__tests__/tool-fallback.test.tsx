@@ -278,10 +278,14 @@ describe("toolCallLabel()", () => {
     expect(toolCallLabel("read", { path: "/ws/memory.md" })).toBe("Read Memory");
   });
 
-  it("should name the skill for a read of its SKILL.md", () => {
-    expect(toolCallLabel("read", { path: "/ws/plugins/accountant24-skills/skills/docs/SKILL.md" })).toBe(
-      "Use Skill: docs",
+  it("should name the skill as plugin:skill for a read of a plugin's SKILL.md", () => {
+    expect(toolCallLabel("read", { path: "/ws/plugins/accountant24-skills/skills/recurring-spending/SKILL.md" })).toBe(
+      "Use Skill: accountant24-skills:recurring-spending",
     );
+  });
+
+  it("should name the skill by its folder for a SKILL.md outside a plugin", () => {
+    expect(toolCallLabel("read", { path: "/ws/skills/pdf/SKILL.md" })).toBe("Use Skill: pdf");
   });
 
   it("should return a bare 'Use Skill' for a SKILL.md with no folder", () => {
@@ -327,10 +331,22 @@ describe("toolCallLabel()", () => {
 });
 
 describe("ToolFallback skill and documentation reads", () => {
-  it("should label a read call on a SKILL.md with the skill name", () => {
-    render(<ToolFallback {...partProps({ toolName: "read", args: { path: "/ws/skills/pdf/SKILL.md" } })} />);
-    expect(screen.getByText("Use Skill: pdf")).toBeTruthy();
+  it("should label a read of a plugin's SKILL.md with the plugin:skill name", () => {
+    render(
+      <ToolFallback
+        {...partProps({
+          toolName: "read",
+          args: { path: "/ws/plugins/accountant24-skills/skills/recurring-spending/SKILL.md" },
+        })}
+      />,
+    );
+    expect(screen.getByText("Use Skill: accountant24-skills:recurring-spending")).toBeTruthy();
     expect(screen.queryByText("Read File")).toBeNull();
+  });
+
+  it("should label a SKILL.md with no folder as a bare 'Use Skill'", () => {
+    render(<ToolFallback {...partProps({ toolName: "read", args: { path: "SKILL.md" } })} />);
+    expect(screen.getByText("Use Skill")).toBeTruthy();
   });
 
   it("should label a read call on a bundled documentation page with the page name", () => {
@@ -363,17 +379,17 @@ describe("ToolFallback skill and documentation reads", () => {
       <ToolFallback
         {...partProps({
           toolName: "read",
-          args: { path: "/ws/skills/pdf/SKILL.md" },
-          argsText: '{"path":"/ws/skills/pdf/SKILL.md"}',
+          args: { path: "/ws/plugins/tools/skills/pdf/SKILL.md" },
+          argsText: '{"path":"/ws/plugins/tools/skills/pdf/SKILL.md"}',
           result: "---\nname: pdf\n---",
         })}
       />,
     );
-    fireEvent.click(screen.getByText("Use Skill: pdf"));
+    fireEvent.click(screen.getByText("Use Skill: tools:pdf"));
     expect(screen.getByText("Input:")).toBeTruthy();
     expect(screen.getByText("Output:")).toBeTruthy();
     const args = document.querySelector("[data-slot=tool-fallback-args] pre");
-    expect(args?.textContent).toBe(`{\n  "path": "/ws/skills/pdf/SKILL.md"\n}`);
+    expect(args?.textContent).toBe(`{\n  "path": "/ws/plugins/tools/skills/pdf/SKILL.md"\n}`);
   });
 });
 

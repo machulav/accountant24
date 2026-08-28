@@ -11,11 +11,28 @@ function pathArg(args: unknown): string | undefined {
   return typeof raw === "string" ? raw : undefined;
 }
 
-/** The skill folder name when the call reads a skill's SKILL.md, else undefined. */
-export function skillReadName(toolName: string, args: unknown): string | undefined {
+/** The path segments of a SKILL.md the call reads, else undefined. */
+function skillReadSegments(toolName: string, args: unknown): string[] | undefined {
   if (toolName !== "read") return undefined;
   const segments = pathArg(args)?.split(/[\\/]/) ?? [];
-  if (segments.at(-1) !== "SKILL.md") return undefined;
+  return segments.at(-1) === "SKILL.md" ? segments : undefined;
+}
+
+/** The skill folder name when the call reads a skill's SKILL.md, else undefined. */
+export function skillReadName(toolName: string, args: unknown): string | undefined {
+  const segments = skillReadSegments(toolName, args);
+  return segments && (segments.at(-2) ?? "");
+}
+
+/** The skill's `<plugin>:<skill>` name when the call reads a SKILL.md inside a
+ *  plugin (`plugins/<plugin>/skills/<skill>/SKILL.md`, the plugin folder being
+ *  the plugin's name), the bare folder name for a SKILL.md anywhere else, and
+ *  undefined when the call is not a skill read. */
+export function skillReadQualifiedName(toolName: string, args: unknown): string | undefined {
+  const segments = skillReadSegments(toolName, args);
+  if (!segments) return undefined;
+  const [plugins, plugin, skills, skill] = segments.slice(-5, -1);
+  if (plugins === "plugins" && plugin && skills === "skills" && skill) return `${plugin}:${skill}`;
   return segments.at(-2) ?? "";
 }
 
