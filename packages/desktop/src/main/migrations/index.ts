@@ -5,9 +5,10 @@ import { homedir } from "node:os";
 import { workspaceDir } from "../env";
 import { relocateLegacyHome } from "./0001-relocate-legacy-home";
 import { relocateLegacyHomeOverUnused } from "./0002-relocate-legacy-home-over-unused";
+import { ignoreUvDir } from "./0003-ignore-uv-dir";
 import { type Migration, runMigrations } from "./runner";
 
-export const MIGRATIONS: readonly Migration[] = [relocateLegacyHome, relocateLegacyHomeOverUnused];
+export const MIGRATIONS: readonly Migration[] = [relocateLegacyHome, relocateLegacyHomeOverUnused, ignoreUvDir];
 
 /** Run the migrations the active workspace has not seen yet. */
 export function runPendingMigrations(): Promise<string[]> {

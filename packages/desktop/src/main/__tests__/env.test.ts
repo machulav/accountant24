@@ -46,6 +46,20 @@ describe("workspace paths", () => {
   });
 });
 
+describe("uvDir()", () => {
+  it("should resolve <workspace>/uv", async () => {
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
+    try {
+      const mod = await import("../env");
+      expect(mod.uvDir()).toBe(path.join("/ws", "uv"));
+    } finally {
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
+    }
+  });
+});
+
 describe("workspaceDir()", () => {
   it("should use ACCOUNTANT24_WORKSPACE verbatim when it is a non-empty path", async () => {
     const prev = process.env.ACCOUNTANT24_WORKSPACE;
@@ -221,6 +235,63 @@ describe("agentEnv()", () => {
       expect(mod.agentEnv().ACCOUNTANT24_DOCS).toBeUndefined();
     } finally {
       Object.defineProperty(process, "resourcesPath", { value: origRes, configurable: true });
+    }
+  });
+
+  it("should keep uv's managed Python under <workspace>/uv/python", async () => {
+    h.app.isPackaged = false;
+    h.app.getAppPath = () => "/app";
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
+    h.existsSync.mockReturnValue(false);
+    try {
+      const mod = await import("../env");
+      expect(mod.agentEnv().UV_PYTHON_INSTALL_DIR).toBe(path.join("/ws", "uv", "python"));
+    } finally {
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
+    }
+  });
+
+  it("should keep uv's package cache under <workspace>/uv/cache", async () => {
+    h.app.isPackaged = false;
+    h.app.getAppPath = () => "/app";
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
+    h.existsSync.mockReturnValue(false);
+    try {
+      const mod = await import("../env");
+      expect(mod.agentEnv().UV_CACHE_DIR).toBe(path.join("/ws", "uv", "cache"));
+    } finally {
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
+    }
+  });
+
+  it("should tell uv to use only the Python it manages, never one from the machine", async () => {
+    h.app.isPackaged = false;
+    h.app.getAppPath = () => "/app";
+    h.existsSync.mockReturnValue(false);
+    const mod = await import("../env");
+    expect(mod.agentEnv().UV_PYTHON_PREFERENCE).toBe("only-managed");
+  });
+
+  it("should point the uv variables at the workspace even when nothing is vendored", async () => {
+    h.app.isPackaged = false;
+    h.app.getAppPath = () => "/app";
+    const prev = process.env.ACCOUNTANT24_WORKSPACE;
+    process.env.ACCOUNTANT24_WORKSPACE = "/ws";
+    // Neither bin/ nor uv/ exists: the variables are paths uv creates itself.
+    h.existsSync.mockReturnValue(false);
+    try {
+      const mod = await import("../env");
+      const env = mod.agentEnv();
+      expect(env.UV_PYTHON_INSTALL_DIR).toBe(path.join("/ws", "uv", "python"));
+      expect(env.UV_CACHE_DIR).toBe(path.join("/ws", "uv", "cache"));
+      expect(env.UV_PYTHON_PREFERENCE).toBe("only-managed");
+    } finally {
+      if (prev === undefined) delete process.env.ACCOUNTANT24_WORKSPACE;
+      else process.env.ACCOUNTANT24_WORKSPACE = prev;
     }
   });
 

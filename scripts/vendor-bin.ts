@@ -1,17 +1,31 @@
 // Vendors the external CLI tools the app shells out to (hledger, pdftotext,
-// tesseract) into packages/desktop/resources so electron-builder bundles them
-// into Contents/Resources. Run on the matching-arch macOS runner BEFORE the
-// build — it installs the tools via Homebrew, relocates their non-system dylibs
-// next to the binaries (so they run on a user Mac without Homebrew), copies the
-// English OCR data, ad-hoc signs everything (required for arm64 to launch while
-// the app is unsigned), and writes THIRD-PARTY-LICENSES.txt so the bundled GPL
-// tools (hledger, poppler) ship with their license + corresponding-source offer.
-// Developer-ID re-signing happens later in the electron-builder signing pass.
+// tesseract, uv) into packages/desktop/resources so electron-builder bundles
+// them into Contents/Resources. Run on the matching-arch macOS runner BEFORE
+// the build — it installs the brew tools via Homebrew, relocates their
+// non-system dylibs next to the binaries (so they run on a user Mac without
+// Homebrew), downloads the pinned uv release and verifies its checksum, copies
+// the English OCR data, ad-hoc signs everything (required for arm64 to launch
+// while the app is unsigned), and writes THIRD-PARTY-LICENSES.txt so the
+// bundled GPL tools (hledger, poppler) ship with their license +
+// corresponding-source offer. Developer-ID re-signing happens later in the
+// electron-builder signing pass.
 //
 // Usage: tsx scripts/vendor-bin.ts
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,6 +59,76 @@ const TOOLS = [
   { formula: "tesseract", exe: "tesseract" },
 ];
 
+// uv runs plugin helper scripts (`uv run scripts/foo.py`, with a PEP 723
+// header naming the Python version and packages) and downloads a managed
+// Python into the workspace on first use — the app bundles uv, not Python.
+// Not a brew formula: Astral publishes one self-contained binary per target
+// (system libraries only, so no dylib relocation), pinned here by version and
+// by the sha256 of the release asset. Only the Apple Silicon build is pinned,
+// since that is the only target the app ships (see electron-builder.yml);
+// bumping uv means editing the version and the hash together.
+const UV_VERSION = "0.12.7";
+const UV_TARGET = "aarch64-apple-darwin";
+const UV_SHA256 = "127ebdda7ad953cdf198e964b570ea5771b85467ea93eb7cb6d6f8e6f55408f3";
+
+/** GET a URL into memory (release assets redirect to a CDN; fetch follows).
+ *  GitHub answers with a 5xx now and then; three tries before giving up. */
+async function download(url: string, attempts = 3): Promise<Buffer> {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url).catch((err: unknown) => err as Error);
+    if (!(res instanceof Error) && res.ok) return Buffer.from(await res.arrayBuffer());
+    const reason = res instanceof Error ? res.message : `${res.status} ${res.statusText}`;
+    if (attempt >= attempts || (!(res instanceof Error) && res.status < 500)) {
+      throw new Error(`Failed to download ${url}: ${reason}`);
+    }
+    console.log(`[vendor-bin] ${reason} for ${url}, retrying (${attempt}/${attempts})`);
+    await new Promise((r) => setTimeout(r, 2000 * attempt));
+  }
+}
+
+/** Download the pinned uv release, verify its sha256, and put the `uv`
+ *  binary (not `uvx`, which the app never calls) into BIN. Returns the
+ *  vendored path so it gets signed with the other binaries. */
+async function vendorUv(): Promise<string> {
+  if (process.platform !== "darwin" || process.arch !== "arm64") {
+    throw new Error(`uv ${UV_VERSION} is pinned for ${UV_TARGET} only, got ${process.platform}-${process.arch}`);
+  }
+  const asset = `uv-${UV_TARGET}.tar.gz`;
+  const url = `https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${asset}`;
+  console.log(`[vendor-bin] uv ${UV_VERSION} (${asset})`);
+
+  const buf = await download(url);
+  const actual = createHash("sha256").update(buf).digest("hex");
+  if (actual !== UV_SHA256) {
+    throw new Error(`SHA256 mismatch for ${asset}: expected ${UV_SHA256}, got ${actual}`);
+  }
+
+  // The archive holds one folder, uv-<target>/, with uv and uvx inside.
+  const tmp = mkdtempSync(join(tmpdir(), "a24-uv-"));
+  try {
+    const archive = join(tmp, asset);
+    writeFileSync(archive, buf);
+    run("tar", ["xzf", archive, "-C", tmp]);
+    const src = join(tmp, `uv-${UV_TARGET}`, "uv");
+    if (!existsSync(src)) throw new Error(`Expected uv inside ${asset}`);
+    const dest = join(BIN, "uv");
+    copyFileSync(src, dest);
+    chmodSync(dest, 0o755);
+    const version = capture(dest, ["--version"]);
+    if (!version.startsWith(`uv ${UV_VERSION}`)) throw new Error(`Vendored uv reports "${version}"`);
+    return dest;
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+/** uv's license text (dual MIT / Apache-2.0; the MIT text is embedded, the
+ *  Apache one is a link away at the same tag) for THIRD-PARTY-LICENSES.txt. */
+async function uvLicenseText(): Promise<string> {
+  const buf = await download(`https://raw.githubusercontent.com/astral-sh/uv/${UV_VERSION}/LICENSE-MIT`);
+  return buf.toString("utf8").trim();
+}
+
 type BrewMeta = { version: string; license: string; source: string; homepage: string };
 
 /** Read metadata (version, SPDX license, source URL) for formulae in one call. */
@@ -75,7 +159,7 @@ function licenseText(formula: string): string {
 
 /** Write THIRD-PARTY-LICENSES.txt: per-tool version + SPDX + corresponding-source
  *  URL + license text, plus an appendix of the bundled shared libraries. */
-function writeLicenses(): void {
+function writeLicenses(uvLicense: string): void {
   const meta = brewInfo(TOOLS.map((t) => t.formula));
   const lines: string[] = [
     "Accountant24 — Third-Party Licenses",
@@ -98,6 +182,18 @@ function writeLicenses(): void {
       "",
     );
   }
+  // Not a brew formula, so its metadata is pinned here with the binary.
+  lines.push(
+    "================================================================",
+    `uv (uv) ${UV_VERSION} — MIT OR Apache-2.0`,
+    "Project: https://github.com/astral-sh/uv",
+    `Corresponding source: https://github.com/astral-sh/uv/releases/tag/${UV_VERSION}`,
+    "----------------------------------------------------------------",
+    uvLicense,
+    "",
+    `(Also available under Apache-2.0: https://github.com/astral-sh/uv/blob/${UV_VERSION}/LICENSE-APACHE)`,
+    "",
+  );
   const libs = existsSync(LIB) ? readdirSync(LIB).filter((f) => f.endsWith(".dylib")) : [];
   lines.push(
     "================================================================",
@@ -114,7 +210,7 @@ function writeLicenses(): void {
   console.log(`[vendor-bin] wrote ${LICENSES} (${libs.length} bundled libs listed)`);
 }
 
-function main() {
+async function main() {
   console.log(`[vendor-bin] arch=${process.arch}`);
 
   // Start from a clean bin/ (keep the tracked README.md) and lib/.
@@ -149,21 +245,27 @@ function main() {
     ]);
   }
 
-  // 3. English OCR data (the app points TESSDATA_PREFIX at resources/tessdata).
+  // 3. uv: a pinned GitHub release, checksum-verified, no relocation needed.
+  bins.push(await vendorUv());
+
+  // 4. English OCR data (the app points TESSDATA_PREFIX at resources/tessdata).
   const tessShare = join(capture("brew", ["--prefix", "tesseract"]), "share", "tessdata");
   const eng = join(tessShare, "eng.traineddata");
   if (!existsSync(eng)) throw new Error(`eng.traineddata not found at ${eng}`);
   copyFileSync(eng, join(TESSDATA, "eng.traineddata"));
 
-  // 4. Ad-hoc sign the relocated dylibs first, then the binaries, so they launch
+  // 5. Ad-hoc sign the relocated dylibs first, then the binaries, so they launch
   //    on arm64 (Developer-ID re-signing happens later, with notarization).
   const dylibs = readdirSync(LIB).filter((f) => f.endsWith(".dylib")).map((f) => join(LIB, f));
   for (const f of [...dylibs, ...bins]) run("codesign", ["--force", "--sign", "-", f]);
 
-  // 5. Emit the third-party license notice for the bundled GPL/permissive tools.
-  writeLicenses();
+  // 6. Emit the third-party license notice for the bundled GPL/permissive tools.
+  writeLicenses(await uvLicenseText());
 
-  console.log(`[vendor-bin] ✓ vendored ${TOOLS.map((t) => t.exe).join(", ")} + eng.traineddata + licenses`);
+  console.log(`[vendor-bin] ✓ vendored ${TOOLS.map((t) => t.exe).join(", ")}, uv + eng.traineddata + licenses`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

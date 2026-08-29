@@ -5,7 +5,7 @@
   <!--
     Hardened-runtime entitlements required because the app bundles and spawns
     executables (Electron runs pi under Node with V8 JIT, and we run
-    hledger / pdftotext / tesseract). Without these, notarized launches crash.
+    hledger / pdftotext / tesseract / uv). Without these, notarized launches crash.
   -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>

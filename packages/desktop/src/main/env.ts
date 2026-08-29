@@ -2,8 +2,9 @@
 //
 // The workspace (~/.accountant24 by default) holds the ledger + auth.json +
 // models.json; PATH exposes the vendored native tools (hledger/pdftotext/
-// tesseract) to the agent's bash/tool subprocesses; TESSDATA_PREFIX points at
-// the OCR data.
+// tesseract/uv) to the agent's bash/tool subprocesses; TESSDATA_PREFIX points
+// at the OCR data; the UV_* variables keep the Python that uv downloads for
+// plugin scripts inside the workspace.
 //
 // ACCOUNTANT24_WORKSPACE is the single channel that names the workspace: set
 // by the `--workspace` launch flag (cli.ts) or by the caller's environment, read
@@ -43,6 +44,13 @@ export function sessionsDir(): string {
   return path.join(workspaceDir(), "sessions");
 }
 
+/** <workspace>/uv — what the vendored uv downloads when a plugin script runs:
+ *  the managed Python (python/) and the package cache (cache/). A cache, safe
+ *  to delete, and git-ignored in the workspace. */
+export function uvDir(): string {
+  return path.join(workspaceDir(), "uv");
+}
+
 /** <workspace>/ledger/main.journal — the ledger's entry point (includes the
  *  other journal files). */
 export function mainJournalPath(): string {
@@ -70,7 +78,7 @@ export function docsDir(): string {
   return path.join(resourceDir(), "docs");
 }
 
-/** Dir holding the vendored native tools (hledger/pdftotext/tesseract). Prepended
+/** Dir holding the vendored native tools (hledger/pdftotext/tesseract/uv). Prepended
  *  to the agent child's PATH; also used to resolve a tool's absolute path when we
  *  run one directly from the main process (which does NOT inherit that PATH). */
 export function binDir(): string {
@@ -116,13 +124,22 @@ export function agentHostConfig(skills: AgentHostSkill[]): AgentHostConfig {
 
 /** Env overrides for the agent host + in-process SDK: workspace + vendored
  *  tools. PI_CODING_AGENT_DIR is redundant for the host itself (agentDir is
- *  passed explicitly) but kept for env parity in the agent's subprocesses. */
+ *  passed explicitly) but kept for env parity in the agent's subprocesses.
+ *
+ *  Plugin scripts run through the vendored uv (`uv run scripts/foo.py`). The
+ *  UV_* variables pin everything it downloads to the workspace and make it
+ *  ignore any Python on the machine: a system Python varies per user, and on
+ *  macOS the /usr/bin/python3 stub pops the developer-tools installer. */
 export function agentEnv(): NodeJS.ProcessEnv {
   const workspace = workspaceDir();
+  const uv = uvDir();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ACCOUNTANT24_WORKSPACE: workspace,
     PI_CODING_AGENT_DIR: workspace,
+    UV_PYTHON_INSTALL_DIR: path.join(uv, "python"),
+    UV_CACHE_DIR: path.join(uv, "cache"),
+    UV_PYTHON_PREFERENCE: "only-managed",
   };
   const res = resourceDir();
   const bin = binDir();
