@@ -15,4 +15,7 @@ coverage/
 packages/desktop/resources/docs/
 # Playwright E2E artifacts
 test-results/
-playwright-report/
+playwright-report/# Website: demo videos are copied from docs/videos at build time; Astro/wrangler local state
+packages/website/public/videos/
+.astro/
+.wrangler/

@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "files": {
-    "includes": ["packages/pi-extension/**", "packages/desktop/**", "*.json", "*.ts", "!**/*.css"]
+    "includes": [
+      "packages/pi-extension/**",
+      "packages/desktop/**",
+      "packages/website/**",
+      "*.json",
+      "*.ts",
+      "!**/*.css"
+    ]
   },
   "vcs": {
     "enabled": true,
@@ -78,6 +85,17 @@
           "suspicious": {
             "noDocumentCookie": "off",
             "noDoubleEquals": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/website/**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedImports": "off",
+            "noUnusedVariables": "off"
           }
         }
       }

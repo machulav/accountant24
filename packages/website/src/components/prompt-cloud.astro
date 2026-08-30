@@ -1,0 +1,25 @@
+---
+import { promptIdeas } from "../content/site";
+
+// Eight static rows, each centered and wider than the viewport, clipped with
+// faded edges (see .prompt-rows in global.css).
+const ROWS = 8;
+const rows = Array.from({ length: ROWS }, (_, row) => promptIdeas.filter((_, index) => index % ROWS === row));
+---
+
+<section class="py-16 lg:py-24" aria-labelledby="prompts-title">
+  <h2 id="prompts-title" class="mx-auto max-w-6xl px-6 text-center text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+    Some things you can ask the agent
+  </h2>
+  <div class="prompt-rows mt-8 flex flex-col gap-4 overflow-hidden">
+    {
+      rows.map((row) => (
+        <ul class="flex justify-center gap-2.5">
+          {row.map((prompt) => (
+            <li class="pill">{prompt}</li>
+          ))}
+        </ul>
+      ))
+    }
+  </div>
+</section>

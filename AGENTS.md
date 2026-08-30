@@ -22,6 +22,15 @@ The Electron desktop app:
 - assistant-ui (`@assistant-ui/react`) — chat UI
 - pi coding agent (`@earendil-works/pi-coding-agent`) — agent
 
+## packages/website
+
+The landing page at accountant24.ai:
+
+- Astro — static site
+- Tailwind CSS — styling
+- Cloudflare Workers — hosting; the Worker also proxies `/docs` to the Mintlify docs site (`docs/`)
+- PostHog — web analytics (cookieless)
+
 # Architecture
 
 `packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
@@ -33,6 +42,8 @@ The Electron desktop app:
 - `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
 - `src/renderer/` — the React app, sandboxed; reaches main only through `window.api` (typed wrappers in `rpc/api.ts`).
 - `src/shared/` — IPC payload types used by both main and renderer (and the agent host). Types only, imported with `import type` from both sides; never add runtime code here.
+
+`packages/website` is the marketing site: content and copy live in `src/content/site.ts`, pure logic in `src/lib/` and `src/worker/` (unit-tested), pages and components in `.astro` files. Wording follows the README and docs; keep it to shipped features.
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 

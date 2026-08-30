@@ -1,0 +1,20 @@
+---
+import Footer from "../components/footer.astro";
+import Nav from "../components/nav.astro";
+import { site } from "../content/site";
+import Base from "../layouts/Base.astro";
+---
+
+<Base title={`Page not found | ${site.name}`} description="This page does not exist." noindex>
+  <Nav />
+  <main id="main" class="mx-auto flex max-w-6xl flex-col items-start gap-4 px-6 py-24">
+    <p class="font-mono text-sm text-ink-2">404</p>
+    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Page not found</h1>
+    <p class="max-w-md text-lg text-ink-2 text-pretty">The page you asked for is not here. The docs or the home page are.</p>
+    <div class="mt-4 flex gap-3">
+      <a href="/" class="btn btn-primary">Home</a>
+      <a href={site.docsUrl} class="btn btn-secondary">Docs</a>
+    </div>
+  </main>
+  <Footer />
+</Base>

@@ -1,0 +1,21 @@
+---
+import { site } from "../content/site";
+---
+
+<footer>
+  <div class="mx-auto flex max-w-6xl flex-col gap-8 px-6 pt-48 pb-16 sm:flex-row sm:items-start sm:justify-between">
+    <div class="field-halo max-w-sm">
+      <a href="/" class="flex items-center" aria-label="Accountant24 home">
+        <span class="font-semibold tracking-tight">Accountant24</span>
+      </a>
+      <p class="mt-3 text-sm leading-relaxed text-ink-2 text-pretty">{site.headline}. {site.tagline}.</p>
+    </div>
+    <nav aria-label="Footer" class="field-halo grid grid-flow-col grid-rows-3 gap-x-20 gap-y-2 text-sm">
+      <a href={site.docsUrl} data-track="docs_clicked" data-placement="footer" class="text-ink-2 hover:text-ink">Docs</a>
+      <a href={site.quickstartUrl} data-track="docs_clicked" data-placement="footer" class="text-ink-2 hover:text-ink">Quickstart</a>
+      <a href="/docs/faq" data-track="docs_clicked" data-placement="footer" class="text-ink-2 hover:text-ink">FAQ</a>
+      <a href={site.github} data-track="github_clicked" data-placement="footer" class="text-ink-2 hover:text-ink">GitHub</a>
+      <a href={site.releasesUrl} class="text-ink-2 hover:text-ink">Changelog</a>
+    </nav>
+  </div>
+</footer>

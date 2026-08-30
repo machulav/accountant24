@@ -1,0 +1,75 @@
+---
+import "../styles/global.css";
+import { site } from "../content/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** JSON-LD graph for this page, rendered as-is. */
+  structuredData?: Record<string, unknown>;
+  /** Pages that should not be indexed (404). */
+  noindex?: boolean;
+}
+
+const { title = site.title, description = site.description, structuredData, noindex = false } = Astro.props;
+// `build.format: "file"` reports pages as `/x.html`; canonical URLs never carry the extension.
+const canonical = new URL(Astro.url.pathname.replace(/index\.html$/, "").replace(/\.html$/, ""), site.url).href;
+const ogImage = new URL("/og.png", site.url).href;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="preload" href="/fonts/satoshi-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/satoshi-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/satoshi-900.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e1a1c" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${site.headline}. ${site.tagline}.`} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="posthog-key" content={site.posthogKey} />
+    {structuredData && <script type="application/ld+json" is:inline set:html={JSON.stringify(structuredData)} />}
+  </head>
+  <body class="min-h-dvh bg-bg text-ink">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-accent focus:px-3 focus:py-2 focus:text-on-accent"
+      >Skip to content</a
+    >
+    <slot />
+    <script>
+      // Analytics load after the page is done, and only when a key is
+      // configured, so the PostHog bundle never sits on the critical path.
+      const key = document.querySelector<HTMLMetaElement>('meta[name="posthog-key"]')?.content ?? "";
+      if (key) {
+        window.addEventListener(
+          "load",
+          async () => {
+            const { bindCtaTracking, initAnalytics } = await import("../lib/analytics");
+            if (initAnalytics(key)) bindCtaTracking(document);
+          },
+          { once: true },
+        );
+      }
+    </script>
+  </body>
+</html>

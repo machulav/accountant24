@@ -1,0 +1,30 @@
+---
+import { features } from "../content/site";
+import Icon from "./icons.astro";
+---
+
+<section class="mx-auto max-w-6xl px-6 py-16 lg:py-24" aria-labelledby="features-title">
+  <h2 id="features-title" class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Features</h2>
+  <p class="mt-3 max-w-2xl text-lg text-ink-2 text-pretty">You talk, the agent keeps the books.</p>
+  <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      features.map((feature) => (
+        <article class="flex flex-col rounded-3xl border border-line bg-surface p-6">
+          <h3 class="text-lg font-semibold tracking-tight">{feature.title}</h3>
+          <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
+          {feature.link && (
+            <a
+              href={feature.link.href}
+              data-track="docs_clicked"
+              data-placement="features"
+              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-ink hover:underline"
+            >
+              {feature.link.label}
+              <Icon name="arrow" class="size-3.5" />
+            </a>
+          )}
+        </article>
+      ))
+    }
+  </div>
+</section>

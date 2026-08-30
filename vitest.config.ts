@@ -41,6 +41,7 @@ export default defineConfig({
         "packages/desktop/src/renderer/rpc/types.ts",
         "packages/desktop/src/shared/**",
         "packages/desktop/src/main/template/**",
+        "packages/website/src/worker/index.ts",
       ],
       // Enforced floor — ratchets up toward 100 as gaps close; never lowered.
       // Kept just under the current effective baseline so the gate is honest
