@@ -1,0 +1,67 @@
+# Builds and deploys the landing page (packages/website) to Cloudflare Workers.
+#
+# - pull_request: builds and uploads a preview version (the preview URL is in
+#   the wrangler step output); nothing goes live.
+# - push to main / schedule / manual: builds and deploys. The daily schedule
+#   refreshes the build-time GitHub facts on the page (latest version).
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   — API token with the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account id
+#
+# The docs (/docs) are not built here: the Worker proxies them to Mintlify,
+# which deploys on its own from docs/.
+
+name: Website
+
+on:
+  pull_request:
+    paths: ["packages/website/**", ".github/workflows/website.yml"]
+  push:
+    branches: [main]
+    paths: ["packages/website/**", ".github/workflows/website.yml"]
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build -w @accountant24/website
+        env:
+          # Raises the GitHub API rate limit for the build-time version fetch.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload preview version
+        if: github.event_name == 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/website
+          command: versions upload
+
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/website
+          command: deploy
