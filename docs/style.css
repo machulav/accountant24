@@ -1,0 +1,9 @@
+/* Mintlify loads any .css file in the content directory on every page. */
+
+/* Navbar wordmark: same size and weight as the landing page's (packages/website).
+   !important because Mintlify's own utility classes share the specificity. */
+.nav-logo {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em;
+}
