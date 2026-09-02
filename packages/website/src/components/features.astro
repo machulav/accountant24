@@ -1,30 +1,137 @@
 ---
+// Scroll-driven features: the list on the left, a sticky mini render of the
+// app on the right. Scrolling moves the active feature and the mock replays
+// that feature's scripted scene (feature-mock.astro). Below lg the mock is
+// hidden and the list reads as a plain stacked section.
 import { features } from "../content/site";
+import FeatureMock from "./feature-mock.astro";
 import Icon from "./icons.astro";
 ---
 
-<section class="mx-auto max-w-6xl px-6 py-16 lg:py-24" aria-labelledby="features-title">
-  <h2 id="features-title" class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Features</h2>
-  <p class="mt-3 max-w-2xl text-lg text-ink-2 text-pretty">You talk, the agent keeps the books.</p>
-  <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-    {
-      features.map((feature) => (
-        <article class="flex flex-col rounded-3xl border border-line bg-surface p-6">
-          <h3 class="text-lg font-semibold tracking-tight">{feature.title}</h3>
-          <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
-          {feature.link && (
-            <a
-              href={feature.link.href}
-              data-track="docs_clicked"
-              data-placement="features"
-              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-ink hover:underline"
-            >
-              {feature.link.label}
-              <Icon name="arrow" class="size-3.5" />
-            </a>
-          )}
-        </article>
-      ))
-    }
+<section class="mx-auto max-w-6xl px-6 pt-10 pb-12 lg:py-0" aria-labelledby="features-title" data-features>
+  <h2 id="features-title" class="sr-only">Features</h2>
+  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.65fr)] lg:gap-10">
+    <ol class="flex flex-col lg:py-[15vh]">
+      {
+        features.map((feature, index) => (
+          <li
+            data-feature-item
+            class:list={[
+              "feature-item flex flex-col justify-center border-t border-line py-10 first:border-t-0 first:pt-0 lg:min-h-[70vh] lg:border-t-0 lg:py-0 lg:first:pt-0",
+              index === 0 && "is-active",
+            ]}
+          >
+            <span class="font-mono text-xs text-ink-2">{String(index + 1).padStart(2, "0")}</span>
+            <h3 class="mt-2 text-xl font-semibold tracking-tight">{feature.title}</h3>
+            <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
+            {feature.link && (
+              <a
+                href={feature.link.href}
+                data-track="docs_clicked"
+                data-placement="features"
+                class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-ink hover:underline"
+              >
+                {feature.link.label}
+                <Icon name="arrow" class="size-3.5" />
+              </a>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+    <div class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center" aria-hidden="true">
+      <FeatureMock />
+    </div>
   </div>
 </section>
+
+<style is:global>
+  /* Dim inactive features only while the scroll script drives the section
+     (desktop + JS); without it the list stays fully readable. */
+  [data-features][data-enhanced] .feature-item {
+    opacity: 0.35;
+    transition: opacity 300ms;
+  }
+  [data-features][data-enhanced] .feature-item.is-active {
+    opacity: 1;
+  }
+  /* Sidebar chats scroll to their feature while the script drives the section. */
+  [data-features][data-enhanced] [data-chat] {
+    cursor: pointer;
+  }
+  [data-features][data-enhanced] [data-chat]:not(.is-active):hover {
+    background: color-mix(in oklch, var(--surface-2) 55%, transparent);
+  }
+</style>
+
+<script>
+  import { pickActiveIndex } from "../lib/feature-scroll";
+
+  const root = document.querySelector<HTMLElement>("[data-features]");
+  const items = root ? [...root.querySelectorAll<HTMLElement>("[data-feature-item]")] : [];
+  const scenes = root ? [...root.querySelectorAll<HTMLElement>("[data-scene]")] : [];
+  const chats = root ? [...root.querySelectorAll<HTMLElement>("[data-chat]")] : [];
+
+  if (root && items.length > 0 && items.length === scenes.length && window.matchMedia("(min-width: 1024px)").matches) {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    root.dataset.enhanced = "";
+    let active = 0;
+
+    const activate = (next: number) => {
+      const scene = scenes[next];
+      if (next === active && scene.classList.contains("is-active")) return;
+      items[active].classList.remove("is-active");
+      chats[active]?.classList.remove("is-active");
+      scenes[active].classList.remove("is-shown", "is-active");
+      active = next;
+      items[active].classList.add("is-active");
+      chats[active]?.classList.add("is-active");
+      scene.classList.add("is-shown");
+      if (!reducedMotion.matches) {
+        // Force a reflow between class removal and re-add so a re-activated
+        // scene restarts its animations from the top.
+        void scene.offsetWidth;
+        scene.classList.add("is-active");
+      }
+    };
+
+    // The observer only reports items whose intersection CHANGED, but an item
+    // overlaps the thin band across a long scroll range: a short back-and-forth
+    // fires events only for its neighbour and would leave the still-inside item
+    // out of the candidates, sticking the activation on the wrong feature. So
+    // track the full in-band set and re-measure every member on each callback.
+    const inBand = new Set<HTMLElement>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) inBand.add(entry.target as HTMLElement);
+          else inBand.delete(entry.target as HTMLElement);
+        }
+        // Only react while some feature is in the band; entering the section
+        // triggers the first play, leaving it freezes the current scene.
+        if (inBand.size === 0) return;
+        const candidates = [...inBand].map((item) => {
+          const rect = item.getBoundingClientRect();
+          return {
+            index: items.indexOf(item),
+            isIntersecting: true,
+            distanceToCenter: Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2),
+          };
+        });
+        activate(pickActiveIndex(candidates, active));
+      },
+      // A thin band around the viewport center: an item "intersects" only
+      // while it overlaps the middle 10% of the screen.
+      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
+    );
+    for (const item of items) observer.observe(item);
+
+    // Clicking a sidebar chat jumps straight to its feature; the jump moves
+    // the activation through the observer, so no direct activate() call here.
+    for (const [index, chat] of chats.entries()) {
+      chat.addEventListener("click", () => {
+        items[index]?.scrollIntoView({ block: "center", behavior: "instant" });
+      });
+    }
+  }
+</script>

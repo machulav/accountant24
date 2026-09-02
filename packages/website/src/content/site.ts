@@ -22,10 +22,29 @@ export const site = {
   posthogKey: "",
 } as const;
 
+export interface DemoChip {
+  kind: "account" | "payee" | "tag" | "skill";
+  label: string;
+}
+
+// A scripted demo scene the features mock plays when its feature scrolls into
+// view. Fields are optional so a scene can be chat-shaped (user, working,
+// reply) or composer-shaped (an open model menu). Keep tables at three or
+// fewer columns and four or fewer rows so they fit the mock's narrow thread.
+export interface FeatureDemo {
+  /** Shown as this scene's chat in the mock sidebar. */
+  chatTitle: string;
+  user?: { text: string; attachment?: { name: string; meta: string } };
+  working?: { steps: string[]; duration: string };
+  reply?: { text: string; chips?: DemoChip[]; table?: { head: string[]; rows: string[][] } };
+  composer?: { models?: { name: string; note?: string }[] };
+}
+
 export interface Feature {
   title: string;
   description: string;
   link?: { label: string; href: string };
+  demo: FeatureDemo;
 }
 
 // Every prompt idea the app deals under its composer, read straight from the
@@ -37,38 +56,104 @@ export const features: Feature[] = [
     title: "Natural language entry",
     description:
       "A plain sentence becomes a proper double-entry transaction in your ledger. The agent fills in the details.",
+    demo: {
+      chatTitle: "Groceries at Lidl",
+      user: { text: "I paid 42.50 for groceries at Lidl yesterday" },
+      working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
+      reply: {
+        text: "Done. One transaction added to your ledger:",
+        chips: [
+          { kind: "payee", label: "Lidl" },
+          { kind: "account", label: "Expenses:Groceries" },
+          { kind: "account", label: "Assets:Checking" },
+        ],
+      },
+    },
   },
   {
     title: "Statement and receipt import",
     description:
-      "A PDF bank statement, an invoice, or a photo of a paper receipt becomes transactions in your ledger. The original file is archived in your workspace for later.",
+      "A PDF bank statement, an invoice, or a photo of a paper receipt becomes transactions in your ledger. The original file is archived in your workspace and attached to the transactions.",
+    demo: {
+      chatTitle: "August statement import",
+      user: { text: "Import this statement", attachment: { name: "statement-aug.pdf", meta: "PDF · 245 KB" } },
+      working: { steps: ["Extract Text", "Add Transactions", "Commit"], duration: "9s" },
+      reply: {
+        text: "Imported 23 transactions from August. The original statement is archived in your workspace and attached to them.",
+      },
+    },
   },
   {
     title: "Answers about your money",
     description:
       "The agent reads your ledger and answers clearly, from what a trip cost to how your net worth is doing. @ points it at a specific account, payee, or tag.",
+    demo: {
+      chatTitle: "Last month spending",
+      user: { text: "Where did my money go last month?" },
+      working: { steps: ["Query Ledger"], duration: "4s" },
+      reply: {
+        text: "Most of it went to rent and groceries:",
+        table: {
+          head: ["Account", "August"],
+          rows: [
+            ["Rent", "950.00 €"],
+            ["Groceries", "412.30 €"],
+            ["Restaurants", "185.90 €"],
+            ["Transport", "84.50 €"],
+          ],
+        },
+      },
+    },
   },
   {
     title: "Persistent memory",
     description:
       "The agent remembers your rules, budgets, and habits from one mention, and applies them when it matters.",
     link: { label: "How memory works", href: "/docs/memory" },
+    demo: {
+      chatTitle: "Rent going up",
+      user: { text: "Rent goes up to 950 € from October" },
+      working: { steps: ["Update Memory"], duration: "2s" },
+      reply: { text: "Noted. From October I will expect rent at 950 € and flag anything that does not match." },
+    },
   },
   {
     title: "Plugin marketplace",
     description:
       "Extend the agent with new capabilities. Install plugins other people have built from the marketplace, or describe a routine, like a monthly review or a subscription audit, and the agent builds a plugin for you.",
     link: { label: "Browse the marketplace", href: "/docs/marketplace" },
+    demo: {
+      chatTitle: "Monthly review",
+      user: { text: "Run my monthly review" },
+      working: { steps: ["Use Skill: reviews:monthly-review", "Query Ledger"], duration: "12s" },
+      reply: { text: "August looks healthy. Spending is down 8% from July, and your savings rate came in at 21%." },
+    },
   },
   {
     title: "Any LLM, fully local if you want",
     description:
       "Sign in with your ChatGPT or Claude subscription, or use an API key from Anthropic, OpenAI, Google, and more. Or run a local model with Ollama, and nothing ever leaves your machine.",
     link: { label: "Go fully local", href: "/docs/go-fully-local" },
+    demo: {
+      chatTitle: "New chat",
+      composer: {
+        models: [
+          { name: "Opus 5", note: "Anthropic" },
+          { name: "GPT-5", note: "OpenAI" },
+          { name: "Llama 3", note: "Ollama (local)" },
+        ],
+      },
+    },
   },
   {
     title: "Full change history, easy undo",
     description:
       "Every change is recorded automatically. Review what happened anytime, roll back a mistake, or keep a private backup. Under the hood it's a local git repo, the same system developers trust with their code.",
+    demo: {
+      chatTitle: "Undo last change",
+      user: { text: "Undo my last change" },
+      working: { steps: ["Query Ledger", "Commit"], duration: "3s" },
+      reply: { text: "Reverted. Your ledger is back to how it was, and the history keeps a record of both changes." },
+    },
   },
 ];

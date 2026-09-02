@@ -90,9 +90,10 @@
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
+  /* No `scroll-behavior: smooth` on html: it makes the browser animate the
+     scroll RESTORATION when the visitor comes back from another page, which
+     reads as the page slowly scrolling itself. In-page jumps that want motion
+     opt in explicitly. */
   body {
     background: var(--bg);
     color: var(--ink);
@@ -106,9 +107,6 @@
     border-radius: 4px;
   }
   @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
     *,
     *::before,
     *::after {
