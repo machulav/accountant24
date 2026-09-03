@@ -122,9 +122,9 @@ describe("buildSceneTimeline()", () => {
         table: {
           head: ["Account", "August"],
           rows: [
-            ["Rent", "950 €"],
-            ["Food", "400 €"],
-            ["Transport", "80 €"],
+            ["Rent", "$1,850"],
+            ["Food", "$400"],
+            ["Gas", "$80"],
           ],
         },
       },

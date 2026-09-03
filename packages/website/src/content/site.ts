@@ -69,13 +69,13 @@ export const features: Feature[] = [
     description:
       "A plain sentence becomes a proper double-entry transaction in your ledger. The agent fills in the details.",
     demo: {
-      chatTitle: "Groceries at Lidl",
-      user: { text: "I paid 42.50 for groceries at Lidl yesterday" },
+      chatTitle: "Groceries at Trader Joe's",
+      user: { text: "I paid $42.50 for groceries at Trader Joe's yesterday" },
       working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
       reply: {
         text: "Done. One transaction added to your ledger:",
         chips: [
-          { kind: "payee", label: "Lidl" },
+          { kind: "payee", label: "Trader Joe's" },
           { kind: "account", label: "Expenses:Groceries" },
           { kind: "account", label: "Assets:Checking" },
         ],
@@ -108,10 +108,10 @@ export const features: Feature[] = [
         table: {
           head: ["Account", "August"],
           rows: [
-            ["Rent", "950.00 €"],
-            ["Groceries", "412.30 €"],
-            ["Restaurants", "185.90 €"],
-            ["Transport", "84.50 €"],
+            ["Rent", "$1,850.00"],
+            ["Groceries", "$612.30"],
+            ["Restaurants", "$285.90"],
+            ["Gas", "$184.50"],
           ],
         },
       },
@@ -124,9 +124,9 @@ export const features: Feature[] = [
     link: { label: "How memory works", href: "/docs/memory" },
     demo: {
       chatTitle: "Rent going up",
-      user: { text: "Rent goes up to 950 € from October" },
+      user: { text: "Rent goes up to $1,950 from October" },
       working: { steps: ["Update Memory"], duration: "2s" },
-      reply: { text: "Noted. From October I will expect rent at 950 € and flag anything that does not match." },
+      reply: { text: "Noted. From October I will expect rent at $1,950 and flag anything that does not match." },
     },
   },
   {
@@ -174,10 +174,10 @@ export const heroDemo: HeroDemo = {
   chatTitle: "Groceries at Whole Foods",
   turns: [
     {
-      user: { text: "I spent 45 € at Whole Foods yesterday" },
+      user: { text: "I spent $45 at Whole Foods yesterday" },
       working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
       reply: {
-        text: "Recorded. 45 € from your checking account to groceries, dated yesterday:",
+        text: "Recorded. $45 from your checking account to groceries, dated yesterday:",
         chips: [
           { kind: "payee", label: "Whole Foods" },
           { kind: "account", label: "Expenses:Groceries" },
@@ -188,12 +188,12 @@ export const heroDemo: HeroDemo = {
       user: { text: "How much did I spend on food this month?" },
       working: { steps: ["Query Ledger"], duration: "4s" },
       reply: {
-        text: "312 € so far in September, about a fifth under your usual pace:",
+        text: "$312 so far in September, about a fifth under your usual pace:",
         table: {
           head: ["Account", "September"],
           rows: [
-            ["Groceries", "245.10 €"],
-            ["Restaurants", "66.90 €"],
+            ["Groceries", "$245.10"],
+            ["Restaurants", "$66.90"],
           ],
         },
       },
