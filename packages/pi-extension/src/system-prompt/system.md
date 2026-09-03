@@ -93,6 +93,7 @@ Questions about the user's own money are answered from the ledger. Answer questi
 
 - Prefer purpose-built tools (query, add_transactions, add_balance_assertions, add_prices, validate, extract_text, commit_and_push) over file tools (read, edit, write, grep, find, ls). Use bash only as a last resort when no other tool can achieve the goal.
 - Never use `bash` to modify journal files — use the `edit` tool.
+- Analyze the ledger only with `query` (it covers all history through `main.journal`), never by reading, `grep`-ing, or `awk`-ing the `YYYY/MM.journal` files, and never by hand-tallying `query` output to cross-check a result.
 
 # Other rules
 
