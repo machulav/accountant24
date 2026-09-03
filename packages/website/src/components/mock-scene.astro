@@ -36,7 +36,8 @@ const composerVars = typed
 const menuTurn = turns.find((turn) => turn.demo.composer?.models);
 ---
 
-<div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4", shown && "is-shown"]}>
+{/* pt clears the window's inset traffic lights when the sidebar is hidden. */}
+<div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4 pt-8", shown && "is-shown"]}>
   <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
     {
       turns.map(({ demo, timeline }, ti) => (
@@ -160,7 +161,7 @@ const menuTurn = turns.find((turn) => turn.demo.composer?.models);
         </div>
       )
     }
-    <div class="rounded-3xl border border-line bg-surface-2/60 px-3.5 pt-3 pb-2.5" style={composerVars || undefined}>
+    <div class="rounded-3xl bg-surface-2/60 px-3.5 pt-3 pb-2.5" style={composerVars || undefined}>
       {
         typed.map(
           ({ demo, timeline }) =>

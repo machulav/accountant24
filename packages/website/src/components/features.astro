@@ -4,6 +4,7 @@
 // that feature's scripted scene (feature-mock.astro). Below lg the mock is
 // hidden and the list reads as a plain stacked section.
 import { features } from "../content/site";
+import { featureTargetId } from "../lib/page-chats";
 import FeatureMock from "./feature-mock.astro";
 import Icon from "./icons.astro";
 ---
@@ -15,6 +16,7 @@ import Icon from "./icons.astro";
       {
         features.map((feature, index) => (
           <li
+            id={featureTargetId(index)}
             data-feature-item
             class:list={[
               "feature-item flex flex-col justify-center border-t border-line py-10 first:border-t-0 first:pt-0 lg:border-t-0 lg:py-0 lg:first:pt-0",
@@ -74,22 +76,17 @@ import Icon from "./icons.astro";
   [data-features][data-enhanced] .feature-item.is-active {
     opacity: 1;
   }
-  /* Sidebar chats scroll to their feature while the script drives the section. */
-  [data-features][data-enhanced] [data-chat] {
-    cursor: pointer;
-  }
-  [data-features][data-enhanced] [data-chat]:not(.is-active):hover {
-    background: color-mix(in oklch, var(--surface-2) 55%, transparent);
-  }
 </style>
 
 <script>
   import { pickActiveIndex } from "../lib/feature-scroll";
+  import { featureTargetId } from "../lib/page-chats";
 
   const root = document.querySelector<HTMLElement>("[data-features]");
   const items = root ? [...root.querySelectorAll<HTMLElement>("[data-feature-item]")] : [];
   const scenes = root ? [...root.querySelectorAll<HTMLElement>("[data-scene]")] : [];
-  const chats = root ? [...root.querySelectorAll<HTMLElement>("[data-chat]")] : [];
+  // The sidebar chat of each feature (the sidebar lists the hero chat too).
+  const chats = items.map((_, i) => root?.querySelector<HTMLElement>(`[data-chat="${featureTargetId(i)}"]`));
 
   if (root && items.length > 0 && items.length === scenes.length && window.matchMedia("(min-width: 1024px)").matches) {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -151,13 +148,5 @@ import Icon from "./icons.astro";
       { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
     );
     for (const item of items) observer.observe(item);
-
-    // Clicking a sidebar chat jumps straight to its feature; the jump moves
-    // the activation through the observer, so no direct activate() call here.
-    for (const [index, chat] of chats.entries()) {
-      chat.addEventListener("click", () => {
-        items[index]?.scrollIntoView({ block: "center", behavior: "instant" });
-      });
-    }
   }
 </script>

@@ -324,7 +324,7 @@ describe("hero demo conversation", () => {
     for (const turn of heroDemo.turns) {
       expect(turn.user?.text.trim().length).toBeGreaterThan(0);
     }
-    expect(heroDemo.chats.length).toBeGreaterThan(0);
+    expect(heroDemo.chatTitle.trim().length).toBeGreaterThan(0);
   });
 
   it("should settle within twelve seconds so the loop stays short", () => {

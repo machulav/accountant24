@@ -3,7 +3,8 @@
 // a loop, built from the same scene machinery as the features mock. No media
 // bytes, crisp on any display, follows the color scheme, and the window's top
 // edge peeks above the fold as a cue to scroll.
-import { heroDemo } from "../content/site";
+import { heroDemo, pageChats } from "../content/site";
+import { HERO_DEMO_ID } from "../lib/page-chats";
 import { buildConversationTimeline } from "../lib/scene-timeline";
 import MockScene from "./mock-scene.astro";
 import MockWindow from "./mock-window.astro";
@@ -12,13 +13,19 @@ const conversation = buildConversationTimeline(heroDemo.turns);
 const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.turns[i] }));
 ---
 
-<section class="px-6 pt-6 pb-12 lg:pb-16" aria-labelledby="hero-demo-title" data-hero-demo data-total={conversation.total}>
+<section
+  id={HERO_DEMO_ID}
+  class="px-6 pt-6 pb-12 lg:pb-16"
+  aria-labelledby="hero-demo-title"
+  data-hero-demo
+  data-total={conversation.total}
+>
   <h2 id="hero-demo-title" class="sr-only">Demo</h2>
   <div
     aria-hidden="true"
     class="hero-desktop field-glow mx-auto max-w-[75rem] overflow-hidden rounded-3xl border border-line p-3 sm:p-8 lg:p-12"
   >
-    <MockWindow chats={heroDemo.chats} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
+    <MockWindow chats={pageChats} activeChat={HERO_DEMO_ID} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
       <MockScene index={0} shown turns={turns} />
     </MockWindow>
   </div>

@@ -1,6 +1,7 @@
 // All copy and data for the landing page in one place. Wording follows the
 // README and docs; keep it to shipped features and product vocabulary.
 import { PROMPT_IDEA_GROUPS } from "../../../desktop/src/renderer/lib/promptIdeas";
+import { buildPageChats } from "../lib/page-chats";
 
 export const site = {
   name: "Accountant24",
@@ -45,9 +46,9 @@ export interface FeatureDemo extends SceneDemo {
 }
 
 // The conversation the hero window plays on a loop: one thread of up to two
-// turns, plus the chat titles its sidebar lists.
+// turns, listed in the mock sidebars under its chat title.
 export interface HeroDemo {
-  chats: string[];
+  chatTitle: string;
   turns: SceneDemo[];
 }
 
@@ -170,7 +171,7 @@ export const features: Feature[] = [
 ];
 
 export const heroDemo: HeroDemo = {
-  chats: ["Groceries at Whole Foods", "August statement import", "Trip to Lisbon"],
+  chatTitle: "Groceries at Whole Foods",
   turns: [
     {
       user: { text: "I spent 45 € at Whole Foods yesterday" },
@@ -199,3 +200,10 @@ export const heroDemo: HeroDemo = {
     },
   ],
 };
+
+// Every chat on the page, as the mock windows list them in their sidebar:
+// the hero conversation, then one chat per feature.
+export const pageChats = buildPageChats(
+  heroDemo.chatTitle,
+  features.map((feature) => feature.demo.chatTitle),
+);
