@@ -1,0 +1,394 @@
+---
+// One scripted scene inside the app window: a thread of one or two turns
+// (the user types into the composer and sends, the agent works, the reply
+// streams in) or a composer-only scene (an open model menu). Every animated
+// element carries its moment as an inline `--d`; the CSS below plays them
+// under `.is-active` only. Base styles are the FINAL state, so no-JS and
+// reduced-motion visitors see the finished conversation.
+import type { SceneDemo } from "../content/site";
+import type { SceneTimeline } from "../lib/scene-timeline";
+import Icon from "./icons.astro";
+
+interface Turn {
+  demo: SceneDemo;
+  timeline: SceneTimeline;
+}
+
+interface Props {
+  turns: Turn[];
+  index: number;
+  shown?: boolean;
+}
+
+const { turns, index, shown = false } = Astro.props;
+
+// The composer types every turn's message in sequence; the placeholder and
+// send-button animations below know about two turns at most.
+const typed = turns.filter((turn) => turn.demo.user);
+if (typed.length > 2) throw new Error("A mock scene plays at most two typed turns.");
+const typeStart = (timeline: SceneTimeline) => timeline.typeCharDelays[0] ?? timeline.sendAt ?? 0;
+const composerVars = typed
+  .flatMap((turn, i) => {
+    const suffix = i === 0 ? "" : "-2";
+    return [`--t-type${suffix}:${typeStart(turn.timeline)}ms`, `--t-send${suffix}:${turn.timeline.sendAt ?? 0}ms`];
+  })
+  .join("; ");
+const menuTurn = turns.find((turn) => turn.demo.composer?.models);
+---
+
+<div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4", shown && "is-shown"]}>
+  <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    {
+      turns.map(({ demo, timeline }, ti) => (
+        <Fragment>
+          {demo.user && (
+            <div
+              data-fx
+              style={`--d:${timeline.sendAt ?? 0}ms`}
+              class:list={["flex flex-col items-end gap-2", ti > 0 && "mt-3"]}
+            >
+              {demo.user.attachment && (
+                <div class="flex w-56 items-center gap-2.5 rounded-xl border border-line bg-surface p-2.5">
+                  <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                    <Icon name="file" class="size-4 text-ink-2" />
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block truncate text-xs font-medium">{demo.user.attachment.name}</span>
+                    <span class="block text-[10px] text-ink-2">{demo.user.attachment.meta}</span>
+                  </span>
+                </div>
+              )}
+              <div class="max-w-[85%] rounded-3xl bg-surface-2/60 px-3.5 py-2 text-sm leading-relaxed">{demo.user.text}</div>
+            </div>
+          )}
+          {demo.working && (
+            <div>
+              <div class="relative w-fit text-sm text-ink-2" style={`--t-done:${timeline.doneAt ?? 0}ms`}>
+                <span class="fx-worked">Worked for {demo.working.duration}</span>
+                <span class="fx-working absolute inset-y-0 left-0" style={`--d:${timeline.workingAt ?? 0}ms`}>
+                  Working
+                </span>
+              </div>
+              {demo.working.steps.length > 0 && (
+                <ol
+                  data-fx
+                  style={`--d:${timeline.stepDelays[0] ?? timeline.workingAt ?? 0}ms`}
+                  class="mt-1.5 flex flex-col gap-1.5 border-l border-line pl-3.5"
+                >
+                  {demo.working.steps.map((step, si) => (
+                    <li data-fx style={`--d:${timeline.stepDelays[si]}ms`} class="flex items-center gap-1.5 text-xs text-ink-2">
+                      <Icon name="check" class="size-3 shrink-0 text-accent-ink" />
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+          {demo.reply && (
+            <div class="min-h-0 text-sm">
+              <p class="leading-relaxed">
+                {demo.reply.text
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .map((word, wi) => (
+                    <span class="fx-stream" style={`--d:${timeline.replyWordDelays[wi]}ms`}>{`${word} `}</span>
+                  ))}
+              </p>
+              {demo.reply.chips && (
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  {demo.reply.chips.map((chip, ci) => (
+                    <span data-fx style={`--d:${timeline.chipDelays[ci]}ms`} class:list={["chip", `chip-${chip.kind}`]}>
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {demo.reply.table && (
+                <div
+                  data-fx
+                  style={`--d:${timeline.rowDelays[0] ?? timeline.replyAt ?? 0}ms`}
+                  class="mt-2.5 overflow-hidden rounded-lg border border-line"
+                >
+                  <table class="w-full text-xs">
+                    <thead>
+                      <tr class="bg-surface-2/60">
+                        {demo.reply.table.head.map((heading, hi) => (
+                          <th class:list={["px-2.5 py-1.5 font-medium", hi > 0 ? "text-right" : "text-left"]}>{heading}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {demo.reply.table.rows.map((row, ri) => (
+                        <tr data-fx style={`--d:${timeline.rowDelays[ri]}ms`} class="border-t border-line">
+                          {row.map((cell, ci) => (
+                            <td class:list={["px-2.5 py-1.5", ci > 0 && "text-right font-mono"]}>{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </Fragment>
+      ))
+    }
+  </div>
+  <div class="pt-3">
+    {
+      menuTurn?.demo.composer?.models && (
+        <div class="relative">
+          <div
+            data-fx
+            style={`--d:${menuTurn.timeline.modelDelays[0] ?? 0}ms`}
+            class="absolute bottom-2 left-1 z-10 w-56 rounded-xl border border-line bg-bg p-1 shadow-lg"
+          >
+            {menuTurn.demo.composer.models.map((model, mi) => (
+              <div
+                data-fx
+                style={`--d:${menuTurn.timeline.modelDelays[mi]}ms`}
+                class:list={["flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs", mi === 0 && "bg-surface-2/60"]}
+              >
+                <span class="font-medium">{model.name}</span>
+                {model.note && <span class="text-[10px] text-ink-2">{model.note}</span>}
+                {mi === 0 && <Icon name="check" class="ml-auto size-3 text-accent-ink" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    <div class="rounded-3xl border border-line bg-surface-2/60 px-3.5 pt-3 pb-2.5" style={composerVars || undefined}>
+      {
+        typed.map(
+          ({ demo, timeline }) =>
+            demo.user?.attachment && (
+              <div
+                class="fx-cattach mb-2.5 w-56 items-center gap-2.5 rounded-xl border border-line bg-bg p-2.5"
+                style={`--d:${timeline.attachmentAt ?? 0}ms; --t-send:${timeline.sendAt ?? 0}ms`}
+              >
+                <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                  <Icon name="file" class="size-4 text-ink-2" />
+                </span>
+                <span class="min-w-0">
+                  <span class="block truncate text-xs font-medium">{demo.user.attachment.name}</span>
+                  <span class="block text-[10px] text-ink-2">{demo.user.attachment.meta}</span>
+                </span>
+              </div>
+            ),
+        )
+      }
+      <div class="relative text-sm">
+        <div class:list={["text-ink-2", typed.length > 0 && "fx-placeholder"]}>Write a message...</div>
+        {
+          typed.map(({ demo, timeline }) => (
+            <div class="fx-typed absolute inset-0 overflow-hidden whitespace-pre" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
+              {[...(demo.user?.text ?? "").trim()].map((ch, ci) => (
+                <span class="fx-char" style={`--d:${timeline.typeCharDelays[ci]}ms`}>{ch}</span>
+              ))}
+            </div>
+          ))
+        }
+      </div>
+      <div class="mt-4 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-ink-2">
+          <Icon name="paperclip" class="size-4" />
+          <span class="flex items-center gap-1 text-xs font-medium">
+            Opus 5
+            <Icon name="chevron-down" class="size-3.5 opacity-60" />
+          </span>
+        </div>
+        <span
+          class:list={[
+            "flex size-7 items-center justify-center rounded-full bg-accent text-on-accent",
+            typed.length > 0 && "fx-send",
+          ]}
+        >
+          <Icon name="arrow-up" class="size-4" />
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  /* Global on purpose: `is-shown`/`is-active` are toggled at runtime, and
+     Astro's scoped styles don't cover keyframes cleanly; everything is
+     namespaced under .fdemo instead. Base styles are the final state of a
+     scene; animations exist only under `.is-active`, and every one is
+     `both`/`forwards`-filled, so the global reduced-motion rule (global.css)
+     collapses an active scene to that same final state. */
+  .fdemo .scene {
+    display: none;
+  }
+  .fdemo .scene.is-shown {
+    display: flex;
+  }
+
+  @keyframes fdemo-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes fdemo-hide {
+    to {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+  @keyframes fdemo-shimmer {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -150% 0;
+    }
+  }
+
+  .fdemo .scene.is-active [data-fx] {
+    animation: fdemo-in 250ms var(--d, 0ms) both;
+  }
+
+  /* Assistant reply words: token-stream feel, a fast fade with no movement. */
+  @keyframes fdemo-stream {
+    from {
+      opacity: 0;
+    }
+  }
+  .fdemo .scene.is-active .fx-stream {
+    animation: fdemo-stream 180ms var(--d, 0ms) both;
+  }
+
+  /* Composer typing: the typed text overlays the placeholder from the first
+     character (--t-type) until the send (--t-send), when the composer clears,
+     the send button presses, and the bubble lands in the thread. A second
+     turn repeats the cycle with --t-type-2/--t-send-2; scenes without one
+     leave those unset and the fallbacks never fire. */
+  @keyframes fdemo-show {
+    from {
+      opacity: 0;
+      visibility: visible;
+    }
+    to {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+  @keyframes fdemo-press {
+    50% {
+      transform: scale(0.85);
+    }
+  }
+  .fdemo .fx-typed,
+  .fdemo .fx-cattach {
+    display: none;
+  }
+  .fdemo .scene.is-active .fx-typed {
+    display: block;
+    animation: fdemo-hide 1ms var(--t-send, 0ms) forwards;
+  }
+  .fdemo .scene.is-active .fx-char {
+    animation: fdemo-stream 1ms var(--d, 0ms) both;
+  }
+  /* On send the card must also give up its layout space, not just fade, or
+     the composer keeps a blank block where it used to be. */
+  @keyframes fdemo-collapse {
+    to {
+      opacity: 0;
+      visibility: hidden;
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-width: 0;
+    }
+  }
+  .fdemo .scene.is-active .fx-cattach {
+    display: flex;
+    max-height: 5rem;
+    overflow: hidden;
+    animation:
+      fdemo-in 200ms var(--d, 0ms) both,
+      fdemo-collapse 1ms var(--t-send, 0ms) forwards;
+  }
+  .fdemo .scene.is-active .fx-placeholder {
+    animation:
+      fdemo-hide 1ms var(--t-type, 0ms) forwards,
+      fdemo-show 150ms var(--t-send, 0ms) forwards,
+      fdemo-hide 1ms var(--t-type-2, 1000000ms) forwards,
+      fdemo-show 150ms var(--t-send-2, 1000000ms) forwards;
+  }
+  .fdemo .scene.is-active .fx-send {
+    animation:
+      fdemo-press 250ms var(--t-send, 0ms) both,
+      fdemo-press 250ms var(--t-send-2, 1000000ms) both;
+  }
+
+  /* "Working" exists only while the scene animates; the final state shows
+     "Worked for Ns". The shimmer sweeps the label until --t-done hides it. */
+  .fdemo .fx-working {
+    display: none;
+  }
+  .fdemo .scene.is-active .fx-working {
+    display: inline-block;
+    background-image: linear-gradient(90deg, var(--ink-2) 40%, var(--ink) 50%, var(--ink-2) 60%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation:
+      fdemo-in 200ms var(--d, 0ms) both,
+      fdemo-shimmer 1.4s linear infinite,
+      fdemo-hide 1ms var(--t-done, 0ms) forwards;
+  }
+  .fdemo .scene.is-active .fx-worked {
+    animation: fdemo-in 200ms var(--t-done, 0ms) both;
+  }
+
+  /* Entity chips, the app's dusty per-kind colors (hardcoded there too). */
+  .fdemo .chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .fdemo .chip-account {
+    background: #d4def0;
+    color: #3f5685;
+  }
+  .fdemo .chip-payee {
+    background: #d2e8db;
+    color: #3f6e55;
+  }
+  .fdemo .chip-tag {
+    background: #efe1cd;
+    color: #856b41;
+  }
+  .fdemo .chip-skill {
+    background: #e2dcee;
+    color: #5c4a82;
+  }
+  @media (prefers-color-scheme: dark) {
+    .fdemo .chip-account {
+      background: #2c3850;
+      color: #a7bdde;
+    }
+    .fdemo .chip-payee {
+      background: #293d31;
+      color: #a3c9b1;
+    }
+    .fdemo .chip-tag {
+      background: #3f3626;
+      color: #d8c096;
+    }
+    .fdemo .chip-skill {
+      background: #342c47;
+      color: #bcaedd;
+    }
+  }
+</style>

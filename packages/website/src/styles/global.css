@@ -200,7 +200,17 @@
   }
   .ascii-fade-top::after {
     top: 0;
-    background: linear-gradient(to top, transparent, var(--bg));
+    /* Taller and eased: the footer field should surface gradually under the
+       section above it rather than start along a visible line. */
+    height: 12rem;
+    background: linear-gradient(
+      to top,
+      transparent 0%,
+      color-mix(in srgb, var(--bg) 35%, transparent) 30%,
+      color-mix(in srgb, var(--bg) 75%, transparent) 60%,
+      color-mix(in srgb, var(--bg) 95%, transparent) 85%,
+      var(--bg) 100%
+    );
   }
 
   /* Backdrops for content sitting on the animated field:
@@ -213,9 +223,16 @@
   .field-halo::before {
     content: "";
     position: absolute;
-    inset: -2.25rem -4.5rem;
+    inset: -3rem -6rem;
     z-index: -1;
-    background: radial-gradient(ellipse, color-mix(in srgb, var(--bg) 94%, transparent) 35%, transparent 95%);
+    /* `closest-side`: the ellipse reaches full transparency exactly at the
+       box's sides, so the box never clips it into straight edges (the default
+       farthest-corner size only fades out at the corners). */
+    background: radial-gradient(
+      ellipse closest-side,
+      color-mix(in srgb, var(--bg) 94%, transparent) 30%,
+      transparent 100%
+    );
   }
   .field-glow {
     box-shadow: 0 0 3rem 1.5rem var(--bg);

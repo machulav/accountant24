@@ -1,0 +1,77 @@
+---
+// The hero's "video": the app window playing a short two-turn conversation on
+// a loop, built from the same scene machinery as the features mock. No media
+// bytes, crisp on any display, follows the color scheme, and the window's top
+// edge peeks above the fold as a cue to scroll.
+import { heroDemo } from "../content/site";
+import { buildConversationTimeline } from "../lib/scene-timeline";
+import MockScene from "./mock-scene.astro";
+import MockWindow from "./mock-window.astro";
+
+const conversation = buildConversationTimeline(heroDemo.turns);
+const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.turns[i] }));
+---
+
+<section class="px-6 pt-6 pb-12 lg:pb-16" aria-labelledby="hero-demo-title" data-hero-demo data-total={conversation.total}>
+  <h2 id="hero-demo-title" class="sr-only">Demo</h2>
+  <div
+    aria-hidden="true"
+    class="hero-desktop field-glow mx-auto max-w-[75rem] overflow-hidden rounded-3xl border border-line p-3 sm:p-8 lg:p-12"
+  >
+    <MockWindow chats={heroDemo.chats} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
+      <MockScene index={0} shown turns={turns} />
+    </MockWindow>
+  </div>
+</section>
+
+<style>
+  /* A desktop behind the window, a little wider than the page column so the
+     window keeps its size and the block reads as a screencast: a dithered
+     forest wallpaper (public/hero-forest-dither.webp). In
+     dark mode the same picture is multiplied with a deep teal, which reads as
+     night and keeps the dither texture. */
+  .hero-desktop {
+    background: #fff url("/hero-forest-dither.webp") center / cover no-repeat;
+    background-blend-mode: multiply;
+  }
+  @media (prefers-color-scheme: dark) {
+    .hero-desktop {
+      background-color: oklch(0.36 0.05 210);
+    }
+  }
+</style>
+
+<script>
+  // Replay the conversation while the window is on screen: every run lasts
+  // the conversation's length plus a hold on the final frame. Under reduced
+  // motion the scene stays in its finished state.
+  const root = document.querySelector<HTMLElement>("[data-hero-demo]");
+  const scene = root?.querySelector<HTMLElement>("[data-scene]");
+  if (root && scene && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const HOLD_MS = 2500;
+    const total = Number(root.dataset.total) || 0;
+    let timer: number | undefined;
+
+    const play = () => {
+      scene.classList.remove("is-active");
+      // Force a reflow between class removal and re-add so the animations
+      // restart from the top.
+      void scene.offsetWidth;
+      scene.classList.add("is-active");
+      timer = window.setTimeout(play, total + HOLD_MS);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          if (timer === undefined) play();
+        } else {
+          window.clearTimeout(timer);
+          timer = undefined;
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(root);
+  }
+</script>

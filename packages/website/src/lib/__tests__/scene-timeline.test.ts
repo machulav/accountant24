@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { features } from "../../content/site";
-import { buildSceneTimeline, type SceneTimeline } from "../scene-timeline";
+import { features, heroDemo } from "../../content/site";
+import { buildConversationTimeline, buildSceneTimeline, type SceneTimeline, shiftTimeline } from "../scene-timeline";
 
 function allDelays(timeline: SceneTimeline): number[] {
   return [
@@ -251,5 +251,90 @@ describe("buildSceneTimeline()", () => {
         expect(buildSceneTimeline(feature.demo).total).toBeLessThan(5000);
       }
     });
+  });
+});
+
+describe("shiftTimeline()", () => {
+  const base = buildSceneTimeline({
+    user: { text: "Hi", attachment: { name: "a.pdf", meta: "PDF" } },
+    working: { steps: ["Commit"], duration: "1s" },
+    reply: { text: "Done.", chips: [{ kind: "payee", label: "Cafe" }], table: { head: ["A"], rows: [["1"]] } },
+    composer: { models: [{ name: "Claude" }] },
+  });
+
+  it("should move every moment later by the offset", () => {
+    const shifted = shiftTimeline(base, 1000);
+    expect(shifted.attachmentAt).toBe((base.attachmentAt as number) + 1000);
+    expect(shifted.typeCharDelays).toEqual(base.typeCharDelays.map((d) => d + 1000));
+    expect(shifted.sendAt).toBe((base.sendAt as number) + 1000);
+    expect(shifted.workingAt).toBe((base.workingAt as number) + 1000);
+    expect(shifted.stepDelays).toEqual(base.stepDelays.map((d) => d + 1000));
+    expect(shifted.doneAt).toBe((base.doneAt as number) + 1000);
+    expect(shifted.replyAt).toBe((base.replyAt as number) + 1000);
+    expect(shifted.replyWordDelays).toEqual(base.replyWordDelays.map((d) => d + 1000));
+    expect(shifted.chipDelays).toEqual(base.chipDelays.map((d) => d + 1000));
+    expect(shifted.rowDelays).toEqual(base.rowDelays.map((d) => d + 1000));
+    expect(shifted.modelDelays).toEqual(base.modelDelays.map((d) => d + 1000));
+    expect(shifted.total).toBe(base.total + 1000);
+  });
+
+  it("should keep absent moments absent", () => {
+    const shifted = shiftTimeline(buildSceneTimeline({}), 500);
+    expect(shifted.attachmentAt).toBeUndefined();
+    expect(shifted.sendAt).toBeUndefined();
+    expect(shifted.workingAt).toBeUndefined();
+    expect(shifted.doneAt).toBeUndefined();
+    expect(shifted.replyAt).toBeUndefined();
+    expect(shifted.total).toBe(750);
+  });
+
+  it("should leave the original untouched", () => {
+    const before = JSON.stringify(base);
+    shiftTimeline(base, 300);
+    expect(JSON.stringify(base)).toBe(before);
+  });
+});
+
+describe("buildConversationTimeline()", () => {
+  it("should return an empty conversation for no turns", () => {
+    expect(buildConversationTimeline([])).toEqual({ turns: [], total: 0 });
+  });
+
+  it("should play a single turn exactly like a scene", () => {
+    const demo = { user: { text: "Hi" }, reply: { text: "Hello." } };
+    const conversation = buildConversationTimeline([demo]);
+    expect(conversation.turns).toEqual([buildSceneTimeline(demo)]);
+    expect(conversation.total).toBe(880);
+  });
+
+  it("should start the second turn 1200ms after the first one settled", () => {
+    const first = { user: { text: "Hi" }, reply: { text: "Hello." } }; // settles at 880
+    const second = { user: { text: "Ok" } }; // alone: types at 150/180, sends at 430, settles at 680
+    const conversation = buildConversationTimeline([first, second]);
+    expect(conversation.turns[1]?.typeCharDelays).toEqual([2230, 2260]);
+    expect(conversation.turns[1]?.sendAt).toBe(2510);
+    expect(conversation.total).toBe(2760);
+  });
+});
+
+describe("hero demo conversation", () => {
+  it("should be a chat of at most two typed turns", () => {
+    expect(heroDemo.turns.length).toBeGreaterThan(0);
+    expect(heroDemo.turns.length).toBeLessThanOrEqual(2);
+    for (const turn of heroDemo.turns) {
+      expect(turn.user?.text.trim().length).toBeGreaterThan(0);
+    }
+    expect(heroDemo.chats.length).toBeGreaterThan(0);
+  });
+
+  it("should settle within twelve seconds so the loop stays short", () => {
+    const conversation = buildConversationTimeline(heroDemo.turns);
+    expect(conversation.total).toBeGreaterThan(0);
+    expect(conversation.total).toBeLessThan(12000);
+    for (let i = 1; i < conversation.turns.length; i++) {
+      const previous = conversation.turns[i - 1] as SceneTimeline;
+      const next = conversation.turns[i] as SceneTimeline;
+      expect(next.typeCharDelays[0]).toBeGreaterThan(previous.total);
+    }
   });
 });

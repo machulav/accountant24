@@ -8,16 +8,16 @@ import FeatureMock from "./feature-mock.astro";
 import Icon from "./icons.astro";
 ---
 
-<section class="mx-auto max-w-6xl px-6 pt-10 pb-12 lg:py-0" aria-labelledby="features-title" data-features>
+<section class="mx-auto max-w-6xl px-6 py-12 lg:py-16" aria-labelledby="features-title" data-features>
   <h2 id="features-title" class="sr-only">Features</h2>
   <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.65fr)] lg:gap-10">
-    <ol class="flex flex-col lg:py-[15vh]">
+    <ol class="flex flex-col">
       {
         features.map((feature, index) => (
           <li
             data-feature-item
             class:list={[
-              "feature-item flex flex-col justify-center border-t border-line py-10 first:border-t-0 first:pt-0 lg:min-h-[70vh] lg:border-t-0 lg:py-0 lg:first:pt-0",
+              "feature-item flex flex-col justify-center border-t border-line py-10 first:border-t-0 first:pt-0 lg:border-t-0 lg:py-0 lg:first:pt-0",
               index === 0 && "is-active",
             ]}
           >
@@ -39,13 +39,32 @@ import Icon from "./icons.astro";
         ))
       }
     </ol>
-    <div class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center" aria-hidden="true">
+    <div data-mock-column class="hidden lg:block lg:self-start" aria-hidden="true">
       <FeatureMock />
     </div>
   </div>
 </section>
 
 <style is:global>
+  /* The mock sticks with its center on the viewport's center, and every
+     feature item is exactly one mock tall, so the first and last features
+     line up with the mock at the section's edges without any extra air
+     above or below it: the gaps to the neighbouring sections are just the
+     section paddings, like everywhere else. The script measures the mock;
+     the fallback matches its default height. */
+  [data-features] {
+    --mock-h: 33rem;
+  }
+  @media (min-width: 64rem) {
+    [data-features] .feature-item {
+      min-height: var(--mock-h);
+    }
+    [data-features] [data-mock-column] {
+      position: sticky;
+      top: calc(50vh - var(--mock-h) / 2);
+    }
+  }
+
   /* Dim inactive features only while the scroll script drives the section
      (desktop + JS); without it the list stays fully readable. */
   [data-features][data-enhanced] .feature-item {
@@ -76,6 +95,13 @@ import Icon from "./icons.astro";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     root.dataset.enhanced = "";
     let active = 0;
+
+    const mock = root.querySelector<HTMLElement>(".fdemo");
+    const measureMock = () => {
+      if (mock) root.style.setProperty("--mock-h", `${mock.offsetHeight}px`);
+    };
+    measureMock();
+    window.addEventListener("resize", measureMock);
 
     const activate = (next: number) => {
       const scene = scenes[next];

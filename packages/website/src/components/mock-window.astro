@@ -1,0 +1,65 @@
+---
+// The app's frameless macOS window: traffic lights, the sidebar (New Chat,
+// the chat list, Transactions / Net Worth / Settings) and a slot for the
+// scenes. Decorative; shared by the hero demo and the features mock.
+import Icon from "./icons.astro";
+
+interface Props {
+  chats: string[];
+  activeChat?: number;
+  class?: string;
+  /** Height classes for the window body. */
+  height?: string;
+}
+const { chats, activeChat = 0, class: className = "", height = "h-[30rem] max-h-[calc(85vh-3rem)]" } = Astro.props;
+---
+
+<div class:list={["fdemo w-full overflow-hidden rounded-2xl border border-line bg-bg shadow-xl", className]}>
+  <div class="flex gap-2 border-b border-line px-4 py-3.5">
+    <span class="size-3 rounded-full bg-[#ff5f57]"></span>
+    <span class="size-3 rounded-full bg-[#febc2e]"></span>
+    <span class="size-3 rounded-full bg-[#28c840]"></span>
+  </div>
+  <div class:list={["flex", height]}>
+    <aside class="hidden w-44 shrink-0 flex-col border-r border-line bg-surface p-2.5 text-xs xl:flex">
+      <div class="flex h-7 items-center justify-center gap-1.5 rounded-full border border-line bg-bg font-medium">
+        <Icon name="plus" class="size-3.5" />
+        New Chat
+      </div>
+      <div class="mt-3 flex flex-col gap-0.5">
+        {
+          chats.map((title, i) => (
+            <div data-chat={i} class:list={["truncate rounded-lg px-2 py-1.5", i === activeChat && "is-active"]}>
+              {title}
+            </div>
+          ))
+        }
+      </div>
+      <div class="mt-auto flex flex-col gap-0.5">
+        <div class="flex items-center gap-2 rounded-lg px-2 py-1.5">
+          <Icon name="receipt" class="size-3.5 text-ink-2" />
+          Transactions
+        </div>
+        <div class="flex items-center gap-2 rounded-lg px-2 py-1.5">
+          <Icon name="wallet" class="size-3.5 text-ink-2" />
+          Net Worth
+          <span class="ml-auto font-mono text-[10px] text-ink-2">86K EUR</span>
+        </div>
+        <div class="flex items-center gap-2 rounded-lg px-2 py-1.5">
+          <Icon name="settings" class="size-3.5 text-ink-2" />
+          Settings
+        </div>
+      </div>
+    </aside>
+    <div class="relative min-w-0 flex-1">
+      <slot />
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  /* The sidebar chat that matches the shown scene. */
+  .fdemo [data-chat].is-active {
+    background: var(--surface-2);
+  }
+</style>

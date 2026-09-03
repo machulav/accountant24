@@ -11,7 +11,7 @@ npm run build -w @accountant24/website     # astro check + build into dist/
 npm run preview -w @accountant24/website   # wrangler dev: dist/ + the Worker's docs proxy on http://localhost:8787
 ```
 
-Copy and data live in `src/content/site.ts`. Pure logic (`src/lib/`, `src/worker/`) has unit tests in `__tests__/`, run by the root `npm test`. Brand images in `public/` come from the desktop app icon (`npm run brand-assets -w @accountant24/website`). Demo videos are copied from `docs/videos/` at build time.
+Copy and data live in `src/content/site.ts`. Pure logic (`src/lib/`, `src/worker/`) has unit tests in `__tests__/`, run by the root `npm test`. Brand images in `public/` come from the desktop app icon (`npm run brand-assets -w @accountant24/website`).
 
 ## Deploy
 

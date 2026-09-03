@@ -1,10 +1,10 @@
 ---
 import AsciiField from "../components/ascii-field.astro";
 import Closing from "../components/closing.astro";
-import Demo from "../components/demo.astro";
 import Features from "../components/features.astro";
 import Footer from "../components/footer.astro";
 import Hero from "../components/hero.astro";
+import HeroDemo from "../components/hero-demo.astro";
 import Nav from "../components/nav.astro";
 import PromptCloud from "../components/prompt-cloud.astro";
 import Base from "../layouts/Base.astro";
@@ -19,12 +19,12 @@ const { version } = await fetchGitHubStats();
   <Nav />
   <main id="main">
     <Hero />
-    <Demo />
+    <HeroDemo />
     <PromptCloud />
     <Features />
     <Closing />
   </main>
-  <div class="relative overflow-hidden">
+  <div class="relative -mt-4 overflow-hidden pt-4 lg:-mt-6 lg:pt-6">
     <AsciiField class="ascii-fade-top absolute inset-0" />
     <Footer />
   </div>

@@ -27,17 +27,28 @@ export interface DemoChip {
   label: string;
 }
 
-// A scripted demo scene the features mock plays when its feature scrolls into
-// view. Fields are optional so a scene can be chat-shaped (user, working,
-// reply) or composer-shaped (an open model menu). Keep tables at three or
-// fewer columns and four or fewer rows so they fit the mock's narrow thread.
-export interface FeatureDemo {
-  /** Shown as this scene's chat in the mock sidebar. */
-  chatTitle: string;
+// A scripted demo scene the app mock plays (the hero window on a loop, the
+// features mock per feature). Fields are optional so a scene can be
+// chat-shaped (user, working, reply) or composer-shaped (an open model menu).
+// Keep tables at three or fewer columns and four or fewer rows so they fit the
+// mock's narrow thread.
+export interface SceneDemo {
   user?: { text: string; attachment?: { name: string; meta: string } };
   working?: { steps: string[]; duration: string };
   reply?: { text: string; chips?: DemoChip[]; table?: { head: string[]; rows: string[][] } };
   composer?: { models?: { name: string; note?: string }[] };
+}
+
+export interface FeatureDemo extends SceneDemo {
+  /** Shown as this scene's chat in the mock sidebar. */
+  chatTitle: string;
+}
+
+// The conversation the hero window plays on a loop: one thread of up to two
+// turns, plus the chat titles its sidebar lists.
+export interface HeroDemo {
+  chats: string[];
+  turns: SceneDemo[];
 }
 
 export interface Feature {
@@ -157,3 +168,34 @@ export const features: Feature[] = [
     },
   },
 ];
+
+export const heroDemo: HeroDemo = {
+  chats: ["Groceries at Whole Foods", "August statement import", "Trip to Lisbon"],
+  turns: [
+    {
+      user: { text: "I spent 45 € at Whole Foods yesterday" },
+      working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
+      reply: {
+        text: "Recorded. 45 € from your checking account to groceries, dated yesterday:",
+        chips: [
+          { kind: "payee", label: "Whole Foods" },
+          { kind: "account", label: "Expenses:Groceries" },
+        ],
+      },
+    },
+    {
+      user: { text: "How much did I spend on food this month?" },
+      working: { steps: ["Query Ledger"], duration: "4s" },
+      reply: {
+        text: "312 € so far in September, about a fifth under your usual pace:",
+        table: {
+          head: ["Account", "September"],
+          rows: [
+            ["Groceries", "245.10 €"],
+            ["Restaurants", "66.90 €"],
+          ],
+        },
+      },
+    },
+  ],
+};

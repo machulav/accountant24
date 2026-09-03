@@ -3,8 +3,8 @@ import { site } from "../content/site";
 import Icon from "./icons.astro";
 ---
 
-<section class="mx-auto max-w-6xl px-6 pt-6 pb-16 lg:pt-0 lg:pb-24" aria-labelledby="closing-title">
-  <div class="rounded-3xl bg-ink px-6 py-12 text-center text-bg sm:px-12 lg:py-16">
+<section class="mx-auto max-w-6xl px-6 py-12 lg:py-16" aria-labelledby="closing-title">
+  <div class="closing-forest rounded-3xl px-6 py-12 text-center text-bg sm:px-12 lg:py-16">
     <h2 id="closing-title" class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
       Try it with your next receipt
     </h2>
@@ -28,3 +28,21 @@ import Icon from "./icons.astro";
     </div>
   </div>
 </section>
+
+<style>
+  /* The same forest as behind the hero demo, multiplied into night, with
+     light text in both color schemes: `--bg` is pinned to white here so the
+     card's text-bg / border-bg utilities stay light under the dark scheme
+     too (a pale inverted variant read badly on a dark page). */
+  .closing-forest {
+    --bg: oklch(1 0 0);
+    background: oklch(0.5 0.05 205) url("/hero-forest-dither.webp") center / cover no-repeat;
+    background-blend-mode: multiply;
+  }
+  /* On a dark page the card can go deeper into the night. */
+  @media (prefers-color-scheme: dark) {
+    .closing-forest {
+      background-color: oklch(0.32 0.04 210);
+    }
+  }
+</style>

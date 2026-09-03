@@ -10,7 +10,7 @@
 //
 // extent:
 // - "page-top": spans from the page top down past the hero (nav + hero + a
-//   bit of the demo video); pair with .ascii-fade-bottom.
+//   bit of the hero demo window); pair with .ascii-fade-bottom.
 // - "parent": fills its positioned parent; pair with .ascii-fade-top.
 interface Props {
   class?: string;
@@ -40,7 +40,7 @@ const { class: className = "", extent = "parent" } = Astro.props;
 
     const measure = () => {
       if (el.dataset.asciiExtent === "page-top") {
-        // Run a bit past the hero so the field slips underneath the demo video.
+        // Run a bit past the hero so the field slips underneath the hero demo window.
         const hero = document.querySelector("[data-hero]");
         if (hero) el.style.height = `${hero.getBoundingClientRect().bottom + window.scrollY + 176}px`;
       }

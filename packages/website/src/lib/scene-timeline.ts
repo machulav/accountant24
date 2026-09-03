@@ -2,7 +2,7 @@
 // activation, of every animated element. feature-mock.astro emits the delays
 // as inline `--d` custom properties; the scene CSS plays one entrance
 // animation per element at its delay, so runtime JS only toggles classes.
-import type { FeatureDemo } from "../content/site";
+import type { SceneDemo } from "../content/site";
 
 export interface SceneTimeline {
   /** The attachment card appears in the composer. */
@@ -46,9 +46,10 @@ const ROW_START_MS = 200; // first table row after the reply prose
 const ROW_MS = 120; // between table rows
 const MODEL_START_MS = 300; // first model-menu row
 const MODEL_MS = 150; // between model-menu rows
-const IN_MS = 250; // entrance animation length; matches `fdemo-in` in feature-mock.astro
+const IN_MS = 250; // entrance animation length; matches `fdemo-in` in mock-scene.astro
+const TURN_GAP_MS = 1200; // the pause before the next turn of a conversation starts
 
-export function buildSceneTimeline(demo: Omit<FeatureDemo, "chatTitle">): SceneTimeline {
+export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   let t = 0;
 
   const typeCharDelays: number[] = [];
@@ -114,4 +115,43 @@ export function buildSceneTimeline(demo: Omit<FeatureDemo, "chatTitle">): SceneT
     modelDelays,
     total: t + IN_MS,
   };
+}
+
+/** The same timeline, every moment moved later by `offset` ms. */
+export function shiftTimeline(timeline: SceneTimeline, offset: number): SceneTimeline {
+  const at = (value: number | undefined) => (value === undefined ? undefined : value + offset);
+  const all = (values: number[]) => values.map((value) => value + offset);
+  return {
+    attachmentAt: at(timeline.attachmentAt),
+    typeCharDelays: all(timeline.typeCharDelays),
+    sendAt: at(timeline.sendAt),
+    workingAt: at(timeline.workingAt),
+    stepDelays: all(timeline.stepDelays),
+    doneAt: at(timeline.doneAt),
+    replyAt: at(timeline.replyAt),
+    replyWordDelays: all(timeline.replyWordDelays),
+    chipDelays: all(timeline.chipDelays),
+    rowDelays: all(timeline.rowDelays),
+    modelDelays: all(timeline.modelDelays),
+    total: timeline.total + offset,
+  };
+}
+
+export interface ConversationTimeline {
+  /** One timeline per turn, already shifted to its place in the conversation. */
+  turns: SceneTimeline[];
+  /** When the whole conversation has settled, ms. */
+  total: number;
+}
+
+/** Turns played one after another in a single thread, each starting a pause after the previous one settled. */
+export function buildConversationTimeline(turns: SceneDemo[]): ConversationTimeline {
+  const shifted: SceneTimeline[] = [];
+  let offset = 0;
+  for (const turn of turns) {
+    const timeline = shiftTimeline(buildSceneTimeline(turn), offset);
+    shifted.push(timeline);
+    offset = timeline.total + TURN_GAP_MS;
+  }
+  return { turns: shifted, total: shifted[shifted.length - 1]?.total ?? 0 };
 }
