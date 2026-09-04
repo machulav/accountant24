@@ -14,6 +14,7 @@ export function homeStructuredData({ version }: HomeStructuredDataInput): Record
     "@id": `${site.url}/#organization`,
     name: site.name,
     url: site.url,
+    logo: `${site.url}/apple-touch-icon.png`,
     sameAs: [site.github],
   };
   const website = {
@@ -33,6 +34,7 @@ export function homeStructuredData({ version }: HomeStructuredDataInput): Record
     url: site.url,
     downloadUrl: site.downloadUrl,
     softwareHelp: `${site.url}${site.quickstartUrl}`,
+    screenshot: `${site.url}/og.png`,
     license: "https://www.apache.org/licenses/LICENSE-2.0",
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },

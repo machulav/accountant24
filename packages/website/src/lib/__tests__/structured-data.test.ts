@@ -11,6 +11,7 @@ describe("homeStructuredData()", () => {
           "@id": "https://accountant24.ai/#organization",
           name: "Accountant24",
           url: "https://accountant24.ai",
+          logo: "https://accountant24.ai/apple-touch-icon.png",
           sameAs: ["https://github.com/machulav/accountant24"],
         },
         {
@@ -31,6 +32,7 @@ describe("homeStructuredData()", () => {
           url: "https://accountant24.ai",
           downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
           softwareHelp: "https://accountant24.ai/docs/quickstart",
+          screenshot: "https://accountant24.ai/og.png",
           license: "https://www.apache.org/licenses/LICENSE-2.0",
           isAccessibleForFree: true,
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
