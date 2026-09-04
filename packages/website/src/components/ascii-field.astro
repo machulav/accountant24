@@ -1,22 +1,27 @@
 ---
 // Animated ASCII field: waves of characters drifting in the accent color,
 // rendered as pure text in a <pre>, no canvas: a few sine waves sampled onto
-// a density ramp at ~12 fps. Decorative only (aria-hidden); a single static
-// frame under reduced motion. Elements on top clear their own space with
-// .field-halo / .field-glow (global.css).
-//
-// The field is continuous; elements on top sit on translucent .field-halo /
-// .field-glow backdrops (global.css) that keep their text readable.
+// a density ramp at ~12 fps (src/lib/ascii-field.ts). Decorative only
+// (aria-hidden); a single static frame under reduced motion. Elements on top
+// clear their own space with .field-halo / .field-glow (global.css).
 //
 // extent:
 // - "page-top": spans from the page top down past the hero (nav + hero + a
 //   bit of the hero demo window); pair with .ascii-fade-bottom.
 // - "parent": fills its positioned parent; pair with .ascii-fade-top.
+import { CELL, renderAsciiFrame } from "../lib/ascii-field";
+
 interface Props {
   class?: string;
   extent?: "page-top" | "parent";
 }
 const { class: className = "", extent = "parent" } = Astro.props;
+
+// The page-top field is the largest thing above the fold, so its first frame
+// is rendered here and paints with the HTML instead of waiting for the
+// script: sized for a 1920px-wide viewport and a tall hero, clipped by the
+// box, and redrawn at the real size as soon as the script runs.
+const firstFrame = extent === "page-top" ? renderAsciiFrame(Math.ceil(1920 / CELL.width), 60, 0) : "";
 ---
 
 <pre
@@ -25,12 +30,11 @@ const { class: className = "", extent = "parent" } = Astro.props;
   class:list={[
     "ascii-field pointer-events-none -z-10 overflow-hidden font-mono text-[11px] leading-[14px] text-accent select-none",
     className,
-  ]}></pre>
+  ]}
+  set:text={firstFrame}></pre>
 
 <script>
-  const RAMP = "  ..::--==++3377$€£₴¥";
-  const CHAR_W = 6.6; // 11px IBM Plex Mono advance width
-  const LINE_H = 14;
+  import { cellsFor, renderAsciiFrame } from "../lib/ascii-field";
 
   document.querySelectorAll<HTMLElement>("[data-ascii-extent]").forEach((el, instance) => {
     // Offset each instance so two fields never show the same pattern.
@@ -44,31 +48,11 @@ const { class: className = "", extent = "parent" } = Astro.props;
         const hero = document.querySelector("[data-hero]");
         if (hero) el.style.height = `${hero.getBoundingClientRect().bottom + window.scrollY + 176}px`;
       }
-      cols = Math.ceil(el.clientWidth / CHAR_W);
-      rows = Math.ceil(el.clientHeight / LINE_H);
+      ({ cols, rows } = cellsFor(el.clientWidth, el.clientHeight));
     };
 
     const frame = (t: number) => {
-      t += phase;
-      let out = "";
-      for (let y = 0; y < rows; y++) {
-        // The character cell is ~2x taller than wide; scale y so blobs stay round.
-        const gy = y * 2.1;
-        for (let x = 0; x < cols; x++) {
-          const v =
-            Math.sin(x * 0.052 + gy * 0.041 + t * 0.7) +
-            Math.sin(x * 0.031 - gy * 0.067 - t * 0.5) +
-            Math.sin(x * 0.083 + gy * 0.023 + t * 0.35) +
-            Math.sin(x * 0.017 + gy * 0.052 - t * 0.85);
-          // A per-cell hash breaks up flat runs into grainy cloud edges.
-          const grain = Math.sin(x * 12.9898 + y * 78.233) * 0.9;
-          // Bias toward empty so the field reads as drifting clouds, not a wall.
-          const index = Math.round(((v + grain + 4.9) / 9.8) * (RAMP.length - 1) * 2 - RAMP.length * 0.65);
-          out += RAMP[Math.max(0, Math.min(index, RAMP.length - 1))];
-        }
-        out += "\n";
-      }
-      el.textContent = out;
+      el.textContent = renderAsciiFrame(cols, rows, t + phase);
     };
 
     measure();
