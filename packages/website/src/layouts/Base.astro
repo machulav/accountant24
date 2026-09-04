@@ -1,5 +1,6 @@
 ---
 import satoshi400 from "@accountant24/demo/shared/fonts/satoshi-400.woff2?url";
+import satoshi500 from "@accountant24/demo/shared/fonts/satoshi-500.woff2?url";
 import satoshi700 from "@accountant24/demo/shared/fonts/satoshi-700.woff2?url";
 import satoshi900 from "@accountant24/demo/shared/fonts/satoshi-900.woff2?url";
 import "../styles/global.css";
@@ -28,9 +29,15 @@ const ogImage = new URL("/og.png", site.url).href;
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex" />}
+    {/* Every face used above the fold: the hero heading (900), the tagline
+        (Sentient italic), the buttons and nav (500), and body text (400/700).
+        A face discovered later in the CSS arrives after the first paint and
+        reflows the text it belongs to. */}
     <link rel="preload" href={satoshi400} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={satoshi500} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={satoshi700} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={satoshi900} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/sentient-400-italic.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
