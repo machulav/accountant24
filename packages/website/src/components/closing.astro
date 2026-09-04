@@ -40,7 +40,8 @@ import Icon from "./icons.astro";
      too (a pale inverted variant read badly on a dark page). */
   .closing-forest {
     --bg: oklch(1 0 0);
-    background: oklch(0.5 0.05 205) url("/hero-forest-dither.webp") center / cover no-repeat;
+    background: oklch(0.5 0.05 205) image-set(url("/hero-forest-dither.avif") type("image/avif"), url("/hero-forest-dither.webp") type("image/webp"))
+      center / cover no-repeat;
     background-blend-mode: multiply;
     /* As on the hero frame: the picture runs under the hairline. */
     background-origin: border-box;

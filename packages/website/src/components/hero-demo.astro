@@ -119,7 +119,8 @@ const scrollAts = conversation.turns
      dark mode the same picture is multiplied with a deep teal, which reads as
      night and keeps the dither texture. */
   .hero-desktop {
-    background: #fff url("/hero-forest-dither.webp") center / cover no-repeat;
+    background: #fff image-set(url("/hero-forest-dither.avif") type("image/avif"), url("/hero-forest-dither.webp") type("image/webp"))
+      center / cover no-repeat;
     background-blend-mode: multiply;
     /* The picture runs under the hairline too; otherwise the 1px strip under
        the translucent border shows the plain tint colour, a bright line

@@ -39,4 +39,9 @@ await sharp({ create: { width, height, channels: 4, background: "#f4f8f8" } })
   ])
   .png()
   .toFile(`${out}og.png`);
+// The hero/closing wallpaper: AVIF is what browsers actually load (the WebP
+// beside it is the fallback for those without AVIF, and is the source here).
+const wallpaper = `${out}hero-forest-dither`;
+await sharp(`${wallpaper}.webp`).avif({ quality: 50 }).toFile(`${wallpaper}.avif`);
+
 console.log("brand assets written to", out);
