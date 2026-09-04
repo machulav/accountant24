@@ -8,6 +8,13 @@ export interface DemoChip {
   label: string;
 }
 
+/** One row of the `/` skill picker: the skill's full `plugin:skill` name and
+ *  the description shown under it. */
+export interface DemoSkill {
+  name: string;
+  description: string;
+}
+
 // Every field is optional so a scene can be chat-shaped (user, working,
 // reply) or composer-shaped (an open model menu). Keep tables at three or
 // fewer columns and four or fewer rows, and bullet lists at three or fewer
@@ -15,7 +22,15 @@ export interface DemoChip {
 // reply text starts a new paragraph, and a mention like `:payee[Trader Joe's]`
 // or `:account[Expenses:Groceries]` renders as an inline chip, as in the app.
 export interface SceneDemo {
-  user?: { text: string; attachments?: { name: string; meta: string }[] };
+  user?: {
+    text: string;
+    attachments?: { name: string; meta: string }[];
+    /** A skill picked from the `/` popup before `text` is typed: the user
+     *  types `/`, the popup lists `options`, the highlight walks down to
+     *  `picked` (one of the options, by name), and its chip lands in the
+     *  composer, then in the sent message. */
+    skill?: { picked: string; options: DemoSkill[] };
+  };
   working?: { steps: string[]; duration: string };
   reply?: { text: string; bullets?: string[]; chips?: DemoChip[]; table?: { head: string[]; rows: string[][] } };
   composer?: { models?: { name: string; note?: string }[] };

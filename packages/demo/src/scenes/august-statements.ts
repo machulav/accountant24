@@ -21,8 +21,8 @@ export const augustStatements: HeroDemo = {
       reply: {
         text: "Imported 61 transactions from three statements. Balances match, and your Fidelity investments are up to date as of August 31.\n\nThree things I noticed:",
         bullets: [
-          "Your $412 Delta refund came through. I linked it to the original transaction, as you asked.",
-          "Netflix charged $17.99, up from $15.49 last month.",
+          "Your $412 :payee[Delta] refund came through. I linked it to the original transaction, as you asked.",
+          ":payee[Netflix] charged $17.99, up from $15.49 last month.",
           "I don't see August rent in these statements. You usually pay it by the end of the month.",
         ],
       },

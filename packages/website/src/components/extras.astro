@@ -1,0 +1,19 @@
+---
+// Features worth naming that have no demo of their own: a plain grid under
+// the scroll-driven feature demos.
+import { extras } from "../content/site";
+---
+
+<section class="mx-auto max-w-6xl px-6 py-12 lg:py-16" aria-labelledby="extras-title">
+  <h2 id="extras-title" class="sr-only">More features</h2>
+  <dl class="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      extras.map((extra) => (
+        <div class="field-halo flex flex-col gap-1.5 border-t border-line pt-4">
+          <dt class="font-semibold tracking-tight">{extra.title}</dt>
+          <dd class="text-[15px] leading-relaxed text-ink-2 text-pretty">{extra.description}</dd>
+        </div>
+      ))
+    }
+  </dl>
+</section>

@@ -2,12 +2,12 @@
 // guards that keep each one short enough to watch.
 import type { FeatureDemo, HeroDemo } from "../shared/types";
 import { augustStatements } from "./august-statements";
-import { costcoRule } from "./costco-rule";
 import { groceries } from "./groceries";
-import { lastMonth } from "./last-month";
+import { londonTrip } from "./london-trip";
 import { modelMenu } from "./model-menu";
 import { statementImport } from "./statement-import";
 import { subscriptionAudit } from "./subscription-audit";
+import { tripCost } from "./trip-cost";
 import { undo } from "./undo";
 
 /** Conversations of more than one turn. */
@@ -17,8 +17,8 @@ export const heroScenes: HeroDemo[] = [augustStatements];
 export const featureScenes: FeatureDemo[] = [
   groceries,
   statementImport,
-  costcoRule,
-  lastMonth,
+  londonTrip,
+  tripCost,
   subscriptionAudit,
   modelMenu,
   undo,

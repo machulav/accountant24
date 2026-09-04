@@ -8,7 +8,17 @@ import type { SceneDemo } from "./types";
 export interface SceneTimeline {
   /** Per attachment card appearing in the composer. */
   attachmentDelays: number[];
-  /** Per character the user types into the composer. */
+  /** The user types `/`, the skill picker's trigger. */
+  slashAt?: number;
+  /** The skill picker opens above the composer. */
+  pickerAt?: number;
+  /** Per row of the skill picker. */
+  skillDelays: number[];
+  /** The picker's highlight lands on row i, from the first row down to the picked one. */
+  highlightDelays: number[];
+  /** The skill is picked: the picker closes and its chip replaces the `/`. */
+  pickAt?: number;
+  /** Per character the user types into the composer, after the skill chip when there is one. */
   typeCharDelays: number[];
   /** The message is sent: the composer clears and the bubble lands in the thread. */
   sendAt?: number;
@@ -38,6 +48,12 @@ const START_MS = 150; // scene lead-in before the first element
 const TYPE_CHAR_MS = 30; // per character typed into the composer
 const ATTACHMENT_MS = 150; // between attachment cards
 const ATTACHMENT_GAP_MS = 250; // typing starts this long after the last attachment card
+const PICKER_START_MS = 200; // the skill picker opens after the `/`
+const SKILL_ROW_MS = 80; // between skill picker rows
+const HIGHLIGHT_START_MS = 1000; // the highlight leaves the first row after the last row appeared: time to read the list
+const HIGHLIGHT_MS = 450; // between highlight steps down the picker
+const PICK_GAP_MS = 600; // the pick after the highlight reached the skill
+const PICK_TYPE_GAP_MS = 250; // typing resumes after the skill chip landed
 const SEND_GAP_MS = 250; // the send after the last typed character
 const WORKING_GAP_MS = 350; // "Working" appears after the message is sent
 const STEP_MS = 380; // between tool steps
@@ -69,12 +85,33 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
 
   const typeCharDelays: number[] = [];
   const attachmentDelays: number[] = [];
+  const skillDelays: number[] = [];
+  const highlightDelays: number[] = [];
+  let slashAt: number | undefined;
+  let pickerAt: number | undefined;
+  let pickAt: number | undefined;
   let sendAt: number | undefined;
   if (demo.user) {
     const attachments = demo.user.attachments ?? [];
     for (let i = 0; i < attachments.length; i++) attachmentDelays.push(START_MS + i * ATTACHMENT_MS);
     const lastAttachment = attachmentDelays[attachmentDelays.length - 1];
     t = lastAttachment === undefined ? START_MS : lastAttachment + ATTACHMENT_GAP_MS;
+    if (demo.user.skill) {
+      const { picked, options } = demo.user.skill;
+      const pickedIndex = options.findIndex((skill) => skill.name === picked);
+      if (pickedIndex < 0) throw new Error(`The picked skill "${picked}" is not one of the picker's options.`);
+      slashAt = t;
+      pickerAt = slashAt + PICKER_START_MS;
+      for (let i = 0; i < options.length; i++) skillDelays.push(pickerAt + i * SKILL_ROW_MS);
+      const lastRow = skillDelays[skillDelays.length - 1] ?? pickerAt;
+      // The first row is highlighted as soon as the picker opens; the
+      // highlight walks down one row at a time only once every row is there.
+      highlightDelays.push(pickerAt);
+      for (let i = 1; i <= pickedIndex; i++)
+        highlightDelays.push(lastRow + HIGHLIGHT_START_MS + (i - 1) * HIGHLIGHT_MS);
+      pickAt = Math.max(lastRow, highlightDelays[highlightDelays.length - 1] ?? pickerAt) + PICK_GAP_MS;
+      t = pickAt + PICK_TYPE_GAP_MS;
+    }
     const chars = [...demo.user.text.trim()];
     for (let i = 0; i < chars.length; i++) typeCharDelays.push(t + i * TYPE_CHAR_MS);
     sendAt = (typeCharDelays[typeCharDelays.length - 1] ?? t) + SEND_GAP_MS;
@@ -126,6 +163,11 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
 
   return {
     attachmentDelays,
+    slashAt,
+    pickerAt,
+    skillDelays,
+    highlightDelays,
+    pickAt,
     typeCharDelays,
     sendAt,
     workingAt,
@@ -163,6 +205,11 @@ export function shiftTimeline(timeline: SceneTimeline, offset: number): SceneTim
   const all = (values: number[]) => values.map((value) => value + offset);
   return {
     attachmentDelays: all(timeline.attachmentDelays),
+    slashAt: at(timeline.slashAt),
+    pickerAt: at(timeline.pickerAt),
+    skillDelays: all(timeline.skillDelays),
+    highlightDelays: all(timeline.highlightDelays),
+    pickAt: at(timeline.pickAt),
     typeCharDelays: all(timeline.typeCharDelays),
     sendAt: at(timeline.sendAt),
     workingAt: at(timeline.workingAt),

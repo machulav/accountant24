@@ -2,12 +2,12 @@
 // README and docs; keep it to shipped features and product vocabulary. The
 // demo scenes each card plays live in @accountant24/demo.
 import { augustStatements } from "@accountant24/demo/scenes/august-statements";
-import { costcoRule } from "@accountant24/demo/scenes/costco-rule";
 import { groceries } from "@accountant24/demo/scenes/groceries";
-import { lastMonth } from "@accountant24/demo/scenes/last-month";
+import { londonTrip } from "@accountant24/demo/scenes/london-trip";
 import { modelMenu } from "@accountant24/demo/scenes/model-menu";
 import { statementImport } from "@accountant24/demo/scenes/statement-import";
 import { subscriptionAudit } from "@accountant24/demo/scenes/subscription-audit";
+import { tripCost } from "@accountant24/demo/scenes/trip-cost";
 import { undo } from "@accountant24/demo/scenes/undo";
 import type { FeatureDemo } from "@accountant24/demo/shared/types";
 import { PROMPT_IDEA_GROUPS } from "../../../desktop/src/renderer/lib/promptIdeas";
@@ -44,6 +44,45 @@ export interface Feature {
 // app's list so the page and the app always share one wording.
 export const promptIdeas: string[] = PROMPT_IDEA_GROUPS.flatMap((group) => group.ideas.map((idea) => idea.prompt));
 
+/** A feature worth naming, without a demo of its own. */
+export interface Extra {
+  title: string;
+  description: string;
+}
+
+// Shown as a plain grid under the demos: what the app is, next to what it does.
+export const extras: Extra[] = [
+  {
+    title: "Double-entry bookkeeping",
+    description:
+      "The method accountants use. One thing you notice right away: moving money between your own accounts never counts as spending.",
+  },
+  {
+    title: "Multi-currency support",
+    description:
+      "Hold as many currencies as you need. Each account keeps its own, and your net worth is converted into your main currency.",
+  },
+  {
+    title: "Investment tracking",
+    description:
+      "Stocks, funds, and crypto get their own accounts, holding the units you actually own, right next to your cash and debts. Tell the agent today's price and your net worth is the whole picture.",
+  },
+  {
+    title: "Works offline",
+    description: "Run a local model with Ollama and the whole app keeps working with no internet at all.",
+  },
+  {
+    title: "Your data stays yours",
+    description:
+      "Everything lives in plain text files in one folder on your machine. No cloud, no account, no lock-in.",
+  },
+  {
+    title: "Built on a coding agent",
+    description:
+      "Your books are plain text files, and careful work with files is exactly what a coding agent is good at.",
+  },
+];
+
 export const features: Feature[] = [
   {
     title: "Natural language entry",
@@ -58,30 +97,28 @@ export const features: Feature[] = [
     demo: statementImport,
   },
   {
-    title: "Corrections that stick",
+    title: "Memory across chats",
     description:
-      "Correct a category once, or mention a budget or a habit, and the agent remembers it and applies it whenever it matters.",
+      "Mention a trip, a budget, or a habit once. The agent remembers it across chats and applies it when it matters.",
     link: { label: "How memory works", href: "/docs/memory" },
-    demo: costcoRule,
+    demo: londonTrip,
   },
   {
     title: "Answers about your money",
     description:
-      "The agent reads your ledger and answers clearly, from what a trip cost to how your net worth is doing. @ points it at a specific account, payee, or tag.",
-    demo: lastMonth,
+      "Ask in plain words and get a straight answer from your own numbers, whether it's one trip, one payee, or the whole year. Type @ to point the question at an account, a payee, or a tag.",
+    demo: tripCost,
   },
   {
-    title: "Plugin marketplace",
+    title: "Plugins",
     description:
-      "Extend the agent with new capabilities. Install plugins other people have built from the marketplace, like a subscription audit, or describe a routine, like a monthly review, and the agent builds a plugin for you.",
-    link: { label: "Browse the marketplace", href: "/docs/marketplace" },
+      "Plugins give the agent new skills. Install one from the marketplace, or describe a routine and the agent builds a plugin for it, ready to reuse whenever you need it.",
     demo: subscriptionAudit,
   },
   {
     title: "Any LLM, fully local if you want",
     description:
       "Sign in with your ChatGPT or Claude subscription, or use an API key from Anthropic, OpenAI, Google, and more. Or run a local model with Ollama, and nothing ever leaves your machine.",
-    link: { label: "Go fully local", href: "/docs/go-fully-local" },
     demo: modelMenu,
   },
   {

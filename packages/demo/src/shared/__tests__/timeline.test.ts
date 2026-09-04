@@ -13,6 +13,11 @@ import {
 function allDelays(timeline: SceneTimeline): number[] {
   return [
     ...timeline.attachmentDelays,
+    ...(timeline.slashAt === undefined ? [] : [timeline.slashAt]),
+    ...(timeline.pickerAt === undefined ? [] : [timeline.pickerAt]),
+    ...timeline.skillDelays,
+    ...timeline.highlightDelays,
+    ...(timeline.pickAt === undefined ? [] : [timeline.pickAt]),
     ...timeline.typeCharDelays,
     ...(timeline.sendAt === undefined ? [] : [timeline.sendAt]),
     ...(timeline.workingAt === undefined ? [] : [timeline.workingAt]),
@@ -92,6 +97,113 @@ describe("buildSceneTimeline()", () => {
       expect(timeline.modelDelays).toEqual([]);
       expect(timeline.attachmentDelays).toEqual([]);
       expect(timeline.bulletWordDelays).toEqual([]);
+    });
+
+    it("should leave the skill picker moments absent", () => {
+      expect(timeline.slashAt).toBeUndefined();
+      expect(timeline.pickerAt).toBeUndefined();
+      expect(timeline.skillDelays).toEqual([]);
+      expect(timeline.highlightDelays).toEqual([]);
+      expect(timeline.pickAt).toBeUndefined();
+    });
+  });
+
+  describe("skill picker scene", () => {
+    const options = [
+      { name: "skills:recurring-spending", description: "Regular payments." },
+      { name: "skills:subscription-audit", description: "Subscriptions." },
+      { name: "skills:create-plugin", description: "New plugins." },
+    ];
+    const timeline = buildSceneTimeline({
+      user: { text: "", skill: { picked: "skills:subscription-audit", options } },
+    });
+
+    it("should type the slash at 150ms and open the picker 200ms later", () => {
+      expect(timeline.slashAt).toBe(150);
+      expect(timeline.pickerAt).toBe(350);
+    });
+
+    it("should stagger the picker rows every 80ms from the open", () => {
+      expect(timeline.skillDelays).toEqual([350, 430, 510]);
+    });
+
+    it("should highlight the first row at the open, then walk down one second after the last row", () => {
+      expect(timeline.highlightDelays).toEqual([350, 1510]);
+    });
+
+    it("should pick the skill 600ms after the highlight reached it", () => {
+      expect(timeline.pickAt).toBe(2110);
+    });
+
+    it("should type nothing and send 500ms after the pick when there is no text", () => {
+      expect(timeline.typeCharDelays).toEqual([]);
+      expect(timeline.sendAt).toBe(2610);
+      expect(timeline.total).toBe(2860);
+    });
+
+    it("should type the text 250ms after the pick when there is one", () => {
+      // "for this year" = 13 characters.
+      const withText = buildSceneTimeline({
+        user: { text: "for this year", skill: { picked: "skills:subscription-audit", options } },
+      });
+      expect(withText.pickAt).toBe(2110);
+      expect(withText.typeCharDelays).toHaveLength(13);
+      expect(withText.typeCharDelays[0]).toBe(2360);
+      expect(withText.typeCharDelays[12]).toBe(2720);
+      expect(withText.sendAt).toBe(2970);
+    });
+
+    it("should pick the first row without walking, 600ms after the last row appeared", () => {
+      const first = buildSceneTimeline({
+        user: { text: "", skill: { picked: "skills:recurring-spending", options } },
+      });
+      expect(first.highlightDelays).toEqual([350]);
+      expect(first.pickAt).toBe(1110);
+    });
+
+    it("should walk one row every 450ms down to the last row", () => {
+      const last = buildSceneTimeline({
+        user: { text: "", skill: { picked: "skills:create-plugin", options } },
+      });
+      expect(last.highlightDelays).toEqual([350, 1510, 1960]);
+      expect(last.pickAt).toBe(2560);
+    });
+
+    it("should type the slash 250ms after the last attachment card", () => {
+      const attached = buildSceneTimeline({
+        user: {
+          text: "",
+          attachments: [{ name: "a.pdf", meta: "PDF" }],
+          skill: { picked: "skills:subscription-audit", options },
+        },
+      });
+      expect(attached.attachmentDelays).toEqual([150]);
+      expect(attached.slashAt).toBe(400);
+      expect(attached.pickerAt).toBe(600);
+    });
+
+    it("should keep the rest of the chain after the send", () => {
+      const chain = buildSceneTimeline({
+        user: { text: "", skill: { picked: "skills:subscription-audit", options } },
+        working: { steps: ["Use Skill"], duration: "2s" },
+        reply: { text: "Done." },
+      });
+      expect(chain.sendAt).toBe(2610);
+      expect(chain.workingAt).toBe(2960);
+      expect(chain.stepDelays).toEqual([3340]);
+      expect(chain.doneAt).toBe(3590);
+      expect(chain.replyAt).toBe(3790);
+      expect(chain.total).toBe(4040);
+    });
+
+    it("should throw when the picked skill is not one of the options", () => {
+      expect(() => buildSceneTimeline({ user: { text: "", skill: { picked: "skills:missing", options } } })).toThrow(
+        'The picked skill "skills:missing" is not one of the picker\'s options.',
+      );
+    });
+
+    it("should throw when there are no options to pick from", () => {
+      expect(() => buildSceneTimeline({ user: { text: "", skill: { picked: "skills:x", options: [] } } })).toThrow();
     });
   });
 
@@ -310,6 +422,8 @@ describe("buildSceneTimeline()", () => {
           expect(timeline.total).toBeGreaterThan(delay);
         }
         expectStrictlyIncreasing(timeline.typeCharDelays);
+        expectStrictlyIncreasing(timeline.skillDelays);
+        expectStrictlyIncreasing(timeline.highlightDelays);
         expectStrictlyIncreasing(timeline.replyWordDelays);
         expectStrictlyIncreasing(timeline.stepDelays);
         expectStrictlyIncreasing(timeline.chipDelays);
@@ -318,9 +432,9 @@ describe("buildSceneTimeline()", () => {
       }
     });
 
-    it("should keep every feature scene under five seconds", () => {
+    it("should keep every feature scene under seven seconds", () => {
       for (const demo of featureScenes) {
-        expect(buildSceneTimeline(demo).total).toBeLessThan(5000);
+        expect(buildSceneTimeline(demo).total).toBeLessThan(7000);
       }
     });
   });
@@ -328,7 +442,17 @@ describe("buildSceneTimeline()", () => {
 
 describe("shiftTimeline()", () => {
   const base = buildSceneTimeline({
-    user: { text: "Hi", attachments: [{ name: "a.pdf", meta: "PDF" }] },
+    user: {
+      text: "Hi",
+      attachments: [{ name: "a.pdf", meta: "PDF" }],
+      skill: {
+        picked: "skills:b",
+        options: [
+          { name: "skills:a", description: "" },
+          { name: "skills:b", description: "" },
+        ],
+      },
+    },
     working: { steps: ["Commit"], duration: "1s" },
     reply: {
       text: "Done.",
@@ -342,6 +466,11 @@ describe("shiftTimeline()", () => {
   it("should move every moment later by the offset", () => {
     const shifted = shiftTimeline(base, 1000);
     expect(shifted.attachmentDelays).toEqual(base.attachmentDelays.map((d) => d + 1000));
+    expect(shifted.slashAt).toBe((base.slashAt as number) + 1000);
+    expect(shifted.pickerAt).toBe((base.pickerAt as number) + 1000);
+    expect(shifted.skillDelays).toEqual(base.skillDelays.map((d) => d + 1000));
+    expect(shifted.highlightDelays).toEqual(base.highlightDelays.map((d) => d + 1000));
+    expect(shifted.pickAt).toBe((base.pickAt as number) + 1000);
     expect(shifted.typeCharDelays).toEqual(base.typeCharDelays.map((d) => d + 1000));
     expect(shifted.sendAt).toBe((base.sendAt as number) + 1000);
     expect(shifted.workingAt).toBe((base.workingAt as number) + 1000);
@@ -359,6 +488,9 @@ describe("shiftTimeline()", () => {
   it("should keep absent moments absent", () => {
     const shifted = shiftTimeline(buildSceneTimeline({}), 500);
     expect(shifted.attachmentDelays).toEqual([]);
+    expect(shifted.slashAt).toBeUndefined();
+    expect(shifted.pickerAt).toBeUndefined();
+    expect(shifted.pickAt).toBeUndefined();
     expect(shifted.sendAt).toBeUndefined();
     expect(shifted.workingAt).toBeUndefined();
     expect(shifted.doneAt).toBeUndefined();

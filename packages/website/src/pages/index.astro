@@ -1,6 +1,7 @@
 ---
 import AsciiField from "../components/ascii-field.astro";
 import Closing from "../components/closing.astro";
+import Extras from "../components/extras.astro";
 import Features from "../components/features.astro";
 import Footer from "../components/footer.astro";
 import Hero from "../components/hero.astro";
@@ -22,6 +23,7 @@ const { version } = await fetchGitHubStats();
     <HeroDemo />
     <PromptCloud />
     <Features />
+    <Extras />
     <Closing />
   </main>
   <div class="relative -mt-4 overflow-hidden pt-4 lg:-mt-6 lg:pt-6">

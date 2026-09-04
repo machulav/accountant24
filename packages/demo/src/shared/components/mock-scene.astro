@@ -1,8 +1,9 @@
 ---
 import { replyTokens, type SceneTimeline } from "../timeline";
 // One scripted scene inside the app window: a thread of one or two turns
-// (the user types into the composer and sends, the agent works, the reply
-// streams in) or a composer-only scene (an open model menu). Every animated
+// (the user types into the composer, maybe picking a skill from the `/`
+// popup first, and sends, the agent works, the reply streams in) or a
+// composer-only scene (an open model menu). Every animated
 // element carries its moment as an inline `--d`; the CSS below plays them
 // under `.is-active` only. Base styles are the FINAL state, so no-JS and
 // reduced-motion visitors see the finished conversation.
@@ -26,7 +27,7 @@ const { turns, index, shown = false } = Astro.props;
 // send-button animations below know about two turns at most.
 const typed = turns.filter((turn) => turn.demo.user);
 if (typed.length > 2) throw new Error("A mock scene plays at most two typed turns.");
-const typeStart = (timeline: SceneTimeline) => timeline.typeCharDelays[0] ?? timeline.sendAt ?? 0;
+const typeStart = (timeline: SceneTimeline) => timeline.slashAt ?? timeline.typeCharDelays[0] ?? timeline.sendAt ?? 0;
 const composerVars = typed
   .flatMap((turn, i) => {
     const suffix = i === 0 ? "" : "-2";
@@ -34,6 +35,13 @@ const composerVars = typed
   })
   .join("; ");
 const menuTurn = turns.find((turn) => turn.demo.composer?.models);
+
+/** A skill's full name, `plugin:skill`, with the plugin part played down
+ *  like the app's picker does; split on the first colon only. */
+function skillName(name: string): { plugin: string; skill: string } {
+  const colon = name.indexOf(":");
+  return colon < 0 ? { plugin: "", skill: name } : { plugin: name.slice(0, colon + 1), skill: name.slice(colon + 1) };
+}
 
 // A streamed word of reply prose: plain text, or a mention rendered as an
 // inline chip like the app does (`:payee[Trader Joe's]`).
@@ -89,7 +97,28 @@ function replyParagraphs(text: string): Token[][] {
                   ))}
                 </div>
               )}
-              <div class="max-w-[85%] rounded-3xl bg-surface-2/60 px-3.5 py-2 text-sm leading-relaxed">{demo.user.text}</div>
+              {/* A bubble holding only a chip hugs it with the same small
+                  padding on every side, and lays it out as a flex item: as
+                  inline content the pill would float in the prose line box
+                  and the template whitespace after it would render as a
+                  trailing space, leaving it off-center. */}
+              <div
+                class:list={[
+                  "max-w-[85%] rounded-3xl bg-surface-2/60 text-sm leading-relaxed",
+                  demo.user.skill && !demo.user.text.trim() ? "flex p-1.5" : "px-3.5 py-2",
+                ]}
+              >
+                {demo.user.skill && (
+                  <Fragment>
+                    <span class="chip chip-skill gap-1 align-baseline">
+                      <Icon name="zap" class="size-3" />
+                      {demo.user.skill.picked}
+                    </span>
+                    {demo.user.text.trim() && " "}
+                  </Fragment>
+                )}
+                {demo.user.text}
+              </div>
             </div>
           )}
           {demo.working && (
@@ -120,18 +149,22 @@ function replyParagraphs(text: string): Token[][] {
           )}
           {demo.reply && (
             <div class="shrink-0 text-sm">
+              {/* text-pretty: the thread is narrow, and a last line holding
+                  one word looks like a mistake in a demo. */}
               {replyParagraphs(demo.reply.text).map((paragraph) => (
-                <p class="leading-relaxed [&+p]:mt-2">
+                <p class="text-pretty leading-relaxed [&+p]:mt-2">
                   {paragraph.map(({ word, chip, index }) =>
                     chip ? (
                       <Fragment>
-                        <span
-                          class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]}
-                          style={`--d:${timeline.replyWordDelays[index]}ms`}
-                        >
-                          {chip.label}
-                        </span>
-                        {`${chip.after} `}
+                        <span class="whitespace-nowrap">
+                          <span
+                            class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]}
+                            style={`--d:${timeline.replyWordDelays[index]}ms`}
+                          >
+                            {chip.label}
+                          </span>
+                          <span class="fx-stream" style={`--d:${timeline.replyWordDelays[index]}ms`}>{chip.after}</span>
+                        </span>{" "}
                       </Fragment>
                     ) : (
                       <span class="fx-stream" style={`--d:${timeline.replyWordDelays[index]}ms`}>{`${word} `}</span>
@@ -145,17 +178,21 @@ function replyParagraphs(text: string): Token[][] {
                     <li
                       data-fx
                       style={`--d:${timeline.bulletWordDelays[bi]?.[0] ?? 0}ms`}
-                      class="list-disc leading-relaxed marker:text-ink-2"
+                      class="list-disc text-pretty leading-relaxed marker:text-ink-2"
                     >
                       {replyTokens(bullet).map((word, wi) => {
                         const { chip } = toToken(word, wi);
                         const delay = `--d:${timeline.bulletWordDelays[bi]?.[wi]}ms`;
                         return chip ? (
                           <Fragment>
-                            <span class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]} style={delay}>
-                              {chip.label}
-                            </span>
-                            {`${chip.after} `}
+                            <span class="whitespace-nowrap">
+                              <span class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]} style={delay}>
+                                {chip.label}
+                              </span>
+                              <span class="fx-stream" style={delay}>
+                                {chip.after}
+                              </span>
+                            </span>{" "}
                           </Fragment>
                         ) : (
                           <span class="fx-stream" style={delay}>{`${word} `}</span>
@@ -213,13 +250,13 @@ function replyParagraphs(text: string): Token[][] {
           <div
             data-fx
             style={`--d:${menuTurn.timeline.modelDelays[0] ?? 0}ms`}
-            class="absolute bottom-2 left-1 z-10 w-56 rounded-xl border border-line bg-bg p-1 shadow-lg"
+            class="absolute bottom-2 left-1 z-10 w-56 rounded-3xl bg-bg p-1.5 shadow-lg ring-1 ring-ink/5 dark:ring-ink/10"
           >
             {menuTurn.demo.composer.models.map((model, mi) => (
               <div
                 data-fx
                 style={`--d:${menuTurn.timeline.modelDelays[mi]}ms`}
-                class:list={["flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs", mi === 0 && "bg-surface-2/60"]}
+                class:list={["flex items-center gap-2 rounded-2xl px-3 py-2 text-xs", mi === 0 && "bg-surface-2/60"]}
               >
                 <span class="font-medium">{model.name}</span>
                 {model.note && <span class="text-[10px] text-ink-2">{model.note}</span>}
@@ -229,6 +266,47 @@ function replyParagraphs(text: string): Token[][] {
           </div>
         </div>
       )
+    }
+    {
+      typed.map(({ demo, timeline }) => {
+        const skill = demo.user?.skill;
+        if (!skill) return null;
+        const pickedIndex = skill.options.findIndex((option) => option.name === skill.picked);
+        return (
+          <div class="relative">
+            {/* The app's `/` popover (its rounded-3xl chrome, rounded-2xl
+                rows): flat rows, the zap glyph, the plugin prefix muted, the
+                description under the name. The highlight
+                starts on the first row and walks down to the picked one; the
+                pick closes the popup, so its final state is hidden. */}
+            <div
+              class="fx-picker absolute bottom-2 left-1 z-10 w-80 rounded-3xl bg-bg p-1.5 shadow-lg ring-1 ring-ink/5 dark:ring-ink/10"
+              style={`--d:${timeline.pickerAt ?? 0}ms; --t-pick:${timeline.pickAt ?? 0}ms`}
+            >
+              {skill.options.map((option, si) => (
+                <div data-fx style={`--d:${timeline.skillDelays[si]}ms`} class="relative flex flex-col gap-0.5 px-3 py-2">
+                  {si <= pickedIndex && (
+                    <span
+                      class="fx-highlight absolute inset-0 rounded-2xl bg-surface-2/60"
+                      style={`--d:${timeline.highlightDelays[si]}ms${
+                        timeline.highlightDelays[si + 1] === undefined ? "" : `; --t-off:${timeline.highlightDelays[si + 1]}ms`
+                      }`}
+                    />
+                  )}
+                  <span class="relative flex min-w-0 items-center gap-1.5 text-xs font-medium">
+                    <Icon name="zap" class="size-3 shrink-0 text-ink-2" />
+                    <span class="truncate">
+                      <span class="font-normal text-ink-2">{skillName(option.name).plugin}</span>
+                      {skillName(option.name).skill}
+                    </span>
+                  </span>
+                  <span class="relative line-clamp-3 pl-[1.125rem] text-[10px] leading-tight text-ink-2">{option.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })
     }
     <div class="rounded-3xl bg-surface-2/60 px-3.5 pt-3 pb-2.5" style={composerVars || undefined}>
       {
@@ -260,6 +338,22 @@ function replyParagraphs(text: string): Token[][] {
         {
           typed.map(({ demo, timeline }) => (
             <div class="fx-typed absolute inset-0 overflow-hidden whitespace-pre" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
+              {demo.user?.skill && (
+                <Fragment>
+                  {/* The `/` sits where the chip will land; the chip holds the
+                      slot, invisible, until the pick swaps them. */}
+                  <span class="relative inline-block align-baseline">
+                    <span class="fx-slash absolute left-0" style={`--d:${timeline.slashAt ?? 0}ms; --t-pick:${timeline.pickAt ?? 0}ms`}>
+                      /
+                    </span>
+                    <span data-fx class="chip chip-skill gap-1 align-baseline" style={`--d:${timeline.pickAt ?? 0}ms`}>
+                      <Icon name="zap" class="size-3" />
+                      {demo.user.skill.picked}
+                    </span>
+                  </span>
+                  {demo.user.text.trim() && " "}
+                </Fragment>
+              )}
               {[...(demo.user?.text ?? "").trim()].map((ch, ci) => (
                 <span class="fx-char" style={`--d:${timeline.typeCharDelays[ci]}ms`}>{ch}</span>
               ))}
@@ -368,6 +462,34 @@ function replyParagraphs(text: string): Token[][] {
   .fdemo .scene.is-active .fx-char {
     animation: fdemo-stream 1ms var(--d, 0ms) both;
   }
+  /* The skill picker's `/`: typed like a character, gone at the pick, when
+     the chip takes its place. */
+  .fdemo .scene.is-active .fx-slash {
+    animation:
+      fdemo-stream 1ms var(--d, 0ms) both,
+      fdemo-hide 1ms var(--t-pick, 0ms) forwards;
+  }
+  /* The skill picker exists only while the scene animates: it opens after
+     the `/` and closes at the pick, so the final state has no popup. */
+  .fdemo .fx-picker {
+    display: none;
+  }
+  .fdemo .scene.is-active .fx-picker {
+    display: block;
+    animation:
+      fdemo-in 250ms var(--d, 0ms) both,
+      fdemo-hide 1ms var(--t-pick, 0ms) forwards;
+  }
+  /* A picker row's highlight: on when the highlight lands on the row, off
+     when it moves to the next one; the picked row keeps it. */
+  .fdemo .fx-highlight {
+    opacity: 0;
+  }
+  .fdemo .scene.is-active .fx-highlight {
+    animation:
+      fdemo-show 1ms var(--d, 0ms) forwards,
+      fdemo-hide 1ms var(--t-off, 1000000ms) forwards;
+  }
   /* On send the card must also give up its layout space, not just fade, or
      the composer keeps a blank block where it used to be. */
   @keyframes fdemo-collapse {
@@ -426,8 +548,8 @@ function replyParagraphs(text: string): Token[][] {
     display: inline-flex;
     align-items: center;
     border-radius: 9999px;
-    padding: 0.1rem 0.6rem;
-    font-size: 0.75rem;
+    padding: 0.05rem 0.5rem;
+    font-size: 0.6875rem;
     font-weight: 500;
   }
   .fdemo .chip-account {
