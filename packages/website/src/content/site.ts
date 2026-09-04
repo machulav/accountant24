@@ -33,7 +33,9 @@ export interface DemoChip {
 // chat-shaped (user, working, reply) or composer-shaped (an open model menu).
 // Keep tables at three or fewer columns and four or fewer rows, and bullet
 // lists at three or fewer items, so they fit the mock's narrow thread. A blank
-// line ("\n\n") in a reply text starts a new paragraph.
+// line ("\n\n") in a reply text starts a new paragraph, and a mention like
+// `:payee[Trader Joe's]` or `:account[Expenses:Groceries]` renders as an
+// inline chip, as in the app.
 export interface SceneDemo {
   user?: { text: string; attachments?: { name: string; meta: string }[] };
   working?: { steps: string[]; duration: string };
@@ -71,15 +73,10 @@ export const features: Feature[] = [
       "A plain sentence becomes a proper double-entry transaction in your ledger. The agent fills in the details.",
     demo: {
       chatTitle: "Groceries at Trader Joe's",
-      user: { text: "I paid $42.50 for groceries at Trader Joe's yesterday" },
+      user: { text: "I paid $42.50 cash for groceries at Trader Joe's yesterday" },
       working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
       reply: {
-        text: "Done. One transaction added to your ledger:",
-        chips: [
-          { kind: "payee", label: "Trader Joe's" },
-          { kind: "account", label: "Expenses:Groceries" },
-          { kind: "account", label: "Assets:Checking" },
-        ],
+        text: "Recorded. $42.50 at :payee[Trader Joe's] went to :account[Expenses:Groceries], paid from :account[Assets:Cash].",
       },
     },
   },

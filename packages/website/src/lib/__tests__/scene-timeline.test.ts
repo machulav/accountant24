@@ -4,6 +4,7 @@ import {
   buildConversationTimeline,
   buildSceneTimeline,
   readingTime,
+  replyTokens,
   type SceneTimeline,
   shiftTimeline,
 } from "../scene-timeline";
@@ -371,6 +372,28 @@ describe("shiftTimeline()", () => {
   });
 });
 
+describe("replyTokens()", () => {
+  it("should split plain prose on whitespace", () => {
+    expect(replyTokens("Done.  Two\nthings:")).toEqual(["Done.", "Two", "things:"]);
+  });
+
+  it("should keep a mention with spaces in its label as one token", () => {
+    expect(replyTokens("$42.50 at :payee[Trader Joe's] went to :account[Expenses:Groceries].")).toEqual([
+      "$42.50",
+      "at",
+      ":payee[Trader Joe's]",
+      "went",
+      "to",
+      ":account[Expenses:Groceries].",
+    ]);
+  });
+
+  it("should return nothing for empty or blank text", () => {
+    expect(replyTokens("")).toEqual([]);
+    expect(replyTokens("   ")).toEqual([]);
+  });
+});
+
 describe("readingTime()", () => {
   it("should be zero without a reply", () => {
     expect(readingTime({})).toBe(0);
@@ -395,6 +418,10 @@ describe("readingTime()", () => {
 
   it("should ignore extra whitespace", () => {
     expect(readingTime({ reply: { text: "  a   b  " } })).toBe(360);
+  });
+
+  it("should count a mention as one word", () => {
+    expect(readingTime({ reply: { text: "At :payee[Trader Joe's] today" } })).toBe(540);
   });
 });
 

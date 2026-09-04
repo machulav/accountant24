@@ -6,7 +6,7 @@
 // under `.is-active` only. Base styles are the FINAL state, so no-JS and
 // reduced-motion visitors see the finished conversation.
 import type { SceneDemo } from "../content/site";
-import type { SceneTimeline } from "../lib/scene-timeline";
+import { replyTokens, type SceneTimeline } from "../lib/scene-timeline";
 import Icon from "./icons.astro";
 
 interface Turn {
@@ -35,18 +35,25 @@ const composerVars = typed
   .join("; ");
 const menuTurn = turns.find((turn) => turn.demo.composer?.models);
 
+// A streamed word of reply prose: plain text, or a mention rendered as an
+// inline chip like the app does (`:payee[Trader Joe's]`).
+interface Token {
+  word: string;
+  /** `after` is punctuation glued to the mention, rendered right after the chip. */
+  chip?: { kind: string; label: string; after: string };
+  index: number;
+}
+function toToken(word: string, index: number): Token {
+  const mention = word.match(/^:(account|payee|tag|skill)\[([^\]]+)\](\S*)$/);
+  return mention ? { word, chip: { kind: mention[1], label: mention[2], after: mention[3] }, index } : { word, index };
+}
 // Reply prose as paragraphs (split on blank lines) of words, each word
 // carrying its index in the whole text so it streams at the timeline's delay.
-function replyParagraphs(text: string): { word: string; index: number }[][] {
+function replyParagraphs(text: string): Token[][] {
   let index = 0;
   return text
     .split(/\n{2,}/)
-    .map((paragraph) =>
-      paragraph
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((word) => ({ word, index: index++ })),
-    )
+    .map((paragraph) => replyTokens(paragraph).map((word) => toToken(word, index++)))
     .filter((paragraph) => paragraph.length > 0);
 }
 ---
@@ -115,9 +122,21 @@ function replyParagraphs(text: string): { word: string; index: number }[][] {
             <div class="shrink-0 text-sm">
               {replyParagraphs(demo.reply.text).map((paragraph) => (
                 <p class="leading-relaxed [&+p]:mt-2">
-                  {paragraph.map(({ word, index }) => (
-                    <span class="fx-stream" style={`--d:${timeline.replyWordDelays[index]}ms`}>{`${word} `}</span>
-                  ))}
+                  {paragraph.map(({ word, chip, index }) =>
+                    chip ? (
+                      <Fragment>
+                        <span
+                          class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]}
+                          style={`--d:${timeline.replyWordDelays[index]}ms`}
+                        >
+                          {chip.label}
+                        </span>
+                        {`${chip.after} `}
+                      </Fragment>
+                    ) : (
+                      <span class="fx-stream" style={`--d:${timeline.replyWordDelays[index]}ms`}>{`${word} `}</span>
+                    ),
+                  )}
                 </p>
               ))}
               {demo.reply.bullets && (
@@ -128,12 +147,20 @@ function replyParagraphs(text: string): { word: string; index: number }[][] {
                       style={`--d:${timeline.bulletWordDelays[bi]?.[0] ?? 0}ms`}
                       class="list-disc leading-relaxed marker:text-ink-2"
                     >
-                      {bullet
-                        .split(/\s+/)
-                        .filter(Boolean)
-                        .map((word, wi) => (
-                          <span class="fx-stream" style={`--d:${timeline.bulletWordDelays[bi]?.[wi]}ms`}>{`${word} `}</span>
-                        ))}
+                      {replyTokens(bullet).map((word, wi) => {
+                        const { chip } = toToken(word, wi);
+                        const delay = `--d:${timeline.bulletWordDelays[bi]?.[wi]}ms`;
+                        return chip ? (
+                          <Fragment>
+                            <span class:list={["fx-stream chip align-baseline", `chip-${chip.kind}`]} style={delay}>
+                              {chip.label}
+                            </span>
+                            {`${chip.after} `}
+                          </Fragment>
+                        ) : (
+                          <span class="fx-stream" style={delay}>{`${word} `}</span>
+                        );
+                      })}
                     </li>
                   ))}
                 </ul>

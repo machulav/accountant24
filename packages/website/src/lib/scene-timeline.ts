@@ -56,6 +56,13 @@ const TURN_GAP_MS = 1200; // the pause before the next turn of a conversation st
 const READ_WORD_MS = 180; // reading time granted per word the agent showed (about 330 words a minute)
 const HOLD_MS = 2500; // the final frame of a conversation stays this long, on top of the reading time
 
+/** The reply's words in order, a mention chip (`:payee[Trader Joe's]`,
+ *  `:account[Expenses:Groceries]`, tag, skill) counting as one word even
+ *  when its label has spaces; punctuation glued to it stays in the token. */
+export function replyTokens(text: string): string[] {
+  return text.match(/:(?:account|payee|tag|skill)\[[^\]]+\]\S*|\S+/g) ?? [];
+}
+
 export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   let t = 0;
 
@@ -92,13 +99,13 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   if (demo.reply) {
     const at = t + REPLY_GAP_MS;
     replyAt = at;
-    const words = demo.reply.text.split(/\s+/).filter(Boolean);
+    const words = replyTokens(demo.reply.text);
     for (let i = 0; i < words.length; i++) replyWordDelays.push(at + i * REPLY_WORD_MS);
     const textEnd = replyWordDelays[replyWordDelays.length - 1] ?? at;
     let proseEnd = textEnd;
     for (const [i, bullet] of (demo.reply.bullets ?? []).entries()) {
       const start = proseEnd + (i === 0 ? BULLET_START_MS : BULLET_MS);
-      const bulletWords = bullet.split(/\s+/).filter(Boolean);
+      const bulletWords = replyTokens(bullet);
       const delays = bulletWords.map((_, wi) => start + wi * REPLY_WORD_MS);
       bulletWordDelays.push(delays);
       proseEnd = delays[delays.length - 1] ?? start;
@@ -145,7 +152,7 @@ export function readingTime(demo: SceneDemo): number {
     ...(reply.table?.head ?? []),
     ...(reply.table?.rows ?? []).flat(),
   ];
-  const words = texts.flatMap((text) => text.split(/\s+/).filter(Boolean));
+  const words = texts.flatMap(replyTokens);
   return words.length * READ_WORD_MS;
 }
 
