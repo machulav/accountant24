@@ -3,7 +3,7 @@
 
 import type { AuthEvent, AuthInteraction, AuthPrompt } from "@earendil-works/pi-ai";
 import { type BrowserWindow, ipcMain, shell } from "electron";
-import { trackProviderConnected } from "../analytics";
+import { trackProviderConnected, trackProviderConnectFailed } from "../analytics";
 import { createProviderRuntime } from "./registry";
 
 /** State for one sign-in attempt. Scoped per attempt (not module-wide) so a
@@ -115,7 +115,12 @@ function authLogin(getWin: () => BrowserWindow | null, provider: string): void {
       trackProviderConnected(provider, "oauth");
       send({ type: "done", provider });
     })
-    .catch((error) => send({ type: "error", message: error instanceof Error ? error.message : String(error) }))
+    .catch((error) => {
+      // A cancelled sign-in also rejects; only a flow that broke on its own
+      // counts as a failure.
+      if (!attempt.abort.signal.aborted) trackProviderConnectFailed(provider, "oauth");
+      send({ type: "error", message: error instanceof Error ? error.message : String(error) });
+    })
     .finally(() => {
       // Only clear if we're still the active attempt — a newer login owns the
       // slot now and must keep its own abort controller + pending prompts.

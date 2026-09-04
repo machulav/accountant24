@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     logout: vi.fn(async () => {}),
   },
   trackProviderConnected: vi.fn(),
+  trackProviderConnectFailed: vi.fn(),
   fs: {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn(),
@@ -26,7 +27,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../../env", () => ({ workspaceDir: () => "/ws" }));
-vi.mock("../../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
+vi.mock("../../analytics", () => ({
+  trackProviderConnected: h.trackProviderConnected,
+  trackProviderConnectFailed: h.trackProviderConnectFailed,
+}));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   ModelRuntime: { create: async () => h.modelRuntime },
 }));
@@ -195,6 +199,20 @@ describe("auth_add_ollama", () => {
     await invoke("auth_add_ollama", { model: "m" });
     expect(h.trackProviderConnected).not.toHaveBeenCalled();
   });
+
+  it("should record a failed connect for analytics when models.json is invalid", async () => {
+    h.fs.existsSync.mockReturnValue(true);
+    h.fs.readFileSync.mockReturnValue("{oops");
+    await setup();
+    await invoke("auth_add_ollama", { model: "m" });
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("ollama", "ollama");
+  });
+
+  it("should not record a failed connect when the model is registered", async () => {
+    await setup();
+    await invoke("auth_add_ollama", { model: "llama3" });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
+  });
 });
 
 describe("auth_add_ollama context baking", () => {
@@ -258,6 +276,7 @@ describe("auth_add_all_ollama", () => {
   it("should return an error when Ollama is not running", async () => {
     await setup();
     await expect(invoke("auth_add_all_ollama")).resolves.toEqual({ type: "error", message: "Ollama isn’t running." });
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("ollama", "ollama");
   });
 
   it("should return an error when Ollama is running with no models", async () => {
@@ -270,6 +289,7 @@ describe("auth_add_all_ollama", () => {
       type: "error",
       message: "Ollama is running but has no models. Pull one with `ollama pull`.",
     });
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("ollama", "ollama");
   });
 
   it("should register every installed model when Ollama is running", async () => {
@@ -283,6 +303,8 @@ describe("auth_add_all_ollama", () => {
     await setup();
 
     await expect(invoke("auth_add_all_ollama")).resolves.toEqual({ type: "done", provider: "ollama", count: 2 });
+    expect(h.trackProviderConnected).toHaveBeenCalledExactlyOnceWith("ollama", "ollama");
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
     const config = writtenJson() as { providers: { ollama: { models: unknown[] } } };
     expect(config.providers.ollama.models).toEqual([
       { id: "a", name: "a" },

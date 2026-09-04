@@ -3,7 +3,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { ipcMain } from "electron";
-import { trackProviderConnected } from "../analytics";
+import { trackProviderConnected, trackProviderConnectFailed } from "../analytics";
 import { createProviderRuntime, paths } from "./registry";
 
 const OLLAMA_BASE_URL = "http://localhost:11434";
@@ -106,23 +106,30 @@ async function bakeOllamaContext(ids: string[]): Promise<void> {
   );
 }
 
+/** Register the models and bake their context; an add that did not land is
+ *  recorded as a failed connect. */
+async function connectOllama(ids: string[]) {
+  const result = writeOllamaModels(ids);
+  if (result.type === "done") await bakeOllamaContext(ids);
+  else trackProviderConnectFailed("ollama", "ollama");
+  return result;
+}
+
 async function addOllama(modelId: string) {
   if (!modelId) return { type: "error", message: "missing model" };
-  const result = writeOllamaModels([modelId]);
-  if (result.type === "done") await bakeOllamaContext([modelId]);
-  return result;
+  return connectOllama([modelId]);
 }
 
 /** Connect Ollama by registering every locally-installed model at once. */
 async function addAllOllama() {
   const info = await detectOllama();
-  if (!info.running) return { type: "error", message: "Ollama isn’t running." };
-  if (info.models.length === 0) {
-    return { type: "error", message: "Ollama is running but has no models. Pull one with `ollama pull`." };
+  if (!info.running || info.models.length === 0) {
+    trackProviderConnectFailed("ollama", "ollama");
+    return info.running
+      ? { type: "error", message: "Ollama is running but has no models. Pull one with `ollama pull`." }
+      : { type: "error", message: "Ollama isn’t running." };
   }
-  const result = writeOllamaModels(info.models);
-  if (result.type === "done") await bakeOllamaContext(info.models);
-  return result;
+  return connectOllama(info.models);
 }
 
 /** Remove the whole Ollama provider the app added to models.json. Only Ollama is

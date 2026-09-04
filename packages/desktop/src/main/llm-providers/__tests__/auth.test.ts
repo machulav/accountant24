@@ -28,6 +28,7 @@ const h = vi.hoisted(() => {
       logout: vi.fn<(p: string) => Promise<void>>(async () => {}),
     },
     trackProviderConnected: vi.fn(),
+    trackProviderConnectFailed: vi.fn(),
   };
 });
 
@@ -39,7 +40,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../../env", () => ({ workspaceDir: () => "/ws" }));
-vi.mock("../../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
+vi.mock("../../analytics", () => ({
+  trackProviderConnected: h.trackProviderConnected,
+  trackProviderConnectFailed: h.trackProviderConnectFailed,
+}));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   ModelRuntime: { create: async () => h.modelRuntime },
   CredentialSynchronizationError: h.CredentialSynchronizationError,
@@ -291,6 +295,27 @@ describe("auth_set_key", () => {
       type: "error",
       message: "Unknown provider: nope",
     });
+  });
+
+  it("should record a failed connect for analytics when the provider rejects the key", async () => {
+    h.modelRuntime.login.mockRejectedValue(new Error("invalid key"));
+    await setup();
+    await invoke("auth_set_key", { provider: "p", key: "sk-1" });
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("p", "api_key");
+    expect(h.trackProviderConnected).not.toHaveBeenCalled();
+  });
+
+  it("should not record a failed connect when the key is stored", async () => {
+    await setup();
+    await invoke("auth_set_key", { provider: "p", key: "sk-1" });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not record a failed connect for an empty key (nothing was attempted)", async () => {
+    await setup();
+    await invoke("auth_set_key", { provider: "", key: "k" });
+    await invoke("auth_set_key", { provider: "p", key: "   " });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
   });
 
   it("should record the provider connection for analytics when the key is stored", async () => {

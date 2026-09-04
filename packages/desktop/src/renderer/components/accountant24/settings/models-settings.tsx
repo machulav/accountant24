@@ -17,7 +17,9 @@ const idOf = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
 
 // ---- Default model --------------------------------------------------------
 
-function DefaultModelSection({
+/** The default-model picker, or what to do to get one. Also the model step of
+ *  onboarding. */
+export function DefaultModelSection({
   models,
   value,
   onSelect,

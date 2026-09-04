@@ -4,9 +4,10 @@
 // the provider list stays focused on data flow.
 
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
 import { ExternalLink } from "@/components/accountant24/external-link";
+import { InsideDialogContext } from "@/components/accountant24/inside-dialog";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
@@ -27,8 +28,12 @@ import { ErrorBanner } from "./parts";
 
 /** Base UI skips a nested dialog's backdrop by default, so these dialogs
  *  wouldn't dim/blur the Settings surface behind them the way Settings itself
- *  dims the app. Force one so they do. */
+ *  dims the app. Force one so they do. At the top level (the onboarding setup
+ *  step) the stock backdrop already renders, and a forced one on top of it
+ *  would dim twice. */
 function NestedDialogBackdrop() {
+  const nested = useContext(InsideDialogContext);
+  if (!nested) return null;
   return (
     <DialogPortal>
       <DialogOverlay forceRender />

@@ -49,10 +49,21 @@ export function trackQuit(): void {
   track("app_closed");
 }
 
-/** Record a provider becoming usable. The first-ever connect is the moment
- *  onboarding actually succeeded (App swaps to the chat once a model exists). */
-export function trackProviderConnected(provider: string, method: "oauth" | "api_key" | "ollama"): void {
-  trackOnce("onboarding_completed", { provider, method });
+export type ProviderConnectMethod = "oauth" | "api_key" | "ollama";
+
+/** Record a provider becoming usable, every time: which providers people
+ *  connect and how. The onboarding milestone itself (`onboarding_completed`)
+ *  is the renderer's, fired when the wizard is finished. */
+export function trackProviderConnected(provider: string, method: ProviderConnectMethod): void {
+  track("provider_connected", { provider, method });
+}
+
+/** Record a connect attempt that did not land: a rejected key, a sign-in that
+ *  errored (not one the user cancelled), Ollama not reachable. Against
+ *  provider_connected it is where a setup stalls. Provider and method only;
+ *  error text can carry account details and never leaves the machine. */
+export function trackProviderConnectFailed(provider: string, method: ProviderConnectMethod): void {
+  track("provider_connect_failed", { provider, method });
 }
 
 /** Record the agent child failing (crash or spawn error). Coarse kind only —

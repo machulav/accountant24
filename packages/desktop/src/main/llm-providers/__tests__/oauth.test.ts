@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
     ),
   },
   trackProviderConnected: vi.fn(),
+  trackProviderConnectFailed: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -33,7 +34,10 @@ vi.mock("electron", () => ({
   shell: { openExternal: h.openExternal },
 }));
 vi.mock("../../env", () => ({ workspaceDir: () => "/ws" }));
-vi.mock("../../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
+vi.mock("../../analytics", () => ({
+  trackProviderConnected: h.trackProviderConnected,
+  trackProviderConnectFailed: h.trackProviderConnectFailed,
+}));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   ModelRuntime: { create: async () => h.modelRuntime },
 }));
@@ -267,6 +271,32 @@ describe("auth_login flow", () => {
     settle.reject(new Error("denied"));
     await flush();
     expect(h.trackProviderConnected).not.toHaveBeenCalled();
+  });
+
+  it("should record a failed connect for analytics when the login fails", async () => {
+    await setup();
+    const { settle } = await startLogin("github");
+    settle.reject(new Error("denied"));
+    await flush();
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("github", "oauth");
+  });
+
+  it("should not record a failed connect when the login succeeds", async () => {
+    await setup();
+    const { settle } = await startLogin("github");
+    settle.resolve();
+    await flush();
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not record a failed connect when the renderer cancelled the login", async () => {
+    await setup();
+    const { settle } = await startLogin("github");
+    invoke("auth_login_cancel");
+    settle.reject(new Error("aborted"));
+    await flush();
+    expect(authEvents()).toContainEqual({ type: "error", message: "aborted" });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
   });
 
   it("should stringify a non-Error rejection", async () => {

@@ -4,7 +4,7 @@
 import type { AuthInteraction, Credential } from "@earendil-works/pi-ai";
 import { CredentialSynchronizationError, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ipcMain } from "electron";
-import { trackProviderConnected } from "../analytics";
+import { trackProviderConnected, trackProviderConnectFailed } from "../analytics";
 import { providerDefaults as piProviderDefaults } from "./pi-defaults";
 import { createProviderRuntime } from "./registry";
 
@@ -140,6 +140,7 @@ async function authSetKey(provider: string, key: string) {
   try {
     await runtime.login(provider, "api_key", pastedKeyInteraction(trimmed));
   } catch (e) {
+    trackProviderConnectFailed(provider, "api_key");
     return { type: "error", message: errorMessage(e) };
   }
   trackProviderConnected(provider, "api_key");

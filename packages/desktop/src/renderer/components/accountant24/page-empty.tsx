@@ -22,7 +22,7 @@ export const PageEmpty: FC<{
     <Empty>
       <EmptyHeader>
         {/* rounded-full: the app's icon-medallion idiom is a circle on
-            bg-muted (see onboarding's OptionCard), not the stock rounded-xl. */}
+            bg-muted, not the stock rounded-xl. */}
         <EmptyMedia variant="icon" className="rounded-full">
           <Icon />
         </EmptyMedia>

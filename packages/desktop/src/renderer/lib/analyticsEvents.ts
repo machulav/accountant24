@@ -6,6 +6,18 @@
 
 import { analyticsApi } from "../rpc/api";
 
+/** One-time milestone: the user left the welcome page for the provider setup
+ *  step. Against app_installed it is how many people start setting up. */
+export function trackOnboardingSetupViewed(): void {
+  analyticsApi.trackOnce("onboarding_setup_viewed");
+}
+
+/** One-time milestone: the onboarding wizard finished (Start pressed with a
+ *  model available). The funnel's end, before user_first_message_sent. */
+export function trackOnboardingCompleted(): void {
+  analyticsApi.trackOnce("onboarding_completed");
+}
+
 /** Record a new chat being started. */
 export function trackChatCreated(): void {
   analyticsApi.track("chat_created");

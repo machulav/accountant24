@@ -272,9 +272,8 @@ export function ProvidersSettings() {
     void reload();
   }, [reload]);
 
-  return (
-    <div>
-      <ProvidersList status={status} reload={reload} />
-    </div>
-  );
+  // No wrapper: the sections are direct children of wherever the pane is
+  // mounted, so a Section rendered after this one (the onboarding setup step)
+  // is their sibling and the last-child divider rule reads across them.
+  return <ProvidersList status={status} reload={reload} />;
 }
