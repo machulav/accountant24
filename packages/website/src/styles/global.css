@@ -114,31 +114,23 @@
   .ascii-field {
     opacity: 0.3;
   }
-  /* Edge fades: the field dissolves into the page background. */
-  .ascii-fade-bottom::after,
-  .ascii-fade-top::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    height: 9rem;
+  /* Edge fades: the field dissolves into the page background. Masks, not
+     gradient overlays: an overlay is a box of its own that moves when the
+     field's height arrives from the script, which on a slow load counts as a
+     layout shift; a mask has no box to move. */
+  .ascii-fade-bottom {
+    mask-image: linear-gradient(to bottom, black calc(100% - 9rem), transparent);
   }
-  .ascii-fade-bottom::after {
-    bottom: 0;
-    background: linear-gradient(to bottom, transparent, var(--bg));
-  }
-  .ascii-fade-top::after {
-    top: 0;
+  .ascii-fade-top {
     /* Taller and eased: the footer field should surface gradually under the
        section above it rather than start along a visible line. */
-    height: 12rem;
-    background: linear-gradient(
-      to top,
-      transparent 0%,
-      color-mix(in srgb, var(--bg) 35%, transparent) 30%,
-      color-mix(in srgb, var(--bg) 75%, transparent) 60%,
-      color-mix(in srgb, var(--bg) 95%, transparent) 85%,
-      var(--bg) 100%
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      rgb(0 0 0 / 0.05) 1.8rem,
+      rgb(0 0 0 / 0.25) 4.8rem,
+      rgb(0 0 0 / 0.65) 8.4rem,
+      black 12rem
     );
   }
 
