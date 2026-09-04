@@ -7,7 +7,7 @@
 export const RAMP = "  ..::--==++3377$€£₴¥";
 
 /** One character cell in CSS px: the 11px IBM Plex Mono advance width and the line height. */
-export const CELL = { width: 6.6, height: 14 } as const;
+const CELL = { width: 6.6, height: 14 } as const;
 
 /** How many cells cover a box of `width` x `height` px. */
 export function cellsFor(width: number, height: number): { cols: number; rows: number } {

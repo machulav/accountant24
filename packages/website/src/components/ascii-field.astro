@@ -9,19 +9,11 @@
 // - "page-top": spans from the page top down past the hero (nav + hero + a
 //   bit of the hero demo window); pair with .ascii-fade-bottom.
 // - "parent": fills its positioned parent; pair with .ascii-fade-top.
-import { CELL, renderAsciiFrame } from "../lib/ascii-field";
-
 interface Props {
   class?: string;
   extent?: "page-top" | "parent";
 }
 const { class: className = "", extent = "parent" } = Astro.props;
-
-// The page-top field is the largest thing above the fold, so its first frame
-// is rendered here and paints with the HTML instead of waiting for the
-// script: sized for a 1920px-wide viewport and a tall hero, clipped by the
-// box, and redrawn at the real size as soon as the script runs.
-const firstFrame = extent === "page-top" ? renderAsciiFrame(Math.ceil(1920 / CELL.width), 60, 0) : "";
 ---
 
 <pre
@@ -30,8 +22,7 @@ const firstFrame = extent === "page-top" ? renderAsciiFrame(Math.ceil(1920 / CEL
   class:list={[
     "ascii-field pointer-events-none -z-10 overflow-hidden font-mono text-[11px] leading-[14px] text-accent select-none",
     className,
-  ]}
-  set:text={firstFrame}></pre>
+  ]}></pre>
 
 <script>
   import { cellsFor, renderAsciiFrame } from "../lib/ascii-field";
