@@ -1,11 +1,10 @@
 // The chats the mock windows list in their sidebar: the hero conversation
 // first, then one per feature, in page order. Selecting a chat scrolls to
 // the section that plays it, so every chat carries that section's id.
-export interface PageChat {
-  title: string;
-  /** The id of the page element that plays this chat. */
-  target: string;
-}
+import type { DemoChat } from "@accountant24/demo/shared/types";
+
+/** A mock-sidebar chat whose target is the id of the section that plays it. */
+export type PageChat = DemoChat;
 
 export const HERO_DEMO_ID = "demo";
 

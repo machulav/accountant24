@@ -4,11 +4,11 @@
 // the scenes. Decorative; shared by the hero demo and the features mock. The
 // sidebar lists every chat on the page; selecting one scrolls to the section
 // that plays it.
-import type { PageChat } from "../lib/page-chats";
+import type { DemoChat } from "../types";
 import Icon from "./icons.astro";
 
 interface Props {
-  chats: PageChat[];
+  chats: DemoChat[];
   /** The target of the chat shown as selected. */
   activeChat: string;
   class?: string;

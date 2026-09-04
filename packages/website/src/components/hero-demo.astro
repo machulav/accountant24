@@ -1,14 +1,14 @@
 ---
+import Icon from "@accountant24/demo/shared/components/icons.astro";
+import MockScene from "@accountant24/demo/shared/components/mock-scene.astro";
+import MockWindow from "@accountant24/demo/shared/components/mock-window.astro";
+import { buildConversationTimeline } from "@accountant24/demo/shared/timeline";
 // The hero's "video": the app window playing a short two-turn conversation on
 // a loop, built from the same scene machinery as the features mock. No media
 // bytes, crisp on any display, follows the color scheme, and the window's top
 // edge peeks above the fold as a cue to scroll.
 import { heroDemo, pageChats } from "../content/site";
 import { HERO_DEMO_ID } from "../lib/page-chats";
-import { buildConversationTimeline } from "../lib/scene-timeline";
-import Icon from "./icons.astro";
-import MockScene from "./mock-scene.astro";
-import MockWindow from "./mock-window.astro";
 
 const conversation = buildConversationTimeline(heroDemo.turns);
 const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.turns[i] }));

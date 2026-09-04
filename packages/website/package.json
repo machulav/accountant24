@@ -12,7 +12,7 @@
     "brand-assets": "node scripts/brand-assets.mjs"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@accountant24/demo": "*",
     "posthog-js": "1.418.10"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { features, heroDemo } from "../../content/site";
+import { featureScenes } from "../../scenes/all";
+import { augustStatements } from "../../scenes/august-statements";
 import {
   buildConversationTimeline,
   buildSceneTimeline,
@@ -7,7 +8,7 @@ import {
   replyTokens,
   type SceneTimeline,
   shiftTimeline,
-} from "../scene-timeline";
+} from "../timeline";
 
 function allDelays(timeline: SceneTimeline): number[] {
   return [
@@ -298,13 +299,13 @@ describe("buildSceneTimeline()", () => {
   });
 
   describe("real feature scenes", () => {
-    it("should build a settled, ordered timeline for every landing-page feature", () => {
-      expect(features.length).toBeGreaterThan(0);
-      for (const feature of features) {
-        const timeline = buildSceneTimeline(feature.demo);
+    it("should build a settled, ordered timeline for every scene", () => {
+      expect(featureScenes.length).toBeGreaterThan(0);
+      for (const demo of featureScenes) {
+        const timeline = buildSceneTimeline(demo);
         const delays = allDelays(timeline);
         expect(delays.length).toBeGreaterThan(0);
-        expect(feature.demo.chatTitle.trim().length).toBeGreaterThan(0);
+        expect(demo.chatTitle.trim().length).toBeGreaterThan(0);
         for (const delay of delays) {
           expect(timeline.total).toBeGreaterThan(delay);
         }
@@ -318,8 +319,8 @@ describe("buildSceneTimeline()", () => {
     });
 
     it("should keep every feature scene under five seconds", () => {
-      for (const feature of features) {
-        expect(buildSceneTimeline(feature.demo).total).toBeLessThan(5000);
+      for (const demo of featureScenes) {
+        expect(buildSceneTimeline(demo).total).toBeLessThan(5000);
       }
     });
   });
@@ -454,18 +455,18 @@ describe("buildConversationTimeline()", () => {
   });
 });
 
-describe("hero demo conversation", () => {
+describe("hero scene", () => {
   it("should be a chat of at most two typed turns", () => {
-    expect(heroDemo.turns.length).toBeGreaterThan(0);
-    expect(heroDemo.turns.length).toBeLessThanOrEqual(2);
-    for (const turn of heroDemo.turns) {
+    expect(augustStatements.turns.length).toBeGreaterThan(0);
+    expect(augustStatements.turns.length).toBeLessThanOrEqual(2);
+    for (const turn of augustStatements.turns) {
       expect(turn.user?.text.trim().length).toBeGreaterThan(0);
     }
-    expect(heroDemo.chatTitle.trim().length).toBeGreaterThan(0);
+    expect(augustStatements.chatTitle.trim().length).toBeGreaterThan(0);
   });
 
   it("should play and hold within thirty-five seconds so the loop stays watchable", () => {
-    const conversation = buildConversationTimeline(heroDemo.turns);
+    const conversation = buildConversationTimeline(augustStatements.turns);
     expect(conversation.total).toBeGreaterThan(0);
     expect(conversation.total + conversation.holdAfter).toBeLessThan(35000);
     for (let i = 1; i < conversation.turns.length; i++) {

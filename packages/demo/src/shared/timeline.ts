@@ -1,8 +1,9 @@
-// Build-time timing for one feature demo scene: the delay, in ms from scene
-// activation, of every animated element. feature-mock.astro emits the delays
-// as inline `--d` custom properties; the scene CSS plays one entrance
-// animation per element at its delay, so runtime JS only toggles classes.
-import type { SceneDemo } from "../content/site";
+// Build-time timing for one demo scene: the delay, in ms from scene
+// activation, of every animated element. The host emits the delays as inline
+// `--d` custom properties; the scene CSS (components/mock-scene.astro) plays
+// one entrance animation per element at its delay, so runtime JS only
+// toggles classes.
+import type { SceneDemo } from "./types";
 
 export interface SceneTimeline {
   /** Per attachment card appearing in the composer. */
@@ -51,7 +52,7 @@ const ROW_START_MS = 200; // first table row after the reply prose
 const ROW_MS = 120; // between table rows
 const MODEL_START_MS = 300; // first model-menu row
 const MODEL_MS = 150; // between model-menu rows
-const IN_MS = 250; // entrance animation length; matches `fdemo-in` in mock-scene.astro
+const IN_MS = 250; // entrance animation length; matches `fdemo-in` in components/mock-scene.astro
 const TURN_GAP_MS = 1200; // the pause before the next turn of a conversation starts, on top of the reading time
 const READ_WORD_MS = 180; // reading time granted per word the agent showed (about 330 words a minute)
 const HOLD_MS = 2500; // the final frame of a conversation stays this long, on top of the reading time

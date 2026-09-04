@@ -5,6 +5,7 @@
       "packages/pi-extension/**",
       "packages/desktop/**",
       "packages/website/**",
+      "packages/demo/**",
       "*.json",
       "*.ts",
       "!**/*.css"
@@ -90,7 +91,7 @@
       }
     },
     {
-      "includes": ["packages/website/**/*.astro"],
+      "includes": ["packages/website/**/*.astro", "packages/demo/**/*.astro"],
       "linter": {
         "rules": {
           "correctness": {

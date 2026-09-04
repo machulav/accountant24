@@ -1,13 +1,13 @@
 ---
+import MockScene from "@accountant24/demo/shared/components/mock-scene.astro";
+import MockWindow from "@accountant24/demo/shared/components/mock-window.astro";
+import { buildSceneTimeline } from "@accountant24/demo/shared/timeline";
 // The features section's app window: one scene per feature, the sidebar
 // listing every chat on the page. features.astro's script shows and replays
 // the scene of the feature in view. Decorative; the real copy lives in the
 // feature list.
 import { features, pageChats } from "../content/site";
 import { featureTargetId } from "../lib/page-chats";
-import { buildSceneTimeline } from "../lib/scene-timeline";
-import MockScene from "./mock-scene.astro";
-import MockWindow from "./mock-window.astro";
 ---
 
 <MockWindow chats={pageChats} activeChat={featureTargetId(0)}>

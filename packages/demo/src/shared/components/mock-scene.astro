@@ -1,12 +1,12 @@
 ---
+import { replyTokens, type SceneTimeline } from "../timeline";
 // One scripted scene inside the app window: a thread of one or two turns
 // (the user types into the composer and sends, the agent works, the reply
 // streams in) or a composer-only scene (an open model menu). Every animated
 // element carries its moment as an inline `--d`; the CSS below plays them
 // under `.is-active` only. Base styles are the FINAL state, so no-JS and
 // reduced-motion visitors see the finished conversation.
-import type { SceneDemo } from "../content/site";
-import { replyTokens, type SceneTimeline } from "../lib/scene-timeline";
+import type { SceneDemo } from "../types";
 import Icon from "./icons.astro";
 
 interface Turn {
