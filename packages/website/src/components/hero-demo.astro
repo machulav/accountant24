@@ -6,11 +6,18 @@
 import { heroDemo, pageChats } from "../content/site";
 import { HERO_DEMO_ID } from "../lib/page-chats";
 import { buildConversationTimeline } from "../lib/scene-timeline";
+import Icon from "./icons.astro";
 import MockScene from "./mock-scene.astro";
 import MockWindow from "./mock-window.astro";
 
 const conversation = buildConversationTimeline(heroDemo.turns);
 const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.turns[i] }));
+// The thread follows each turn after the first down as it is sent, like the
+// app scrolling to a new message.
+const scrollAts = conversation.turns
+  .slice(1)
+  .map((timeline) => timeline.sendAt)
+  .filter((at): at is number => at !== undefined);
 ---
 
 <section
@@ -19,19 +26,93 @@ const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.tu
   aria-labelledby="hero-demo-title"
   data-hero-demo
   data-total={conversation.total}
+  data-hold={conversation.holdAfter}
+  data-scroll-at={scrollAts.join(",")}
 >
+  {/* Runs while the section is still being parsed, before anything in it is
+      painted: with JS on and motion allowed, the scene starts hidden (see
+      the pending rule below) instead of flashing the finished conversation
+      until the first play. */}
+  <script is:inline>
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.currentScript.parentElement.dataset.pending = "";
+  </script>
   <h2 id="hero-demo-title" class="sr-only">Demo</h2>
-  <div
-    aria-hidden="true"
-    class="hero-desktop field-glow mx-auto max-w-[75rem] overflow-hidden rounded-3xl border border-line p-3 sm:p-8 lg:p-12"
-  >
-    <MockWindow chats={pageChats} activeChat={HERO_DEMO_ID} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
-      <MockScene index={0} shown turns={turns} />
-    </MockWindow>
+  <div class="relative mx-auto max-w-[75rem]">
+    <div
+      aria-hidden="true"
+      class="hero-desktop field-glow overflow-hidden rounded-3xl border border-line p-3 sm:p-8 lg:p-12"
+    >
+      <MockWindow chats={pageChats} activeChat={HERO_DEMO_ID} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
+        <MockScene index={0} shown turns={turns} />
+      </MockWindow>
+    </div>
+    {/* Pause and play for the loop, where video controls live: the corner of
+        the frame, outside the app window. The ring around it is the run's
+        progress (play plus hold) and doubles as the button's edge. Hidden
+        until the script that drives the loop takes over, so no-JS and
+        reduced-motion visitors, who see a still frame, never get a dead
+        button. 44px on touch screens, a little smaller with a pointer. */}
+    <button
+      type="button"
+      data-demo-toggle
+      hidden
+      aria-label="Pause demo"
+      title="Pause demo"
+      class="demo-toggle absolute right-3 bottom-3 flex size-11 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition-[background-color,transform] hover:bg-black/60 active:scale-95 sm:right-5 sm:bottom-5 sm:size-10"
+      style={`--run:${conversation.total + conversation.holdAfter}ms`}
+    >
+      <svg data-demo-progress class="demo-progress pointer-events-none absolute inset-0" viewBox="0 0 36 36" aria-hidden="true">
+        <circle class="track" cx="18" cy="18" r="16" fill="none" stroke-width="2.5" />
+        <circle class="bar" cx="18" cy="18" r="16" fill="none" stroke-width="2.5" pathLength="100" />
+      </svg>
+      <Icon name="pause" class="size-4 [.is-paused_&]:hidden" />
+      <Icon name="play" class="size-4 hidden [.is-paused_&]:block" />
+    </button>
   </div>
 </section>
 
+<style is:global>
+  /* Pending: nothing animated is visible until the first play begins. */
+  [data-hero-demo][data-pending] .scene [data-fx],
+  [data-hero-demo][data-pending] .scene .fx-stream,
+  [data-hero-demo][data-pending] .scene .fx-worked {
+    opacity: 0;
+  }
+  /* Paused: every animation in the scene freezes where it is; the script
+     stops the timers and remembers the elapsed time. */
+  .fdemo .scene.is-paused,
+  .fdemo .scene.is-paused * {
+    animation-play-state: paused !important;
+  }
+</style>
 <style>
+  /* The ring: a faint track the whole way round, and the accent bar drawn
+     clockwise from the top over --run. `is-running` is re-added by the
+     script at every play to restart the bar; a paused button freezes it
+     with the scene. */
+  .demo-progress {
+    transform: rotate(-90deg);
+  }
+  .demo-progress .track {
+    stroke: rgb(255 255 255 / 0.25);
+  }
+  .demo-progress .bar {
+    stroke: #fff;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    stroke-linecap: round;
+  }
+  .demo-progress.is-running .bar {
+    animation: demo-progress var(--run, 20s) linear forwards;
+  }
+  .demo-toggle.is-paused .demo-progress .bar {
+    animation-play-state: paused;
+  }
+  @keyframes demo-progress {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
   /* A desktop behind the window, a little wider than the page column so the
      window keeps its size and the block reads as a screencast: a dithered
      forest wallpaper (public/hero-forest-dither.webp). In
@@ -40,6 +121,10 @@ const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.tu
   .hero-desktop {
     background: #fff url("/hero-forest-dither.webp") center / cover no-repeat;
     background-blend-mode: multiply;
+    /* The picture runs under the hairline too; otherwise the 1px strip under
+       the translucent border shows the plain tint colour, a bright line
+       where the forest is dark. */
+    background-origin: border-box;
   }
   @media (prefers-color-scheme: dark) {
     .hero-desktop {
@@ -50,34 +135,100 @@ const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.tu
 
 <script>
   // Replay the conversation while the window is on screen: every run lasts
-  // the conversation's length plus a hold on the final frame. Under reduced
-  // motion the scene stays in its finished state.
+  // the conversation's length plus a hold on the final frame long enough to
+  // read it. The corner button pauses the run where it is and resumes it
+  // from there. Under reduced motion the scene stays in its finished state.
   const root = document.querySelector<HTMLElement>("[data-hero-demo]");
   const scene = root?.querySelector<HTMLElement>("[data-scene]");
-  if (root && scene && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    const HOLD_MS = 2500;
+  const thread = root?.querySelector<HTMLElement>("[data-thread]");
+  const toggle = root?.querySelector<HTMLButtonElement>("[data-demo-toggle]");
+  const progress = root?.querySelector<SVGElement>("[data-demo-progress]");
+  if (root && scene && thread && toggle && progress && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const total = Number(root.dataset.total) || 0;
-    let timer: number | undefined;
+    const hold = Number(root.dataset.hold) || 0;
+    const scrollAts = (root.dataset.scrollAt ?? "")
+      .split(",")
+      .map(Number)
+      .filter((at) => at > 0);
+    const runLength = total + hold;
+    let timers: number[] = [];
+    // Where the current run is: when it started (adjusted on resume), and how
+    // far it had got when paused. `running` is false before the first play
+    // and while the window is off screen.
+    let startedAt = 0;
+    let elapsed = 0;
+    let running = false;
+    let paused = false;
 
+    const clearTimers = () => {
+      for (const t of timers) window.clearTimeout(t);
+      timers = [];
+    };
+    // Schedule what is left of the run: the scroll moments still ahead and
+    // the replay at the end.
+    const schedule = () => {
+      clearTimers();
+      const scrollToEnd = () => thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
+      timers = scrollAts.filter((at) => at > elapsed).map((at) => window.setTimeout(scrollToEnd, at - elapsed));
+      timers.push(window.setTimeout(play, runLength - elapsed));
+    };
     const play = () => {
+      delete root.dataset.pending;
       scene.classList.remove("is-active");
       // Force a reflow between class removal and re-add so the animations
       // restart from the top.
       void scene.offsetWidth;
       scene.classList.add("is-active");
-      timer = window.setTimeout(play, total + HOLD_MS);
+      progress.classList.remove("is-running");
+      void progress.getBoundingClientRect();
+      progress.classList.add("is-running");
+      thread.scrollTo({ top: 0 });
+      startedAt = performance.now();
+      elapsed = 0;
+      running = true;
+      schedule();
+    };
+    const pause = () => {
+      paused = true;
+      elapsed = performance.now() - startedAt;
+      clearTimers();
+      scene.classList.add("is-paused");
+      toggle.classList.add("is-paused");
+      toggle.setAttribute("aria-label", "Play demo");
+      toggle.title = "Play demo";
+    };
+    const resume = () => {
+      paused = false;
+      scene.classList.remove("is-paused");
+      toggle.classList.remove("is-paused");
+      toggle.setAttribute("aria-label", "Pause demo");
+      toggle.title = "Pause demo";
+      if (!running) {
+        play();
+        return;
+      }
+      startedAt = performance.now() - elapsed;
+      schedule();
     };
 
+    toggle.hidden = false;
+    toggle.addEventListener("click", () => (paused ? resume() : pause()));
+
+    // Any visible part of the section starts the run: the window's top edge
+    // peeks above the fold, and motion there is the cue to scroll down.
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          if (timer === undefined) play();
-        } else {
-          window.clearTimeout(timer);
-          timer = undefined;
+          // Back on screen: pick up a paused run where the visitor left it,
+          // otherwise start a fresh one.
+          if (!running && !paused) play();
+        } else if (!paused) {
+          // Off screen: let the animations finish, and start over on return.
+          clearTimers();
+          running = false;
         }
       },
-      { threshold: 0.5 },
+      { threshold: 0 },
     );
     observer.observe(root);
   }

@@ -34,11 +34,30 @@ const composerVars = typed
   })
   .join("; ");
 const menuTurn = turns.find((turn) => turn.demo.composer?.models);
+
+// Reply prose as paragraphs (split on blank lines) of words, each word
+// carrying its index in the whole text so it streams at the timeline's delay.
+function replyParagraphs(text: string): { word: string; index: number }[][] {
+  let index = 0;
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) =>
+      paragraph
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => ({ word, index: index++ })),
+    )
+    .filter((paragraph) => paragraph.length > 0);
+}
 ---
 
-{/* pt clears the window's inset traffic lights when the sidebar is hidden. */}
-<div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4 pt-8", shown && "is-shown"]}>
-  <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+<div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4 pt-0", shown && "is-shown"]}>
+  {/* The thread reaches the window's top edge so a scrolled-off message is
+      cut at the border, like the app; its top padding clears the window's
+      inset traffic lights when the sidebar is hidden. overflow-hidden keeps
+      the visitor from scrolling it; the hero script still scrolls it to
+      follow a new turn (scrollTo works on hidden overflow). */}
+  <div data-thread class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-8">
     {
       turns.map(({ demo, timeline }, ti) => (
         <Fragment>
@@ -46,38 +65,44 @@ const menuTurn = turns.find((turn) => turn.demo.composer?.models);
             <div
               data-fx
               style={`--d:${timeline.sendAt ?? 0}ms`}
-              class:list={["flex flex-col items-end gap-2", ti > 0 && "mt-3"]}
+              class:list={["flex shrink-0 flex-col items-end gap-2", ti > 0 && "mt-3"]}
             >
-              {demo.user.attachment && (
-                <div class="flex w-56 items-center gap-2.5 rounded-xl border border-line bg-surface p-2.5">
-                  <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-                    <Icon name="file" class="size-4 text-ink-2" />
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block truncate text-xs font-medium">{demo.user.attachment.name}</span>
-                    <span class="block text-[10px] text-ink-2">{demo.user.attachment.meta}</span>
-                  </span>
+              {demo.user.attachments && (
+                <div class="flex flex-wrap justify-end gap-2">
+                  {demo.user.attachments.map((attachment) => (
+                    <div class="flex w-44 items-center gap-2.5 rounded-xl border border-line bg-surface p-2.5">
+                      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                        <Icon name="file" class="size-4 text-ink-2" />
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-xs font-medium">{attachment.name}</span>
+                        <span class="block text-[10px] text-ink-2">{attachment.meta}</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
               <div class="max-w-[85%] rounded-3xl bg-surface-2/60 px-3.5 py-2 text-sm leading-relaxed">{demo.user.text}</div>
             </div>
           )}
           {demo.working && (
-            <div>
+            <div class="shrink-0">
               <div class="relative w-fit text-sm text-ink-2" style={`--t-done:${timeline.doneAt ?? 0}ms`}>
                 <span class="fx-worked">Worked for {demo.working.duration}</span>
                 <span class="fx-working absolute inset-y-0 left-0" style={`--d:${timeline.workingAt ?? 0}ms`}>
                   Working
                 </span>
               </div>
+              {/* Each step carries its own piece of the rail, so the line grows
+                  with the steps instead of standing at full height from the start. */}
               {demo.working.steps.length > 0 && (
-                <ol
-                  data-fx
-                  style={`--d:${timeline.stepDelays[0] ?? timeline.workingAt ?? 0}ms`}
-                  class="mt-1.5 flex flex-col gap-1.5 border-l border-line pl-3.5"
-                >
+                <ol class="mt-1.5 flex flex-col">
                   {demo.working.steps.map((step, si) => (
-                    <li data-fx style={`--d:${timeline.stepDelays[si]}ms`} class="flex items-center gap-1.5 text-xs text-ink-2">
+                    <li
+                      data-fx
+                      style={`--d:${timeline.stepDelays[si]}ms`}
+                      class="flex items-center gap-1.5 border-l border-line py-[3px] pl-3.5 text-xs text-ink-2"
+                    >
                       <Icon name="check" class="size-3 shrink-0 text-accent-ink" />
                       {step}
                     </li>
@@ -87,15 +112,32 @@ const menuTurn = turns.find((turn) => turn.demo.composer?.models);
             </div>
           )}
           {demo.reply && (
-            <div class="min-h-0 text-sm">
-              <p class="leading-relaxed">
-                {demo.reply.text
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .map((word, wi) => (
-                    <span class="fx-stream" style={`--d:${timeline.replyWordDelays[wi]}ms`}>{`${word} `}</span>
+            <div class="shrink-0 text-sm">
+              {replyParagraphs(demo.reply.text).map((paragraph) => (
+                <p class="leading-relaxed [&+p]:mt-2">
+                  {paragraph.map(({ word, index }) => (
+                    <span class="fx-stream" style={`--d:${timeline.replyWordDelays[index]}ms`}>{`${word} `}</span>
                   ))}
-              </p>
+                </p>
+              ))}
+              {demo.reply.bullets && (
+                <ul class="mt-2 flex flex-col gap-1 pl-4">
+                  {demo.reply.bullets.map((bullet, bi) => (
+                    <li
+                      data-fx
+                      style={`--d:${timeline.bulletWordDelays[bi]?.[0] ?? 0}ms`}
+                      class="list-disc leading-relaxed marker:text-ink-2"
+                    >
+                      {bullet
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map((word, wi) => (
+                          <span class="fx-stream" style={`--d:${timeline.bulletWordDelays[bi]?.[wi]}ms`}>{`${word} `}</span>
+                        ))}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {demo.reply.chips && (
                 <div class="mt-2 flex flex-wrap gap-1.5">
                   {demo.reply.chips.map((chip, ci) => (
@@ -165,18 +207,23 @@ const menuTurn = turns.find((turn) => turn.demo.composer?.models);
       {
         typed.map(
           ({ demo, timeline }) =>
-            demo.user?.attachment && (
-              <div
-                class="fx-cattach mb-2.5 w-56 items-center gap-2.5 rounded-xl border border-line bg-bg p-2.5"
-                style={`--d:${timeline.attachmentAt ?? 0}ms; --t-send:${timeline.sendAt ?? 0}ms`}
-              >
-                <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-                  <Icon name="file" class="size-4 text-ink-2" />
-                </span>
-                <span class="min-w-0">
-                  <span class="block truncate text-xs font-medium">{demo.user.attachment.name}</span>
-                  <span class="block text-[10px] text-ink-2">{demo.user.attachment.meta}</span>
-                </span>
+            demo.user?.attachments && (
+              <div class="fx-cattach mb-2.5 flex-wrap gap-2" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
+                {demo.user.attachments.map((attachment, ai) => (
+                  <div
+                    data-fx
+                    style={`--d:${timeline.attachmentDelays[ai]}ms`}
+                    class="flex w-44 items-center gap-2.5 rounded-xl border border-line bg-bg p-2.5"
+                  >
+                    <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                      <Icon name="file" class="size-4 text-ink-2" />
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block truncate text-xs font-medium">{attachment.name}</span>
+                      <span class="block text-[10px] text-ink-2">{attachment.meta}</span>
+                    </span>
+                  </div>
+                ))}
               </div>
             ),
         )
@@ -309,11 +356,9 @@ const menuTurn = turns.find((turn) => turn.demo.composer?.models);
   }
   .fdemo .scene.is-active .fx-cattach {
     display: flex;
-    max-height: 5rem;
+    max-height: 12rem;
     overflow: hidden;
-    animation:
-      fdemo-in 200ms var(--d, 0ms) both,
-      fdemo-collapse 1ms var(--t-send, 0ms) forwards;
+    animation: fdemo-collapse 1ms var(--t-send, 0ms) forwards;
   }
   .fdemo .scene.is-active .fx-placeholder {
     animation:

@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { features, heroDemo } from "../../content/site";
-import { buildConversationTimeline, buildSceneTimeline, type SceneTimeline, shiftTimeline } from "../scene-timeline";
+import {
+  buildConversationTimeline,
+  buildSceneTimeline,
+  readingTime,
+  type SceneTimeline,
+  shiftTimeline,
+} from "../scene-timeline";
 
 function allDelays(timeline: SceneTimeline): number[] {
   return [
-    ...(timeline.attachmentAt === undefined ? [] : [timeline.attachmentAt]),
+    ...timeline.attachmentDelays,
     ...timeline.typeCharDelays,
     ...(timeline.sendAt === undefined ? [] : [timeline.sendAt]),
     ...(timeline.workingAt === undefined ? [] : [timeline.workingAt]),
@@ -12,6 +18,7 @@ function allDelays(timeline: SceneTimeline): number[] {
     ...(timeline.doneAt === undefined ? [] : [timeline.doneAt]),
     ...(timeline.replyAt === undefined ? [] : [timeline.replyAt]),
     ...timeline.replyWordDelays,
+    ...timeline.bulletWordDelays.flat(),
     ...timeline.chipDelays,
     ...timeline.rowDelays,
     ...timeline.modelDelays,
@@ -81,20 +88,21 @@ describe("buildSceneTimeline()", () => {
     it("should leave table and model delays empty", () => {
       expect(timeline.rowDelays).toEqual([]);
       expect(timeline.modelDelays).toEqual([]);
-      expect(timeline.attachmentAt).toBeUndefined();
+      expect(timeline.attachmentDelays).toEqual([]);
+      expect(timeline.bulletWordDelays).toEqual([]);
     });
   });
 
   describe("attachment scene", () => {
     // "Import this" = 11 characters.
     const timeline = buildSceneTimeline({
-      user: { text: "Import this", attachment: { name: "statement.pdf", meta: "PDF · 245 KB" } },
+      user: { text: "Import this", attachments: [{ name: "statement.pdf", meta: "PDF · 245 KB" }] },
       working: { steps: ["Extract Text"], duration: "9s" },
       reply: { text: "Imported." },
     });
 
     it("should show the attachment card in the composer first, at 150ms", () => {
-      expect(timeline.attachmentAt).toBe(150);
+      expect(timeline.attachmentDelays).toEqual([150]);
     });
 
     it("should start typing 250ms after the attachment card", () => {
@@ -110,6 +118,68 @@ describe("buildSceneTimeline()", () => {
       expect(timeline.doneAt).toBe(1930);
       expect(timeline.replyAt).toBe(2130);
       expect(timeline.total).toBe(2380);
+    });
+  });
+
+  describe("several attachments", () => {
+    // "Import these" = 12 characters.
+    const timeline = buildSceneTimeline({
+      user: {
+        text: "Import these",
+        attachments: [
+          { name: "a.pdf", meta: "PDF" },
+          { name: "b.csv", meta: "CSV" },
+          { name: "c.pdf", meta: "PDF" },
+        ],
+      },
+    });
+
+    it("should stagger the attachment cards every 150ms from 150ms", () => {
+      expect(timeline.attachmentDelays).toEqual([150, 300, 450]);
+    });
+
+    it("should start typing 250ms after the last card", () => {
+      expect(timeline.typeCharDelays[0]).toBe(700);
+      expect(timeline.typeCharDelays[11]).toBe(1030);
+      expect(timeline.sendAt).toBe(1280);
+    });
+  });
+
+  describe("bullet scene", () => {
+    // "Done. Two things:" = 3 words -> last word at replyAt + 70.
+    const timeline = buildSceneTimeline({
+      user: { text: "Hi" },
+      reply: {
+        text: "Done. Two things:",
+        bullets: ["First one", "Second"],
+        chips: [{ kind: "payee", label: "Netflix" }],
+        table: { head: ["A", "B"], rows: [["x", "1"]] },
+      },
+    });
+    // "Hi": type at 150, 180; send 430; reply 630; last word 700.
+
+    it("should stream the first bullet word by word from 200ms after the reply text", () => {
+      expect(timeline.replyAt).toBe(630);
+      expect(timeline.bulletWordDelays[0]).toEqual([900, 935]);
+    });
+
+    it("should start the next bullet 120ms after the previous bullet's last word", () => {
+      expect(timeline.bulletWordDelays[1]).toEqual([1055]);
+    });
+
+    it("should start chips and rows after the last bullet word", () => {
+      expect(timeline.chipDelays).toEqual([1205]);
+      expect(timeline.rowDelays).toEqual([1255]);
+    });
+
+    it("should end 250ms after the last element", () => {
+      expect(timeline.total).toBe(1505);
+    });
+
+    it("should skip an empty bullet without breaking the chain", () => {
+      const empty = buildSceneTimeline({ reply: { text: "Hi", bullets: ["", "One"] } });
+      // "Hi" streams at 200; the empty bullet still takes its slot at 400.
+      expect(empty.bulletWordDelays).toEqual([[], [520]]);
     });
   });
 
@@ -169,9 +239,9 @@ describe("buildSceneTimeline()", () => {
     });
 
     it("should still send after an empty user text with an attachment", () => {
-      const timeline = buildSceneTimeline({ user: { text: "", attachment: { name: "a.pdf", meta: "PDF" } } });
+      const timeline = buildSceneTimeline({ user: { text: "", attachments: [{ name: "a.pdf", meta: "PDF" }] } });
       expect(timeline.typeCharDelays).toEqual([]);
-      expect(timeline.attachmentAt).toBe(150);
+      expect(timeline.attachmentDelays).toEqual([150]);
       expect(timeline.sendAt).toBe(650);
       expect(timeline.total).toBe(900);
     });
@@ -256,15 +326,20 @@ describe("buildSceneTimeline()", () => {
 
 describe("shiftTimeline()", () => {
   const base = buildSceneTimeline({
-    user: { text: "Hi", attachment: { name: "a.pdf", meta: "PDF" } },
+    user: { text: "Hi", attachments: [{ name: "a.pdf", meta: "PDF" }] },
     working: { steps: ["Commit"], duration: "1s" },
-    reply: { text: "Done.", chips: [{ kind: "payee", label: "Cafe" }], table: { head: ["A"], rows: [["1"]] } },
+    reply: {
+      text: "Done.",
+      bullets: ["One"],
+      chips: [{ kind: "payee", label: "Cafe" }],
+      table: { head: ["A"], rows: [["1"]] },
+    },
     composer: { models: [{ name: "Claude" }] },
   });
 
   it("should move every moment later by the offset", () => {
     const shifted = shiftTimeline(base, 1000);
-    expect(shifted.attachmentAt).toBe((base.attachmentAt as number) + 1000);
+    expect(shifted.attachmentDelays).toEqual(base.attachmentDelays.map((d) => d + 1000));
     expect(shifted.typeCharDelays).toEqual(base.typeCharDelays.map((d) => d + 1000));
     expect(shifted.sendAt).toBe((base.sendAt as number) + 1000);
     expect(shifted.workingAt).toBe((base.workingAt as number) + 1000);
@@ -272,6 +347,7 @@ describe("shiftTimeline()", () => {
     expect(shifted.doneAt).toBe((base.doneAt as number) + 1000);
     expect(shifted.replyAt).toBe((base.replyAt as number) + 1000);
     expect(shifted.replyWordDelays).toEqual(base.replyWordDelays.map((d) => d + 1000));
+    expect(shifted.bulletWordDelays).toEqual(base.bulletWordDelays.map((words) => words.map((d) => d + 1000)));
     expect(shifted.chipDelays).toEqual(base.chipDelays.map((d) => d + 1000));
     expect(shifted.rowDelays).toEqual(base.rowDelays.map((d) => d + 1000));
     expect(shifted.modelDelays).toEqual(base.modelDelays.map((d) => d + 1000));
@@ -280,7 +356,7 @@ describe("shiftTimeline()", () => {
 
   it("should keep absent moments absent", () => {
     const shifted = shiftTimeline(buildSceneTimeline({}), 500);
-    expect(shifted.attachmentAt).toBeUndefined();
+    expect(shifted.attachmentDelays).toEqual([]);
     expect(shifted.sendAt).toBeUndefined();
     expect(shifted.workingAt).toBeUndefined();
     expect(shifted.doneAt).toBeUndefined();
@@ -295,9 +371,36 @@ describe("shiftTimeline()", () => {
   });
 });
 
+describe("readingTime()", () => {
+  it("should be zero without a reply", () => {
+    expect(readingTime({})).toBe(0);
+    expect(readingTime({ user: { text: "Hi" } })).toBe(0);
+  });
+
+  it("should grant 180ms per word of reply prose", () => {
+    expect(readingTime({ reply: { text: "Done. Three things I noticed:" } })).toBe(900);
+  });
+
+  it("should count bullets, chips, and table cells as words too", () => {
+    const time = readingTime({
+      reply: {
+        text: "Two things:", // 2
+        bullets: ["First one", "Second"], // 3
+        chips: [{ kind: "payee", label: "Whole Foods" }], // 2
+        table: { head: ["Account", "Balance"], rows: [["Cash", "$12,450"]] }, // 4
+      },
+    });
+    expect(time).toBe(11 * 180);
+  });
+
+  it("should ignore extra whitespace", () => {
+    expect(readingTime({ reply: { text: "  a   b  " } })).toBe(360);
+  });
+});
+
 describe("buildConversationTimeline()", () => {
   it("should return an empty conversation for no turns", () => {
-    expect(buildConversationTimeline([])).toEqual({ turns: [], total: 0 });
+    expect(buildConversationTimeline([])).toEqual({ turns: [], total: 0, holdAfter: 0 });
   });
 
   it("should play a single turn exactly like a scene", () => {
@@ -307,13 +410,20 @@ describe("buildConversationTimeline()", () => {
     expect(conversation.total).toBe(880);
   });
 
-  it("should start the second turn 1200ms after the first one settled", () => {
-    const first = { user: { text: "Hi" }, reply: { text: "Hello." } }; // settles at 880
+  it("should start the second turn 1200ms plus the reading time after the first one settled", () => {
+    const first = { user: { text: "Hi" }, reply: { text: "Hello." } }; // settles at 880, one word to read: 180
     const second = { user: { text: "Ok" } }; // alone: types at 150/180, sends at 430, settles at 680
     const conversation = buildConversationTimeline([first, second]);
-    expect(conversation.turns[1]?.typeCharDelays).toEqual([2230, 2260]);
-    expect(conversation.turns[1]?.sendAt).toBe(2510);
-    expect(conversation.total).toBe(2760);
+    expect(conversation.turns[1]?.typeCharDelays).toEqual([2410, 2440]);
+    expect(conversation.turns[1]?.sendAt).toBe(2690);
+    expect(conversation.total).toBe(2940);
+  });
+
+  it("should hold the final frame 2500ms plus the last turn's reading time", () => {
+    const first = { user: { text: "Hi" }, reply: { text: "Hello there." } };
+    const second = { user: { text: "Ok" }, reply: { text: "Sure, done." } }; // 2 words: 360
+    expect(buildConversationTimeline([first, second]).holdAfter).toBe(2860);
+    expect(buildConversationTimeline([second, { user: { text: "Ok" } }]).holdAfter).toBe(2500);
   });
 });
 
@@ -327,10 +437,10 @@ describe("hero demo conversation", () => {
     expect(heroDemo.chatTitle.trim().length).toBeGreaterThan(0);
   });
 
-  it("should settle within twelve seconds so the loop stays short", () => {
+  it("should play and hold within thirty-five seconds so the loop stays watchable", () => {
     const conversation = buildConversationTimeline(heroDemo.turns);
     expect(conversation.total).toBeGreaterThan(0);
-    expect(conversation.total).toBeLessThan(12000);
+    expect(conversation.total + conversation.holdAfter).toBeLessThan(35000);
     for (let i = 1; i < conversation.turns.length; i++) {
       const previous = conversation.turns[i - 1] as SceneTimeline;
       const next = conversation.turns[i] as SceneTimeline;

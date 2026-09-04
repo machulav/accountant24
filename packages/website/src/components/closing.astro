@@ -4,12 +4,15 @@ import Icon from "./icons.astro";
 ---
 
 <section class="mx-auto max-w-6xl px-6 py-12 lg:py-16" aria-labelledby="closing-title">
-  <div class="closing-forest rounded-3xl px-6 py-12 text-center text-bg sm:px-12 lg:py-16">
+  {/* The glow sits on a wrapper: inside the card --bg is pinned to white for
+      the light text, which would turn the page-colored glow white too. */}
+  <div class="field-glow rounded-3xl">
+  <div class="closing-forest rounded-3xl border border-line px-6 py-12 text-center text-bg sm:px-12 lg:py-16">
     <h2 id="closing-title" class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-      Try it with your next receipt
+      Try it with last month's statement
     </h2>
     <p class="mx-auto mt-3 max-w-xl text-lg text-bg/70 text-pretty">
-      Download, connect an LLM, and log your first transaction in minutes.
+      Download, sign in with ChatGPT or Claude, and see where the money went in minutes.
     </p>
     <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
       <a href={site.downloadUrl} data-track="download_clicked" data-placement="closing" class="btn btn-primary">
@@ -17,15 +20,16 @@ import Icon from "./icons.astro";
         Download for macOS
       </a>
       <a
-        href={site.github}
+        href={site.github} target="_blank" rel="noopener"
         data-track="github_clicked"
         data-placement="closing"
         class="btn border border-bg/20 text-bg hover:bg-bg/10"
       >
         <Icon name="github" />
-        Star on GitHub
+        Star us on GitHub
       </a>
     </div>
+  </div>
   </div>
 </section>
 
@@ -38,6 +42,8 @@ import Icon from "./icons.astro";
     --bg: oklch(1 0 0);
     background: oklch(0.5 0.05 205) url("/hero-forest-dither.webp") center / cover no-repeat;
     background-blend-mode: multiply;
+    /* As on the hero frame: the picture runs under the hairline. */
+    background-origin: border-box;
   }
   /* On a dark page the card can go deeper into the night. */
   @media (prefers-color-scheme: dark) {

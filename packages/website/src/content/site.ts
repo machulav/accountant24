@@ -8,11 +8,11 @@ export const site = {
   url: "https://accountant24.ai",
   title: "Open source AI agent for personal finance | Accountant24",
   description:
-    "Accountant24 is an open source AI agent for personal finance. Log spending, import bank statements and receipts, ask questions about your money. Your data stays on your machine as plain text files, versioned with git.",
+    "Accountant24 is an open source AI agent for personal finance. Log spending in plain language, import bank statements, CSV exports and receipts, ask questions about your money. Your data stays on your machine as plain text files, versioned with git.",
   headline: "Open source AI agent for personal finance",
   tagline: "Runs on your machine, you own the data",
   supporting:
-    "Log spending, import bank statements and receipts, ask questions about your money. Your books are plain text files you own, versioned with git. Works with any LLM, including local ones.",
+    "Log spending, import bank statements and receipts, ask questions about your money. Works with any LLM, including local ones.",
   github: "https://github.com/machulav/accountant24",
   downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
   releasesUrl: "https://github.com/machulav/accountant24/releases",
@@ -31,12 +31,13 @@ export interface DemoChip {
 // A scripted demo scene the app mock plays (the hero window on a loop, the
 // features mock per feature). Fields are optional so a scene can be
 // chat-shaped (user, working, reply) or composer-shaped (an open model menu).
-// Keep tables at three or fewer columns and four or fewer rows so they fit the
-// mock's narrow thread.
+// Keep tables at three or fewer columns and four or fewer rows, and bullet
+// lists at three or fewer items, so they fit the mock's narrow thread. A blank
+// line ("\n\n") in a reply text starts a new paragraph.
 export interface SceneDemo {
-  user?: { text: string; attachment?: { name: string; meta: string } };
+  user?: { text: string; attachments?: { name: string; meta: string }[] };
   working?: { steps: string[]; duration: string };
-  reply?: { text: string; chips?: DemoChip[]; table?: { head: string[]; rows: string[][] } };
+  reply?: { text: string; bullets?: string[]; chips?: DemoChip[]; table?: { head: string[]; rows: string[][] } };
   composer?: { models?: { name: string; note?: string }[] };
 }
 
@@ -85,13 +86,31 @@ export const features: Feature[] = [
   {
     title: "Statement and receipt import",
     description:
-      "A PDF bank statement, an invoice, or a photo of a paper receipt becomes transactions in your ledger. The original file is archived in your workspace and attached to the transactions.",
+      "A PDF bank statement, a CSV export, an invoice, or a photo of a paper receipt becomes transactions in your ledger. The original file is archived in your workspace and attached to the transactions.",
     demo: {
       chatTitle: "August statement import",
-      user: { text: "Import this statement", attachment: { name: "statement-aug.pdf", meta: "PDF · 245 KB" } },
+      user: { text: "Import this statement", attachments: [{ name: "statement-aug.pdf", meta: "PDF · 245 KB" }] },
       working: { steps: ["Extract Text", "Add Transactions", "Commit"], duration: "9s" },
       reply: {
-        text: "Imported 23 transactions from August. The original statement is archived in your workspace and attached to them.",
+        text: "Done. I added 23 transactions from your August statement.",
+      },
+    },
+  },
+  {
+    title: "Corrections that stick",
+    description:
+      "Correct a category once, or mention a budget or a habit, and the agent remembers it and applies it whenever it matters.",
+    link: { label: "How memory works", href: "/docs/memory" },
+    demo: {
+      chatTitle: "Costco is groceries",
+      user: { text: "Costco is groceries, not shopping" },
+      working: { steps: ["Bulk Edit Transactions", "Update Memory", "Commit"], duration: "5s" },
+      reply: {
+        text: "Moved 6 Costco transactions to groceries and noted the rule, so future Costco receipts go there too:",
+        chips: [
+          { kind: "payee", label: "Costco" },
+          { kind: "account", label: "Expenses:Groceries" },
+        ],
       },
     },
   },
@@ -118,27 +137,24 @@ export const features: Feature[] = [
     },
   },
   {
-    title: "Persistent memory",
-    description:
-      "The agent remembers your rules, budgets, and habits from one mention, and applies them when it matters.",
-    link: { label: "How memory works", href: "/docs/memory" },
-    demo: {
-      chatTitle: "Rent going up",
-      user: { text: "Rent goes up to $1,950 from October" },
-      working: { steps: ["Update Memory"], duration: "2s" },
-      reply: { text: "Noted. From October I will expect rent at $1,950 and flag anything that does not match." },
-    },
-  },
-  {
     title: "Plugin marketplace",
     description:
-      "Extend the agent with new capabilities. Install plugins other people have built from the marketplace, or describe a routine, like a monthly review or a subscription audit, and the agent builds a plugin for you.",
+      "Extend the agent with new capabilities. Install plugins other people have built from the marketplace, like a subscription audit, or describe a routine, like a monthly review, and the agent builds a plugin for you.",
     link: { label: "Browse the marketplace", href: "/docs/marketplace" },
     demo: {
-      chatTitle: "Monthly review",
-      user: { text: "Run my monthly review" },
-      working: { steps: ["Use Skill: reviews:monthly-review", "Query Ledger"], duration: "12s" },
-      reply: { text: "August looks healthy. Spending is down 8% from July, and your savings rate came in at 21%." },
+      chatTitle: "Subscription audit",
+      user: { text: "Audit my subscriptions" },
+      working: { steps: ["Use Skill: skills:subscription-audit", "Query Ledger"], duration: "10s" },
+      reply: {
+        text: "You pay for 9 subscriptions, $112 a month. Two have had no use logged since May:",
+        table: {
+          head: ["Subscription", "Monthly"],
+          rows: [
+            ["Hulu", "$17.99"],
+            ["Peloton App", "$12.99"],
+          ],
+        },
+      },
     },
   },
   {
@@ -171,29 +187,41 @@ export const features: Feature[] = [
 ];
 
 export const heroDemo: HeroDemo = {
-  chatTitle: "Groceries at Whole Foods",
+  chatTitle: "August statements",
   turns: [
     {
-      user: { text: "I spent $45 at Whole Foods yesterday" },
-      working: { steps: ["Add Transactions", "Commit"], duration: "3s" },
+      user: {
+        text: "Import my August statements",
+        attachments: [
+          { name: "chase-aug.pdf", meta: "PDF · 312 KB" },
+          { name: "amex-aug.csv", meta: "CSV · 41 KB" },
+          { name: "fidelity-aug.pdf", meta: "PDF · 188 KB" },
+        ],
+      },
+      working: {
+        steps: ["Extract Text", "Add Transactions", "Add Balance Assertions", "Add Prices", "Commit"],
+        duration: "14s",
+      },
       reply: {
-        text: "Recorded. $45 from your checking account to groceries, dated yesterday:",
-        chips: [
-          { kind: "payee", label: "Whole Foods" },
-          { kind: "account", label: "Expenses:Groceries" },
+        text: "Imported 61 transactions from three statements. Balances match, and your Fidelity investments are up to date as of August 31.\n\nThree things I noticed:",
+        bullets: [
+          "Your $412 Delta refund came through. I linked it to the original transaction, as you asked.",
+          "Netflix charged $17.99, up from $15.49 last month.",
+          "I don't see August rent in these statements. You usually pay it by the end of the month.",
         ],
       },
     },
     {
-      user: { text: "How much did I spend on food this month?" },
-      working: { steps: ["Query Ledger"], duration: "4s" },
+      user: { text: "What's my net worth now?" },
+      working: { steps: ["Query Ledger"], duration: "3s" },
       reply: {
-        text: "$312 so far in September, about a fifth under your usual pace:",
+        text: "$84,310, up $1,240 since July. Investments gained $1,620, cash and cards slipped a little:",
         table: {
-          head: ["Account", "September"],
+          head: ["Account", "Balance", "Change"],
           rows: [
-            ["Groceries", "$245.10"],
-            ["Restaurants", "$66.90"],
+            ["Cash", "$12,450", "-$310"],
+            ["Investments", "$73,600", "+$1,620"],
+            ["Credit cards", "-$1,740", "-$70"],
           ],
         },
       },

@@ -28,7 +28,7 @@ import Icon from "./icons.astro";
             <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
             {feature.link && (
               <a
-                href={feature.link.href}
+                href={feature.link.href} target="_blank" rel="noopener"
                 data-track="docs_clicked"
                 data-placement="features"
                 class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-ink hover:underline"

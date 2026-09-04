@@ -5,8 +5,8 @@
 import type { SceneDemo } from "../content/site";
 
 export interface SceneTimeline {
-  /** The attachment card appears in the composer. */
-  attachmentAt?: number;
+  /** Per attachment card appearing in the composer. */
+  attachmentDelays: number[];
   /** Per character the user types into the composer. */
   typeCharDelays: number[];
   /** The message is sent: the composer clears and the bubble lands in the thread. */
@@ -21,6 +21,8 @@ export interface SceneTimeline {
   replyAt?: number;
   /** Per assistant-reply word, streamed like tokens. */
   replyWordDelays: number[];
+  /** Per bullet under the reply prose, per word: streamed like the prose. */
+  bulletWordDelays: number[][];
   /** Per entity chip under the reply. */
   chipDelays: number[];
   /** Per table row under the reply. */
@@ -33,13 +35,16 @@ export interface SceneTimeline {
 
 const START_MS = 150; // scene lead-in before the first element
 const TYPE_CHAR_MS = 30; // per character typed into the composer
-const ATTACHMENT_GAP_MS = 250; // typing starts this long after the attachment card
+const ATTACHMENT_MS = 150; // between attachment cards
+const ATTACHMENT_GAP_MS = 250; // typing starts this long after the last attachment card
 const SEND_GAP_MS = 250; // the send after the last typed character
 const WORKING_GAP_MS = 350; // "Working" appears after the message is sent
 const STEP_MS = 380; // between tool steps
 const DONE_GAP_MS = 250; // the "Worked for Ns" swap after the last step
 const REPLY_GAP_MS = 200; // the reply after the swap
 const REPLY_WORD_MS = 35; // per streamed reply word
+const BULLET_START_MS = 200; // the first bullet's first word after the reply prose
+const BULLET_MS = 120; // the next bullet's first word after the previous bullet's last
 const CHIP_START_MS = 150; // first chip after the reply prose
 const CHIP_MS = 100; // between chips
 const ROW_START_MS = 200; // first table row after the reply prose
@@ -47,21 +52,21 @@ const ROW_MS = 120; // between table rows
 const MODEL_START_MS = 300; // first model-menu row
 const MODEL_MS = 150; // between model-menu rows
 const IN_MS = 250; // entrance animation length; matches `fdemo-in` in mock-scene.astro
-const TURN_GAP_MS = 1200; // the pause before the next turn of a conversation starts
+const TURN_GAP_MS = 1200; // the pause before the next turn of a conversation starts, on top of the reading time
+const READ_WORD_MS = 180; // reading time granted per word the agent showed (about 330 words a minute)
+const HOLD_MS = 2500; // the final frame of a conversation stays this long, on top of the reading time
 
 export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   let t = 0;
 
   const typeCharDelays: number[] = [];
-  let attachmentAt: number | undefined;
+  const attachmentDelays: number[] = [];
   let sendAt: number | undefined;
   if (demo.user) {
-    if (demo.user.attachment) {
-      attachmentAt = START_MS;
-      t = attachmentAt + ATTACHMENT_GAP_MS;
-    } else {
-      t = START_MS;
-    }
+    const attachments = demo.user.attachments ?? [];
+    for (let i = 0; i < attachments.length; i++) attachmentDelays.push(START_MS + i * ATTACHMENT_MS);
+    const lastAttachment = attachmentDelays[attachmentDelays.length - 1];
+    t = lastAttachment === undefined ? START_MS : lastAttachment + ATTACHMENT_GAP_MS;
     const chars = [...demo.user.text.trim()];
     for (let i = 0; i < chars.length; i++) typeCharDelays.push(t + i * TYPE_CHAR_MS);
     sendAt = (typeCharDelays[typeCharDelays.length - 1] ?? t) + SEND_GAP_MS;
@@ -79,6 +84,7 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
     t = doneAt;
   }
 
+  const bulletWordDelays: number[][] = [];
   const chipDelays: number[] = [];
   const rowDelays: number[] = [];
   const replyWordDelays: number[] = [];
@@ -89,11 +95,20 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
     const words = demo.reply.text.split(/\s+/).filter(Boolean);
     for (let i = 0; i < words.length; i++) replyWordDelays.push(at + i * REPLY_WORD_MS);
     const textEnd = replyWordDelays[replyWordDelays.length - 1] ?? at;
+    let proseEnd = textEnd;
+    for (const [i, bullet] of (demo.reply.bullets ?? []).entries()) {
+      const start = proseEnd + (i === 0 ? BULLET_START_MS : BULLET_MS);
+      const bulletWords = bullet.split(/\s+/).filter(Boolean);
+      const delays = bulletWords.map((_, wi) => start + wi * REPLY_WORD_MS);
+      bulletWordDelays.push(delays);
+      proseEnd = delays[delays.length - 1] ?? start;
+    }
+    // Chips and rows follow the prose, or the last bullet when there are any.
     const chips = demo.reply.chips ?? [];
-    for (let i = 0; i < chips.length; i++) chipDelays.push(textEnd + CHIP_START_MS + i * CHIP_MS);
+    for (let i = 0; i < chips.length; i++) chipDelays.push(proseEnd + CHIP_START_MS + i * CHIP_MS);
     const rows = demo.reply.table?.rows ?? [];
-    for (let i = 0; i < rows.length; i++) rowDelays.push(textEnd + ROW_START_MS + i * ROW_MS);
-    t = Math.max(textEnd, chipDelays[chipDelays.length - 1] ?? textEnd, rowDelays[rowDelays.length - 1] ?? textEnd);
+    for (let i = 0; i < rows.length; i++) rowDelays.push(proseEnd + ROW_START_MS + i * ROW_MS);
+    t = Math.max(proseEnd, chipDelays[chipDelays.length - 1] ?? proseEnd, rowDelays[rowDelays.length - 1] ?? proseEnd);
   }
 
   const modelDelays: number[] = [];
@@ -102,7 +117,7 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   t = Math.max(t, modelDelays[modelDelays.length - 1] ?? t);
 
   return {
-    attachmentAt,
+    attachmentDelays,
     typeCharDelays,
     sendAt,
     workingAt,
@@ -110,6 +125,7 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
     doneAt,
     replyAt,
     replyWordDelays,
+    bulletWordDelays,
     chipDelays,
     rowDelays,
     modelDelays,
@@ -117,12 +133,28 @@ export function buildSceneTimeline(demo: SceneDemo): SceneTimeline {
   };
 }
 
+/** How long a reader needs for everything the agent showed in a turn: the
+ *  reply prose, bullets, chips, and table cells, at READ_WORD_MS per word. */
+export function readingTime(demo: SceneDemo): number {
+  const reply = demo.reply;
+  if (!reply) return 0;
+  const texts = [
+    reply.text,
+    ...(reply.bullets ?? []),
+    ...(reply.chips ?? []).map((chip) => chip.label),
+    ...(reply.table?.head ?? []),
+    ...(reply.table?.rows ?? []).flat(),
+  ];
+  const words = texts.flatMap((text) => text.split(/\s+/).filter(Boolean));
+  return words.length * READ_WORD_MS;
+}
+
 /** The same timeline, every moment moved later by `offset` ms. */
 export function shiftTimeline(timeline: SceneTimeline, offset: number): SceneTimeline {
   const at = (value: number | undefined) => (value === undefined ? undefined : value + offset);
   const all = (values: number[]) => values.map((value) => value + offset);
   return {
-    attachmentAt: at(timeline.attachmentAt),
+    attachmentDelays: all(timeline.attachmentDelays),
     typeCharDelays: all(timeline.typeCharDelays),
     sendAt: at(timeline.sendAt),
     workingAt: at(timeline.workingAt),
@@ -130,6 +162,7 @@ export function shiftTimeline(timeline: SceneTimeline, offset: number): SceneTim
     doneAt: at(timeline.doneAt),
     replyAt: at(timeline.replyAt),
     replyWordDelays: all(timeline.replyWordDelays),
+    bulletWordDelays: timeline.bulletWordDelays.map(all),
     chipDelays: all(timeline.chipDelays),
     rowDelays: all(timeline.rowDelays),
     modelDelays: all(timeline.modelDelays),
@@ -142,16 +175,24 @@ export interface ConversationTimeline {
   turns: SceneTimeline[];
   /** When the whole conversation has settled, ms. */
   total: number;
+  /** How long the settled conversation stays on screen before a replay, ms. */
+  holdAfter: number;
 }
 
-/** Turns played one after another in a single thread, each starting a pause after the previous one settled. */
+/** Turns played one after another in a single thread, each starting after
+ *  the previous one settled plus the time to read what it showed. */
 export function buildConversationTimeline(turns: SceneDemo[]): ConversationTimeline {
   const shifted: SceneTimeline[] = [];
   let offset = 0;
   for (const turn of turns) {
     const timeline = shiftTimeline(buildSceneTimeline(turn), offset);
     shifted.push(timeline);
-    offset = timeline.total + TURN_GAP_MS;
+    offset = timeline.total + readingTime(turn) + TURN_GAP_MS;
   }
-  return { turns: shifted, total: shifted[shifted.length - 1]?.total ?? 0 };
+  const last = turns[turns.length - 1];
+  return {
+    turns: shifted,
+    total: shifted[shifted.length - 1]?.total ?? 0,
+    holdAfter: last === undefined ? 0 : readingTime(last) + HOLD_MS,
+  };
 }

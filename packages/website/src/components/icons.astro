@@ -13,7 +13,9 @@ interface Props {
     | "file"
     | "receipt"
     | "wallet"
-    | "settings";
+    | "settings"
+    | "pause"
+    | "play";
   class?: string;
 }
 const { name, class: className = "size-4" } = Astro.props;
@@ -65,6 +67,21 @@ const { name, class: className = "size-4" } = Astro.props;
   name === "chevron-down" && (
     <svg class={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+{
+  name === "pause" && (
+    <svg class={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </svg>
+  )
+}
+{
+  name === "play" && (
+    <svg class={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M6 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 6 4.5Z" />
     </svg>
   )
 }
