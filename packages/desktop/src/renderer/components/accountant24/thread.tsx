@@ -21,8 +21,10 @@ import { CompactionIndicator, CompactionSummary } from "@/components/accountant2
 import { Composer, EditComposer, isNewChatView } from "@/components/accountant24/composer";
 import { MarkdownText } from "@/components/accountant24/markdown-text";
 import { MessageError } from "@/components/accountant24/message-error";
+import { PromptIdeas } from "@/components/accountant24/prompt-ideas";
 import { ToolFallback } from "@/components/accountant24/tool-fallback";
 import { TooltipIconButton } from "@/components/accountant24/tooltip-icon-button";
+import { useTransactionCount } from "@/components/accountant24/use-transaction-count";
 import { Bubble, BubbleContent } from "@/components/shadcn/bubble";
 import { Message, MessageContent, MessageGroup } from "@/components/shadcn/message";
 import { cn } from "@/lib/utils";
@@ -58,15 +60,18 @@ const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const isEmpty = useAuiState(isNewChatView);
+  // Read here, where the thread stays mounted across chats, so a New Chat
+  // visit shows its prompt ideas at once instead of after a fetch.
+  const transactionCount = useTransactionCount();
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} />
+      <ThreadRoot isEmpty={isEmpty} transactionCount={transactionCount} />
     </ThreadComponentsContext.Provider>
   );
 };
 
-const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
+const ThreadRoot: FC<{ isEmpty: boolean; transactionCount: number | null }> = ({ isEmpty, transactionCount }) => {
   const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
 
   return (
@@ -113,6 +118,12 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
           >
             <ThreadScrollToBottom />
             <Composer />
+            {/* Mounted per New Chat visit (AuiIf drops it with the first
+                message or an existing chat), which is what makes each visit
+                pick a fresh set. */}
+            <AuiIf condition={isNewChatView}>
+              <PromptIdeas transactionCount={transactionCount} />
+            </AuiIf>
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>

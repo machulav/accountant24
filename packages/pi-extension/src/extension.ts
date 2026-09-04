@@ -44,6 +44,9 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
   // setup and a desktop session can span days, so re-stamp it each turn.
   pi.on("before_agent_start", async (event) => {
     const today = new Date().toISOString().split("T")[0];
+    // The app exports the bundled docs folder (only when it exists) so the
+    // prompt can name it; read per turn, like the rest of the context.
+    const docsDir = process.env.ACCOUNTANT24_DOCS || undefined;
     const [memory, accounts, payees, tags] = await Promise.all([getMemory(), listAccounts(), listPayees(), listTags()]);
 
     const { selectedTools = [], toolSnippets = {}, promptGuidelines = [] } = event.systemPromptOptions;
@@ -55,7 +58,7 @@ export function createAccountantExtension(pi: ExtensionAPI): void {
       systemPrompt:
         patchBakedDate(event.systemPrompt, today) +
         buildToolsSection(tools, promptGuidelines) +
-        buildContextSection({ today, memory, accounts, payees, tags }),
+        buildContextSection({ today, docsDir, memory, accounts, payees, tags }),
     };
   });
 }

@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   isPackaged: false,
   version: "0.0.0",
   handlers: new Map<string, Handler>(),
+  nativeHandlers: new Map<string, Handler>(),
   ipcHandlers: new Map<string, InvokeHandler>(),
   checkForUpdates: vi.fn(() => Promise.resolve()),
   quitAndInstall: vi.fn(),
@@ -35,6 +36,13 @@ vi.mock("electron", () => ({
   ipcMain: {
     handle: (channel: string, fn: InvokeHandler) => {
       h.ipcHandlers.set(channel, fn);
+    },
+  },
+  // Electron's native Squirrel.Mac updater, which electron-updater hands the
+  // fetched zip to; its update-downloaded means the build is staged.
+  autoUpdater: {
+    on: (event: string, fn: Handler) => {
+      h.nativeHandlers.set(event, fn);
     },
   },
 }));
@@ -61,6 +69,12 @@ import { shouldAutoUpdate } from "../updater";
 const getWin = () => ({ webContents: { send: h.send } }) as unknown as import("electron").BrowserWindow;
 
 const emit = (event: string, payload?: unknown) => h.handlers.get(event)?.(payload);
+const emitNative = (event: string) => h.nativeHandlers.get(event)?.();
+// The full happy path: electron-updater fetched the zip, then Squirrel staged it.
+const stage = (version: string) => {
+  emit("update-downloaded", { version });
+  emitNative("update-downloaded");
+};
 const invoke = (channel: string, payload?: unknown) => h.ipcHandlers.get(channel)?.({}, payload);
 
 describe("shouldAutoUpdate()", () => {
@@ -91,6 +105,7 @@ describe("initAutoUpdater()", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     h.handlers.clear();
+    h.nativeHandlers.clear();
     h.ipcHandlers.clear();
     h.send.mockClear();
     h.quitAndInstall.mockClear();
@@ -151,10 +166,31 @@ describe("initAutoUpdater()", () => {
     expect(h.trackUpdateFailed).not.toHaveBeenCalled();
   });
 
-  it("should push update-downloaded to the renderer with the new version", () => {
+  it("should not push to the renderer while Squirrel is still staging the fetched build", () => {
     initAutoUpdater(getWin);
     emit("update-downloaded", { version: "1.1.0" });
+    expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it("should push update-downloaded to the renderer with the new version once Squirrel has staged it", () => {
+    initAutoUpdater(getWin);
+    stage("1.1.0");
     expect(h.send).toHaveBeenCalledExactlyOnceWith("update-downloaded", "1.1.0");
+  });
+
+  it("should ignore a native update-downloaded that no fetched build precedes", () => {
+    initAutoUpdater(getWin);
+    emitNative("update-downloaded");
+    expect(h.send).not.toHaveBeenCalled();
+    expect(invoke("update_pending")).toBeNull();
+  });
+
+  it("should push once per fetched build, not again on a repeated native event", () => {
+    initAutoUpdater(getWin);
+    stage("1.1.0");
+    emitNative("update-downloaded");
+    expect(h.send).toHaveBeenCalledTimes(1);
+    expect(invoke("update_pending")).toBe("1.1.0");
   });
 
   it("should report no pending update before a download completes", () => {
@@ -162,15 +198,29 @@ describe("initAutoUpdater()", () => {
     expect(invoke("update_pending")).toBeNull();
   });
 
-  it("should report the staged version via update_pending after a download completes", () => {
+  it("should report no pending update while Squirrel is still staging the fetched build", () => {
     initAutoUpdater(getWin);
     emit("update-downloaded", { version: "1.1.0" });
+    expect(invoke("update_pending")).toBeNull();
+  });
+
+  it("should report the staged version via update_pending once Squirrel has staged it", () => {
+    initAutoUpdater(getWin);
+    stage("1.1.0");
     expect(invoke("update_pending")).toBe("1.1.0");
+  });
+
+  it("should not quit and install while Squirrel is still staging the fetched build", () => {
+    initAutoUpdater(getWin);
+    emit("update-downloaded", { version: "1.1.0" });
+    invoke("update_install");
+    expect(h.quitAndInstall).not.toHaveBeenCalled();
+    expect(h.trackUpdateInstallClicked).not.toHaveBeenCalled();
   });
 
   it("should quit and install (not relaunch) when installing a staged update in a packaged build", () => {
     initAutoUpdater(getWin);
-    emit("update-downloaded", { version: "1.1.0" });
+    stage("1.1.0");
     invoke("update_install");
     expect(h.quitAndInstall).toHaveBeenCalledOnce();
     expect(h.relaunch).not.toHaveBeenCalled();

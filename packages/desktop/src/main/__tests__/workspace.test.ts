@@ -134,6 +134,12 @@ describe("ensureWorkspace()", () => {
     expect(content).toContain("auth.json");
   });
 
+  test("should keep uv's Python and package cache (uv/) out of the workspace repo", async () => {
+    await ensureWorkspace();
+    const lines = readFileSync(join(BASE, ".gitignore"), "utf-8").split("\n");
+    expect(lines).toContain("uv/");
+  });
+
   test("should produce an output file for every template file", async () => {
     await ensureWorkspace();
     for (const relPath of EXPECTED_TEMPLATE_FILES) {

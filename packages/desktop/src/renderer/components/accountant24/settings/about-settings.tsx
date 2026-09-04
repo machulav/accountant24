@@ -85,11 +85,11 @@ export function AboutSettings() {
           {pendingUpdate && (
             <SettingsRow>
               <ItemContent>
-                <ItemTitle>Update ready: v{pendingUpdate}</ItemTitle>
+                <ItemTitle>Update available: v{pendingUpdate}</ItemTitle>
               </ItemContent>
               <ItemActions>
                 <Button size="sm" variant="outline" onClick={() => void updateApi.install()}>
-                  Relaunch to update
+                  Relaunch to install
                 </Button>
               </ItemActions>
             </SettingsRow>

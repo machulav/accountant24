@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
@@ -9,7 +9,11 @@ import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 // Electron bridge. Stub them so the thread (which always renders the composer)
 // mounts without a real main process.
 vi.mock("@/rpc/api", () => ({
-  ledgerApi: { mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }) },
+  ledgerApi: {
+    mentions: vi.fn().mockResolvedValue({ accounts: [], payees: [], tags: [] }),
+    // The prompt ideas under the composer read the ledger's size.
+    transactionCount: vi.fn().mockResolvedValue(0),
+  },
   // The composer's `/` skills picker lists skills over IPC.
   pluginsApi: { list: vi.fn().mockResolvedValue({ plugins: [] }), onEvent: vi.fn(async () => () => {}) },
   settingsApi: {
@@ -129,6 +133,26 @@ describe("Thread welcome vs. messages", () => {
     );
     expect(await screen.findByText("what is my balance?")).toBeInTheDocument();
     expect(screen.queryByText("How can I help you today?")).toBeNull();
+  });
+
+  it("should list five prompt ideas under the composer on the welcome screen", async () => {
+    render(
+      <Chrome threadListLoading>
+        <Thread />
+      </Chrome>,
+    );
+    const ideas = await screen.findByRole("list", { name: "Prompt ideas" });
+    expect(within(ideas).getAllByRole("button")).toHaveLength(5);
+  });
+
+  it("should not list prompt ideas once the thread has content", async () => {
+    render(
+      <Chrome messages={[userMsg("what is my balance?")]}>
+        <Thread />
+      </Chrome>,
+    );
+    expect(await screen.findByText("what is my balance?")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Prompt ideas" })).toBeNull();
   });
 
   it("should render the assistant's answer text", async () => {

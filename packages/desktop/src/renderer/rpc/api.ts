@@ -142,6 +142,8 @@ export const ledgerApi = {
   netWorth: () => api.invoke<NetWorth>("ledger_net_worth"),
   /** Fetch the `hledger print` register (journal order) for the Transactions view. */
   transactions: () => api.invoke<LedgerTransaction[]>("ledger_transactions"),
+  /** Fetch the journal's transaction count (from `hledger stats`) for the prompt ideas. */
+  transactionCount: () => api.invoke<number>("ledger_transaction_count"),
 };
 
 export const pluginsApi = {

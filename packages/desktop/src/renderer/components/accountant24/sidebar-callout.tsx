@@ -25,9 +25,13 @@ export function SidebarCallout({ icon: Icon, title, subtitle, className, ...prop
          column; the focus-visible ring alone marks focus. The --radius bump
          mirrors the settings SidebarFooter override so rounded-xl computes to
          the same radius in both footers (the stock chat SidebarFooter leaves
-         --radius at the base value, where rounded-xl is squarer). */
+         --radius at the base value, where rounded-xl is squarer).
+         cursor-default: rendered as an anchor (StarCallout) the block would get
+         the UA's pointer cursor while the button form (UpdateBanner) keeps the
+         default one; pin it so the same block never shows two cursors, and
+         matches the app's other buttons. */
       className={cn(
-        "h-auto w-full justify-start gap-2 rounded-xl border-0 [--radius:var(--radius-xl)] bg-primary/10 px-3 py-2.5 text-left hover:bg-primary/15 dark:hover:bg-primary/15",
+        "h-auto w-full cursor-default justify-start gap-2 rounded-xl border-0 [--radius:var(--radius-xl)] bg-primary/10 px-3 py-2.5 text-left hover:bg-primary/15 dark:hover:bg-primary/15",
         className,
       )}
       {...props}

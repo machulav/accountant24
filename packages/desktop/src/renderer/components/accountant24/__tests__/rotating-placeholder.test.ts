@@ -8,7 +8,7 @@ import { useRotatingPlaceholder } from "../rotating-placeholder";
 // for 100ms, then shows the next tip (mentions, then skills, then wraps).
 const PLAIN_PROMPT = "Write a message...";
 const MENTION_TIP = "Type @ to mention accounts, payees, tags";
-const SKILL_TIP = "Type / to use a skill";
+const SKILL_TIP = "Type / to use skills";
 const ROTATE_MS = 5_000;
 const SWAP_MS = 100;
 

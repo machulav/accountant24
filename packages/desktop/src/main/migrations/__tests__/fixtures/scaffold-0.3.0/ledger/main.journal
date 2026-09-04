@@ -1,0 +1,4 @@
+; Accountant24
+
+include commodities.journal
+include accounts.journal

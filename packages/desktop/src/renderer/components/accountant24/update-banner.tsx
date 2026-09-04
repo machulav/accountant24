@@ -9,8 +9,8 @@ export const UpdateBanner: FC<{ version: string }> = ({ version }) => {
   return (
     <SidebarCallout
       icon={SparklesIcon}
-      title="Relaunch to update"
-      subtitle={`v${version}`}
+      title="Update available"
+      subtitle={`Relaunch to install v${version}`}
       onClick={() => void updateApi.install()}
     />
   );

@@ -122,7 +122,41 @@ Put reference material in the skill's `references/` folder. Point the agent at a
 
 ## Helper scripts
 
-Put helper code in the skill's `scripts/` folder, and tell the agent in the instructions when to run it.
+Put helper code in the skill's `scripts/` folder, and tell the agent in the instructions when to run it. Most skills need no script. The agent already has `hledger`, `pdftotext`, `tesseract` and `bash`, plus its own tools to query and change the ledger. Write a script only for a step those cannot do.
+
+Scripts are Python, and the agent runs them with `uv run scripts/<name>.py`. The app ships [uv](https://docs.astral.sh/uv/), a Python runner, so there is nothing to install. The first run downloads Python once, over the network, and keeps it in the workspace. After that, everything runs locally.
+
+Every script opens with an inline metadata header, as [PEP 723](https://peps.python.org/pep-0723/) defines it, that names the Python version and pins the packages the script imports.
+
+Here is an example that reads a spreadsheet the user attached, a format none of the built-in tools open:
+
+```python
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["openpyxl==3.1.5"]
+# ///
+import json
+import sys
+from openpyxl import load_workbook
+
+if len(sys.argv) != 2:
+    print("usage: budget.py budget.xlsx", file=sys.stderr)
+    sys.exit(2)
+
+sheet = load_workbook(sys.argv[1], read_only=True).active
+rows = [[cell.value for cell in row] for row in sheet.iter_rows()]
+print(json.dumps({"rows": rows}))
+```
+
+uv installs the pinned packages into an environment of its own on the first run. Pin every package to an exact version. The script can pull anything from PyPI, and a reader of your repository should see exactly what runs.
+
+Write scripts for the agent, not for a person:
+
+- Take everything as command-line arguments, and never prompt for input.
+- Print the result as JSON on stdout.
+- On failure, print what went wrong on stderr and exit with a non-zero code.
+
+Then name the command in the skill's steps. For this script, tell the agent to run `uv run scripts/budget.py` with the path of the spreadsheet from the skill's folder, and to read the rows it prints.
 
 ## Several skills in one plugin
 
@@ -191,6 +225,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 - `plugin.json` at the root, with a `name` that matches the folder and follows the naming rules, and a `description` of what the plugin does.
 - At least one `skills/<name>/SKILL.md`, its frontmatter `name` matching its folder, with a description written for matching.
 - No unknown fields in the manifest.
+- Scripts, if any, are Python files with an inline metadata header and every package pinned to a version.
 - Tested in the app, both from the `/` picker and by asking in your own words.
 - Public repository with the `accountant24-plugin` topic, previewed with the command above.
 

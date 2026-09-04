@@ -6,12 +6,17 @@
 import { rmSync } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { ipcMain } from "electron";
-import { sessionsDir, workspaceDir } from "../env";
+import { sessionsDir } from "../env";
 import { killSessionAgent } from "./router";
 import { resolveSessionPath } from "./session-paths";
 
 async function sessionsList() {
-  const infos = await SessionManager.list(workspaceDir(), sessionsDir());
+  // listAll, not list(cwd, dir): list() keeps only sessions whose header cwd
+  // is the current workspace, which hides every chat recorded before the
+  // workspace folder moved (0.2's ~/Accountant24, a restored backup, a moved
+  // --workspace folder). The sessions dir is the workspace's own, so every
+  // file in it is this workspace's chat, wherever the folder lived back then.
+  const infos = await SessionManager.listAll(sessionsDir());
   const sessions = infos.map((s) => ({
     path: s.path,
     id: s.id,

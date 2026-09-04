@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 
 // Spec for the `/` skills popover UI: a flat, keyboard-navigable list that opens
-// only for a *leading* slash, renders Official/Custom section labels on group
-// boundaries, and shows an empty label when nothing matches. The grouping helper
-// (groupSkillRows) is unit-tested in composer-skills.test.tsx; this file covers
-// the rendered popover itself.
+// only for a *leading* slash and shows an empty label when nothing matches.
 
 import {
   AssistantRuntimeProvider,
@@ -31,8 +28,8 @@ afterEach(() => {
 });
 
 const MIXED_SKILLS: Unstable_TriggerItem[] = [
-  { id: "pdf", type: "skill", label: "pdf", description: "Read PDF files.", metadata: { official: true } },
-  { id: "invoices", type: "skill", label: "invoices", description: "Draft invoices.", metadata: { official: false } },
+  { id: "pdf", type: "skill", label: "pdf", description: "Read PDF files." },
+  { id: "invoices", type: "skill", label: "invoices", description: "Draft invoices." },
 ];
 
 /** A flat skills adapter: no categories, a search that filters on the label
@@ -102,25 +99,6 @@ describe("ComposerSkillsPopover", () => {
     type(input, "/");
     await waitFor(() => expect(screen.getByText("Read PDF files.")).toBeInTheDocument());
     expect(screen.getByText("Draft invoices.")).toBeInTheDocument();
-  });
-
-  it("should label the Official and Custom groups when both are present", async () => {
-    const input = renderPicker();
-    type(input, "/");
-    await waitFor(() => expect(screen.getByText("Official")).toBeInTheDocument());
-    expect(screen.getByText("Community")).toBeInTheDocument();
-  });
-
-  it("should not draw group labels for a homogeneous list", async () => {
-    const input = renderPicker(
-      makeAdapter([
-        { id: "pdf", type: "skill", label: "pdf", description: "Read PDFs.", metadata: { official: true } },
-      ]),
-    );
-    type(input, "/");
-    await waitFor(() => expect(screen.getByText("pdf")).toBeInTheDocument());
-    expect(screen.queryByText("Official")).toBeNull();
-    expect(screen.queryByText("Community")).toBeNull();
   });
 
   it("should show the empty label when the query matches no skill", async () => {

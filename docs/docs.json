@@ -15,7 +15,7 @@
       },
       {
         "group": "Features",
-        "pages": ["docs/skills", "docs/plugins", "docs/marketplace"]
+        "pages": ["docs/workspace", "docs/memory", "docs/skills", "docs/plugins", "docs/marketplace"]
       },
       {
         "group": "Guides",

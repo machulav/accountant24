@@ -1,12 +1,19 @@
 // Auto-update: check on launch + every few hours, download in the background,
 // install on next quit (Squirrel.Mac). Once a build is downloaded and staged we
-// surface a "Relaunch to update" banner in the sidebar (via IPC) so the user can
+// surface an "Update available" banner in the sidebar (via IPC) so the user can
 // apply it immediately instead of waiting for the next quit. Stable channel
 // only — rc builds and dev runs never self-update. The feed config (GitHub
 // owner/repo) comes from the app-update.yml electron-builder embeds in the
 // packaged app; the repo is public, so no token is needed at runtime.
+//
+// A download has two phases on macOS: electron-updater fetches the zip and
+// emits its own "update-downloaded", then hands the file to Squirrel.Mac
+// (Electron's native autoUpdater) to verify and stage it, which ends in the
+// native "update-downloaded". Until that second event quitAndInstall() only
+// queues and returns, so the banner is shown on the native event: a click on
+// it always relaunches at once.
 
-import { app, type BrowserWindow, ipcMain } from "electron";
+import { app, type BrowserWindow, ipcMain, autoUpdater as nativeUpdater } from "electron";
 import electronUpdater from "electron-updater"; // CJS package: default-import, then destructure
 import { trackUpdateDownloaded, trackUpdateFailed, trackUpdateInstallClicked } from "./analytics";
 
@@ -19,6 +26,8 @@ const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 // renderer reads this on mount (the "update-downloaded" push may have fired
 // before it subscribed) to decide whether to show the relaunch banner.
 let downloadedVersion: string | null = null;
+// Version electron-updater has fetched but Squirrel has not staged yet.
+let fetchedVersion: string | null = null;
 
 /** Updates run only in packaged stable builds. rc versions (0.3.0-rc.1) must
  *  not self-update — a newer stable would otherwise be offered to them even
@@ -50,7 +59,7 @@ export function initAutoUpdater(getWin: () => BrowserWindow | null): void {
   });
 
   // Dev-only preview: `A24_FAKE_UPDATE=9.9.9 npm run dev` stages a fake update so
-  // the "Relaunch to update" banner shows without cutting a release. Seed the
+  // the "Update available" banner shows without cutting a release. Seed the
   // state (so a mount-time query catches it) and push the event once the window
   // exists (so the live path is exercised too). Clicking Relaunch no-ops in dev.
   if (!app.isPackaged && process.env.A24_FAKE_UPDATE) {
@@ -90,11 +99,20 @@ export function initAutoUpdater(getWin: () => BrowserWindow | null): void {
 
   autoUpdater.on("update-downloaded", (info) => {
     downloading = false;
-    downloadedVersion = info.version;
-    console.log(`[updater] ${info.version} downloaded; installs on next quit`);
+    fetchedVersion = info.version;
+    console.log(`[updater] ${info.version} downloaded; staging`);
     trackUpdateDownloaded(info.version);
-    // Offer an immediate relaunch via the sidebar banner.
-    getWin()?.webContents.send("update-downloaded", info.version);
+  });
+
+  // Squirrel has verified and staged the fetched build: it now installs on the
+  // next quit, and quitAndInstall() applies it immediately. Offer that via the
+  // sidebar banner. A native event with nothing fetched is not ours to act on.
+  nativeUpdater.on("update-downloaded", () => {
+    if (!fetchedVersion) return;
+    downloadedVersion = fetchedVersion;
+    fetchedVersion = null;
+    console.log(`[updater] ${downloadedVersion} staged; installs on next quit`);
+    getWin()?.webContents.send("update-downloaded", downloadedVersion);
   });
 
   const check = () => {

@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.3.4
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.3.3...v0.3.4)
+
+### 🚀 Features
+
+- Run plugin scripts with a bundled uv, no Python install needed ([#79](https://github.com/machulav/accountant24/pull/79))
+
+## v0.3.3
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.3.2...v0.3.3)
+
+### 🚀 Features
+
+- Suggest prompt ideas under the composer on the New Chat page ([#77](https://github.com/machulav/accountant24/pull/77))
+
+### 📖 Documentation
+
+- Add Memory and Workspace pages ([#78](https://github.com/machulav/accountant24/pull/78))
+
+## v0.3.2
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.3.1...v0.3.2)
+
+### 🚀 Features
+
+- Drop the Official and Community labels from the skills selector ([#70](https://github.com/machulav/accountant24/pull/70))
+- Reword the composer hint to "Type / to use skills" ([#71](https://github.com/machulav/accountant24/pull/71))
+- Name the skill and docs page in the chat's tool steps ([#72](https://github.com/machulav/accountant24/pull/72))
+- Answer questions about the app from the bundled docs directly ([#73](https://github.com/machulav/accountant24/pull/73))
+- Show the plugin name in the Use Skill step of the chat ([#74](https://github.com/machulav/accountant24/pull/74))
+- Label docs reads in the chat as Read Documentation ([#75](https://github.com/machulav/accountant24/pull/75))
+- Make the update banner say a new version is available ([#76](https://github.com/machulav/accountant24/pull/76))
+
+## v0.3.1
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.3.0...v0.3.1)
+
+### 🐞 Bug Fixes
+
+- Show previous chats after the workspace moved ([#68](https://github.com/machulav/accountant24/pull/68))
+- Move ~/Accountant24 into place over a leftover ~/.accountant24 ([#69](https://github.com/machulav/accountant24/pull/69))
+
+## v0.3.0
+
+[compare changes](https://github.com/machulav/accountant24/compare/v0.2.16...v0.3.0)
+
+### 🚀 Features
+
+- Create the workspace at launch instead of on the first message ([#61](https://github.com/machulav/accountant24/pull/61))
+- ⚠️  Move the workspace to ~/.accountant24 and add a --workspace flag ([#62](https://github.com/machulav/accountant24/pull/62))
+- ⚠️  Add the plugin marketplace ([#63](https://github.com/machulav/accountant24/pull/63))
+- Bundle the docs so the agent can answer questions about the app ([#65](https://github.com/machulav/accountant24/pull/65))
+- Pick up new and changed plugins without an app restart ([#66](https://github.com/machulav/accountant24/pull/66))
+- ⚠️  Require a description in plugin manifests ([#67](https://github.com/machulav/accountant24/pull/67))
+
+### 🏡 Chore
+
+- Skip the verify stop hook when the working tree is unchanged ([#64](https://github.com/machulav/accountant24/pull/64))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Move the workspace to ~/.accountant24 and add a --workspace flag ([#62](https://github.com/machulav/accountant24/pull/62))
+- ⚠️  Add the plugin marketplace ([#63](https://github.com/machulav/accountant24/pull/63))
+- ⚠️  Require a description in plugin manifests ([#67](https://github.com/machulav/accountant24/pull/67))
+
 ## v0.2.16
 
 [compare changes](https://github.com/machulav/accountant24/compare/v0.2.15...v0.2.16)

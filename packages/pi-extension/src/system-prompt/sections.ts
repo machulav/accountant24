@@ -10,6 +10,8 @@ export interface ToolInfo {
 
 export interface ContextSectionInput {
   today: string;
+  /** Absolute path of the app's bundled documentation folder, when it ships one. */
+  docsDir?: string;
   memory: string;
   accounts: string[];
   payees: string[];
@@ -44,6 +46,12 @@ export function buildContextSection(input: ContextSectionInput): string {
   const parts: string[] = ["\n\n<context>"];
 
   parts.push(`\n\n<date>\nToday's date: ${input.today}\n</date>`);
+
+  if (input.docsDir) {
+    // An absolute path, so the model can hand it to the read tool as is;
+    // an env var would force it through bash. Guidance lives in system.md.
+    parts.push(`\n\n<docs-folder>\n${input.docsDir}\n</docs-folder>`);
+  }
 
   if (input.memory) {
     // The block mirrors memory.md byte for byte: the model copies oldText

@@ -80,6 +80,27 @@ describe("buildContextSection()", () => {
     expect(buildContextSection(empty)).not.toContain("<memory>");
   });
 
+  test("should name the docs folder verbatim inside the docs tag", () => {
+    const section = buildContextSection({
+      ...empty,
+      docsDir: "/Applications/Accountant24.app/Contents/Resources/docs",
+    });
+    expect(section).toContain(
+      "\n\n<docs-folder>\n/Applications/Accountant24.app/Contents/Resources/docs\n</docs-folder>",
+    );
+  });
+
+  test("should place the docs block inside the context wrapper after the date", () => {
+    const section = buildContextSection({ ...empty, docsDir: "/app/resources/docs" });
+    expect(section.indexOf("<docs-folder>")).toBeGreaterThan(section.indexOf("</date>"));
+    expect(section.indexOf("</docs-folder>")).toBeLessThan(section.indexOf("</context>"));
+  });
+
+  test("should omit the docs block when no docs folder is given", () => {
+    expect(buildContextSection(empty)).not.toContain("<docs-folder>");
+    expect(buildContextSection({ ...empty, docsDir: "" })).not.toContain("<docs-folder>");
+  });
+
   test("should include only the raw memory content inside the memory tag", () => {
     const section = buildContextSection({ ...empty, memory: "- Rent is $2100" });
     expect(section).toContain("\n\n<memory>\n- Rent is $2100\n</memory>");

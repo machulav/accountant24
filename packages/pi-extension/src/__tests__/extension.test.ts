@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setBaseDir } from "../config";
 
 const BASE = mkdtempSync(join(tmpdir(), "accountant24-ext-"));
@@ -19,6 +19,8 @@ beforeEach(() => {
   mkdirSync(BASE, { recursive: true });
   setBaseDir(BASE);
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 // biome-ignore lint/complexity/noBannedTypes: test helper needs generic callable
 type AnyFn = Function;
@@ -160,6 +162,29 @@ describe("before_agent_start handler", () => {
     const contextStart = prompt.indexOf("<context>");
     const datePos = prompt.indexOf("Today's date:");
     expect(datePos).toBeGreaterThan(contextStart);
+  });
+
+  test("should name the bundled docs folder from ACCOUNTANT24_DOCS in a docs block", async () => {
+    vi.stubEnv("ACCOUNTANT24_DOCS", "/app/resources/docs");
+    const pi = createMockPi();
+    accountant24Extension(pi as any);
+
+    const result = await pi.handlers.before_agent_start(beforeEvent);
+    const prompt = result.systemPrompt as string;
+    expect(prompt).toContain("<docs-folder>\n/app/resources/docs\n</docs-folder>");
+    expect(prompt.indexOf("<docs-folder>")).toBeGreaterThan(prompt.indexOf("<context>"));
+  });
+
+  test("should omit the docs block when ACCOUNTANT24_DOCS is unset or empty", async () => {
+    for (const value of [undefined, ""]) {
+      if (value === undefined) delete process.env.ACCOUNTANT24_DOCS;
+      else vi.stubEnv("ACCOUNTANT24_DOCS", value);
+      const pi = createMockPi();
+      accountant24Extension(pi as any);
+
+      const result = await pi.handlers.before_agent_start(beforeEvent);
+      expect(result.systemPrompt as string).not.toContain("<docs-folder>");
+    }
   });
 
   test("should include pi's tool guidelines", async () => {

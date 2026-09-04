@@ -249,8 +249,8 @@ function InstallPluginForm({
             ours, so "not reviewed" would be false for them. */}
         {!entry.official && (
           <WarningBanner title="Not reviewed by Accountant24">
-            The plugin can read and change your financial data, and run commands on your computer. Look through the
-            plugin repository before you install it.{" "}
+            The plugin can read and change your financial data, and run commands or scripts on your computer. Look
+            through the plugin repository before you install it.{" "}
             <ExternalLink href="https://accountant24.ai/docs/marketplace#install-only-plugins-you-trust">
               Learn more
             </ExternalLink>

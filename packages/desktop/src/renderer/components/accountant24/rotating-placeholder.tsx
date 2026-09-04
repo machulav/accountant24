@@ -11,7 +11,7 @@ import { useSteerEnter } from "@/hooks/use-steer-enter";
 const COMPOSER_PLACEHOLDERS = [
   "Write a message...",
   "Type @ to mention accounts, payees, tags",
-  "Type / to use a skill",
+  "Type / to use skills",
 ];
 const PLACEHOLDER_ROTATE_MS = 5000;
 // Must match the .aui-lexical-placeholder transition duration in index.css.

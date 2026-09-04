@@ -41,6 +41,7 @@ import { parseModelId } from "../lib/enabledModels";
 import { isMemoryUpdateCall } from "../lib/memory-tool";
 import { mentionsToPlainText } from "../lib/mentions";
 import { isOfficial } from "../lib/pluginRepo";
+import { skillReadName } from "../lib/skill-docs-tool";
 import { collapseSkillText, hoistSkillDirective } from "../lib/skillBlock";
 import { agentApi, authApi, pluginsApi, sessionsApi, settingsApi } from "../rpc/api";
 import type { AgentEvent, ModelInfo, SessionSummary } from "../rpc/types";
@@ -166,14 +167,12 @@ export function createElectronPiClient(): PiClient {
       trackAgentToolUsed(isMemoryUpdate ? "update_memory" : e.toolName, Boolean(e.isError));
       if (e.toolName === "add_transactions" && !e.isError) trackTransactionFirstAdded();
     }
-    if (e.type === "tool_execution_start" && e.toolName === "read") {
+    if (e.type === "tool_execution_start") {
       // The model activates a skill by reading its SKILL.md (pi's lazy-loading
       // contract) — that read IS the auto usage signal. The path is inspected
       // here only; it never leaves the machine.
-      const args = e.args as { path?: unknown; file_path?: unknown } | undefined;
-      const raw = args?.path ?? args?.file_path;
-      const segments = typeof raw === "string" ? raw.split(/[\\/]/) : [];
-      if (segments.at(-1) === "SKILL.md") trackSkillByName(segments.at(-2) ?? "", "auto");
+      const skill = skillReadName(e.toolName, e.args);
+      if (skill !== undefined) trackSkillByName(skill, "auto");
     }
     if (e.type === "agent_end") trackAgentMessageSent();
     if (e.type === "agent_start") running.add(e.sessionPath);

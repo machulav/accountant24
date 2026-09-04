@@ -1,0 +1,56 @@
+; Chart of accounts — every account used in the ledger must be declared here.
+;
+; Account types:
+;   ASSETS       — things you own (cash, bank accounts, investments, property)
+;   LIABILITIES  — things you owe (credit cards, loans, mortgages)
+;   EQUITY       — technical balancing entries, not real money flows (opening balances, currency conversion)
+;   INCOME       — inflows of money (salary, business, investments)
+;   EXPENSES     — outflows of money (rent, groceries, subscriptions)
+
+; ====================================================================
+; ASSETS — things you own (cash, bank accounts, investments, property)
+; ====================================================================
+
+account Assets:Cash  ; physical cash
+
+; ====================================================================
+; LIABILITIES — things you owe (credit cards, loans, mortgages)
+; ====================================================================
+
+account Liabilities:Loan  ; personal loans
+
+; ====================================================================
+; EQUITY — technical balancing entries, not real money flows (opening balances, currency conversion)
+; ====================================================================
+
+account Equity:Opening Balances  ; counterpart for initial account balances
+
+; ====================================================================
+; INCOME — inflows of money (salary, business, investments)
+; ====================================================================
+
+account Income:Salary      ; wages, bonuses, employer benefits
+account Income:Business    ; self-employment, freelance, side gigs
+account Income:Investment  ; dividends, capital gains, interest
+account Income:Other       ; gifts, tax refunds, government benefits
+
+; ====================================================================
+; EXPENSES — outflows of money (rent, groceries, subscriptions)
+; ====================================================================
+
+account Expenses:Housing                ; rent, home insurance, maintenance and repairs
+account Expenses:Utilities              ; electricity, gas, water, internet, phone, sewage and waste
+account Expenses:Food                   ; groceries, dining out, delivery, coffee shops
+account Expenses:Transport              ; fuel, public transit, taxi, parking, car insurance and maintenance
+account Expenses:Shopping               ; clothing, electronics, home goods and furniture
+account Expenses:Entertainment          ; events, activities, video games, hobbies
+account Expenses:Travel                 ; transportation, accommodation, food while traveling
+account Expenses:Health                 ; health insurance, doctors, hospitals, pharmacy, medications
+account Expenses:Personal Care          ; hair, beauty, gym and fitness
+account Expenses:Education              ; tuition, courses, books
+account Expenses:Children               ; childcare, kids' activities
+account Expenses:Financial              ; bank fees, interest, legal and accounting services
+account Expenses:Taxes                  ; income tax, property tax
+account Expenses:Gifts & Donations      ; gifts, charity
+account Expenses:Subscriptions          ; streaming, software and apps, memberships
+account Expenses:Uncategorized          ; transactions pending categorization

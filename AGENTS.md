@@ -26,7 +26,7 @@ The Electron desktop app:
 
 `packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
 
-- `src/main/` — Electron main process: window, IPC handlers, the workspace (location `cli.ts` + `env.ts`, `migrations/`, setup `workspace.ts`), the agent (`agent/`), LLM provider connections (`llm-providers/`), vendored binaries (hledger).
+- `src/main/` — Electron main process: window, IPC handlers, the workspace (location `cli.ts` + `env.ts`, `migrations/`, setup `workspace.ts`), the agent (`agent/`), LLM provider connections (`llm-providers/`), vendored binaries (hledger, uv).
 - `src/main/agent/plugins-defaults.ts` — the plugins a new workspace starts with, listed as repositories and installed from the marketplace on first launch. The app bundles no plugin of its own.
 - `src/main/agent/` — the chat runtime: the IPC router plus `host/`, which runs in a single agent-host utilityProcess hosting one pi SDK session per chat. Nothing in `host/` may import Electron APIs.
 - `src/main/llm-providers/` — LLM provider auth, OAuth login, models, Ollama. `llm-providers/` and `agent/` never import each other; their only interface is the workspace files (`auth.json`/`models.json`).

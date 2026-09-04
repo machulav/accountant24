@@ -4,6 +4,7 @@ import {
   parseAssertions,
   parseBalanceSheetJson,
   parseLatestPriceTarget,
+  parseTransactionCount,
   parseTransactionsJson,
   type RawBalanceSheet,
 } from "../ledger-json";
@@ -576,5 +577,53 @@ describe("parseLatestPriceTarget()", () => {
     expect(parseLatestPriceTarget("P 2026-07-22 UAH")).toBeNull();
     expect(parseLatestPriceTarget("P 2026-07-22 UAH 0.01958")).toBeNull();
     expect(parseLatestPriceTarget("P not-a-date UAH 1 EUR")).toBeNull();
+  });
+});
+
+describe("parseTransactionCount()", () => {
+  // A real `hledger stats` report (hledger 1.52): the count line sits among
+  // other `Txns ...` lines that must not be read instead.
+  const STATS = [
+    "Main file           : /ws/ledger/main.journal",
+    "Included files      : 2",
+    "Txns span           : 2026-01-01 to 2026-01-04 (3 days)",
+    "Last txn            : 2026-01-03 (237 days ago)",
+    "Txns                : 3 (1.0 per day)",
+    "Txns last 30 days   : 0 (0.0 per day)",
+    "Txns last 7 days    : 0 (0.0 per day)",
+    "Payees/descriptions : 3",
+    "Accounts            : 2 (depth 1)",
+    "Commodities         : 1",
+    "Market prices       : 0",
+    "Runtime stats       : 0.04 s elapsed, 76 txns/s, 0 MB live, 6 MB alloc",
+  ].join("\n");
+
+  it("should return the Txns count from a stats report", () => {
+    expect(parseTransactionCount(STATS)).toBe(3);
+  });
+
+  it("should return 0 for a journal without transactions", () => {
+    expect(parseTransactionCount("Txns span           :  to  (0 days)\nTxns                : 0 (0.0 per day)\n")).toBe(
+      0,
+    );
+  });
+
+  it("should read a large count in full", () => {
+    expect(parseTransactionCount("Txns                : 1500 (1500.0 per day)")).toBe(1500);
+  });
+
+  it("should not read the span or recent-days lines when the count line is missing", () => {
+    const withoutCount = STATS.split("\n")
+      .filter((l) => !l.startsWith("Txns                :"))
+      .join("\n");
+    expect(parseTransactionCount(withoutCount)).toBe(0);
+  });
+
+  it("should return 0 for empty output", () => {
+    expect(parseTransactionCount("")).toBe(0);
+  });
+
+  it("should return 0 for unexpected output", () => {
+    expect(parseTransactionCount("hledger: Error: file not found")).toBe(0);
   });
 });

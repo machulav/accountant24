@@ -18,6 +18,7 @@ import {
   trackChatCreated,
   trackOnboardingCompleted,
   trackOnboardingSetupViewed,
+  trackPromptIdeaUsed,
   trackTransactionFirstAdded,
   trackUserFirstMessageSent,
   trackUserMessageSent,
@@ -143,6 +144,16 @@ describe("trackAttachmentAdded()", () => {
     expect(h.invoke).toHaveBeenCalledExactlyOnceWith("analytics_track", {
       event: "attachment_added",
       props: { kind: "pdf" },
+    });
+  });
+});
+
+describe("trackPromptIdeaUsed()", () => {
+  it("should send prompt_idea_used with the idea's id", () => {
+    trackPromptIdeaUsed("net-worth-trend");
+    expect(h.invoke).toHaveBeenCalledExactlyOnceWith("analytics_track", {
+      event: "prompt_idea_used",
+      props: { idea: "net-worth-trend" },
     });
   });
 });

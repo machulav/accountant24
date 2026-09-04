@@ -1,0 +1,37 @@
+---
+title: "Memory"
+sidebarTitle: "Memory"
+description: "The agent remembers your preferences, rules, and recurring arrangements across chats, and applies them when they matter."
+---
+
+## What the agent remembers
+
+Memory holds the facts that stay true from one chat to the next, like your default account and currency, or a budget to watch. The agent reads memory before answering every message, so a rule you gave weeks ago still applies today.
+
+Memory is a layer on top of your ledger, not a copy of it. The ledger holds the facts, every transaction with its date, amount, payee, and account. Memory holds what the ledger can't, your preferences, your rules, and what repeats every month. Anything the ledger already answers stays out of memory, so the two never disagree.
+
+The agent combines the two when it books a purchase. The account comes from your ledger history for that payee. The paying account and the currency come from memory when you leave them out. What you say in chat wins over both.
+
+## Teach the agent
+
+Tell the agent in chat, the same way you would tell a person:
+
+> My salary comes in on the 25th.
+
+> I'm visiting Italy from April 10th to 15th. Tag all transactions during this period with the 'trip_italy' tag.
+
+> Remember, I always pay for groceries in cash.
+
+The agent saves the fact on its own. Say “remember” to make sure it’s saved.
+
+## Correct or forget
+
+Tell the agent that a fact changed, or ask it to forget one. It fixes or removes the entry right away.
+
+> My salary now comes in on the 28th.
+
+> Forget the Italy trip.
+
+## Where memory lives
+
+Memory is stored in `memory.md` in your [workspace](/docs/workspace), a plain markdown file you can open and edit by hand. Like your ledger, every change to it is versioned with git.

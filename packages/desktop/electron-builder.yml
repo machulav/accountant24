@@ -38,7 +38,8 @@ files:
   - package.json
   - "!**/*.{map,md}"
 
-# Vendored, on-disk resources the agent child reads via env (PATH / TESSDATA_PREFIX)
+# Vendored, on-disk resources (hledger, pdftotext, tesseract, uv, OCR data) the
+# agent child reads via env (PATH / TESSDATA_PREFIX)
 # and `pi -e`. Land under Contents/Resources/ → matches env.ts resourceDir().
 extraResources:
   - from: resources/bin

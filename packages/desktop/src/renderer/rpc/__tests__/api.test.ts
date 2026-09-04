@@ -371,6 +371,17 @@ describe("ledgerApi", () => {
       expect(bridge.callsFor("ledger_transactions")).toEqual([undefined]);
     });
   });
+
+  describe("transactionCount()", () => {
+    it("should invoke 'ledger_transaction_count' and resolve the count", async () => {
+      bridge.setHandler("ledger_transaction_count", () => 42);
+
+      const result = await ledgerApi.transactionCount();
+
+      expect(result).toBe(42);
+      expect(bridge.callsFor("ledger_transaction_count")).toEqual([undefined]);
+    });
+  });
 });
 
 describe("pluginsApi", () => {
