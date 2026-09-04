@@ -9,10 +9,12 @@ const headlineParts = site.headline.split(/(\S+-\S+)/);
 <section data-hero class="mx-auto flex max-w-4xl flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-20 lg:pb-16">
   <h1 class="field-halo text-[2.5rem] leading-[1.08] font-black tracking-[-0.03em] text-balance sm:text-5xl lg:text-[3.5rem]">
     {headlineParts.map((part) => (part.includes("-") ? <span class="whitespace-nowrap">{part}</span> : part))}
-    <em class="mt-3 block font-serif text-2xl font-normal tracking-tight text-accent-ink sm:text-3xl lg:mt-4 lg:text-4xl"
-      >{site.tagline}</em
-    >
   </h1>
+  {/* The tagline sits outside the h1: inside it, the two sentences run
+      together in the heading text search engines and screen readers read. */}
+  <p class="field-halo mt-3 font-serif text-2xl font-normal tracking-tight text-accent-ink italic lg:mt-4 lg:text-4xl sm:text-3xl">
+    {site.tagline}
+  </p>
   <p class="field-halo mt-6 max-w-2xl text-lg leading-relaxed text-ink-2 text-pretty">{site.supporting}</p>
   <div class="field-halo mt-8 flex flex-wrap items-center justify-center gap-3">
     <a href={site.downloadUrl} data-track="download_clicked" data-placement="hero" class="btn btn-primary">
