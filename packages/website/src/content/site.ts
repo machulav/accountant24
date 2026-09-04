@@ -17,8 +17,9 @@ export const site = {
   name: "Accountant24",
   url: "https://accountant24.ai",
   title: "Open source AI agent for personal finance | Accountant24",
+  // Kept under ~155 characters so search results show it whole.
   description:
-    "Accountant24 is an open source AI agent for personal finance. Log spending in plain language, import bank statements, CSV exports and receipts, ask questions about your money. Your data stays on your machine as plain text files, versioned with git.",
+    "Open source AI agent for personal finance. Log spending in plain words, import bank statements and receipts, ask about your money. Data stays on your Mac.",
   headline: "Open source AI agent for personal finance",
   tagline: "Runs on your machine, you own the data",
   supporting:

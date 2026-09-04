@@ -27,7 +27,7 @@ describe("homeStructuredData()", () => {
           applicationCategory: "FinanceApplication",
           operatingSystem: "macOS",
           description:
-            "Accountant24 is an open source AI agent for personal finance. Log spending in plain language, import bank statements, CSV exports and receipts, ask questions about your money. Your data stays on your machine as plain text files, versioned with git.",
+            "Open source AI agent for personal finance. Log spending in plain words, import bank statements and receipts, ask about your money. Data stays on your Mac.",
           url: "https://accountant24.ai",
           downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
           softwareHelp: "https://accountant24.ai/docs/quickstart",
