@@ -15,7 +15,7 @@ Copy and data live in `src/content/site.ts`. Pure logic (`src/lib/`, `src/worker
 
 ## Deploy
 
-`.github/workflows/website.yml` uploads a preview version for every pull request, posts the preview URLs in a comment on the PR (a branch URL that stays the same across pushes, and the URL of the latest push), and deploys on push to `main` (plus a daily rebuild that refreshes the latest version used in the page metadata). It needs the repo secrets `CLOUDFLARE_API_TOKEN` (token template "Edit Cloudflare Workers") and `CLOUDFLARE_ACCOUNT_ID`.
+`.github/workflows/website.yml` uploads a preview version for every pull request, posts the branch's preview URL (the same on every push) in a comment on the PR, and deploys on push to `main` (plus a daily rebuild that refreshes the latest version used in the page metadata). It needs the repo secrets `CLOUDFLARE_API_TOKEN` (token template "Edit Cloudflare Workers") and `CLOUDFLARE_ACCOUNT_ID`.
 
 ## Analytics
 

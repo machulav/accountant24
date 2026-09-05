@@ -1,9 +1,8 @@
 # Builds and deploys the landing page (packages/website) to Cloudflare Workers.
 #
 # - pull_request: builds and uploads a preview version; nothing goes live. The
-#   preview URLs are posted as a comment on the PR (one comment, updated on
-#   every push) and in the job summary: a branch URL that stays the same
-#   across pushes, and the URL of this push's version.
+#   branch gets one preview URL that follows every push; it is posted as a
+#   comment on the PR once and in every run's job summary.
 # - push to main / schedule / manual: builds and deploys. The daily schedule
 #   refreshes the build-time GitHub facts on the page (latest version).
 #
@@ -78,22 +77,22 @@ jobs:
           # the versioned URL is different for each push.
           command: versions upload --preview-alias ${{ steps.alias.outputs.name }}
 
-      - name: Post the preview URLs on the PR
+      - name: Post the preview URL on the PR
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           WRANGLER_OUTPUT: ${{ steps.preview.outputs.command-output }}
           PR: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.event.pull_request.head.sha }}
-        # Wrangler prints "Version Preview Alias URL: …" and "Version Preview
-        # URL: …"; the URL is the last word of each line. `--edit-last` keeps a
-        # single comment per PR (the workflow's own last comment) up to date.
+        # Wrangler prints "Version Preview Alias URL: …"; the URL is the last
+        # word of that line. It is the same on every push, so the comment is
+        # posted once: skipped when a comment on the PR already carries it.
         run: |
-          branch_url=$(awk '/Version Preview Alias URL:/ { print $NF }' <<< "$WRANGLER_OUTPUT")
-          push_url=$(awk '/Version Preview URL:/ { print $NF }' <<< "$WRANGLER_OUTPUT")
-          body=$(printf '**Landing page preview**\n\nBranch, same URL on every push: %s\nThis push (%s): %s\n' "$branch_url" "${SHA::7}" "$push_url")
+          url=$(awk '/Version Preview Alias URL:/ { print $NF }' <<< "$WRANGLER_OUTPUT")
+          if [ -z "$url" ]; then echo "No preview alias URL in the wrangler output" >&2; exit 1; fi
+          body=$(printf '**Website preview**\n\n%s\n\nFollows every push to this branch.\n' "$url")
           echo "$body" >> "$GITHUB_STEP_SUMMARY"
-          gh pr comment "$PR" --edit-last --create-if-none --body "$body"
+          if gh pr view "$PR" --json comments --jq '.comments[].body' | grep -qF "$url"; then exit 0; fi
+          gh pr comment "$PR" --body "$body"
 
       - name: Deploy
         if: github.event_name != 'pull_request'
