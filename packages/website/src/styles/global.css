@@ -3,6 +3,9 @@
    live in @accountant24/demo, outside the Vite root Tailwind scans. */
 @import "@accountant24/demo/shared/styles/theme.css";
 @source "../../../demo/src";
+/* scripts/og-card.astro is rendered by brand-assets.mjs alone and styles
+   itself; its classes must not end up in the site's stylesheet. */
+@source not "../../scripts";
 
 /* Sentient italic (the hero tagline), a free Fontshare face by Indian Type
    Foundry (ITF Free Font License), self-hosted from public/fonts. */

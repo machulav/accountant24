@@ -1,0 +1,96 @@
+---
+// The Open Graph card as a page: the hero's type, palette, copy and field on a
+// 1200x630 canvas, screenshotted into public/og.png by brand-assets.mjs. Not a
+// route of the site; the script injects it into a dev server for the render only.
+import "../src/styles/global.css";
+import { site } from "../src/content/site";
+import { cellsFor, renderAsciiFrame } from "../src/lib/ascii-field";
+
+const width = 1200;
+const height = 630;
+const { cols, rows } = cellsFor(width, height);
+// One still of the field; the time picks where the clouds sit.
+const frame = renderAsciiFrame(cols, rows, 4);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Open Graph card</title>
+  </head>
+  <body>
+    <div class="card" style={`width: ${width}px; height: ${height}px`}>
+      <pre aria-hidden="true" class="ascii-field field">{frame}</pre>
+      <p class="field-halo wordmark">{site.name}</p>
+      <div class="copy">
+        <h1 class="field-halo">{site.headline}</h1>
+        <p class="field-halo">{site.tagline}</p>
+      </div>
+      <p class="field-halo host">{new URL(site.url).host}</p>
+    </div>
+  </body>
+</html>
+
+<style>
+  /* Scoped, so none of it reaches the site's stylesheet (global.css also keeps
+     this folder out of Tailwind's scan). The type mirrors the hero, sized for
+     a card that feeds show at about half this size. */
+  @reference "../src/styles/global.css";
+
+  .card {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    text-align: center;
+  }
+  .field {
+    @apply font-mono;
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--accent);
+  }
+  /* The hero stacks the halos of four elements over its column; the card has
+     fewer, so each halo is denser to leave the field as faint behind the text. */
+  .card .field-halo::before {
+    background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--bg) 98%, transparent) 65%, transparent 100%);
+  }
+  .wordmark {
+    margin-top: 48px;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  .copy {
+    max-width: 56rem;
+    padding: 0 3rem;
+  }
+  h1 {
+    font-size: 72px;
+    line-height: 1.08;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .copy p {
+    @apply font-serif;
+    margin-top: 1rem;
+    font-size: 40px;
+    font-style: italic;
+    letter-spacing: -0.025em;
+    color: var(--accent-ink);
+  }
+  .host {
+    @apply font-mono;
+    margin-bottom: 56px;
+    font-size: 22px;
+    color: var(--ink-2);
+  }
+</style>
