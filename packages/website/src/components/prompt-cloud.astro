@@ -1,8 +1,12 @@
 ---
 import { promptIdeas } from "../content/site";
 
-// Eight static rows, each centered and wider than the viewport, clipped with
-// faded edges (see .prompt-rows in global.css).
+// Eight rows, each centered and wider than the viewport, clipped with faded
+// edges (see .prompt-rows in global.css). Every row scrolls sideways: on a
+// phone a row shows one or two prompts, and a swipe brings the rest into
+// view. The script starts each row at its middle, so the rows keep their
+// staggered, cloud-like look and there is more to find on both sides;
+// without it a row simply starts at its first prompt.
 const ROWS = 8;
 const rows = Array.from({ length: ROWS }, (_, row) => promptIdeas.filter((_, index) => index % ROWS === row));
 ---
@@ -11,15 +15,41 @@ const rows = Array.from({ length: ROWS }, (_, row) => promptIdeas.filter((_, ind
   <h2 id="prompts-title" class="mx-auto max-w-6xl px-6 text-center text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
     Some things you can ask the agent
   </h2>
-  <div class="prompt-rows mt-8 flex flex-col gap-4 overflow-hidden">
+  <div class="prompt-rows mt-8 flex flex-col gap-4">
     {
       rows.map((row) => (
-        <ul class="flex justify-center gap-2.5">
-          {row.map((prompt) => (
-            <li class="pill">{prompt}</li>
-          ))}
-        </ul>
+        <div class="prompt-row overflow-x-auto overflow-y-hidden" data-prompt-row>
+          {/* w-max + mx-auto: a row narrower than the screen sits centered; a
+              wider one is as wide as its prompts, so scrolling reaches them
+              all (justify-center would push the overflow out of reach on the
+              left). The padding keeps the end prompts off the edge. */}
+          <ul class="mx-auto flex w-max gap-2.5 px-6">
+            {row.map((prompt) => (
+              <li class="pill">{prompt}</li>
+            ))}
+          </ul>
+        </div>
       ))
     }
   </div>
 </section>
+
+<script>
+  // Every row starts scrolled to its middle, and again whenever its width
+  // changes (the phone turning), not on every resize: a phone's browser bar
+  // sliding away resizes the viewport too, and resetting the rows then
+  // would yank them out from under a visitor's finger.
+  const center = (row: HTMLElement) => {
+    row.scrollLeft = (row.scrollWidth - row.clientWidth) / 2;
+  };
+  const widths = new WeakMap<Element, number>();
+  const observer = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const width = entry.contentRect.width;
+      if (widths.get(entry.target) === width) continue;
+      widths.set(entry.target, width);
+      center(entry.target as HTMLElement);
+    }
+  });
+  for (const row of document.querySelectorAll<HTMLElement>("[data-prompt-row]")) observer.observe(row);
+</script>

@@ -169,4 +169,14 @@
   .prompt-rows {
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   }
+  /* A row scrolls sideways with no scrollbar in the way: the faded edges are
+     the cue that there is more. Contained overscroll, so a row at its end
+     does not hand the swipe on to the page. */
+  .prompt-row {
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .prompt-row::-webkit-scrollbar {
+    display: none;
+  }
 }
