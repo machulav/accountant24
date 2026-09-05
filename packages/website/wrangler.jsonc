@@ -5,13 +5,13 @@
 // other request is served straight from `dist/`, so `public/_redirects` and
 // `public/_headers` apply to the site itself.
 //
-// Custom domains are attached in the Cloudflare dashboard during the cutover
-// (see docs/README.md). Once attached, keep deploys declarative by adding:
-//   "routes": [{ "pattern": "accountant24.ai", "custom_domain": true }]
+// `routes` attaches the custom domain, so a deploy keeps it in place; the
+// record itself lives in the zone's DNS (see docs/README.md).
 {
   "name": "accountant24-website",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-20",
+  "routes": [{ "pattern": "accountant24.ai", "custom_domain": true }],
   "workers_dev": true,
   "preview_urls": true,
   "vars": {
