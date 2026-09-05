@@ -6,7 +6,7 @@ Mintlify documentation site for accountant24, served at **accountant24.ai/docs**
 
 The root of accountant24.ai is the landing page (`packages/website`), a Cloudflare Worker serving static assets. The same Worker proxies `/docs`, `/docs/*`, `/mintlify-assets/*`, `/_mintlify/*` and `/.well-known/*` to this Mintlify project (`accountant24.mintlify.site`), which is configured in the Mintlify dashboard as "Host at accountant24.ai/docs".
 
-URL structure: `index.mdx` serves `/docs`; all other pages live in `docs/` so their URLs are `accountant24.ai/docs/...`. Keep new pages inside `docs/`. The old root-level URLs (`/quickstart`, `/faq`, …) redirect via `packages/website/public/_redirects`.
+URL structure: Mintlify adds the `/docs` prefix itself (the "Host at accountant24.ai/docs" setting), so pages live at the root of this folder: `index.mdx` serves `/docs`, `quickstart.mdx` serves `/docs/quickstart`. Write internal links without the prefix (`/quickstart`, not `/docs/quickstart`); Mintlify prepends it. Never nest pages in a `docs/` subfolder, that doubles the prefix (`/docs/docs/...`). The old root-level URLs (`/quickstart`, `/faq`, …) redirect via `packages/website/public/_redirects`.
 
 `structured-data.js`, `analytics.js` and `style.css` are loaded by Mintlify on every page (JSON-LD, PostHog and the navbar wordmark size, all mirrored from the landing page).
 

@@ -13,7 +13,7 @@ From the repo root, run in the background:
 npm run preview
 ```
 
-It starts the Mintlify docs server (`mint dev`, port 3000) and the Astro dev server for the landing page, and serves both at **http://127.0.0.1:4321**: `/` is the landing page, `/docs/<file-stem>` are the docs (`docs/docs/plugins.mdx` → `/docs/plugins`), proxied to the local mint. Edits under `packages/website/src`, `docs/**/*.mdx` and `docs/docs.json` reload in the browser. The docs alone are also reachable at http://localhost:3000.
+It starts the Mintlify docs server (`mint dev`, port 3000) and the Astro dev server for the landing page, and serves both at **http://127.0.0.1:4321**: `/` is the landing page, `/docs/<file-stem>` are the docs (`docs/plugins.mdx` → `/docs/plugins`), proxied to the local mint. Edits under `packages/website/src`, `docs/**/*.mdx` and `docs/docs.json` reload in the browser. The docs alone are also reachable at http://localhost:3000.
 
 Wait ~15s (mint is slow to start), then confirm:
 

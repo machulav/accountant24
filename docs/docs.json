@@ -15,19 +15,19 @@
     "groups": [
       {
         "group": "Get started",
-        "pages": ["index", "docs/use-cases", "docs/quickstart"]
+        "pages": ["index", "use-cases", "quickstart"]
       },
       {
         "group": "Features",
-        "pages": ["docs/workspace", "docs/memory", "docs/skills", "docs/plugins", "docs/marketplace"]
+        "pages": ["workspace", "memory", "skills", "plugins", "marketplace"]
       },
       {
         "group": "Guides",
-        "pages": ["docs/create-a-plugin", "docs/go-fully-local"]
+        "pages": ["create-a-plugin", "go-fully-local"]
       },
       {
         "group": "Resources",
-        "pages": ["docs/comparison", "docs/settings", "docs/faq"]
+        "pages": ["comparison", "settings", "faq"]
       }
     ]
   },
