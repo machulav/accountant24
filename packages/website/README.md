@@ -21,10 +21,10 @@ Copy and data live in `src/content/site.ts`. Pure logic (`src/lib/`, `src/worker
 
 PostHog (EU) in cookieless mode: no cookies or storage, no person profiles, no recordings, no heatmaps or web vitals, so no consent banner; the client loads no script beyond its own bundle. The project token goes into `site.posthogKey` (`src/content/site.ts`) and `docs/analytics.js`; an empty token disables analytics. CTAs carry `data-track` / `data-placement` attributes and emit `download_clicked`, `github_clicked`, `docs_clicked`.
 
-## Cutover checklist (one-time)
+## Production
 
-1. Deploy once (`npm run deploy -w @accountant24/website` or the workflow) and check the `workers.dev` URL: the home page renders, `/docs/quickstart` comes through the proxy, `/quickstart` redirects to `/docs/quickstart`.
-2. Mintlify dashboard: Custom domain, enable "Host at", domain `accountant24.ai`, path `/docs`.
-3. Cloudflare dashboard: the Worker, Settings, Domains & Routes, add `accountant24.ai` (replace the existing DNS record pointing at Mintlify). Then add `"routes": [{ "pattern": "accountant24.ai", "custom_domain": true }]` to `wrangler.jsonc` so deploys stay declarative.
-4. Cloudflare dashboard: Rules, Redirect Rules, redirect `www.accountant24.ai/*` to `https://accountant24.ai/$1` (301).
-5. Smoke test on the live domain: `/`, `/docs`, `/docs/quickstart`, `/quickstart` (301), `/llms.txt`, `/sitemap-index.xml`, `/docs/sitemap.xml`, the Google Rich Results test on `/`, and live events in PostHog.
+`accountant24.ai` is the Worker's custom domain, declared as `routes` in `wrangler.jsonc`, so every deploy keeps it attached. Mintlify serves the docs with "Host at" set to `accountant24.ai/docs`, which means it prefixes `/docs` to every page path: the mdx files live at the root of `docs/`, and their links are written relative to that root.
+
+Two pieces live only in the Cloudflare dashboard, outside this repo: the `www` DNS record with the Redirect Rule sending `www.accountant24.ai/*` to `https://accountant24.ai/$1` (301), and the zone settings.
+
+After a change that touches routing, redirects or the proxy, smoke test the live domain: `/`, `/docs`, `/docs/quickstart`, `/quickstart` (301), `/llms.txt`, `/sitemap-index.xml`, `/docs/sitemap.xml`, the Google Rich Results test on `/`, and live events in PostHog.
