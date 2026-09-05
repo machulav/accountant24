@@ -2,6 +2,10 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Accountant24 Docs",
+  "favicon": {
+    "light": "/favicon.svg",
+    "dark": "/favicon-dark.svg"
+  },
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
