@@ -1,0 +1,8 @@
+# Legacy root-level doc URLs (the docs moved under /docs). Served by the
+# static site, so these rules apply before any Worker logic.
+/use-cases       /docs/use-cases       301
+/quickstart      /docs/quickstart      301
+/skills          /docs/skills          301
+/go-fully-local  /docs/go-fully-local  301
+/comparison      /docs/comparison      301
+/faq             /docs/faq             301

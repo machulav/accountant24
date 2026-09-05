@@ -1,0 +1,233 @@
+---
+import MockScene from "@accountant24/demo/shared/components/mock-scene.astro";
+import MockWindow from "@accountant24/demo/shared/components/mock-window.astro";
+import { buildSceneTimeline } from "@accountant24/demo/shared/timeline";
+// Scroll-driven features: the list on the left, a sticky render of the app
+// on the right replaying the scene of the feature in view. Every feature has
+// an app window of its own holding its scene, the sidebar listing every chat
+// on the page. On desktop the windows share one sticky grid cell and only the
+// active feature's shows; on a phone each sits under its feature and plays as
+// it scrolls into view. Decorative; the real copy lives in the feature list.
+import { features, pageChats } from "../content/site";
+import { featureTargetId } from "../lib/page-chats";
+import Icon from "./icons.astro";
+---
+
+<section class="mx-auto max-w-6xl px-6 py-12 lg:py-16" aria-labelledby="features-title" data-features>
+  <h2 id="features-title" class="sr-only">Features</h2>
+  {/* The list is the grid, and each feature's `<li>` is `display: contents`
+      so its text and its app window are the grid items: the two must be
+      siblings in the grid to share a row on desktop, and the list must stay
+      a list. */}
+  <ol class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.65fr)] lg:gap-x-10" style={`--features:${features.length}`}>
+    {/* As in the hero: with JS on and motion allowed, the scenes start
+        hidden (the pending rule in mock-scene.astro) until their first
+        play, instead of showing the finished conversation first. */}
+    <script is:inline>
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.currentScript.parentElement.dataset.pending = "";
+    </script>
+    {
+      features.map((feature, index) => (
+        <li class="contents">
+          <div
+            id={featureTargetId(index)}
+            data-feature-item
+            class:list={[
+              "feature-item flex flex-col justify-center lg:col-start-1 lg:border-t-0 lg:pt-0",
+              index > 0 && "border-t border-line pt-10",
+              index === 0 && "is-active",
+            ]}
+          >
+            <span class="feature-index font-mono text-xs text-ink-2">{String(index + 1).padStart(2, "0")}</span>
+            <h3 class="mt-2 text-xl font-semibold tracking-tight">{feature.title}</h3>
+            <p class="mt-2 text-[15px] leading-relaxed text-ink-2">{feature.description}</p>
+            {feature.link && (
+              <a
+                href={feature.link.href} target="_blank" rel="noopener"
+                data-track="docs_clicked"
+                data-placement="features"
+                class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-ink hover:underline"
+              >
+                {feature.link.label}
+                <Icon name="arrow" class="size-3.5" />
+              </a>
+            )}
+          </div>
+          {/* Stacked on a phone, the space under a window belongs to the
+              divider that follows it, so the section's own bottom padding is
+              all that follows the last one. */}
+          <div
+            data-feature-mock
+            aria-hidden="true"
+            class:list={[
+              "mt-6 lg:mt-0 lg:pb-0",
+              index < features.length - 1 && "pb-10",
+              index === 0 && "is-active",
+            ]}
+          >
+            <MockWindow chats={pageChats} activeChat={featureTargetId(index)}>
+              <MockScene index={index} shown turns={[{ demo: feature.demo, timeline: buildSceneTimeline(feature.demo) }]} />
+            </MockWindow>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style is:global>
+  /* Desktop: every window sits in the one cell spanning the whole list and
+     sticks with its center on the viewport's center; only the active
+     feature's is displayed. Every feature item is exactly one window tall,
+     so the first and last features line up with the window at the section's
+     edges without any extra air above or below it: the gaps to the
+     neighbouring sections are just the section paddings, like everywhere
+     else. The script measures the window; the fallback matches its default
+     height. */
+  [data-features] {
+    --mock-h: 33rem;
+  }
+  @media (min-width: 64rem) {
+    [data-features] .feature-item {
+      min-height: var(--mock-h);
+    }
+    [data-features] [data-feature-mock] {
+      grid-column: 2;
+      grid-row: 1 / span var(--features);
+      position: sticky;
+      top: calc(50vh - var(--mock-h) / 2);
+      align-self: start;
+    }
+    [data-features] [data-feature-mock]:not(.is-active) {
+      display: none;
+    }
+  }
+
+  /* Inactive features step back only while the scroll script drives the
+     section (desktop + JS): their title takes the muted ink, and the active
+     feature's number the accent. By color, not opacity: text at a fraction
+     of its opacity falls under the contrast floor, and a section a visitor
+     is reading has to stay legible whichever feature is playing. Without
+     the script the list is plain and fully readable. */
+  [data-features][data-enhanced] .feature-item h3,
+  [data-features][data-enhanced] .feature-index {
+    transition: color 300ms;
+  }
+  [data-features][data-enhanced] .feature-item:not(.is-active) h3 {
+    color: var(--ink-2);
+  }
+  [data-features][data-enhanced] .feature-item.is-active .feature-index {
+    color: var(--accent-ink);
+  }
+</style>
+
+<script>
+  import { createThreadFollower, type ThreadFollower } from "@accountant24/demo/shared/follow";
+  import { pickActiveIndex } from "../lib/feature-scroll";
+
+  interface Player {
+    mock: HTMLElement;
+    app: HTMLElement;
+    scene: HTMLElement;
+    follower: ThreadFollower;
+  }
+
+  const root = document.querySelector<HTMLElement>("[data-features]");
+  const items = root ? [...root.querySelectorAll<HTMLElement>("[data-feature-item]")] : [];
+  const players = root
+    ? [...root.querySelectorAll<HTMLElement>("[data-feature-mock]")].flatMap((mock): Player[] => {
+        const app = mock.querySelector<HTMLElement>(".fdemo");
+        const scene = mock.querySelector<HTMLElement>("[data-scene]");
+        const thread = mock.querySelector<HTMLElement>("[data-thread]");
+        return app && scene && thread ? [{ mock, app, scene, follower: createThreadFollower(thread) }] : [];
+      })
+    : [];
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  // (Re)play a window's scene from the top, the thread following it down.
+  const play = ({ app, scene, follower }: Player) => {
+    app.classList.add("is-played");
+    scene.classList.remove("is-active");
+    // Force a reflow between class removal and re-add so a re-activated
+    // scene restarts its animations from the top.
+    void scene.offsetWidth;
+    scene.classList.add("is-active");
+    follower.measure();
+    follower.run(performance.now());
+  };
+
+  if (root && items.length > 0 && items.length === players.length) {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      root.dataset.enhanced = "";
+      let active = 0;
+
+      const measureMock = () => root.style.setProperty("--mock-h", `${players[active].mock.offsetHeight}px`);
+      measureMock();
+      window.addEventListener("resize", measureMock);
+
+      const activate = (next: number) => {
+        const player = players[next];
+        if (next === active && player.scene.classList.contains("is-active")) return;
+        items[active].classList.remove("is-active");
+        players[active].mock.classList.remove("is-active");
+        players[active].follower.stop();
+        active = next;
+        items[active].classList.add("is-active");
+        player.mock.classList.add("is-active");
+        if (!reducedMotion.matches) play(player);
+      };
+
+      // The observer only reports items whose intersection CHANGED, but an item
+      // overlaps the thin band across a long scroll range: a short back-and-forth
+      // fires events only for its neighbour and would leave the still-inside item
+      // out of the candidates, sticking the activation on the wrong feature. So
+      // track the full in-band set and re-measure every member on each callback.
+      const inBand = new Set<HTMLElement>();
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) inBand.add(entry.target as HTMLElement);
+            else inBand.delete(entry.target as HTMLElement);
+          }
+          // Only react while some feature is in the band; entering the section
+          // triggers the first play, leaving it freezes the current scene.
+          if (inBand.size === 0) return;
+          const candidates = [...inBand].map((item) => {
+            const rect = item.getBoundingClientRect();
+            return {
+              index: items.indexOf(item),
+              isIntersecting: true,
+              distanceToCenter: Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2),
+            };
+          });
+          activate(pickActiveIndex(candidates, active));
+        },
+        // A thin band around the viewport center: an item "intersects" only
+        // while it overlaps the middle 10% of the screen.
+        { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
+      );
+      for (const item of items) observer.observe(item);
+    } else if (!reducedMotion.matches) {
+      // A phone: a window plays once most of it is on screen, so the composer
+      // where the scene starts is in view too, and plays again from the top
+      // after it has left the screen entirely.
+      const PLAY_AT = 0.8;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const player = players.find(({ mock }) => mock === entry.target);
+            if (!player) continue;
+            if (entry.intersectionRatio >= PLAY_AT) {
+              if (!player.scene.classList.contains("is-active")) play(player);
+            } else if (!entry.isIntersecting) {
+              player.follower.stop();
+              player.scene.classList.remove("is-active");
+            }
+          }
+        },
+        { threshold: [0, PLAY_AT] },
+      );
+      for (const { mock } of players) observer.observe(mock);
+    }
+  }
+</script>

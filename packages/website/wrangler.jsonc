@@ -1,0 +1,30 @@
+// Cloudflare Worker serving the landing page as static assets and proxying
+// the docs (Mintlify, hosted at the /docs subpath) from the same domain.
+//
+// Only the Mintlify paths go through the Worker (`run_worker_first`); every
+// other request is served straight from `dist/`, so `public/_redirects` and
+// `public/_headers` apply to the site itself.
+//
+// Custom domains are attached in the Cloudflare dashboard during the cutover
+// (see docs/README.md). Once attached, keep deploys declarative by adding:
+//   "routes": [{ "pattern": "accountant24.ai", "custom_domain": true }]
+{
+  "name": "accountant24-website",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-20",
+  "workers_dev": true,
+  "preview_urls": true,
+  "vars": {
+    "MINTLIFY_HOST": "accountant24.mintlify.site",
+    "SITE_HOST": "accountant24.ai"
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/docs", "/docs/*", "/mintlify-assets/*", "/_mintlify/*", "/.well-known/*"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

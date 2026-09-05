@@ -22,6 +22,22 @@ The Electron desktop app:
 - assistant-ui (`@assistant-ui/react`) — chat UI
 - pi coding agent (`@earendil-works/pi-coding-agent`) — agent
 
+## packages/website
+
+The landing page at accountant24.ai:
+
+- Astro — static site
+- Tailwind CSS — styling
+- Cloudflare Workers — hosting; the Worker also proxies `/docs` to the Mintlify docs site (`docs/`)
+- PostHog — web analytics (cookieless)
+
+## packages/demo
+
+The scripted app demos the website plays:
+
+- Astro — the mock app window components
+- Tailwind CSS — styling, using the app-look theme this package ships
+
 # Architecture
 
 `packages/desktop` follows the standard electron-vite layout (`src/main`, `src/preload`, `src/renderer`), plus one addition:
@@ -33,6 +49,10 @@ The Electron desktop app:
 - `src/preload/` — the `window.api` bridge; every IPC channel must be allowlisted here.
 - `src/renderer/` — the React app, sandboxed; reaches main only through `window.api` (typed wrappers in `rpc/api.ts`).
 - `src/shared/` — IPC payload types used by both main and renderer (and the agent host). Types only, imported with `import type` from both sides; never add runtime code here.
+
+`packages/website` is the marketing site: content and copy live in `src/content/site.ts`, pure logic in `src/lib/` and `src/worker/` (unit-tested), pages and components in `.astro` files. Wording follows the README and docs; keep it to shipped features.
+
+`packages/demo` holds the scripted app demos the site plays: one scene per file under `src/scenes/`, and everything reusable under `src/shared/` (the scene format, the timing, the mock app window, the app-look theme and fonts). It is consumed from source, so a scene or a mock change needs no build step. Anything that renders the app belongs here; page copy and page behavior stay in the website.
 
 The agent itself is `packages/pi-extension`, bundled and loaded into the agent-host utilityProcess that main forks lazily (one process for all chats).
 

@@ -1,0 +1,182 @@
+@import "tailwindcss";
+/* The app look (palette, Satoshi, IBM Plex Mono) and the mock app window both
+   live in @accountant24/demo, outside the Vite root Tailwind scans. */
+@import "@accountant24/demo/shared/styles/theme.css";
+@source "../../../demo/src";
+/* scripts/og-card.astro is rendered by brand-assets.mjs alone and styles
+   itself; its classes must not end up in the site's stylesheet. */
+@source not "../../scripts";
+
+/* Sentient italic (the hero tagline), a free Fontshare face by Indian Type
+   Foundry (ITF Free Font License), self-hosted from public/fonts. */
+@font-face {
+  font-family: "Sentient";
+  src: url("/fonts/sentient-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme inline {
+  --font-serif: "Sentient", Georgia, serif;
+}
+
+@layer base {
+  /* No `scroll-behavior: smooth` on html: it makes the browser animate the
+     scroll RESTORATION when the visitor comes back from another page, which
+     reads as the page slowly scrolling itself. In-page jumps that want motion
+     opt in explicitly. */
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Buttons mirror the app's shadcn button (pill, text-sm medium, 1px-press) in its "lg" size. */
+  .btn {
+    display: inline-flex;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25;
+    white-space: nowrap;
+    background-clip: padding-box;
+    transition:
+      background-color 150ms,
+      color 150ms,
+      border-color 150ms,
+      transform 150ms;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn svg {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+  }
+  /* Nav-bar button: the app's "sm" height, level with the wordmark's line box. */
+  .btn-sm {
+    height: 2rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover {
+    background: color-mix(in oklch, var(--accent) 80%, transparent);
+  }
+  .btn-secondary {
+    border-color: var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .btn-secondary:hover {
+    background: var(--surface);
+  }
+
+  /* Prompt pills, like the ideas the app deals under its composer. */
+  .pill {
+    display: inline-flex;
+    height: 2rem;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* The ASCII field: dim; elements on top fade it out with .field-halo/.field-glow. */
+  .ascii-field {
+    opacity: 0.3;
+  }
+  /* Edge fades: the field dissolves into the page background. Masks, not
+     gradient overlays: an overlay is a box of its own that moves when the
+     field's height arrives from the script, which on a slow load counts as a
+     layout shift; a mask has no box to move. */
+  .ascii-fade-bottom {
+    mask-image: linear-gradient(to bottom, black calc(100% - 9rem), transparent);
+  }
+  .ascii-fade-top {
+    /* Taller and eased: the footer field should surface gradually under the
+       section above it rather than start along a visible line. */
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      rgb(0 0 0 / 0.05) 1.8rem,
+      rgb(0 0 0 / 0.25) 4.8rem,
+      rgb(0 0 0 / 0.65) 8.4rem,
+      black 12rem
+    );
+  }
+
+  /* Backdrops for content sitting on the animated field:
+     .field-halo lays a translucent page-colored ellipse behind the element,
+     so the field shows through faintly but never fights the text. The
+     ellipse reaches well past the element, so a halo near the page edge
+     overflows the viewport: every container holding halos clips its
+     horizontal overflow (overflow-x-clip), or the page would scroll sideways.
+     .field-glow is the same idea for a solid box (image, video, card). */
+  .field-halo {
+    position: relative;
+  }
+  .field-halo::before {
+    content: "";
+    position: absolute;
+    inset: -3rem -6rem;
+    z-index: -1;
+    /* `closest-side`: the ellipse reaches full transparency exactly at the
+       box's sides, so the box never clips it into straight edges (the default
+       farthest-corner size only fades out at the corners). */
+    background: radial-gradient(
+      ellipse closest-side,
+      color-mix(in srgb, var(--bg) 94%, transparent) 30%,
+      transparent 100%
+    );
+  }
+  .field-glow {
+    box-shadow: 0 0 3rem 1.5rem var(--bg);
+  }
+
+  /* Prompt rows: wider than the viewport, clipped behind faded edges. */
+  .prompt-rows {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+  /* A row scrolls sideways with no scrollbar in the way: the faded edges are
+     the cue that there is more. Contained overscroll, so a row at its end
+     does not hand the swipe on to the page. */
+  .prompt-row {
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .prompt-row::-webkit-scrollbar {
+    display: none;
+  }
+}

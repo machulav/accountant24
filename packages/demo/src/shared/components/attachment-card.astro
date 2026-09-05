@@ -1,0 +1,29 @@
+---
+// A file attached to a message, as the app shows it in the composer and in
+// the sent bubble: the file glyph, the name, the type and size under it. In
+// a phone-sized window the card turns into a single full-width row so
+// three statements do not fill the whole thread.
+import Icon from "./icons.astro";
+
+interface Props extends astroHTML.JSX.HTMLAttributes {
+  name: string;
+  meta: string;
+}
+const { name, meta, class: className = "", ...rest } = Astro.props;
+---
+
+<div
+  {...rest}
+  class:list={[
+    "flex w-44 items-center gap-2.5 rounded-xl border border-line p-2.5 @max-md:w-full @max-md:gap-2 @max-md:px-2.5 @max-md:py-1.5",
+    className,
+  ]}
+>
+  <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 @max-md:size-6">
+    <Icon name="file" class="size-4 text-ink-2 @max-md:size-3.5" />
+  </span>
+  <span class="min-w-0 @max-md:flex @max-md:flex-1 @max-md:items-baseline @max-md:justify-between @max-md:gap-2">
+    <span class="block truncate text-xs font-medium">{name}</span>
+    <span class="block text-[10px] text-ink-2 @max-md:shrink-0">{meta}</span>
+  </span>
+</div>

@@ -4,9 +4,11 @@ sidebarTitle: "Create a plugin"
 description: "A plugin packages one or more skills into a folder the agent can load. Build one, test it, and publish it to the marketplace."
 ---
 
-You don't have to write a plugin yourself. Describe the routine in chat, and the agent builds it for you. For example:
+<Tip>
+  You don't have to write a plugin yourself. Describe the routine in chat, and the agent builds it for you. For example:
 
-> Create a plugin with a skill that compares my spending this month to the previous month and shows where I spent more.
+  > Create a plugin with a skill that compares my spending this month to the previous month and shows where I spent more.
+</Tip>
 
 ## Plugin folder layout
 
@@ -220,7 +222,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 
 [`blocklist.json`](https://github.com/accountant24/marketplace/blob/main/blocklist.json) lists repositories that are never indexed.
 
-## Publishing checklist
+### Publishing checklist
 
 - `plugin.json` at the root, with a `name` that matches the folder and follows the naming rules, and a `description` of what the plugin does.
 - At least one `skills/<name>/SKILL.md`, its frontmatter `name` matching its folder, with a description written for matching.
