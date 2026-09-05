@@ -327,11 +327,18 @@ function replyParagraphs(text: string): Token[][] {
             ),
         )
       }
-      <div class="relative text-sm">
-        <div class:list={["text-ink-2", typed.length > 0 && "fx-placeholder"]}>Write a message...</div>
+      {/* The placeholder and the typed text share one grid cell: the text
+          sits over the placeholder and wraps like a real message, and the
+          composer grows with it (in a phone-sized window most messages take
+          two lines) the way the app's does while someone types. */}
+      <div class="grid text-sm">
+        <div class:list={["col-start-1 row-start-1 text-ink-2", typed.length > 0 && "fx-placeholder"]}>Write a message...</div>
         {
           typed.map(({ demo, timeline }) => (
-            <div class="fx-typed absolute inset-0 overflow-hidden whitespace-pre" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
+            <div
+              class="fx-typed col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap"
+              style={`--t-send:${timeline.sendAt ?? 0}ms`}
+            >
               {demo.user?.skill && (
                 <Fragment>
                   {/* The `/` sits where the chip will land; the chip holds the
@@ -459,12 +466,25 @@ function replyParagraphs(text: string): Token[][] {
   .fdemo .fx-cattach {
     display: none;
   }
+  /* At the send the typed text leaves the layout too, not just the screen
+     (fdemo-collapse, below): it may have wrapped onto a second line, and the
+     composer goes back to the placeholder's one. */
   .fdemo .scene.is-active .fx-typed {
     display: block;
-    animation: fdemo-hide 1ms var(--t-send, 0ms) forwards;
+    max-height: 12rem;
+    animation: fdemo-collapse 1ms var(--t-send, 0ms) forwards;
+  }
+  /* A character takes its place in the line at its moment and has no size
+     before it, so the text wraps and the composer grows as it is typed,
+     rather than the whole message holding its final shape from the start. */
+  @keyframes fdemo-type {
+    from {
+      font-size: 0;
+      opacity: 0;
+    }
   }
   .fdemo .scene.is-active .fx-char {
-    animation: fdemo-stream 1ms var(--d, 0ms) both;
+    animation: fdemo-type 1ms var(--d, 0ms) both;
   }
   /* The skill picker's `/`: typed like a character, gone at the pick, when
      the chip takes its place. */
