@@ -3,7 +3,7 @@
 // profiles, no recordings, so no consent banner. Mintlify loads any .js file in
 // the content directory on every page. Empty key = analytics off.
 (function () {
-  var KEY = "";
+  var KEY = "phc_uW2qYr3JBuxXYxMgohfFuntxGVazUhLExQQy6uy6bcoD";
   if (!KEY || navigator.doNotTrack === "1") return;
 
   var script = document.createElement("script");

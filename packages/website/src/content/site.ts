@@ -31,7 +31,7 @@ export const site = {
   quickstartUrl: "/docs/quickstart",
   // PostHog project token (EU cloud). A client-side token meant to be public,
   // like the Aptabase key in the desktop app. Empty disables analytics.
-  posthogKey: "",
+  posthogKey: "phc_uW2qYr3JBuxXYxMgohfFuntxGVazUhLExQQy6uy6bcoD",
 } as const;
 
 export interface Feature {
