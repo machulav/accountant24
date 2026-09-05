@@ -119,7 +119,7 @@ export const features: Feature[] = [
   {
     title: "Any LLM, fully local if you want",
     description:
-      "Sign in with your ChatGPT or Claude subscription, or use an API key from Anthropic, OpenAI, Google, and more. Or run a local model with Ollama, and nothing ever leaves your machine.",
+      "Sign in with your ChatGPT or Claude subscription, or use an API key from 30+ providers and over a thousand models. Or run a local model with Ollama, and nothing ever leaves your machine.",
     demo: modelMenu,
   },
   {
