@@ -193,7 +193,7 @@ Publishing takes two steps, with no form to fill in and no review queue:
 1. Push the plugin to a public GitHub repository with `plugin.json` at the root. One repository holds one plugin.
 2. Add the topic `accountant24-plugin` to the repository (the gear next to **About** on the repository page).
 
-The plugin appears in the [marketplace](/docs/marketplace) at the next refresh, within about 30 minutes. Anyone can then install it from **Settings → Plugins**.
+The plugin appears in the [marketplace](/marketplace) at the next refresh, within about 30 minutes. Anyone can then install it from **Settings → Plugins**.
 
 The app installs the tip of your default branch, so what you push is what the next install gets. A user moves to your latest version by uninstalling and installing again. [accountant24/skills](https://github.com/accountant24/skills) is a complete example of the layout.
 
@@ -236,7 +236,7 @@ curl -fsSL https://raw.githubusercontent.com/accountant24/marketplace/main/scrip
 1. When a user confirms the install, the app downloads the repository as an archive over HTTPS and unpacks it to a temporary folder.
 2. It reads `plugin.json` and the skills, and refuses anything that isn't a usable plugin.
 3. It copies the plugin into `~/.accountant24/plugins/<plugin-name>/`.
-4. It records the source repository in [app-settings.json](/docs/settings#plugins).
+4. It records the source repository in [app-settings.json](/settings#plugins).
 5. The agent restarts, and the new skills are available in chat.
 
 A plugin's instructions and scripts run later, when the agent uses one of its skills.

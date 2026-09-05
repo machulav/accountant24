@@ -6,14 +6,17 @@ import { defineConfig } from "astro/config";
 // (src/worker). The dev server mirrors that so docs links work with hot
 // reload: by default against the live docs, or against a local `mint dev`
 // when DOCS_PROXY_TARGET points at it (see scripts/preview.sh at the root).
+const localMint = process.env.DOCS_PROXY_TARGET;
 const docsProxy = {
-  target: process.env.DOCS_PROXY_TARGET ?? "https://accountant24.mintlify.site",
+  target: localMint ?? "https://accountant24.mintlify.site",
   changeOrigin: true,
   ws: true,
   headers: { "X-Forwarded-Host": "accountant24.ai", "X-Forwarded-Proto": "https" },
-  // Until "Host at /docs" is enabled, the docs home (index.mdx) lives at the
-  // Mintlify root; map bare /docs onto it so the preview matches the final UX.
-  rewrite: (path: string) => (path === "/docs" ? "/" : path),
+  // The hosted docs are configured as "Host at accountant24.ai/docs", so
+  // Mintlify itself serves every page under /docs. A local `mint dev` knows
+  // nothing about that setting and serves the pages at the root, so strip the
+  // prefix only for it.
+  rewrite: (path: string) => (localMint ? path.replace(/^\/docs(?=\/|$)/, "") || "/" : path),
 };
 // `/_next` and `/socket.io` are where a local `mint dev` serves its assets and
 // live-reload socket; harmless against the live docs.
