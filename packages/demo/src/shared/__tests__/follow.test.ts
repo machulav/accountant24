@@ -1,0 +1,267 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createThreadFollower, followTarget, glide, parseMs, type Reveal } from "../follow";
+
+const reveal = (at: number, bottom: number): Reveal => ({ at, bottom });
+
+describe("parseMs()", () => {
+  it("should read the number out of a millisecond value", () => {
+    expect(parseMs("1234ms")).toBe(1234);
+  });
+
+  it("should accept leading whitespace, as browsers keep it for custom properties", () => {
+    expect(parseMs(" 20ms")).toBe(20);
+  });
+
+  it("should return 0 for 0ms", () => {
+    expect(parseMs("0ms")).toBe(0);
+  });
+
+  it("should return undefined when the property is unset", () => {
+    expect(parseMs("")).toBeUndefined();
+  });
+
+  it("should return undefined for a value that is not a number", () => {
+    expect(parseMs("auto")).toBeUndefined();
+  });
+});
+
+describe("followTarget()", () => {
+  const reveals = [reveal(100, 40), reveal(200, 120), reveal(300, 260), reveal(400, 380)];
+
+  it("should stay at the top while nothing is revealed", () => {
+    expect(followTarget(reveals, 50, 200)).toBe(0);
+  });
+
+  it("should stay at the top while everything revealed fits the viewport", () => {
+    // 120 + 12 = 132 <= 200.
+    expect(followTarget(reveals, 250, 200)).toBe(0);
+  });
+
+  it("should scroll so the lowest revealed element ends 12px above the bottom", () => {
+    // 260 + 12 - 200.
+    expect(followTarget(reveals, 350, 200)).toBe(72);
+  });
+
+  it("should count an element revealed exactly now", () => {
+    expect(followTarget(reveals, 300, 200)).toBe(72);
+  });
+
+  it("should ignore elements still to come", () => {
+    expect(followTarget(reveals, 399, 200)).toBe(72);
+    expect(followTarget(reveals, 400, 200)).toBe(192);
+  });
+
+  it("should follow the lowest revealed element, not the latest", () => {
+    expect(followTarget([reveal(100, 300), reveal(200, 50)], 250, 200)).toBe(112);
+  });
+
+  it("should use the given padding", () => {
+    expect(followTarget(reveals, 350, 200, 0)).toBe(60);
+  });
+
+  it("should return 0 with no reveals", () => {
+    expect(followTarget([], 1000, 200)).toBe(0);
+  });
+});
+
+describe("glide()", () => {
+  it("should cover a fifth of the remaining distance", () => {
+    expect(glide(0, 100)).toBe(20);
+    expect(glide(20, 100)).toBe(36);
+  });
+
+  it("should glide upwards too", () => {
+    expect(glide(100, 0)).toBe(80);
+  });
+
+  it("should snap to the target once within a pixel", () => {
+    expect(glide(99.2, 100)).toBe(100);
+    expect(glide(100.9, 100)).toBe(100);
+  });
+
+  it("should stay put at the target", () => {
+    expect(glide(100, 100)).toBe(100);
+  });
+
+  it("should not snap at exactly a pixel away", () => {
+    expect(glide(99, 100)).toBe(99.2);
+  });
+});
+
+describe("createThreadFollower()", () => {
+  interface Part {
+    /** The element's inline `--d`; absent for an element that never animates. */
+    d?: string;
+    /** Bottom edge, px from the thread's top. */
+    bottom: number;
+    className?: string;
+  }
+  const THREAD_TOP = 100;
+
+  /** A thread element with jsdom's missing layout stubbed in: its size, a
+   *  working scrollTop, and children measured at the given bottoms. */
+  function buildThread(size: { clientHeight: number; scrollHeight: number }, parts: Part[]): HTMLElement {
+    const thread = document.createElement("div");
+    let scrollTop = 0;
+    Object.defineProperties(thread, {
+      clientHeight: { value: size.clientHeight },
+      scrollHeight: { value: size.scrollHeight },
+      scrollTop: {
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    thread.getBoundingClientRect = () => ({ top: THREAD_TOP }) as DOMRect;
+    for (const part of parts) {
+      const el = document.createElement("span");
+      el.className = part.className ?? "fx-stream";
+      if (part.d !== undefined) el.setAttribute("style", `--d:${part.d}`);
+      el.getBoundingClientRect = () => ({ bottom: THREAD_TOP + part.bottom }) as DOMRect;
+      thread.append(el);
+    }
+    return thread;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame", "performance"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("should scroll the thread back to the top when measuring", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, []);
+    thread.scrollTop = 150;
+    createThreadFollower(thread).measure();
+    expect(thread.scrollTop).toBe(0);
+  });
+
+  it("should glide down to what the scene has revealed", () => {
+    // Revealed at 100ms, ending 400px down a 200px thread: target 212.
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "100ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(96);
+    expect(thread.scrollTop).toBe(0);
+    vi.advanceTimersByTime(16);
+    expect(thread.scrollTop).toBeCloseTo(42.4);
+    vi.advanceTimersByTime(16);
+    expect(thread.scrollTop).toBeCloseTo(76.32);
+    vi.advanceTimersByTime(1000);
+    expect(thread.scrollTop).toBe(212);
+  });
+
+  it("should keep the thread still while everything revealed fits", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "0ms", bottom: 150 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(500);
+    expect(thread.scrollTop).toBe(0);
+  });
+
+  it("should stop scheduling frames once everything is revealed and in view", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "100ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("should keep running while a reveal is still ahead", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "5000ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    expect(thread.scrollTop).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("should not scroll past the end of the thread", () => {
+    // Target 212, but only 100px of scroll room.
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 300 }, [{ d: "0ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    expect(thread.scrollTop).toBe(100);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("should measure every animated kind of element and ignore the rest", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 900 }, [
+      { d: "0ms", bottom: 300, className: "fx-stream" },
+      { d: "0ms", bottom: 500, className: "fx-working" },
+      { d: "0ms", bottom: 800, className: "plain" },
+    ]);
+    const bubble = document.createElement("div");
+    bubble.dataset.fx = "";
+    bubble.setAttribute("style", "--d:0ms");
+    bubble.getBoundingClientRect = () => ({ bottom: THREAD_TOP + 600 }) as DOMRect;
+    thread.append(bubble);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    // The data-fx bubble at 600 is the lowest animated element: 600 + 12 - 200.
+    expect(thread.scrollTop).toBe(412);
+  });
+
+  it("should ignore an animated element without a delay", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 900 }, [{ bottom: 800 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    expect(thread.scrollTop).toBe(0);
+  });
+
+  it("should take the run's start time into account", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "1000ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    // A run resumed 900ms in: the reveal is due in 100ms, not 1000ms.
+    follower.run(performance.now() - 900);
+    vi.advanceTimersByTime(96);
+    expect(thread.scrollTop).toBe(0);
+    vi.advanceTimersByTime(32);
+    expect(thread.scrollTop).toBeGreaterThan(0);
+  });
+
+  it("should stop following when told to", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "0ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    vi.advanceTimersByTime(16);
+    const partWay = thread.scrollTop;
+    expect(partWay).toBeGreaterThan(0);
+    follower.stop();
+    vi.advanceTimersByTime(2000);
+    expect(thread.scrollTop).toBe(partWay);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("should replace a running loop when run again", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "0ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    follower.run(performance.now());
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(16);
+    // One glide step, not two.
+    expect(thread.scrollTop).toBeCloseTo(42.4);
+  });
+
+  it("should tolerate a stop before any run", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, []);
+    expect(() => createThreadFollower(thread).stop()).not.toThrow();
+  });
+});

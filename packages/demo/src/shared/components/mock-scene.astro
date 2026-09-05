@@ -8,6 +8,7 @@ import { replyTokens, type SceneTimeline } from "../timeline";
 // under `.is-active` only. Base styles are the FINAL state, so no-JS and
 // reduced-motion visitors see the finished conversation.
 import type { SceneDemo } from "../types";
+import AttachmentCard from "./attachment-card.astro";
 import Icon from "./icons.astro";
 
 interface Turn {
@@ -67,12 +68,17 @@ function replyParagraphs(text: string): Token[][] {
 ---
 
 <div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4 pt-0", shown && "is-shown"]}>
-  {/* The thread reaches the window's top edge so a scrolled-off message is
-      cut at the border, like the app; its top padding clears the window's
-      inset traffic lights when the sidebar is hidden. overflow-hidden keeps
-      the visitor from scrolling it; the hero script still scrolls it to
-      follow a new turn (scrollTo works on hidden overflow). */}
-  <div data-thread class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-8">
+  {/* The thread reaches the window's top edge, and a scrolled-off message
+      fades out over the top padding, which clears the window's inset traffic
+      lights when the sidebar is hidden, so the two never collide. A
+      phone-sized window has no traffic lights and less padding to match.
+      overflow-hidden keeps the visitor from scrolling it; the hosts' scripts
+      still scroll it to follow the conversation (shared/follow.ts; scrollTop
+      works on hidden overflow). */}
+  <div
+    data-thread
+    class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-8 [mask-image:linear-gradient(to_bottom,transparent,black_2rem)] @max-md:pt-4 @max-md:[mask-image:linear-gradient(to_bottom,transparent,black_1rem)]"
+  >
     {
       turns.map(({ demo, timeline }, ti) => (
         <Fragment>
@@ -82,18 +88,11 @@ function replyParagraphs(text: string): Token[][] {
               style={`--d:${timeline.sendAt ?? 0}ms`}
               class:list={["flex shrink-0 flex-col items-end gap-2", ti > 0 && "mt-3"]}
             >
+              {/* In a phone-sized window the cards are rows as wide as the bubble may get. */}
               {demo.user.attachments && (
-                <div class="flex flex-wrap justify-end gap-2">
+                <div class="flex flex-wrap justify-end gap-2 @max-md:w-[85%] @max-md:gap-1.5">
                   {demo.user.attachments.map((attachment) => (
-                    <div class="flex w-44 items-center gap-2.5 rounded-xl border border-line bg-surface p-2.5">
-                      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-                        <Icon name="file" class="size-4 text-ink-2" />
-                      </span>
-                      <span class="min-w-0">
-                        <span class="block truncate text-xs font-medium">{attachment.name}</span>
-                        <span class="block text-[10px] text-ink-2">{attachment.meta}</span>
-                      </span>
-                    </div>
+                    <AttachmentCard name={attachment.name} meta={attachment.meta} class="bg-surface" />
                   ))}
                 </div>
               )}
@@ -278,9 +277,10 @@ function replyParagraphs(text: string): Token[][] {
                 rows): flat rows, the zap glyph, the plugin prefix muted, the
                 description under the name. The highlight
                 starts on the first row and walks down to the picked one; the
-                pick closes the popup, so its final state is hidden. */}
+                pick closes the popup, so its final state is hidden. Never
+                wider than the composer, for a phone-sized window. */}
             <div
-              class="fx-picker absolute bottom-2 left-1 z-10 w-80 rounded-3xl bg-bg p-1.5 shadow-lg ring-1 ring-ink/5 dark:ring-ink/10"
+              class="fx-picker absolute bottom-2 left-1 z-10 w-80 max-w-[calc(100%-0.25rem)] rounded-3xl bg-bg p-1.5 shadow-lg ring-1 ring-ink/5 dark:ring-ink/10"
               style={`--d:${timeline.pickerAt ?? 0}ms; --t-pick:${timeline.pickAt ?? 0}ms`}
             >
               {skill.options.map((option, si) => (
@@ -313,21 +313,15 @@ function replyParagraphs(text: string): Token[][] {
         typed.map(
           ({ demo, timeline }) =>
             demo.user?.attachments && (
-              <div class="fx-cattach mb-2.5 flex-wrap gap-2" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
+              <div class="fx-cattach mb-2.5 flex-wrap gap-2 @max-md:gap-1.5" style={`--t-send:${timeline.sendAt ?? 0}ms`}>
                 {demo.user.attachments.map((attachment, ai) => (
-                  <div
+                  <AttachmentCard
                     data-fx
                     style={`--d:${timeline.attachmentDelays[ai]}ms`}
-                    class="flex w-44 items-center gap-2.5 rounded-xl border border-line bg-bg p-2.5"
-                  >
-                    <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-                      <Icon name="file" class="size-4 text-ink-2" />
-                    </span>
-                    <span class="min-w-0">
-                      <span class="block truncate text-xs font-medium">{attachment.name}</span>
-                      <span class="block text-[10px] text-ink-2">{attachment.meta}</span>
-                    </span>
-                  </div>
+                    name={attachment.name}
+                    meta={attachment.meta}
+                    class="bg-bg"
+                  />
                 ))}
               </div>
             ),
@@ -394,6 +388,15 @@ function replyParagraphs(text: string): Token[][] {
   }
   .fdemo .scene.is-shown {
     display: flex;
+  }
+  /* Pending: a host marks an ancestor of the window `data-pending` before the
+     scene is painted, and nothing animated shows until the window has played
+     once (`is-played`), so the finished conversation never flashes before the
+     first play. Hosts set the mark only with JS on and motion allowed. */
+  [data-pending] .fdemo:not(.is-played) .scene [data-fx],
+  [data-pending] .fdemo:not(.is-played) .scene .fx-stream,
+  [data-pending] .fdemo:not(.is-played) .scene .fx-worked {
+    opacity: 0;
   }
 
   @keyframes fdemo-in {

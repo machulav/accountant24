@@ -14,7 +14,10 @@ import Base from "../layouts/Base.astro";
     <div>
       <Nav />
     </div>
-    <main id="main" class="flex flex-1 items-center">
+    {/* overflow-x-clip: the halos reach past the page column (see
+        .field-halo in global.css); unclipped they would give the page a
+        horizontal scroll. */}
+    <main id="main" class="flex flex-1 items-center overflow-x-clip">
       <div class="mx-auto flex max-w-2xl flex-col items-center px-6 py-16 text-center">
         <p class="field-halo font-mono text-sm text-ink-2">404</p>
         <h1 class="field-halo mt-3 text-[2.5rem] leading-[1.08] font-black tracking-[-0.03em] text-balance sm:text-5xl">

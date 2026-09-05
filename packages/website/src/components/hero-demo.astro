@@ -12,37 +12,43 @@ import { HERO_DEMO_ID } from "../lib/page-chats";
 
 const conversation = buildConversationTimeline(heroDemo.turns);
 const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.turns[i] }));
-// The thread follows each turn after the first down as it is sent, like the
-// app scrolling to a new message.
-const scrollAts = conversation.turns
-  .slice(1)
-  .map((timeline) => timeline.sendAt)
-  .filter((at): at is number => at !== undefined);
 ---
 
 <section
   id={HERO_DEMO_ID}
-  class="px-6 pt-6 pb-12 lg:pb-16"
+  class="pt-6 pb-12 sm:px-6 lg:pb-16"
   aria-labelledby="hero-demo-title"
   data-hero-demo
   data-total={conversation.total}
   data-hold={conversation.holdAfter}
-  data-scroll-at={scrollAts.join(",")}
 >
   {/* Runs while the section is still being parsed, before anything in it is
-      painted: with JS on and motion allowed, the scene starts hidden (see
-      the pending rule below) instead of flashing the finished conversation
-      until the first play. */}
+      painted: with JS on and motion allowed, the scene starts hidden (the
+      pending rule in mock-scene.astro) instead of flashing the finished
+      conversation until the first play. */}
   <script is:inline>
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.currentScript.parentElement.dataset.pending = "";
   </script>
   <h2 id="hero-demo-title" class="sr-only">Demo</h2>
   <div class="relative mx-auto max-w-[75rem]">
+    {/* On a phone the frame runs edge to edge, padded at the sides like the
+        page column so the window is as wide as the feature demos. Below lg
+        the window fills the frame's width, leaving the pause button nowhere
+        to go beside it: it sits in the band of wallpaper under the window
+        instead, and the band above matches it so the frame stays even. */}
     <div
       aria-hidden="true"
-      class="hero-desktop field-glow overflow-hidden rounded-3xl border border-line p-3 sm:p-8 lg:p-12"
+      class="hero-desktop field-glow overflow-hidden border-y border-line px-6 py-16 sm:rounded-3xl sm:border sm:px-8 lg:p-12"
     >
-      <MockWindow chats={pageChats} activeChat={HERO_DEMO_ID} class="mx-auto max-w-[56rem] shadow-2xl" height="h-[42rem] sm:h-[36rem]">
+      {/* On a phone the window is as tall as the screen allows around the
+          frame's bands, so that it shows whole with them; the thread follows
+          the conversation down inside it (the hero script). */}
+      <MockWindow
+        chats={pageChats}
+        activeChat={HERO_DEMO_ID}
+        class="mx-auto max-w-[56rem] shadow-2xl"
+        height="h-[42rem] max-h-[calc(100svh-12rem)] sm:h-[36rem] sm:max-h-none"
+      >
         <MockScene index={0} shown turns={turns} />
       </MockWindow>
     </div>
@@ -51,14 +57,16 @@ const scrollAts = conversation.turns
         progress (play plus hold) and doubles as the button's edge. Hidden
         until the script that drives the loop takes over, so no-JS and
         reduced-motion visitors, who see a still frame, never get a dead
-        button. 44px on touch screens, a little smaller with a pointer. */}
+        button. 44px on touch screens, a little smaller with a pointer.
+        Below lg it is centered in the band under the window; from lg the
+        frame is wider than the window and it sits beside it. */}
     <button
       type="button"
       data-demo-toggle
       hidden
       aria-label="Pause demo"
       title="Pause demo"
-      class="demo-toggle absolute right-3 bottom-3 flex size-11 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition-[background-color,transform] hover:bg-black/60 active:scale-95 sm:right-5 sm:bottom-5 sm:size-10"
+      class="demo-toggle absolute right-6 bottom-2.5 flex size-11 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition-[background-color,transform] hover:bg-black/60 active:scale-95 sm:right-8 lg:right-5 lg:bottom-5 lg:size-10"
       style={`--run:${conversation.total + conversation.holdAfter}ms`}
     >
       <svg data-demo-progress class="demo-progress pointer-events-none absolute inset-0" viewBox="0 0 36 36" aria-hidden="true">
@@ -72,12 +80,6 @@ const scrollAts = conversation.turns
 </section>
 
 <style is:global>
-  /* Pending: nothing animated is visible until the first play begins. */
-  [data-hero-demo][data-pending] .scene [data-fx],
-  [data-hero-demo][data-pending] .scene .fx-stream,
-  [data-hero-demo][data-pending] .scene .fx-worked {
-    opacity: 0;
-  }
   /* Paused: every animation in the scene freezes where it is; the script
      stops the timers and remembers the elapsed time. */
   .fdemo .scene.is-paused,
@@ -135,24 +137,33 @@ const scrollAts = conversation.turns
 </style>
 
 <script>
+  import { createThreadFollower } from "@accountant24/demo/shared/follow";
+
   // Replay the conversation while the window is on screen: every run lasts
   // the conversation's length plus a hold on the final frame long enough to
-  // read it. The corner button pauses the run where it is and resumes it
-  // from there. Under reduced motion the scene stays in its finished state.
+  // read it. The thread follows the conversation down as it plays. The
+  // corner button pauses the run where it is and resumes it from there.
+  // Under reduced motion the scene stays in its finished state.
   const root = document.querySelector<HTMLElement>("[data-hero-demo]");
+  const app = root?.querySelector<HTMLElement>(".fdemo");
   const scene = root?.querySelector<HTMLElement>("[data-scene]");
   const thread = root?.querySelector<HTMLElement>("[data-thread]");
   const toggle = root?.querySelector<HTMLButtonElement>("[data-demo-toggle]");
   const progress = root?.querySelector<SVGElement>("[data-demo-progress]");
-  if (root && scene && thread && toggle && progress && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (
+    root &&
+    app &&
+    scene &&
+    thread &&
+    toggle &&
+    progress &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
     const total = Number(root.dataset.total) || 0;
     const hold = Number(root.dataset.hold) || 0;
-    const scrollAts = (root.dataset.scrollAt ?? "")
-      .split(",")
-      .map(Number)
-      .filter((at) => at > 0);
     const runLength = total + hold;
-    let timers: number[] = [];
+    const follower = createThreadFollower(thread);
+    let replay = 0;
     // Where the current run is: when it started (adjusted on resume), and how
     // far it had got when paused. `running` is false before the first play
     // and while the window is off screen.
@@ -161,20 +172,19 @@ const scrollAts = conversation.turns
     let running = false;
     let paused = false;
 
-    const clearTimers = () => {
-      for (const t of timers) window.clearTimeout(t);
-      timers = [];
+    const halt = () => {
+      window.clearTimeout(replay);
+      follower.stop();
     };
-    // Schedule what is left of the run: the scroll moments still ahead and
-    // the replay at the end.
+    // Run what is left: the thread following the scene, and the replay at
+    // the end.
     const schedule = () => {
-      clearTimers();
-      const scrollToEnd = () => thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
-      timers = scrollAts.filter((at) => at > elapsed).map((at) => window.setTimeout(scrollToEnd, at - elapsed));
-      timers.push(window.setTimeout(play, runLength - elapsed));
+      halt();
+      follower.run(startedAt);
+      replay = window.setTimeout(play, runLength - elapsed);
     };
     const play = () => {
-      delete root.dataset.pending;
+      app.classList.add("is-played");
       scene.classList.remove("is-active");
       // Force a reflow between class removal and re-add so the animations
       // restart from the top.
@@ -183,7 +193,7 @@ const scrollAts = conversation.turns
       progress.classList.remove("is-running");
       void progress.getBoundingClientRect();
       progress.classList.add("is-running");
-      thread.scrollTo({ top: 0 });
+      follower.measure();
       startedAt = performance.now();
       elapsed = 0;
       running = true;
@@ -192,7 +202,7 @@ const scrollAts = conversation.turns
     const pause = () => {
       paused = true;
       elapsed = performance.now() - startedAt;
-      clearTimers();
+      halt();
       scene.classList.add("is-paused");
       toggle.classList.add("is-paused");
       toggle.setAttribute("aria-label", "Play demo");
@@ -225,7 +235,7 @@ const scrollAts = conversation.turns
           if (!running && !paused) play();
         } else if (!paused) {
           // Off screen: let the animations finish, and start over on return.
-          clearTimers();
+          halt();
           running = false;
         }
       },

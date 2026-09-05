@@ -18,7 +18,10 @@ const { version } = await fetchGitHubStats();
 <Base structuredData={homeStructuredData({ version })}>
   <AsciiField extent="page-top" class="ascii-fade-bottom absolute inset-x-0 top-0" />
   <Nav />
-  <main id="main">
+  {/* overflow-x-clip: the halos behind the hero text and the extras reach
+      past the page column (see .field-halo in global.css); unclipped they
+      would give the page a horizontal scroll. */}
+  <main id="main" class="overflow-x-clip">
     <Hero />
     <HeroDemo />
     <PromptCloud />

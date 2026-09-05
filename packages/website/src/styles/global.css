@@ -136,7 +136,10 @@
 
   /* Backdrops for content sitting on the animated field:
      .field-halo lays a translucent page-colored ellipse behind the element,
-     so the field shows through faintly but never fights the text.
+     so the field shows through faintly but never fights the text. The
+     ellipse reaches well past the element, so a halo near the page edge
+     overflows the viewport: every container holding halos clips its
+     horizontal overflow (overflow-x-clip), or the page would scroll sideways.
      .field-glow is the same idea for a solid box (image, video, card). */
   .field-halo {
     position: relative;
