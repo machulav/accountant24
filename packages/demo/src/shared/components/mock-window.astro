@@ -34,12 +34,17 @@ const { chats, activeChat, class: className = "", height = "h-[30rem] max-h-[cal
         <Icon name="plus" class="size-3.5" />
         New Chat
       </div>
+      {/* tabindex -1: the window is decorative and its hosts hide it from
+          assistive technology, so the links must not take keyboard focus
+          (focus inside hidden content is an accessibility failure). A mouse
+          or a finger still selects a chat. */}
       <div class="mt-4 flex flex-col gap-0.5">
         {
           chats.map((chat) => (
             <a
               href={`#${chat.target}`}
               data-chat={chat.target}
+              tabindex="-1"
               class:list={["block truncate rounded-full px-3 py-1.5", chat.target === activeChat && "is-active"]}
             >
               {chat.title}

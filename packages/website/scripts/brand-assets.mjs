@@ -45,7 +45,12 @@ try {
 
 // The hero/closing wallpaper: AVIF is what browsers actually load (the WebP
 // beside it is the fallback for those without AVIF, and is the source here).
+// The `-sm` pair is the phone cut: a phone shows the wallpaper at most 40rem
+// wide, where 1032px is plenty at 2x and half the bytes, and there the
+// picture is the largest thing in the first screen, so its bytes set the LCP.
 const wallpaper = `${out}hero-forest-dither`;
 await sharp(`${wallpaper}.webp`).avif({ quality: 50 }).toFile(`${wallpaper}.avif`);
+await sharp(`${wallpaper}.webp`).resize(1032).avif({ quality: 50 }).toFile(`${wallpaper}-sm.avif`);
+await sharp(`${wallpaper}.webp`).resize(1032).webp({ quality: 82 }).toFile(`${wallpaper}-sm.webp`);
 
 console.log("brand assets written to", out);

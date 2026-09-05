@@ -20,7 +20,7 @@ describe("initAnalytics()", () => {
   });
 
   it("should use cookieless mode without person profiles, recordings or autocapture against the EU host", () => {
-    expect(analyticsOptions).toEqual({
+    expect(analyticsOptions).toMatchObject({
       api_host: "https://eu.i.posthog.com",
       cookieless_mode: "always",
       person_profiles: "never",
@@ -30,6 +30,43 @@ describe("initAnalytics()", () => {
       capture_pageleave: true,
       respect_dnt: true,
     });
+  });
+
+  it("should report page views and CTA clicks only: no heatmaps, dead clicks, web vitals or surveys", () => {
+    expect(analyticsOptions).toMatchObject({
+      capture_heatmaps: false,
+      capture_dead_clicks: false,
+      capture_performance: false,
+      disable_surveys: true,
+    });
+  });
+
+  it("should load no script beyond its own and never ask the server what to enable", () => {
+    expect(analyticsOptions).toMatchObject({
+      disable_external_dependency_loading: true,
+      advanced_disable_flags: true,
+    });
+  });
+
+  it("should set nothing beyond the documented options", () => {
+    expect(Object.keys(analyticsOptions).sort()).toEqual(
+      [
+        "advanced_disable_flags",
+        "api_host",
+        "autocapture",
+        "capture_dead_clicks",
+        "capture_heatmaps",
+        "capture_pageleave",
+        "capture_pageview",
+        "capture_performance",
+        "cookieless_mode",
+        "disable_external_dependency_loading",
+        "disable_session_recording",
+        "disable_surveys",
+        "person_profiles",
+        "respect_dnt",
+      ].sort(),
+    );
   });
 });
 

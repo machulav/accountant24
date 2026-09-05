@@ -19,7 +19,7 @@ Copy and data live in `src/content/site.ts`. Pure logic (`src/lib/`, `src/worker
 
 ## Analytics
 
-PostHog (EU) in cookieless mode: no cookies or storage, no person profiles, no recordings, so no consent banner. The project token goes into `site.posthogKey` (`src/content/site.ts`) and `docs/analytics.js`; an empty token disables analytics. CTAs carry `data-track` / `data-placement` attributes and emit `download_clicked`, `github_clicked`, `docs_clicked`.
+PostHog (EU) in cookieless mode: no cookies or storage, no person profiles, no recordings, no heatmaps or web vitals, so no consent banner; the client loads no script beyond its own bundle. The project token goes into `site.posthogKey` (`src/content/site.ts`) and `docs/analytics.js`; an empty token disables analytics. CTAs carry `data-track` / `data-placement` attributes and emit `download_clicked`, `github_clicked`, `docs_clicked`.
 
 ## Cutover checklist (one-time)
 

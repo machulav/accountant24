@@ -405,10 +405,13 @@ function replyParagraphs(text: string): Token[][] {
       transform: translateY(4px);
     }
   }
+  /* Hiding and showing move opacity alone. An animation that also touches
+     visibility runs on the main thread and takes every other animation on
+     the element with it; opacity by itself the compositor plays on its own,
+     off the thread the scene's script and the rest of the page share. */
   @keyframes fdemo-hide {
     to {
       opacity: 0;
-      visibility: hidden;
     }
   }
   @keyframes fdemo-shimmer {
@@ -442,11 +445,9 @@ function replyParagraphs(text: string): Token[][] {
   @keyframes fdemo-show {
     from {
       opacity: 0;
-      visibility: visible;
     }
     to {
       opacity: 1;
-      visibility: visible;
     }
   }
   @keyframes fdemo-press {
@@ -494,11 +495,11 @@ function replyParagraphs(text: string): Token[][] {
       fdemo-hide 1ms var(--t-off, 1000000ms) forwards;
   }
   /* On send the card must also give up its layout space, not just fade, or
-     the composer keeps a blank block where it used to be. */
+     the composer keeps a blank block where it used to be. The one animation
+     here that lays out, for a single frame. */
   @keyframes fdemo-collapse {
     to {
       opacity: 0;
-      visibility: hidden;
       max-height: 0;
       margin-bottom: 0;
       padding-top: 0;

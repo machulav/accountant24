@@ -13,9 +13,20 @@ interface Props {
   structuredData?: Record<string, unknown>;
   /** Pages that should not be indexed (404). */
   noindex?: boolean;
+  /** Images to fetch ahead of everything else: the page's largest element
+   *  when it is a CSS background, which the browser would otherwise only
+   *  discover after the styles and fetch behind the fonts. `media` picks the
+   *  cut for the screen, like the stylesheet does. */
+  preloadImages?: { href: string; type: string; media?: string }[];
 }
 
-const { title = site.title, description = site.description, structuredData, noindex = false } = Astro.props;
+const {
+  title = site.title,
+  description = site.description,
+  structuredData,
+  noindex = false,
+  preloadImages = [],
+} = Astro.props;
 // `build.format: "file"` reports pages as `/x.html`; canonical URLs never carry the extension.
 const canonical = new URL(Astro.url.pathname.replace(/index\.html$/, "").replace(/\.html$/, ""), site.url).href;
 const ogImage = new URL("/og.png", site.url).href;
@@ -38,6 +49,7 @@ const ogImage = new URL("/og.png", site.url).href;
     <link rel="preload" href={satoshi700} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={satoshi900} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sentient-400-italic.woff2" as="font" type="font/woff2" crossorigin />
+    {preloadImages.map((image) => <link rel="preload" as="image" href={image.href} type={image.type} media={image.media} fetchpriority="high" />)}
     {/* Pixel-snapped raster frames, not an SVG: browsers rasterize a vector icon
         at 16 px with no hinting, which reads as blur in the tab. The dark file
         comes last: on a tie the browser takes the last icon whose media matches. */}

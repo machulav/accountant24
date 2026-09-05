@@ -15,7 +15,15 @@ import { homeStructuredData } from "../lib/structured-data";
 const { version } = await fetchGitHubStats();
 ---
 
-<Base structuredData={homeStructuredData({ version })}>
+{/* The hero demo's wallpaper is the largest thing in a phone's first screen;
+    the media queries match the cuts in hero-demo.astro. */}
+<Base
+  structuredData={homeStructuredData({ version })}
+  preloadImages={[
+    { href: "/hero-forest-dither-sm.avif", type: "image/avif", media: "(width <= 40rem)" },
+    { href: "/hero-forest-dither.avif", type: "image/avif", media: "(width > 40rem)" },
+  ]}
+>
   <AsciiField extent="page-top" class="ascii-fade-bottom absolute inset-x-0 top-0" />
   <Nav />
   {/* overflow-x-clip: the halos behind the hero text and the extras reach

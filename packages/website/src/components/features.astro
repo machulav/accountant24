@@ -38,7 +38,7 @@ import Icon from "./icons.astro";
               index === 0 && "is-active",
             ]}
           >
-            <span class="font-mono text-xs text-ink-2">{String(index + 1).padStart(2, "0")}</span>
+            <span class="feature-index font-mono text-xs text-ink-2">{String(index + 1).padStart(2, "0")}</span>
             <h3 class="mt-2 text-xl font-semibold tracking-tight">{feature.title}</h3>
             <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
             {feature.link && (
@@ -103,14 +103,21 @@ import Icon from "./icons.astro";
     }
   }
 
-  /* Dim inactive features only while the scroll script drives the section
-     (desktop + JS); without it the list stays fully readable. */
-  [data-features][data-enhanced] .feature-item {
-    opacity: 0.35;
-    transition: opacity 300ms;
+  /* Inactive features step back only while the scroll script drives the
+     section (desktop + JS): their title takes the muted ink, and the active
+     feature's number the accent. By color, not opacity: text at a fraction
+     of its opacity falls under the contrast floor, and a section a visitor
+     is reading has to stay legible whichever feature is playing. Without
+     the script the list is plain and fully readable. */
+  [data-features][data-enhanced] .feature-item h3,
+  [data-features][data-enhanced] .feature-index {
+    transition: color 300ms;
   }
-  [data-features][data-enhanced] .feature-item.is-active {
-    opacity: 1;
+  [data-features][data-enhanced] .feature-item:not(.is-active) h3 {
+    color: var(--ink-2);
+  }
+  [data-features][data-enhanced] .feature-item.is-active .feature-index {
+    color: var(--accent-ink);
   }
 </style>
 

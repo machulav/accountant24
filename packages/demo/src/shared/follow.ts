@@ -57,6 +57,12 @@ export function createThreadFollower(thread: HTMLElement): ThreadFollower {
   let reveals: Reveal[] = [];
   let lastAt = 0;
   let frame = 0;
+  // The thread's size, taken once per measure. Read every frame it made the
+  // browser lay the page out again whenever anything else had moved since
+  // the last frame, which during a scene is always: the single biggest cost
+  // of a run on a phone. Nothing in the thread changes size while it plays.
+  let viewport = 0;
+  let maxScroll = 0;
 
   const stop = () => {
     cancelAnimationFrame(frame);
@@ -67,6 +73,10 @@ export function createThreadFollower(thread: HTMLElement): ThreadFollower {
     measure() {
       thread.scrollTop = 0;
       const top = thread.getBoundingClientRect().top;
+      viewport = thread.clientHeight;
+      // The browser would clamp a target past the end anyway; clamping here
+      // lets the glide actually arrive, so the run knows when it is done.
+      maxScroll = Math.max(0, thread.scrollHeight - viewport);
       reveals = [];
       for (const el of thread.querySelectorAll<HTMLElement>(REVEALED)) {
         const at = parseMs(el.style.getPropertyValue("--d"));
@@ -76,16 +86,18 @@ export function createThreadFollower(thread: HTMLElement): ThreadFollower {
     },
     run(startedAt) {
       stop();
+      // Where the thread is as the run starts (a resumed run picks up from
+      // there), then tracked here: the browser rounds what it is given, and
+      // reading it back would cost a layout per frame.
+      let current = thread.scrollTop;
       const tick = () => {
         const elapsed = performance.now() - startedAt;
-        // The browser would clamp a target past the end anyway; clamping here
-        // lets the glide actually arrive, so the run knows when it is done.
-        const target = Math.min(
-          followTarget(reveals, elapsed, thread.clientHeight),
-          thread.scrollHeight - thread.clientHeight,
-        );
-        const next = glide(thread.scrollTop, target);
-        if (next !== thread.scrollTop) thread.scrollTop = next;
+        const target = Math.min(followTarget(reveals, elapsed, viewport), maxScroll);
+        const next = glide(current, target);
+        if (next !== current) {
+          current = next;
+          thread.scrollTop = next;
+        }
         if (elapsed > lastAt && next === target) {
           frame = 0;
           return;

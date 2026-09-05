@@ -15,6 +15,18 @@ export const analyticsOptions = {
   capture_pageview: true,
   capture_pageleave: true,
   respect_dnt: true,
+  // Page views and the CTA clicks are all the site reports. Everything the
+  // client can add on its own (heatmaps, dead clicks, web vitals, surveys)
+  // costs a phone visitor extra scripts and main-thread time, and the
+  // project's remote settings could switch any of it on later: so it is off
+  // here, the client loads no script beyond its own, and it never asks the
+  // server what to enable.
+  capture_heatmaps: false,
+  capture_dead_clicks: false,
+  capture_performance: false,
+  disable_surveys: true,
+  disable_external_dependency_loading: true,
+  advanced_disable_flags: true,
 } as const;
 
 /** Initialize the client. Returns false (and captures nothing) when no key is configured. */

@@ -104,10 +104,12 @@ describe("createThreadFollower()", () => {
   function buildThread(size: { clientHeight: number; scrollHeight: number }, parts: Part[]): HTMLElement {
     const thread = document.createElement("div");
     let scrollTop = 0;
+    // Configurable so a test can swap one in that counts its reads.
     Object.defineProperties(thread, {
-      clientHeight: { value: size.clientHeight },
-      scrollHeight: { value: size.scrollHeight },
+      clientHeight: { value: size.clientHeight, configurable: true },
+      scrollHeight: { value: size.scrollHeight, configurable: true },
       scrollTop: {
+        configurable: true,
         get: () => scrollTop,
         set: (value: number) => {
           scrollTop = value;
@@ -263,5 +265,64 @@ describe("createThreadFollower()", () => {
   it("should tolerate a stop before any run", () => {
     const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, []);
     expect(() => createThreadFollower(thread).stop()).not.toThrow();
+  });
+
+  it("should pick a resumed run up from where the thread is", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "0ms", bottom: 400 }]);
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    thread.scrollTop = 50;
+    follower.run(performance.now());
+    vi.advanceTimersByTime(16);
+    // One glide step from 50 toward 212, not from the top.
+    expect(thread.scrollTop).toBeCloseTo(82.4);
+  });
+
+  it("should read the thread's size once per measure, never while running", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "100ms", bottom: 400 }]);
+    let sizeReads = 0;
+    Object.defineProperties(thread, {
+      clientHeight: {
+        get: () => {
+          sizeReads++;
+          return 200;
+        },
+      },
+      scrollHeight: {
+        get: () => {
+          sizeReads++;
+          return 600;
+        },
+      },
+    });
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    expect(sizeReads).toBe(2);
+    follower.run(performance.now());
+    vi.advanceTimersByTime(2000);
+    expect(thread.scrollTop).toBe(212);
+    expect(sizeReads).toBe(2);
+  });
+
+  it("should not read the thread's scroll position while running", () => {
+    const thread = buildThread({ clientHeight: 200, scrollHeight: 600 }, [{ d: "0ms", bottom: 400 }]);
+    let position = 0;
+    let positionReads = 0;
+    Object.defineProperty(thread, "scrollTop", {
+      get: () => {
+        positionReads++;
+        return position;
+      },
+      set: (value: number) => {
+        position = value;
+      },
+    });
+    const follower = createThreadFollower(thread);
+    follower.measure();
+    follower.run(performance.now());
+    const readsAtStart = positionReads;
+    vi.advanceTimersByTime(2000);
+    expect(position).toBe(212);
+    expect(positionReads).toBe(readsAtStart);
   });
 });

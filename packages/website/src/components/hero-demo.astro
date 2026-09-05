@@ -129,6 +129,18 @@ const turns = heroDemo.turns.map((demo, i) => ({ demo, timeline: conversation.tu
        where the forest is dark. */
     background-origin: border-box;
   }
+  /* A phone shows the frame at most 40rem wide: the 1032px cut is plenty for
+     it at 2x and half the bytes, and there the picture is the largest thing
+     in the first screen, so its bytes decide the LCP. Preloaded with the same
+     media query in index.astro. */
+  @media (width <= 40rem) {
+    .hero-desktop {
+      background-image: image-set(
+        url("/hero-forest-dither-sm.avif") type("image/avif"),
+        url("/hero-forest-dither-sm.webp") type("image/webp")
+      );
+    }
+  }
   @media (prefers-color-scheme: dark) {
     .hero-desktop {
       background-color: oklch(0.36 0.05 210);

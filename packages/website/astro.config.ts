@@ -21,9 +21,15 @@ const docsPaths = ["/docs", "/mintlify-assets", "/_mintlify", "/.well-known", "/
 
 export default defineConfig({
   site: "https://accountant24.ai",
-  // `file` emits `404.html` at the root, which is what Cloudflare's
-  // `not_found_handling: "404-page"` serves for unknown paths.
-  build: { format: "file" },
+  build: {
+    // `file` emits `404.html` at the root, which is what Cloudflare's
+    // `not_found_handling: "404-page"` serves for unknown paths.
+    format: "file",
+    // The styles go into the page: two small stylesheets fetched before the
+    // first paint cost a phone half a second, and a stylesheet cached across
+    // pages buys nothing on a site with two of them.
+    inlineStylesheets: "always",
+  },
   integrations: [sitemap({ filter: (page) => !page.includes("/404") })],
   vite: {
     plugins: [tailwindcss()],

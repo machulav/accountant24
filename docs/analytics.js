@@ -20,6 +20,14 @@
       capture_pageview: "history_change",
       capture_pageleave: true,
       respect_dnt: true,
+      // As on the landing page: page views only, no extra scripts, no
+      // features switched on from the server.
+      capture_heatmaps: false,
+      capture_dead_clicks: false,
+      capture_performance: false,
+      disable_surveys: true,
+      disable_external_dependency_loading: true,
+      advanced_disable_flags: true,
     });
   };
   document.head.appendChild(script);

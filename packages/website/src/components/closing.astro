@@ -46,6 +46,15 @@ import Icon from "./icons.astro";
     /* As on the hero frame: the picture runs under the hairline. */
     background-origin: border-box;
   }
+  /* The phone cut, as behind the hero demo: the same file, already fetched. */
+  @media (width <= 40rem) {
+    .closing-forest {
+      background-image: image-set(
+        url("/hero-forest-dither-sm.avif") type("image/avif"),
+        url("/hero-forest-dither-sm.webp") type("image/webp")
+      );
+    }
+  }
   /* On a dark page the card can go deeper into the night. */
   @media (prefers-color-scheme: dark) {
     .closing-forest {
