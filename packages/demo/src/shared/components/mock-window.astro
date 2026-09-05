@@ -22,8 +22,9 @@ const { chats, activeChat, class: className = "", height = "h-[30rem] max-h-[cal
     scenes) keys off the window's width, not the viewport's. */}
 <div class:list={["fdemo @container relative w-full overflow-hidden rounded-2xl border border-line bg-bg shadow-xl", className]}>
   {/* No title bar, like the app: the traffic lights sit inset over the
-      sidebar. A phone-sized window has none; a phone has no window chrome. */}
-  <div class="absolute top-3.5 left-3.5 z-10 flex gap-2 @max-md:hidden">
+      sidebar, or over the thread's top padding wherever the sidebar is
+      hidden, the phone-sized window included. */}
+  <div class="absolute top-3.5 left-3.5 z-10 flex gap-2">
     <span class="size-3 rounded-full bg-[#ff5f57]"></span>
     <span class="size-3 rounded-full bg-[#febc2e]"></span>
     <span class="size-3 rounded-full bg-[#28c840]"></span>

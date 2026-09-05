@@ -70,14 +70,13 @@ function replyParagraphs(text: string): Token[][] {
 <div data-scene={index} class:list={["scene absolute inset-0 flex-col p-4 pt-0", shown && "is-shown"]}>
   {/* The thread reaches the window's top edge, and a scrolled-off message
       fades out over the top padding, which clears the window's inset traffic
-      lights when the sidebar is hidden, so the two never collide. A
-      phone-sized window has no traffic lights and less padding to match.
+      lights when the sidebar is hidden, so the two never collide.
       overflow-hidden keeps the visitor from scrolling it; the hosts' scripts
       still scroll it to follow the conversation (shared/follow.ts; scrollTop
       works on hidden overflow). */}
   <div
     data-thread
-    class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-8 [mask-image:linear-gradient(to_bottom,transparent,black_2rem)] @max-md:pt-4 @max-md:[mask-image:linear-gradient(to_bottom,transparent,black_1rem)]"
+    class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-8 [mask-image:linear-gradient(to_bottom,transparent,black_2rem)]"
   >
     {
       turns.map(({ demo, timeline }, ti) => (
