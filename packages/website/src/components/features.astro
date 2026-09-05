@@ -40,7 +40,7 @@ import Icon from "./icons.astro";
           >
             <span class="feature-index font-mono text-xs text-ink-2">{String(index + 1).padStart(2, "0")}</span>
             <h3 class="mt-2 text-xl font-semibold tracking-tight">{feature.title}</h3>
-            <p class="mt-2 text-[15px] leading-relaxed text-ink-2 text-pretty">{feature.description}</p>
+            <p class="mt-2 text-[15px] leading-relaxed text-ink-2">{feature.description}</p>
             {feature.link && (
               <a
                 href={feature.link.href} target="_blank" rel="noopener"

@@ -148,10 +148,11 @@ function replyParagraphs(text: string): Token[][] {
           )}
           {demo.reply && (
             <div class="shrink-0 text-sm">
-              {/* text-pretty: the thread is narrow, and a last line holding
-                  one word looks like a mistake in a demo. */}
+              {/* Plain wrapping, no text-wrap: pretty (nowhere on the site):
+                  Safari re-breaks a whole paragraph to even out its lines,
+                  which in a narrow thread leaves every line visibly short. */}
               {replyParagraphs(demo.reply.text).map((paragraph) => (
-                <p class="text-pretty leading-relaxed [&+p]:mt-2">
+                <p class="leading-relaxed [&+p]:mt-2">
                   {paragraph.map(({ word, chip, index }) =>
                     chip ? (
                       <Fragment>
@@ -177,7 +178,7 @@ function replyParagraphs(text: string): Token[][] {
                     <li
                       data-fx
                       style={`--d:${timeline.bulletWordDelays[bi]?.[0] ?? 0}ms`}
-                      class="list-disc text-pretty leading-relaxed marker:text-ink-2"
+                      class="list-disc leading-relaxed marker:text-ink-2"
                     >
                       {replyTokens(bullet).map((word, wi) => {
                         const { chip } = toToken(word, wi);
