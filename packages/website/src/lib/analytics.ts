@@ -7,7 +7,12 @@ import posthog from "posthog-js";
 type Client = Pick<typeof posthog, "init" | "capture">;
 
 export const analyticsOptions = {
-  api_host: "https://eu.i.posthog.com",
+  // Events go to a subdomain of our own site, which PostHog's managed reverse
+  // proxy answers, so the ad blockers that filter posthog.com cannot silently
+  // drop them. `ui_host` is the real app, which the proxy does not serve: it
+  // is what PostHog's own links have to point back to.
+  api_host: "https://u.accountant24.ai",
+  ui_host: "https://eu.posthog.com",
   cookieless_mode: "always",
   person_profiles: "never",
   autocapture: false,
