@@ -1,4 +1,3 @@
-import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
@@ -33,7 +32,6 @@ export default defineConfig({
     // pages buys nothing on a site with two of them.
     inlineStylesheets: "always",
   },
-  integrations: [sitemap({ filter: (page) => !page.includes("/404") })],
   vite: {
     plugins: [tailwindcss()],
     server: { proxy: Object.fromEntries(docsPaths.map((path) => [path, docsProxy])) },
