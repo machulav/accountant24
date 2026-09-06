@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@accountant24/demo": "*",
-    "posthog-js": "1.418.10"
+    "posthog-js": "1.427.2"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",

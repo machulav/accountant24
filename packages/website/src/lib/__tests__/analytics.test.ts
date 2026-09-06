@@ -19,9 +19,8 @@ describe("initAnalytics()", () => {
     expect(client.init).toHaveBeenCalledWith("phc_test", analyticsOptions);
   });
 
-  it("should use cookieless mode without person profiles, recordings or autocapture against the EU host", () => {
+  it("should use cookieless mode without person profiles, recordings or autocapture", () => {
     expect(analyticsOptions).toMatchObject({
-      api_host: "https://eu.i.posthog.com",
       cookieless_mode: "always",
       person_profiles: "never",
       autocapture: false,
@@ -39,6 +38,11 @@ describe("initAnalytics()", () => {
       capture_performance: false,
       disable_surveys: true,
     });
+  });
+
+  it("should send events to our own domain so ad blockers cannot drop them, and point links at the real app", () => {
+    expect(analyticsOptions.api_host).toBe("https://u.accountant24.ai");
+    expect(analyticsOptions.ui_host).toBe("https://eu.posthog.com");
   });
 
   it("should load no script beyond its own and never ask the server what to enable", () => {
@@ -65,6 +69,7 @@ describe("initAnalytics()", () => {
         "disable_surveys",
         "person_profiles",
         "respect_dnt",
+        "ui_host",
       ].sort(),
     );
   });

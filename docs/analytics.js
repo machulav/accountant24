@@ -8,11 +8,12 @@
 
   var script = document.createElement("script");
   script.async = true;
-  script.src = "https://eu-assets.i.posthog.com/static/array.js";
+  script.src = "https://u.accountant24.ai/static/array.js";
   script.onload = function () {
     if (!window.posthog) return;
     window.posthog.init(KEY, {
-      api_host: "https://eu.i.posthog.com",
+      api_host: "https://u.accountant24.ai",
+      ui_host: "https://eu.posthog.com",
       cookieless_mode: "always",
       person_profiles: "never",
       autocapture: false,
