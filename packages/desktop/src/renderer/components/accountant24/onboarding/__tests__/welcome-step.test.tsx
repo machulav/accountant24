@@ -2,25 +2,32 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { USE_CASES } from "../use-case-showcase";
 import { WelcomeStep } from "../welcome-step";
 
 afterEach(() => cleanup());
 
 describe("WelcomeStep", () => {
-  it("should show the app name as the heading", () => {
+  it("should introduce the app by name", () => {
     render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Accountant24" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome to Accountant24" })).toBeInTheDocument();
+    expect(screen.getByText("A local-first AI agent for personal finance.")).toBeInTheDocument();
   });
 
-  it("should show the one-line description", () => {
+  it("should show what the app can do, one line each", () => {
     render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getByText("Local-first AI agent for personal finance.")).toBeInTheDocument();
+    expect(screen.getByText("Log spending in plain language")).toBeInTheDocument();
+    expect(screen.getByText("Import statements and receipts")).toBeInTheDocument();
+    expect(screen.getByText("Ask anything about your money")).toBeInTheDocument();
   });
 
-  it("should show the use-case showcase in place of a paragraph", () => {
+  it("should promise the data stays on the machine", () => {
     render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getByText(USE_CASES[0]?.prompt ?? "")).toBeInTheDocument();
+    expect(screen.getByText(/stays on this Mac as plain text/)).toBeInTheDocument();
+  });
+
+  it("should offer Get started as the only action", () => {
+    render(<WelcomeStep onNext={() => {}} />);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
   it("should call onNext when Get started is clicked", () => {
@@ -28,10 +35,5 @@ describe("WelcomeStep", () => {
     render(<WelcomeStep onNext={onNext} />);
     fireEvent.click(screen.getByRole("button", { name: "Get started" }));
     expect(onNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("should offer Get started as the only action", () => {
-    render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 });

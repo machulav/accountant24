@@ -65,7 +65,11 @@ const invoke = (channel: string, payload?: unknown) => {
 };
 
 /** An OAuth-capable provider entry as pi's provider list reports it. */
-const oauthProvider = (id: string, name: string) => ({ id, name, auth: { oauth: { name } } });
+const oauthProvider = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  name,
+  auth: { oauth: { name, ...extra } },
+});
 
 beforeEach(() => {
   h.handlers.clear();
@@ -189,6 +193,26 @@ describe("auth_providers", () => {
         { provider: "b", displayName: "B", oauth: false, configured: false },
       ],
     });
+  });
+
+  it("should pass on the provider's own wording for the sign-in action", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([
+      oauthProvider("kimi", "Kimi Code", { loginLabel: "Sign in with Kimi Code" }),
+    ]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "kimi" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: unknown[] };
+    expect(providers.oauth).toEqual([{ id: "kimi", name: "Kimi Code", loginLabel: "Sign in with Kimi Code" }]);
+  });
+
+  it("should omit the sign-in wording when pi has none for the provider", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([oauthProvider("a", "A")]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "a" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: Record<string, unknown>[] };
+    expect(providers.oauth[0]).not.toHaveProperty("loginLabel");
   });
 
   it("should leave a provider without oauth auth out of the oauth list", async () => {

@@ -23,8 +23,10 @@ export interface OAuthLogin extends OAuthLoginState {
   dismissError: () => void;
 }
 
-/** `onDone` fires once a sign-in completes successfully. */
-export function useOAuthLogin(onDone?: () => void): OAuthLogin {
+/** `onDone` fires with the provider once its sign-in completes successfully.
+ *  The provider comes from the `start()` call that opened the flow, not from
+ *  the event: only one flow runs at a time (a new one aborts the old). */
+export function useOAuthLogin(onDone?: (provider: string) => void): OAuthLogin {
   const [state, dispatch] = useReducer(reduceOAuthLogin, initialOAuthLoginState);
   const unlisteners = useRef<Array<() => void>>([]);
   const onDoneRef = useRef(onDone);
@@ -35,6 +37,9 @@ export function useOAuthLogin(onDone?: () => void): OAuthLogin {
   // (side effects in updaters run twice under StrictMode).
   const requestRef = useRef(state.request);
   requestRef.current = state.request;
+  // The provider the running flow belongs to, so the completion callback can
+  // say which one connected.
+  const providerRef = useRef<string | null>(null);
 
   const cleanup = useCallback(() => {
     for (const un of unlisteners.current) un();
@@ -48,7 +53,9 @@ export function useOAuthLogin(onDone?: () => void): OAuthLogin {
       dispatch({ type: "event", event });
       if (event.type === "done") {
         cleanup();
-        onDoneRef.current?.();
+        const provider = providerRef.current;
+        providerRef.current = null;
+        if (provider) onDoneRef.current?.(provider);
       } else if (event.type === "error") {
         cleanup();
       }
@@ -59,6 +66,7 @@ export function useOAuthLogin(onDone?: () => void): OAuthLogin {
   const start = useCallback(
     async (providerId: string) => {
       dispatch({ type: "start", provider: providerId });
+      providerRef.current = providerId;
       cleanup();
       unlisteners.current.push(await authApi.onEvent(onAuthEvent));
       unlisteners.current.push(await authApi.onTerminated((code) => dispatch({ type: "terminated", code })));

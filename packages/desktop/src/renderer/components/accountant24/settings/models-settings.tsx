@@ -23,11 +23,15 @@ export function DefaultModelSection({
   models,
   value,
   onSelect,
+  className = "w-72",
 }: {
   models: ModelInfo[];
   /** `provider/modelId` id of the current default, or undefined. */
   value: string | undefined;
   onSelect: (id: string) => void;
+  /** Width of the picker. The settings pane wants a fixed column; a form field
+   *  wants the full width of its column. */
+  className?: string;
 }) {
   const options: ModelOption[] = useMemo(
     () => models.map((m) => ({ id: idOf(m), name: m.name ?? m.id, description: m.provider })),
@@ -44,7 +48,7 @@ export function DefaultModelSection({
       {...(value !== undefined ? { value } : {})}
       onValueChange={onSelect}
       searchable
-      className="w-72"
+      className={className}
     />
   );
 }

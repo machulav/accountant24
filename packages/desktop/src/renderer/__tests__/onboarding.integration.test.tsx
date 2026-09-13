@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
-// Integration: the first-run flow end to end over the real rpc layer and a
-// fake IPC bridge. Real App + wizard + the embedded Providers pane + the API
-// key dialog; only the chat layout is stubbed. Asserts both what the user sees
-// at each step and the exact IPC traffic (connect, agent restart, the one
-// settings write that preselects the default model, the funnel events).
+// Integration: the first-run flow end to end over the real rpc layer and a fake
+// IPC bridge. Real App + wizard + the connect panels; only the chat layout is
+// stubbed. Asserts what the user sees at each step and the exact IPC traffic
+// (the connect, the agent restart, the one settings write that preselects the
+// model, the funnel events).
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppSettings, AuthModels, AuthStatus, OllamaInfo } from "@/rpc/types";
+import type { AppSettings, AuthModels, AuthProviders, AuthStatus, OllamaInfo } from "@/rpc/types";
 import { installJsdomPolyfills } from "@/test/jsdomPolyfills";
 
 // rpc/api.ts captures `window.api` at module load — install the fake bridge
@@ -30,11 +30,17 @@ beforeAll(() => {
 });
 
 /** The workspace behind the bridge: which providers are connected, the models
- *  they bring, and app-settings.json. */
+ *  they bring, what Ollama is doing, and app-settings.json. */
 let anthropicConnected: boolean;
 let ollamaConnected: boolean;
 let ollama: OllamaInfo;
 let settings: AppSettings;
+
+const CATALOG: AuthProviders = {
+  type: "providers",
+  oauth: [{ id: "anthropic", name: "Anthropic (Claude Pro/Max)" }],
+  all: [{ provider: "anthropic", displayName: "Anthropic", oauth: true, configured: false }],
+};
 
 const modelsNow = (): AuthModels => ({
   type: "models",
@@ -47,18 +53,7 @@ const modelsNow = (): AuthModels => ({
 
 const statusNow = (): AuthStatus => ({
   type: "status",
-  providers: [
-    {
-      provider: "anthropic",
-      displayName: "Anthropic",
-      oauth: false,
-      configured: anthropicConnected,
-      ...(anthropicConnected ? { connection: "API Key", removable: true } : {}),
-    },
-    ...(ollamaConnected
-      ? [{ provider: "ollama", displayName: "Ollama", oauth: false, configured: true, connection: "Custom" }]
-      : []),
-  ],
+  providers: CATALOG.all,
   availableModels: modelsNow().models.length,
   anyConfigured: anthropicConnected || ollamaConnected,
 });
@@ -69,21 +64,20 @@ beforeEach(() => {
   ollama = { type: "ollama", running: false, models: [] };
   settings = {};
   bridge.setHandler("auth_status", () => statusNow());
+  bridge.setHandler("auth_providers", () => CATALOG);
   bridge.setHandler("auth_models", () => modelsNow());
   bridge.setHandler("auth_detect_ollama", () => ollama);
   bridge.setHandler("auth_set_key", (payload) => {
-    const { provider } = payload as { provider: string; key: string };
     anthropicConnected = true;
-    return { type: "done", provider };
-  });
-  bridge.setHandler("auth_logout", () => {
-    anthropicConnected = false;
-    return { type: "done", provider: "anthropic" };
+    return { type: "done", provider: (payload as { provider: string }).provider };
   });
   bridge.setHandler("auth_add_all_ollama", () => {
     ollamaConnected = true;
     return { type: "done", provider: "ollama", count: 1 };
   });
+  bridge.setHandler("auth_login", () => undefined);
+  bridge.setHandler("auth_login_respond", () => undefined);
+  bridge.setHandler("auth_login_cancel", () => undefined);
   bridge.setHandler("agent_restart", () => undefined);
   bridge.setHandler("settings_get", () => settings);
   bridge.setHandler("settings_set", (patch) => {
@@ -98,106 +92,145 @@ afterEach(() => {
   bridge.reset();
 });
 
-const startButton = () => screen.getByRole("button", { name: "Start" });
-const channels = () => bridge.calls.map((c) => c.channel);
 const events = () => bridge.callsFor("analytics_track").map((p) => (p as { event: string }).event);
+/** The channels a step used, minus the reads that can happen at any time. */
+const writesSince = (from: number) =>
+  bridge.calls
+    .slice(from)
+    .map((c) => c.channel)
+    .filter((c) => !["auth_status", "auth_models", "auth_providers", "settings_get", "auth_detect_ollama"].includes(c));
 
-/** Boot the app on a fresh workspace and go through the welcome page. */
-async function reachSetup() {
+/** Boot the app on a fresh workspace and step through to the provider choice. */
+async function reachConnect() {
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "Get started" }));
-  await screen.findByText("Available");
-  expect(startButton()).toBeDisabled();
+  await screen.findByRole("combobox");
 }
 
-/** Paste a key for Anthropic in the embedded provider list. */
-async function connectAnthropic() {
-  fireEvent.click(screen.getByRole("button", { name: "API Key" }));
-  await screen.findByText("Connect Anthropic");
-  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
-  fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-  await waitFor(() => expect(startButton()).toBeEnabled());
-}
+const pickProvider = async (name: string | RegExp) => {
+  fireEvent.click(screen.getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name }));
+};
 
-describe("Onboarding flow (API key)", () => {
-  it("should boot to the welcome page and only read state until Get started", async () => {
+describe("Onboarding, first run", () => {
+  it("should open on the welcome step and write nothing", async () => {
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Accountant24" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to Accountant24" })).toBeInTheDocument();
     expect(screen.queryByTestId("chat-layout")).not.toBeInTheDocument();
-    // App checks models/settings for the gate and the default-model fill; nothing is written.
     expect(bridge.callsFor("settings_set")).toEqual([]);
     expect(bridge.callsFor("analytics_track")).toEqual([]);
   });
 
-  it("should reach the provider setup with the setup-viewed milestone", async () => {
-    await reachSetup();
-    expect(screen.getByRole("heading", { name: "Connect a provider" })).toBeInTheDocument();
-    expect(screen.getByText("Anthropic")).toBeInTheDocument();
-    expect(bridge.callsFor("analytics_track")).toEqual([
-      { event: "onboarding_setup_viewed", props: undefined, once: true },
-    ]);
+  it("should record reaching the connect step", async () => {
+    await reachConnect();
+    expect(events()).toEqual(["onboarding_setup_viewed"]);
   });
+});
 
-  it("should connect, restart the agent, and preselect the default model in one write", async () => {
-    await reachSetup();
+describe("Onboarding, connecting with an API key", () => {
+  it("should store the key, restart the agent, and preselect a model in one write", async () => {
+    await reachConnect();
+    await pickProvider("Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
+
     const before = bridge.calls.length;
-    await connectAnthropic();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByRole("heading", { name: "Connected to Anthropic" });
 
-    const after = channels()
-      .slice(before)
-      .filter((c) => c !== "auth_status" && c !== "auth_models" && c !== "settings_get");
-    // Opening the key dialog first cancels any sign-in in flight (auth_login_cancel).
-    expect(after).toEqual(["auth_login_cancel", "auth_set_key", "agent_restart", "settings_set"]);
+    expect(writesSince(before)).toEqual(["auth_set_key", "agent_restart", "settings_set"]);
     expect(bridge.callsFor("auth_set_key")).toEqual([{ provider: "anthropic", key: "sk-test" }]);
     expect(bridge.callsFor("settings_set")).toEqual([{ defaultModel: "anthropic/claude-x" }]);
   });
 
-  it("should show the preselected model, the provider as connected, and stay on the wizard", async () => {
-    await reachSetup();
-    await connectAnthropic();
+  it("should enter the chat from the confirmation", async () => {
+    await reachConnect();
+    await pickProvider("Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("Claude X"));
-    expect(await screen.findByText("Connected")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
-    expect(screen.queryByTestId("chat-layout")).not.toBeInTheDocument();
-  });
-
-  it("should enter the chat on Start with the completed milestone", async () => {
-    await reachSetup();
-    await connectAnthropic();
-
-    fireEvent.click(startButton());
+    const open = await screen.findByRole("button", { name: "Open Accountant24" });
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
     expect(await screen.findByTestId("chat-layout")).toBeInTheDocument();
     expect(events()).toEqual(["onboarding_setup_viewed", "onboarding_completed"]);
   });
+});
 
-  it("should stay on the wizard with Start disabled again when the provider is disconnected", async () => {
-    await reachSetup();
-    await connectAnthropic();
+describe("Onboarding, signing in to a subscription", () => {
+  it("should follow the sign-in through to a connected provider", async () => {
+    await reachConnect();
+    await pickProvider("Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    await waitFor(() => expect(bridge.callsFor("auth_login")).toEqual([{ provider: "anthropic" }]));
 
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
-    await waitFor(() => expect(startButton()).toBeDisabled());
-    expect(bridge.callsFor("auth_logout")).toEqual([{ provider: "anthropic" }]);
-    // The default came from the removed provider, so it is cleared.
-    expect(bridge.callsFor("settings_set").at(-1)).toEqual({ defaultModel: undefined });
-    expect(screen.getByRole("heading", { name: "Connect a provider" })).toBeInTheDocument();
-    expect(screen.getByText("Connect a provider to choose a default model.")).toBeInTheDocument();
-    expect(screen.queryByTestId("chat-layout")).not.toBeInTheDocument();
+    // The browser handoff, then a device code the user types elsewhere.
+    await act(async () => {
+      bridge.emit("auth-event", { type: "auth", url: "https://example.test/auth" });
+    });
+    expect(screen.getByRole("link", { name: "Open the sign-in page" })).toBeInTheDocument();
+    await act(async () => {
+      bridge.emit("auth-event", {
+        type: "device_code",
+        userCode: "ABCD-1234",
+        verificationUri: "https://example.test/dc",
+      });
+    });
+    expect(screen.getByText("ABCD-1234")).toBeInTheDocument();
+
+    anthropicConnected = true;
+    await act(async () => {
+      bridge.emit("auth-event", { type: "done", provider: "anthropic" });
+    });
+
+    expect(await screen.findByRole("heading", { name: "Connected to Anthropic" })).toBeInTheDocument();
+    expect(bridge.callsFor("settings_set")).toEqual([{ defaultModel: "anthropic/claude-x" }]);
+  });
+
+  it("should answer a question the sign-in asks", async () => {
+    await reachConnect();
+    await pickProvider("Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    await act(async () => {
+      bridge.emit("auth-event", { type: "prompt", id: "q1", message: "Paste the code" });
+    });
+
+    fireEvent.change(screen.getByLabelText("Paste the code"), { target: { value: "xyz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(bridge.callsFor("auth_login_respond")).toEqual([{ id: "q1", value: "xyz" }]));
+  });
+
+  it("should abort a running sign-in when another provider is chosen", async () => {
+    await reachConnect();
+    await pickProvider("Anthropic");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    await waitFor(() => expect(bridge.callsFor("auth_login")).toHaveLength(1));
+
+    await act(async () => {
+      bridge.emit("auth-event", { type: "auth", url: "https://example.test/auth" });
+    });
+    await pickProvider(/Ollama/);
+    await waitFor(() => expect(bridge.callsFor("auth_login_cancel")).toHaveLength(1));
   });
 });
 
-describe("Onboarding flow (Ollama only)", () => {
-  beforeEach(() => {
-    ollama = { type: "ollama", running: true, models: ["llama3"] };
+describe("Onboarding, running models locally", () => {
+  it("should say what to do when Ollama is not running", async () => {
+    await reachConnect();
+    await pickProvider(/Ollama/);
+    expect(await screen.findByText(/Ollama isn't running/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Install Ollama" })).toBeInTheDocument();
   });
 
-  it("should connect every local model and default to the first one", async () => {
-    await reachSetup();
-    fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
-    await waitFor(() => expect(startButton()).toBeEnabled());
+  it("should register the local models and preselect one", async () => {
+    ollama = { type: "ollama", running: true, models: ["llama3"] };
+    await reachConnect();
+    await pickProvider(/Ollama/);
 
+    fireEvent.click(await screen.findByRole("button", { name: "Connect Ollama" }));
+    expect(await screen.findByRole("heading", { name: "Connected to Ollama" })).toBeInTheDocument();
     expect(bridge.callsFor("auth_add_all_ollama")).toEqual([undefined]);
     expect(bridge.callsFor("settings_set")).toEqual([{ defaultModel: "ollama/llama3" }]);
-    await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("llama3"));
   });
 });

@@ -92,6 +92,14 @@ describe("ModelSelector", () => {
     await waitFor(() => expect(screen.getByText("No models found.")).toBeDefined());
   });
 
+  it("should name what the list holds when it is not models", async () => {
+    render(<ModelSelector models={MODELS} onValueChange={vi.fn()} searchable subject="providers" />);
+    fireEvent.click(screen.getByRole("combobox"));
+    expect(await screen.findByPlaceholderText("Search providers")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Search providers"), { target: { value: "zzz" } });
+    await waitFor(() => expect(screen.getByText("No providers found.")).toBeDefined());
+  });
+
   it("should report the picked model id and close the popup on select", async () => {
     const onValueChange = renderSelector("anthropic/fable");
     await openPopup();

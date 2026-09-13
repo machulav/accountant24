@@ -18,11 +18,15 @@ function displayName(runtime: ModelRuntime, provider: string): string {
   return runtime.getProvider(provider)?.name ?? provider;
 }
 
-/** OAuth-capable providers, in pi's provider order. */
-function oauthProviders(runtime: ModelRuntime): { id: string; name: string }[] {
-  const rows: { id: string; name: string }[] = [];
+/** OAuth-capable providers, in pi's provider order. `loginLabel` is pi's own
+ *  wording for the sign-in action when it has one ("Sign in with Kimi Code"),
+ *  which names the subscription the user is expected to have. */
+function oauthProviders(runtime: ModelRuntime): { id: string; name: string; loginLabel?: string }[] {
+  const rows: { id: string; name: string; loginLabel?: string }[] = [];
   for (const provider of runtime.getProviders()) {
-    if (provider.auth.oauth) rows.push({ id: provider.id, name: provider.auth.oauth.name });
+    const oauth = provider.auth.oauth;
+    if (oauth)
+      rows.push({ id: provider.id, name: oauth.name, ...(oauth.loginLabel ? { loginLabel: oauth.loginLabel } : {}) });
   }
   return rows;
 }

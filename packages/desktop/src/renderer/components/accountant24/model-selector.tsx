@@ -45,6 +45,9 @@ export type ModelSelectorProps = {
   className?: string;
   contentClassName?: string;
   placeholder?: string;
+  /** What the list holds, a plural noun: the search placeholder and the empty
+   *  text read "Search {subject}" / "No {subject} found." */
+  subject?: string;
 };
 
 export function ModelSelector({
@@ -57,6 +60,7 @@ export function ModelSelector({
   className,
   contentClassName,
   placeholder = "Select model",
+  subject = "models",
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
   // The popup's search text, owned here so the field's clear X is a plain
@@ -90,9 +94,9 @@ export function ModelSelector({
         <ChevronDownIcon className="size-4 opacity-50" />
       </ComboboxPrimitive.Trigger>
       <ComboboxContent data-slot="model-selector-content" className={cn(POPOVER_WIDTH, contentClassName)}>
-        {searchable && <SearchField combobox subject="models" value={query} onValueChange={setQuery} />}
+        {searchable && <SearchField combobox subject={subject} value={query} onValueChange={setQuery} />}
         <ComboboxList className="scroll-fade">
-          <ComboboxEmpty>No models found.</ComboboxEmpty>
+          <ComboboxEmpty>No {subject} found.</ComboboxEmpty>
           <ComboboxCollection>
             {(model: ModelOption) => (
               <ComboboxItem key={model.id} value={model} data-slot="model-selector-item" className="py-2">

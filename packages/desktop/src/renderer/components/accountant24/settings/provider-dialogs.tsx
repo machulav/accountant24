@@ -1,13 +1,13 @@
-// The two ways to connect a provider, each as a dialog on top of Settings:
-// paste an API key, or follow an interactive OAuth sign-in (browser handoff,
-// device codes, mid-flow prompts). Extracted from providers-settings.tsx so
-// the provider list stays focused on data flow.
+// The two ways to connect a provider: paste an API key, or follow an
+// interactive OAuth sign-in (browser handoff, device codes, mid-flow prompts).
+// Each flow is a hook (state + the call to main) plus a view (the fields), so
+// Settings can host them in a dialog and onboarding can host them inline on the
+// page, both rendering exactly the same thing.
 
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { useContext, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AppDialogHeader } from "@/components/accountant24/app-dialog-header";
 import { ExternalLink } from "@/components/accountant24/external-link";
-import { InsideDialogContext } from "@/components/accountant24/inside-dialog";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
@@ -21,19 +21,15 @@ import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/shadcn/input-group";
 import { Spinner } from "@/components/shadcn/spinner";
-import type { OAuthLogin } from "@/hooks/use-oauth-login";
+import type { OAuthLogin, OAuthPendingRequest } from "@/hooks/use-oauth-login";
 import { authApi } from "@/rpc/api";
 import type { AuthProviderRow } from "@/rpc/types";
 import { ErrorBanner } from "./parts";
 
 /** Base UI skips a nested dialog's backdrop by default, so these dialogs
  *  wouldn't dim/blur the Settings surface behind them the way Settings itself
- *  dims the app. Force one so they do. At the top level (the onboarding setup
- *  step) the stock backdrop already renders, and a forced one on top of it
- *  would dim twice. */
+ *  dims the app. Force one so they do. */
 function NestedDialogBackdrop() {
-  const nested = useContext(InsideDialogContext);
-  if (!nested) return null;
   return (
     <DialogPortal>
       <DialogOverlay forceRender />
@@ -68,20 +64,26 @@ export function ApiKeyDialog({
     <Dialog open={provider !== null} onOpenChange={(open) => !open && onClose()}>
       <NestedDialogBackdrop />
       {/* Keyed so the form resets when the dialog reopens for another provider. */}
-      {shown && <ApiKeyForm key={shown.provider} provider={shown} onClose={onClose} onSaved={onSaved} />}
+      {shown && <ApiKeyDialogBody key={shown.provider} provider={shown} onClose={onClose} onSaved={onSaved} />}
     </Dialog>
   );
 }
 
-function ApiKeyForm({
-  provider,
-  onClose,
-  onSaved,
-}: {
-  provider: AuthProviderRow;
-  onClose: () => void;
-  onSaved: () => void | Promise<void>;
-}) {
+export interface ApiKeyForm {
+  key: string;
+  setKey: (value: string) => void;
+  show: boolean;
+  toggleShow: () => void;
+  busy: boolean;
+  error: string | null;
+  canSubmit: boolean;
+  submit: () => Promise<void>;
+}
+
+/** The API key flow: what the user typed, and storing it. Mount one per
+ *  provider (key the host component by provider id) so switching providers
+ *  starts from an empty field. `onSaved` runs after the key is stored. */
+export function useApiKeyForm(providerId: string, onSaved: () => void | Promise<void>): ApiKeyForm {
   const [key, setKey] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -94,7 +96,7 @@ function ApiKeyForm({
     setBusy(true);
     setError(null);
     try {
-      const result = await authApi.setKey(provider.provider, key.trim());
+      const result = await authApi.setKey(providerId, key.trim());
       if (result.type === "error") throw new Error(result.message ?? "Failed to save key");
       await onSaved();
     } catch (e) {
@@ -103,6 +105,69 @@ function ApiKeyForm({
     }
   };
 
+  return {
+    key,
+    setKey,
+    show,
+    toggleShow: () => setShow((s) => !s),
+    busy,
+    error,
+    canSubmit: !busy && key.trim().length > 0,
+    submit,
+  };
+}
+
+/** The key input itself: masked by default, with a reveal toggle, Enter to
+ *  submit, and the failure underneath. */
+export function ApiKeyField({ form, autoFocus }: { form: ApiKeyForm; autoFocus?: boolean }) {
+  const { key, setKey, show, toggleShow, busy, error, submit } = form;
+  return (
+    <Field>
+      <FieldLabel htmlFor="provider-api-key">API Key</FieldLabel>
+      <InputGroup>
+        <InputGroupInput
+          id="provider-api-key"
+          type={show ? "text" : "password"}
+          value={key}
+          placeholder="Paste your API key"
+          autoFocus={autoFocus}
+          autoComplete="off"
+          spellCheck={false}
+          disabled={busy}
+          onChange={(e) => setKey(e.currentTarget.value)}
+          onKeyDown={(e) => e.key === "Enter" && void submit()}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton size="icon-xs" aria-label={show ? "Hide API key" : "Show API key"} onClick={toggleShow}>
+            {show ? <EyeOffIcon /> : <EyeIcon />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      {error && <ErrorBanner message={error} />}
+    </Field>
+  );
+}
+
+/** The submit button for the key field. */
+export function ApiKeyConnectButton({ form, className }: { form: ApiKeyForm; className?: string }) {
+  return (
+    <Button onClick={form.submit} disabled={!form.canSubmit} className={className}>
+      {form.busy && <Spinner />}
+      {form.busy ? "Connecting" : "Connect"}
+    </Button>
+  );
+}
+
+function ApiKeyDialogBody({
+  provider,
+  onClose,
+  onSaved,
+}: {
+  provider: AuthProviderRow;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const form = useApiKeyForm(provider.provider, onSaved);
   return (
     <DialogContent showCloseButton={false} className="flex flex-col gap-0 overflow-hidden p-0">
       <AppDialogHeader title={`Connect ${provider.displayName}`} />
@@ -110,42 +175,13 @@ function ApiKeyForm({
         <DialogDescription>
           Paste an API key from your {provider.displayName} account. It will be stored locally on this device.
         </DialogDescription>
-        <Field>
-          <FieldLabel htmlFor="provider-api-key">API Key</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              id="provider-api-key"
-              type={show ? "text" : "password"}
-              value={key}
-              placeholder="Paste your API key"
-              autoFocus
-              autoComplete="off"
-              spellCheck={false}
-              disabled={busy}
-              onChange={(e) => setKey(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === "Enter" && void submit()}
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                size="icon-xs"
-                aria-label={show ? "Hide API key" : "Show API key"}
-                onClick={() => setShow((s) => !s)}
-              >
-                {show ? <EyeOffIcon /> : <EyeIcon />}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
-          {error && <ErrorBanner message={error} />}
-        </Field>
+        <ApiKeyField form={form} autoFocus />
       </div>
       <DialogFooter className="border-t px-6 py-4">
-        <Button variant="outline" onClick={onClose} disabled={busy}>
+        <Button variant="outline" onClick={onClose} disabled={form.busy}>
           Cancel
         </Button>
-        <Button onClick={submit} disabled={busy || !key.trim()}>
-          {busy && <Spinner />}
-          {busy ? "Connecting…" : "Connect"}
-        </Button>
+        <ApiKeyConnectButton form={form} />
       </DialogFooter>
     </DialogContent>
   );
@@ -174,17 +210,26 @@ export function OAuthSignInDialog({
   );
 }
 
-function OAuthSignInBody({
-  provider,
-  oauth,
-  onClose,
-}: {
-  provider: AuthProviderRow;
-  oauth: OAuthLogin;
-  onClose: () => void;
-}) {
+export interface OAuthSignInView {
+  /** Waiting on the outside world, as opposed to on the user. */
+  waiting: boolean;
+  lines: string[];
+  /** The pending question, when the flow is asking for typed input. */
+  textRequest: OAuthPendingRequest | null;
+  /** The label for that question, reworded where pi's wording is unclear. */
+  label: string | undefined;
+  answer: string;
+  setAnswer: (value: string) => void;
+  canSubmit: boolean;
+  submit: () => void;
+  choose: (optionId: string) => void;
+}
+
+/** The presentation state of a sign-in: what to show, and what the user can
+ *  answer. The flow itself lives in the OAuthLogin passed in. */
+export function useOAuthSignInView(providerId: string, oauth: OAuthLogin): OAuthSignInView {
   const [answer, setAnswer] = useState("");
-  const submit = (value: string | null) => {
+  const respond = (value: string | null) => {
     oauth.respond(value);
     setAnswer("");
   };
@@ -202,94 +247,129 @@ function OAuthSignInBody({
   // pi's Copilot flow opens with a free-text prompt where blank means
   // github.com. Reword it so the common case (just hit Continue) is obvious.
   const isCopilotDomainPrompt =
-    provider.provider === "github-copilot" && textRequest?.kind === "prompt" && textRequest.allowEmpty === true;
+    providerId === "github-copilot" && textRequest?.kind === "prompt" && textRequest.allowEmpty === true;
   // A full URL works too (pi normalizes either to a hostname), but "domain"
   // plus the placeholder is the clearer ask.
   const label = isCopilotDomainPrompt ? "GitHub Enterprise domain (optional)" : textRequest?.message;
 
+  return {
+    waiting,
+    lines,
+    textRequest,
+    label,
+    answer,
+    setAnswer,
+    canSubmit,
+    submit: () => respond(answer),
+    choose: (optionId: string) => respond(optionId),
+  };
+}
+
+/** Everything a running sign-in shows: progress, a device code, the question
+ *  it is asking, and any failure. The host supplies the surrounding chrome and
+ *  the Cancel/Continue buttons. */
+export function OAuthSignInProgress({ oauth, view }: { oauth: OAuthLogin; view: OAuthSignInView }) {
+  const { waiting, lines, textRequest, label, answer, setAnswer, canSubmit, submit, choose } = view;
+  return (
+    <div className="flex flex-col gap-4">
+      {lines.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {lines.map((line, i) => {
+            const current = waiting && i === lines.length - 1;
+            return (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                {current ? (
+                  <Spinner className="text-muted-foreground mt-0.5 shrink-0" />
+                ) : (
+                  <CheckIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                )}
+                <span className={current ? undefined : "text-muted-foreground"}>{line}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {oauth.deviceCode && (
+        <div className="bg-muted/50 flex flex-col items-center gap-3 rounded-md p-4">
+          <p className="text-muted-foreground text-xs">
+            Enter this code at{" "}
+            <ExternalLink href={oauth.deviceCode.verificationUri} className="text-foreground">
+              {oauth.deviceCode.verificationUri}
+            </ExternalLink>
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xl font-semibold tracking-widest">{oauth.deviceCode.userCode}</span>
+            <CopyCodeButton code={oauth.deviceCode.userCode} />
+          </div>
+        </div>
+      )}
+
+      {oauth.request?.kind === "select" && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">{oauth.request.message}</p>
+          <div className="flex flex-wrap gap-2">
+            {oauth.request.options?.map((opt) => (
+              <Button key={opt.id} size="sm" variant="outline" onClick={() => choose(opt.id)}>
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {textRequest && (
+        <Field>
+          <FieldLabel htmlFor="oauth-answer">{label}</FieldLabel>
+          <Input
+            id="oauth-answer"
+            value={answer}
+            placeholder={textRequest.placeholder}
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => setAnswer(e.currentTarget.value)}
+            onKeyDown={(e) => e.key === "Enter" && canSubmit && submit()}
+          />
+        </Field>
+      )}
+
+      {waiting && oauth.authUrl && (
+        <p className="text-muted-foreground text-xs">
+          Browser didn't open? <ExternalLink href={oauth.authUrl}>Open the sign-in page</ExternalLink>
+        </p>
+      )}
+
+      {oauth.error && <ErrorBanner message={oauth.error} />}
+    </div>
+  );
+}
+
+function OAuthSignInBody({
+  provider,
+  oauth,
+  onClose,
+}: {
+  provider: AuthProviderRow;
+  oauth: OAuthLogin;
+  onClose: () => void;
+}) {
+  const view = useOAuthSignInView(provider.provider, oauth);
   return (
     <DialogContent showCloseButton={false} className="flex flex-col gap-0 overflow-hidden p-0">
       <AppDialogHeader title={`Sign in to ${provider.displayName}`} />
 
       <div className="flex flex-col gap-4 p-6">
         <DialogDescription>Follow the steps to connect your {provider.displayName} account.</DialogDescription>
-        {lines.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {lines.map((line, i) => {
-              const current = waiting && i === lines.length - 1;
-              return (
-                <div key={i} className="flex items-start gap-2 text-sm">
-                  {current ? (
-                    <Spinner className="text-muted-foreground mt-0.5 shrink-0" />
-                  ) : (
-                    <CheckIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                  )}
-                  <span className={current ? undefined : "text-muted-foreground"}>{line}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {oauth.deviceCode && (
-          <div className="bg-muted/50 flex flex-col items-center gap-3 rounded-md p-4">
-            <p className="text-muted-foreground text-xs">
-              Enter this code at{" "}
-              <ExternalLink href={oauth.deviceCode.verificationUri} className="text-foreground">
-                {oauth.deviceCode.verificationUri}
-              </ExternalLink>
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xl font-semibold tracking-widest">{oauth.deviceCode.userCode}</span>
-              <CopyCodeButton code={oauth.deviceCode.userCode} />
-            </div>
-          </div>
-        )}
-
-        {oauth.request?.kind === "select" && (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm">{oauth.request.message}</p>
-            <div className="flex flex-wrap gap-2">
-              {oauth.request.options?.map((opt) => (
-                <Button key={opt.id} size="sm" variant="outline" onClick={() => submit(opt.id)}>
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {textRequest && (
-          <Field>
-            <FieldLabel htmlFor="oauth-answer">{label}</FieldLabel>
-            <Input
-              id="oauth-answer"
-              value={answer}
-              placeholder={textRequest.placeholder}
-              autoFocus
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(e) => setAnswer(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === "Enter" && canSubmit && submit(answer)}
-            />
-          </Field>
-        )}
-
-        {waiting && oauth.authUrl && (
-          <p className="text-muted-foreground text-xs">
-            Browser didn't open? <ExternalLink href={oauth.authUrl}>Open the sign-in page</ExternalLink>
-          </p>
-        )}
-
-        {oauth.error && <ErrorBanner message={oauth.error} />}
+        <OAuthSignInProgress oauth={oauth} view={view} />
       </div>
 
       <DialogFooter className="border-t px-6 py-4">
         <Button variant="outline" onClick={onClose}>
           {oauth.error ? "Close" : "Cancel"}
         </Button>
-        {textRequest && (
-          <Button onClick={() => submit(answer)} disabled={!canSubmit}>
+        {view.textRequest && (
+          <Button onClick={view.submit} disabled={!view.canSubmit}>
             Continue
           </Button>
         )}

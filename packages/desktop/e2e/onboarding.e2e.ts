@@ -38,14 +38,14 @@ test("seeds the workspace on a fresh install, before any chat exists", async () 
   expect(existsSync(path.join(launched.home, ".git"))).toBe(true);
 });
 
-test("shows the provider list after Get started, with Start held until a model exists", async () => {
+test("asks for a provider after Get started, with nothing to fill in until one is chosen", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
   await window.getByRole("button", { name: "Get started" }).click();
 
-  // The setup step embeds the Providers pane (its "Available" group comes from
-  // the real auth_status), and Start waits for a model.
-  await expect(window.getByText("Available")).toBeVisible();
-  await expect(window.getByRole("button", { name: "Start" })).toBeDisabled();
+  // The connect step asks one question: which provider. The list itself comes
+  // from the real provider catalog over IPC.
+  await expect(window.getByRole("heading", { name: "Connect an AI model" })).toBeVisible();
+  await expect(window.getByRole("combobox")).toHaveText("Select a provider");
 });

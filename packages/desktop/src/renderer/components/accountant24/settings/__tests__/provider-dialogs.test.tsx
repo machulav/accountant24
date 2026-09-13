@@ -8,8 +8,6 @@ vi.mock("@/rpc/api", () => ({
   authApi: { setKey: vi.fn() },
 }));
 
-import { InsideDialogContext } from "@/components/accountant24/inside-dialog";
-import { Dialog, DialogContent } from "@/components/shadcn/dialog";
 import type { OAuthLogin } from "@/hooks/use-oauth-login";
 import { authApi } from "@/rpc/api";
 import type { AuthProviderRow } from "@/rpc/types";
@@ -360,40 +358,5 @@ describe("OAuthSignInDialog", () => {
     render(<OAuthSignInDialog provider={oauthProvider()} oauth={oauth} />);
     fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("WDJB-MJHT"));
-  });
-});
-
-describe("provider dialog backdrops", () => {
-  const provider: AuthProviderRow = { provider: "p", displayName: "P", oauth: false, configured: false };
-  const overlays = () => document.querySelectorAll("[data-slot=dialog-overlay]").length;
-
-  it("should dim the page exactly once when opened from a page (the stock backdrop)", () => {
-    render(<ApiKeyDialog provider={provider} onClose={() => {}} onSaved={() => {}} />);
-    expect(overlays()).toBe(1);
-  });
-
-  it("should bring its own backdrop when nested inside another dialog (Base UI skips the stock one)", () => {
-    render(
-      <Dialog open>
-        <DialogContent>
-          <InsideDialogContext.Provider value={true}>
-            <ApiKeyDialog provider={provider} onClose={() => {}} onSaved={() => {}} />
-          </InsideDialogContext.Provider>
-        </DialogContent>
-      </Dialog>,
-    );
-    // The outer dialog's backdrop plus the forced inner one; without the forced
-    // one the inner dialog would sit on the outer surface undimmed.
-    expect(overlays()).toBe(2);
-  });
-
-  it("should not dim twice when told it is nested but rendered at the top level", () => {
-    // Guards the rule being keyed on the context, not on forceRender alone.
-    render(
-      <InsideDialogContext.Provider value={false}>
-        <ApiKeyDialog provider={provider} onClose={() => {}} onSaved={() => {}} />
-      </InsideDialogContext.Provider>,
-    );
-    expect(overlays()).toBe(1);
   });
 });
