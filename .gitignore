@@ -16,3 +16,6 @@ packages/desktop/resources/docs/
 # Playwright E2E artifacts
 test-results/
 playwright-report/
+# Website: Astro/wrangler local state
+.astro/
+.wrangler/

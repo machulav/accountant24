@@ -1,6 +1,7 @@
 // Injects schema.org JSON-LD structured data on every page.
 // Mintlify loads any .js file in the content directory globally, so this
 // script branches on the current path and appends one <script type="application/ld+json">.
+// The docs are served at accountant24.ai/docs (proxied by packages/website).
 (function () {
   var BASE = "https://accountant24.ai";
 
@@ -17,23 +18,6 @@
     "@id": BASE + "/#website",
     name: "Accountant24",
     url: BASE,
-    publisher: { "@id": BASE + "/#organization" },
-  };
-
-  var software = {
-    "@type": "SoftwareApplication",
-    "@id": BASE + "/#software",
-    name: "Accountant24",
-    applicationCategory: "FinanceApplication",
-    operatingSystem: "macOS",
-    description:
-      "Local-first AI agent for personal finance. Track spending in plain language; your data stays as plain-text files on your machine.",
-    url: BASE,
-    downloadUrl: "https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg",
-    softwareHelp: BASE + "/docs/quickstart",
-    license: "https://www.apache.org/licenses/LICENSE-2.0",
-    isAccessibleForFree: true,
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     publisher: { "@id": BASE + "/#organization" },
   };
 
@@ -72,12 +56,11 @@
     ],
   };
 
+  // The SoftwareApplication block lives on the home page (packages/website).
   var graph = [organization, website];
 
   var path = window.location.pathname.replace(/\/+$/, "");
-  if (path === "" || path === "/index") {
-    graph.push(software);
-  } else if (path === "/docs/faq") {
+  if (path === "/docs/faq") {
     graph.push(faqPage);
   }
 

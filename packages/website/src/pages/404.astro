@@ -1,0 +1,51 @@
+---
+import AsciiField from "../components/ascii-field.astro";
+import Nav from "../components/nav.astro";
+import { site } from "../content/site";
+import Base from "../layouts/Base.astro";
+---
+
+<Base title={`Page not found | ${site.name}`} description="There is no page at this address." noindex>
+  {/* The field fills the whole page here, not only the top as on the home page. */}
+  <div class="relative flex min-h-dvh flex-col">
+    <AsciiField class="absolute inset-0" />
+    {/* A block wrapper: as a flex item itself, the header's auto margins
+        would shrink it to its content instead of spanning the page. */}
+    <div>
+      <Nav />
+    </div>
+    {/* overflow-x-clip: the halos reach past the page column (see
+        .field-halo in global.css); unclipped they would give the page a
+        horizontal scroll. */}
+    <main id="main" class="flex flex-1 items-center overflow-x-clip">
+      <div class="mx-auto flex max-w-2xl flex-col items-center px-6 py-16 text-center">
+        <p class="field-halo font-mono text-sm text-ink-2">404</p>
+        <h1 class="field-halo mt-3 text-[2.5rem] leading-[1.08] font-black tracking-[-0.03em] text-balance sm:text-5xl">
+          Page not found
+        </h1>
+        <p class="field-halo mt-5 max-w-md text-lg leading-relaxed text-ink-2">
+          There's nothing at <span data-missing-path>this address</span>. The link may be old, or the address mistyped.
+        </p>
+        <div class="field-halo mt-8 flex flex-wrap items-center justify-center gap-3">
+          <a href="/" class="btn btn-primary">Back to home</a>
+          <a href={site.docsUrl} data-track="docs_clicked" data-placement="not-found" class="btn btn-secondary">Read the docs</a>
+        </div>
+      </div>
+    </main>
+  </div>
+</Base>
+
+<script>
+  import { missingPathLabel } from "../lib/not-found";
+
+  // Quote the address that was asked for, as text only (never markup), so a
+  // typo is visible at a glance. Without a script the sentence still reads.
+  const slot = document.querySelector<HTMLElement>("[data-missing-path]");
+  const label = missingPathLabel(location.pathname);
+  if (slot && label) {
+    const code = document.createElement("code");
+    code.className = "rounded-md bg-surface px-1 py-0.5 font-mono text-[0.9em] break-all text-ink";
+    code.textContent = label;
+    slot.replaceChildren(code);
+  }
+</script>

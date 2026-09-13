@@ -1,0 +1,20 @@
+# Accountant24
+
+> An open source AI agent for personal finance. Runs on your machine, you own the data.
+
+Accountant24 is an open source (Apache 2.0) desktop app for macOS. You log spending, import bank statements and receipts, and ask questions about your money in a chat. The agent keeps proper double-entry books in plain text hledger journal files stored on your machine and versioned with git. It works with any LLM: a ChatGPT or Claude subscription, an API key (Anthropic, OpenAI, Google, and more), or local models through Ollama for a fully offline setup.
+
+## Documentation
+
+- [Docs home](https://accountant24.ai/docs): introduction and overview
+- [Quickstart](https://accountant24.ai/docs/quickstart): download, connect an LLM, log the first transaction
+- [Use cases](https://accountant24.ai/docs/use-cases): what you can do with Accountant24
+- [Go fully local](https://accountant24.ai/docs/go-fully-local): run with a local Ollama model
+- [Comparison](https://accountant24.ai/docs/comparison): Accountant24 vs YNAB, Monarch, Actual Budget, and hledger
+- [FAQ](https://accountant24.ai/docs/faq): privacy, offline use, supported LLMs, pricing, data format
+- [Full docs index for LLMs](https://accountant24.ai/docs/llms.txt)
+
+## Source and downloads
+
+- [GitHub repository](https://github.com/machulav/accountant24)
+- [Download for macOS (Apple Silicon)](https://github.com/machulav/accountant24/releases/latest/download/Accountant24.dmg)

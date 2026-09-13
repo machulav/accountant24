@@ -1,0 +1,131 @@
+---
+// Animated ASCII field: waves of characters drifting in the accent color,
+// drawn on a canvas as rows of monospace text (src/lib/ascii-field.ts renders
+// the frames, at ~12 fps). A canvas and not text in a <pre>: text this size
+// made the browser lay the whole page out again at every frame, and, being
+// the largest text block on the page, it was the LCP element, painted only
+// once the script had filled it. A canvas costs a few fillText calls a frame
+// and is no LCP candidate. Decorative only (aria-hidden); a single static
+// frame under reduced motion. Elements on top clear their own space with
+// .field-halo / .field-glow (global.css).
+//
+// extent:
+// - "page-top": spans from the page top down past the hero (nav + hero + a
+//   bit of the hero demo window); pair with .ascii-fade-bottom.
+// - "parent": fills its positioned parent; pair with .ascii-fade-top.
+interface Props {
+  class?: string;
+  extent?: "page-top" | "parent";
+}
+const { class: className = "", extent = "parent" } = Astro.props;
+---
+
+{/* font-mono and text-accent are read by the script: the glyphs take the
+    page's mono face and the accent color, and follow the color scheme. The
+    explicit width and height matter: a canvas is a replaced element, so
+    unlike a block it does not stretch between its insets on its own but
+    keeps its bitmap's size (300x150 to start with). */}
+<canvas
+  aria-hidden="true"
+  data-ascii-extent={extent}
+  class:list={[
+    "ascii-field pointer-events-none -z-10 block w-full font-mono text-accent",
+    extent === "parent" && "h-full",
+    className,
+  ]}></canvas>
+
+<script>
+  import { backingSize, CELL, cellsFor, renderAsciiFrame } from "../lib/ascii-field";
+
+  document.querySelectorAll<HTMLCanvasElement>("canvas[data-ascii-extent]").forEach((canvas, instance) => {
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    // Offset each instance so two fields never show the same pattern.
+    const phase = instance * 37;
+    let width = 0;
+    let height = 0;
+    let cols = 0;
+    let rows = 0;
+    let font = "";
+    let color = "";
+
+    // Size the canvas to its box and its bitmap to the screen, and take the
+    // face and color from the element's styles. Every read comes before the
+    // one write, so the browser lays the page out once here, not twice.
+    const measure = () => {
+      const style = getComputedStyle(canvas);
+      font = `${CELL.font}px ${style.fontFamily}`;
+      color = style.color;
+      const hero = canvas.dataset.asciiExtent === "page-top" ? document.querySelector("[data-hero]") : null;
+      width = canvas.clientWidth;
+      // Run a bit past the hero so the field slips underneath the hero demo window.
+      height = hero ? hero.getBoundingClientRect().bottom + window.scrollY + 176 : canvas.clientHeight;
+      if (hero) canvas.style.height = `${height}px`;
+      const bitmap = backingSize(width, height, window.devicePixelRatio);
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      context.setTransform(bitmap.scale, 0, 0, bitmap.scale, 0, 0);
+      ({ cols, rows } = cellsFor(width, height));
+    };
+
+    const frame = (t: number) => {
+      // Resizing the bitmap resets the context, so the text state is set per frame.
+      context.clearRect(0, 0, width, height);
+      context.font = font;
+      context.fillStyle = color;
+      context.textBaseline = "top";
+      const lines = renderAsciiFrame(cols, rows, t + phase);
+      // The glyphs sit in the middle of their line box, as text would.
+      const inset = (CELL.height - CELL.font) / 2;
+      for (let y = 0; y < lines.length; y++) context.fillText(lines[y], 0, y * CELL.height + inset);
+    };
+    const now = () => performance.now() / 1000;
+
+    measure();
+    frame(0);
+    // Drawing on a canvas does not fetch a web font on its own; ask for the
+    // face, and draw again in it once it is there.
+    document.fonts.load(font).then(() => frame(now()));
+    // Fonts and images can shift layout after the first paint; re-measure then.
+    window.addEventListener("load", () => {
+      measure();
+      frame(now());
+    });
+    // The color is the accent of the current scheme; take the new one on a switch.
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      measure();
+      frame(now());
+    });
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!reducedMotion.matches) {
+      let raf = 0;
+      let last = 0;
+      let onScreen = true;
+      const tick = (time: number) => {
+        if (time - last > 80) {
+          last = time;
+          frame(time / 1000);
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      // Frames only while the field can be seen: not in a hidden tab, and not
+      // once it has scrolled off (the top field past the hero, the footer's
+      // until the end of the page).
+      const sync = () => {
+        cancelAnimationFrame(raf);
+        raf = onScreen && !document.hidden ? requestAnimationFrame(tick) : 0;
+      };
+      sync();
+      document.addEventListener("visibilitychange", sync);
+      new IntersectionObserver(([entry]) => {
+        onScreen = entry.isIntersecting;
+        sync();
+      }).observe(canvas);
+      window.addEventListener("resize", () => {
+        measure();
+        frame(now());
+      });
+    }
+  });
+</script>

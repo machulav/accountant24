@@ -1,0 +1,35 @@
+---
+import { site } from "../content/site";
+import Icon from "./icons.astro";
+---
+
+{/* overflow-x-clip: the halos behind the wordmark and the links reach past
+    the page column (see .field-halo in global.css); unclipped they would
+    give the page a horizontal scroll. */}
+<header class="overflow-x-clip">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-5">
+    <a href="/" class="field-halo flex items-center" aria-label="Accountant24 home">
+      <span class="text-xl font-semibold tracking-tight">Accountant24</span>
+    </a>
+    <nav aria-label="Primary" class="field-halo flex items-center gap-4 sm:gap-6">
+      <a href={site.docsUrl} target="_blank" rel="noopener" data-track="docs_clicked" data-placement="nav" class="text-sm font-medium text-ink-2 hover:text-ink">Docs</a>
+      <a
+        href={site.github} target="_blank" rel="noopener"
+        data-track="github_clicked"
+        data-placement="nav"
+        class="flex items-center gap-1.5 text-sm font-medium text-ink-2 hover:text-ink"
+      >
+        <span>GitHub</span>
+      </a>
+      <a
+        href={site.downloadUrl}
+        data-track="download_clicked"
+        data-placement="nav"
+        class="btn btn-primary btn-sm hidden sm:inline-flex"
+      >
+        <Icon name="download" />
+        Download for macOS
+      </a>
+    </nav>
+  </div>
+</header>

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://accountant24.ai/sitemap.xml
+Sitemap: https://accountant24.ai/docs/sitemap.xml

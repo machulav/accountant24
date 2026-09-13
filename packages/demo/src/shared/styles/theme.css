@@ -1,0 +1,88 @@
+/* The app look: the desktop app's palette and text faces, so anything that
+   renders the mock app window reads as the same product. Imported by the
+   host's stylesheet next to `@import "tailwindcss"`, which the tokens below
+   need for the `@theme inline` mapping. */
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* Satoshi, a free Fontshare face by Indian Type Foundry (ITF Free Font
+   License), self-hosted next to this file. */
+@font-face {
+  font-family: "Satoshi";
+  src: url("../fonts/satoshi-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("../fonts/satoshi-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  /* Satoshi has no 600; semibold text uses Bold. */
+  font-family: "Satoshi";
+  src: url("../fonts/satoshi-700.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("../fonts/satoshi-900.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Palette: the desktop app's tokens (teal primary, cool near-white surfaces),
+   so the site and the app read as one product. Dark follows the OS. */
+:root {
+  color-scheme: light dark;
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.975 0.003 197);
+  --surface-2: oklch(0.94 0.005 200);
+  --ink: oklch(0.148 0.004 228.8);
+  --ink-2: oklch(0.47 0.02 213);
+  --line: oklch(0.9 0.006 214);
+  /* The app's sidebar edge (--sidebar-border): a touch lighter than --line. */
+  --line-soft: oklch(0.925 0.005 214.3);
+  --accent: oklch(0.511 0.096 186.391);
+  --accent-ink: oklch(0.42 0.085 188);
+  --accent-soft: oklch(0.955 0.025 186);
+  --on-accent: oklch(0.984 0.014 180.72);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(0.148 0.004 228.8);
+    --surface: oklch(0.195 0.007 224);
+    --surface-2: oklch(0.25 0.009 222);
+    --ink: oklch(0.987 0.002 197.1);
+    --ink-2: oklch(0.72 0.014 214);
+    --line: oklch(1 0 0 / 12%);
+    --line-soft: oklch(1 0 0 / 10%);
+    --accent: oklch(0.72 0.11 184);
+    --accent-ink: oklch(0.8 0.1 184);
+    --accent-soft: oklch(0.235 0.03 190);
+    --on-accent: oklch(0.15 0.02 200);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+

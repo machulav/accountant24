@@ -1,0 +1,68 @@
+---
+title: "Use Cases"
+sidebarTitle: "Use Cases"
+description: "What you can do with Accountant24: log spending in natural language, import bank statements and receipts, ask questions about your money, teach the agent your rules, extend the agent with skills, and track every change with git."
+---
+
+## Log spending in natural language
+
+> I spent \$45 at Whole Foods yesterday
+
+The agent figures out the details and adds it to your ledger as a proper double-entry transaction.
+
+## Import bank statements and receipts
+
+> Here is my March bank statement, please add missing transactions: ~/Downloads/statement-march.pdf
+
+> Add transaction from this receipt: ~/Desktop/receipt.jpg
+
+Drop a PDF bank statement, an invoice, or a photo of a paper receipt into the chat. The agent extracts the text, pulls out every transaction, and adds them to your ledger. The original file is archived in your workspace so you can refer back to it later.
+
+<video
+  controls
+  playsInline
+  src="/videos/import-bank-statements-and-receipts-demo.mp4"
+  style={{ width: "100%", borderRadius: 8, marginTop: 8 }}
+/>
+
+## Ask questions about your money
+
+> How much did I spend on food this month?
+
+> What's my net worth?
+
+> Show me all transactions from my last trip to Italy
+
+The agent checks your ledger and gives you a clear answer.
+
+## Teach the agent your rules
+
+> I'm visiting Italy from April 10th to 15th.
+> Tag all transactions during this period with the 'trip_italy' tag.
+
+> My food budget is \$600/month, please notify me when I get close.
+
+Tell the agent once, and it remembers and applies it when it matters. See [Memory](/memory) for more details.
+
+## Extend the agent with skills
+
+> Which subscriptions can I cancel?
+
+> Create a skill that compares my spending this month to the previous month and shows where I spent more.
+
+Skills are reusable playbooks the agent follows step by step, like monthly reviews or subscription audits. Install them from the [plugin marketplace](/marketplace) or [create your own](/create-a-plugin).
+
+<video
+  controls
+  playsInline
+  src="/videos/use-skills-demo.mp4"
+  style={{ width: "100%", borderRadius: 8, marginTop: 8 }}
+/>
+
+## Track every change with git
+
+> What did you change today?
+
+> Undo the last change.
+
+Every modification is auto-committed to a local git repo. Review your history anytime, roll back mistakes, or push to a private repo for backup.

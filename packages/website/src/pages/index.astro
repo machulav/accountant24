@@ -1,0 +1,44 @@
+---
+import AsciiField from "../components/ascii-field.astro";
+import Closing from "../components/closing.astro";
+import Extras from "../components/extras.astro";
+import Features from "../components/features.astro";
+import Footer from "../components/footer.astro";
+import Hero from "../components/hero.astro";
+import HeroDemo from "../components/hero-demo.astro";
+import Nav from "../components/nav.astro";
+import PromptCloud from "../components/prompt-cloud.astro";
+import Base from "../layouts/Base.astro";
+import { fetchGitHubStats } from "../lib/github";
+import { homeStructuredData } from "../lib/structured-data";
+
+const { version } = await fetchGitHubStats();
+---
+
+{/* The hero demo's wallpaper is the largest thing in a phone's first screen;
+    the media queries match the cuts in hero-demo.astro. */}
+<Base
+  structuredData={homeStructuredData({ version })}
+  preloadImages={[
+    { href: "/hero-forest-dither-sm.avif", type: "image/avif", media: "(width <= 40rem)" },
+    { href: "/hero-forest-dither.avif", type: "image/avif", media: "(width > 40rem)" },
+  ]}
+>
+  <AsciiField extent="page-top" class="ascii-fade-bottom absolute inset-x-0 top-0" />
+  <Nav />
+  {/* overflow-x-clip: the halos behind the hero text and the extras reach
+      past the page column (see .field-halo in global.css); unclipped they
+      would give the page a horizontal scroll. */}
+  <main id="main" class="overflow-x-clip">
+    <Hero />
+    <HeroDemo />
+    <PromptCloud />
+    <Features />
+    <Extras />
+    <Closing />
+  </main>
+  <div class="relative -mt-4 overflow-hidden pt-4 lg:-mt-6 lg:pt-6">
+    <AsciiField class="ascii-fade-top absolute inset-0" />
+    <Footer />
+  </div>
+</Base>
