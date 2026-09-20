@@ -27,7 +27,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="relative h-dvh overflow-y-auto">
+    <div className="font-display relative h-dvh overflow-y-auto">
       {/* drag strip so the frameless window can still be moved by its top edge */}
       <div className="app-drag-region absolute inset-x-0 top-0 z-20 h-7" />
       <div className="flex min-h-full flex-col px-6 pt-12 pb-6">

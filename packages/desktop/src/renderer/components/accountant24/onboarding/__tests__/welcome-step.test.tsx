@@ -7,22 +7,18 @@ import { WelcomeStep } from "../welcome-step";
 afterEach(() => cleanup());
 
 describe("WelcomeStep", () => {
-  it("should introduce the app by name", () => {
+  it("should lead with the wordmark, then the landing page's headline and tagline", () => {
     render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Welcome to Accountant24" })).toBeInTheDocument();
-    expect(screen.getByText("A local-first AI agent for personal finance.")).toBeInTheDocument();
+    expect(screen.getByText("Accountant24")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Open source AI agent for personal finance" })).toBeInTheDocument();
+    expect(screen.getByText("Runs on your machine, you own the data")).toBeInTheDocument();
   });
 
   it("should show what the app can do, one line each", () => {
     render(<WelcomeStep onNext={() => {}} />);
     expect(screen.getByText("Log spending in plain language")).toBeInTheDocument();
-    expect(screen.getByText("Import statements and receipts")).toBeInTheDocument();
-    expect(screen.getByText("Ask anything about your money")).toBeInTheDocument();
-  });
-
-  it("should promise the data stays on the machine", () => {
-    render(<WelcomeStep onNext={() => {}} />);
-    expect(screen.getByText(/stays on this Mac as plain text/)).toBeInTheDocument();
+    expect(screen.getByText("Import bank statements and receipts")).toBeInTheDocument();
+    expect(screen.getByText("Ask questions about your money")).toBeInTheDocument();
   });
 
   it("should offer Get started as the only action", () => {

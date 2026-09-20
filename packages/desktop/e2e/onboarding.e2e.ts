@@ -22,8 +22,12 @@ test("boots to the welcome page on a fresh install", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
-  await expect(window.getByRole("heading", { name: "Accountant24" })).toBeVisible();
-  await expect(window.getByText("Local-first AI agent for personal finance.")).toBeVisible();
+  // The same three lines the landing page opens with, in the same order.
+  await expect(window.getByText("Accountant24", { exact: true })).toBeVisible();
+  await expect(
+    window.getByRole("heading", { name: "Open source AI agent for personal finance", exact: true }),
+  ).toBeVisible();
+  await expect(window.getByText("Runs on your machine, you own the data")).toBeVisible();
   await expect(window.getByRole("button", { name: "Get started" })).toBeVisible();
 });
 

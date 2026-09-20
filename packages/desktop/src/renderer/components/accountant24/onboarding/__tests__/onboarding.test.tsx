@@ -75,7 +75,7 @@ const getStarted = () => screen.getByRole("button", { name: "Get started" });
 describe("Onboarding", () => {
   it("should open on the welcome step", () => {
     render(<Onboarding onDone={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Welcome to Accountant24" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Open source AI agent for personal finance" })).toBeInTheDocument();
     expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
   });
 

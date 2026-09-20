@@ -115,7 +115,9 @@ const pickProvider = async (name: string | RegExp) => {
 describe("Onboarding, first run", () => {
   it("should open on the welcome step and write nothing", async () => {
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Welcome to Accountant24" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Open source AI agent for personal finance" }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("chat-layout")).not.toBeInTheDocument();
     expect(bridge.callsFor("settings_set")).toEqual([]);
     expect(bridge.callsFor("analytics_track")).toEqual([]);
