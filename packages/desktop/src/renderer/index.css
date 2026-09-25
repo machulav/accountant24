@@ -3,9 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
-/* The brand faces the landing page uses, self-hosted so onboarding reads as
-   the same product as the site: Satoshi for its display type, Sentient for the
-   one italic line under the headline. Both are free Fontshare faces by Indian
+/* The display face the landing page uses, self-hosted so onboarding reads as
+   the same product as the site. Satoshi is a free Fontshare face by Indian
    Type Foundry (ITF Free Font License). The rest of the app stays on Inter. */
 @font-face {
   font-family: "Satoshi";
@@ -34,13 +33,6 @@
   src: url("./assets/fonts/satoshi-900.woff2") format("woff2");
   font-weight: 900;
   font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Sentient";
-  src: url("./assets/fonts/sentient-400-italic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
   font-display: swap;
 }
 
@@ -144,10 +136,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-heading: var(--font-sans);
   --font-sans: "Inter Variable", sans-serif;
-  /* The landing page's two faces, used by onboarding only (see the @font-face
-     block above): its display type, and the italic line under the headline. */
+  /* The landing page's display face, used by onboarding only (see the
+     @font-face block above). */
   --font-display: "Satoshi", "Inter Variable", sans-serif;
-  --font-serif: "Sentient", Georgia, serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
