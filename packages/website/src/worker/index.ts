@@ -3,7 +3,7 @@
 // `run_worker_first` in wrangler.jsonc; the fallthrough keeps `wrangler dev`
 // and any future pattern change safe).
 import { toMintlifyRequest } from "./proxy";
-import { isDocsPath } from "./routing";
+import { mintlifyPath } from "./routing";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -13,9 +13,9 @@ interface Env {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(request.url);
-    if (isDocsPath(pathname)) {
-      return fetch(toMintlifyRequest(request, { mintlifyHost: env.MINTLIFY_HOST, siteHost: env.SITE_HOST }));
+    const upstream = mintlifyPath(new URL(request.url).pathname);
+    if (upstream) {
+      return fetch(toMintlifyRequest(request, { mintlifyHost: env.MINTLIFY_HOST, siteHost: env.SITE_HOST }, upstream));
     }
     return env.ASSETS.fetch(request);
   },

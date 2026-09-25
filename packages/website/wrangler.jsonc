@@ -3,7 +3,9 @@
 //
 // Only the Mintlify paths go through the Worker (`run_worker_first`); every
 // other request is served straight from `dist/`, so `public/_redirects` and
-// `public/_headers` apply to the site itself.
+// `public/_headers` apply to the site itself. `/llms.txt` and
+// `/llms-full.txt` are Mintlify's too: agents look for them at the root, and
+// the Worker maps them to the copies Mintlify keeps under /docs.
 //
 // `routes` attaches the custom domain, so a deploy keeps it in place; the
 // record itself lives in the zone's DNS (see docs/README.md).
@@ -22,7 +24,15 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/docs", "/docs/*", "/mintlify-assets/*", "/_mintlify/*", "/.well-known/*"]
+    "run_worker_first": [
+      "/docs",
+      "/docs/*",
+      "/mintlify-assets/*",
+      "/_mintlify/*",
+      "/.well-known/*",
+      "/llms.txt",
+      "/llms-full.txt"
+    ]
   },
   "observability": {
     "enabled": true
