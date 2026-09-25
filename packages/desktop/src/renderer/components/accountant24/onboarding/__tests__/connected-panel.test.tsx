@@ -44,17 +44,29 @@ describe("ConnectedPanel", () => {
     expect(screen.getByRole("heading", { name: "Connected to Anthropic" })).toBeInTheDocument();
   });
 
-  it("should show the model that was picked for the user", () => {
+  it("should say which model was picked for the user, in a sentence", () => {
     renderPanel();
-    expect(screen.getByRole("combobox")).toHaveTextContent("Claude Opus 4.8");
-    expect(screen.getByText(/The model new chats start with/)).toBeInTheDocument();
+    expect(screen.getByText(/You'll be talking to/)).toBeInTheDocument();
+    expect(screen.getByText("Claude Opus 4.8")).toBeInTheDocument();
+    // The picker stays out of the way until asked for.
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("should let the user choose a different model", async () => {
+  it("should reveal the picker on request and let the user choose a different model", async () => {
     const { onSelectDefault } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Change model" }));
+    expect(screen.getByRole("combobox")).toHaveTextContent("Claude Opus 4.8");
+    expect(screen.getByText(/The model new chats start with/)).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("combobox"));
     fireEvent.click(await screen.findByRole("option", { name: /Claude Haiku 4.5/ }));
     await waitFor(() => expect(onSelectDefault).toHaveBeenCalledExactlyOnceWith("anthropic/claude-haiku"));
+  });
+
+  it("should say it is still choosing while the models have not arrived", () => {
+    renderPanel({ models: [], defaultModel: undefined });
+    expect(screen.getByText("Choosing a model for you")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change model" })).toBeNull();
   });
 
   it("should open the app when asked", () => {
