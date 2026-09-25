@@ -3,16 +3,16 @@
 // of pi's /login and /logout. The connect flows themselves live in the dialogs
 // in provider-dialogs.tsx.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ItemActions, ItemContent, ItemTitle } from "@/components/shadcn/item";
 import { Spinner } from "@/components/shadcn/spinner";
-import { useOAuthLogin } from "@/hooks/use-oauth-login";
+import { useProviderConnect } from "@/hooks/use-provider-connect";
 import { defaultModelPatch, pickDefaultModel } from "@/lib/defaultModelPick";
-import { addEnabledModels, parseModelId } from "@/lib/enabledModels";
+import { parseModelId } from "@/lib/enabledModels";
 import { agentApi, authApi, settingsApi } from "@/rpc/api";
-import type { AppSettings, AuthProviderRow, AuthStatus } from "@/rpc/types";
+import type { AuthProviderRow, AuthStatus } from "@/rpc/types";
 import { ErrorBanner, Section, SettingsRow, SettingsRows } from "./parts";
 import { ApiKeyDialog, OAuthSignInDialog } from "./provider-dialogs";
 
@@ -21,52 +21,10 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   // Only offer Ollama when it's actually installed and running locally with at
   // least one model — otherwise the row advertises a provider you don't have.
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
-  // The provider an OAuth sign-in is in flight for, so we can enable its models
-  // once it completes (the hook's done callback carries no provider).
-  const signingProvider = useRef<string | null>(null);
 
-  // When a provider is added, make sure its models show in the composer — adding
-  // a provider shouldn't leave its models hidden behind an existing scoped list —
-  // and start new chats on one of them when no default has been chosen yet.
-  const adoptProviderModels = useCallback(async (provider: string) => {
-    try {
-      const [models, settings] = await Promise.all([authApi.models(), settingsApi.get()]);
-      const toEnable = models.models.filter((m) => m.provider === provider).map((m) => `${m.provider}/${m.id}`);
-      const allIds = models.models.map((m) => `${m.provider}/${m.id}`);
-      const next = addEnabledModels(settings.enabledModels, toEnable, allIds);
-      const patch: Partial<AppSettings> = {};
-      if (next !== undefined && JSON.stringify(next) !== JSON.stringify(settings.enabledModels ?? [])) {
-        patch.enabledModels = next;
-      }
-      if (!settings.defaultModel) {
-        // The pick comes from the provider just added, whose models are enabled
-        // above, so the default is always one the user can actually chat with.
-        const picked = pickDefaultModel(models.models, models.providerDefaults, provider);
-        if (picked) patch.defaultModel = picked;
-      }
-      // One write, so the composer sees a single settings-changed event.
-      if (Object.keys(patch).length > 0) await settingsApi.set(patch);
-    } catch {
-      // Best-effort: failing to widen the composer list shouldn't block the add.
-    }
-  }, []);
-
-  const afterAdd = useCallback(
-    async (provider: string) => {
-      // The agent caches auth/models at startup, so restart it to pick up the new
-      // provider; this also notifies the composer to re-fetch its model list.
-      await agentApi.restart();
-      await adoptProviderModels(provider);
-      await reload();
-    },
-    [adoptProviderModels, reload],
-  );
-
-  const oauth = useOAuthLogin(() => {
-    const provider = signingProvider.current;
-    signingProvider.current = null;
-    void (provider ? afterAdd(provider) : reload());
-  });
+  // Adding a provider is the same everywhere: restart the agent, adopt the new
+  // models, then re-read this list.
+  const { oauth, finish } = useProviderConnect(reload);
 
   useEffect(() => {
     authApi
@@ -128,7 +86,6 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
       provider={p}
       onSignIn={() => {
         setApiKeyProvider(null);
-        signingProvider.current = p.provider;
         void oauth.start(p.provider);
       }}
       onApiKey={() => {
@@ -146,7 +103,7 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
   const availableItems = [
     ...available.map((p) => ({ name: p.displayName, node: renderRow(p) })),
     ...(ollamaAvailable && !ollamaConnected
-      ? [{ name: "Ollama", node: <OllamaRow key="ollama" onConnected={() => afterAdd("ollama")} /> }]
+      ? [{ name: "Ollama", node: <OllamaRow key="ollama" onConnected={() => finish("ollama")} /> }]
       : []),
   ].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -168,7 +125,7 @@ function ProvidersList({ status, reload }: { status: AuthStatus | null; reload: 
         onSaved={async () => {
           const provider = apiKeyProvider;
           setApiKeyProvider(null);
-          if (provider) await afterAdd(provider.provider);
+          if (provider) await finish(provider.provider);
         }}
       />
     </>
@@ -272,9 +229,8 @@ export function ProvidersSettings() {
     void reload();
   }, [reload]);
 
-  return (
-    <div>
-      <ProvidersList status={status} reload={reload} />
-    </div>
-  );
+  // No wrapper: the sections are direct children of wherever the pane is
+  // mounted, so a Section rendered after this one (the onboarding setup step)
+  // is their sibling and the last-child divider rule reads across them.
+  return <ProvidersList status={status} reload={reload} />;
 }

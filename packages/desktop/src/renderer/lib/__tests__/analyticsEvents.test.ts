@@ -16,11 +16,35 @@ import {
   trackAgentToolUsed,
   trackAttachmentAdded,
   trackChatCreated,
+  trackOnboardingCompleted,
+  trackOnboardingSetupViewed,
   trackPromptIdeaUsed,
   trackTransactionFirstAdded,
   trackUserFirstMessageSent,
   trackUserMessageSent,
 } from "../analyticsEvents";
+
+describe("trackOnboardingSetupViewed()", () => {
+  it("should send onboarding_setup_viewed flagged as a once milestone", () => {
+    trackOnboardingSetupViewed();
+    expect(h.invoke).toHaveBeenCalledExactlyOnceWith("analytics_track", {
+      event: "onboarding_setup_viewed",
+      props: undefined,
+      once: true,
+    });
+  });
+});
+
+describe("trackOnboardingCompleted()", () => {
+  it("should send onboarding_completed flagged as a once milestone", () => {
+    trackOnboardingCompleted();
+    expect(h.invoke).toHaveBeenCalledExactlyOnceWith("analytics_track", {
+      event: "onboarding_completed",
+      props: undefined,
+      once: true,
+    });
+  });
+});
 
 describe("trackChatCreated()", () => {
   it("should send chat_created with no props", () => {

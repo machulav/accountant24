@@ -31,7 +31,7 @@ const { oauthMock } = vi.hoisted(() => ({
     error: null as string | null,
     errorProvider: null as string | null,
     // Captured from the render so tests can fire the "sign-in finished" callback.
-    onDone: null as (() => void) | null,
+    onDone: null as ((provider: string) => void) | null,
     start: vi.fn(),
     respond: vi.fn(),
     cancel: vi.fn(),
@@ -509,11 +509,11 @@ describe("ProvidersSettings", () => {
       } as never);
 
       render(<ProvidersSettings />);
-      // Arm the flow for anthropic, then simulate the hook signalling completion.
+      // Start the flow for anthropic, then simulate the hook signalling completion.
       fireEvent.click(await screen.findByRole("button", { name: "Sign In" }));
       expect(oauthMock.start).toHaveBeenCalledWith("anthropic");
       await act(async () => {
-        oauthMock.onDone?.();
+        oauthMock.onDone?.("anthropic");
       });
 
       await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
@@ -643,23 +643,6 @@ describe("ProvidersSettings", () => {
 
       await waitFor(() => expect(agentApi.restart).toHaveBeenCalledTimes(1));
       expect(settingsApi.set).not.toHaveBeenCalled();
-    });
-
-    it("should just reload without an add when a sign-in completes with no provider armed", async () => {
-      vi.mocked(authApi.status).mockResolvedValue(
-        status([row({ provider: "anthropic", displayName: "Anthropic", configured: false, oauth: true })]),
-      );
-      render(<ProvidersSettings />);
-      await screen.findByText("Anthropic");
-      const statusCallsBefore = vi.mocked(authApi.status).mock.calls.length;
-
-      // No Sign In was clicked, so signingProvider is null: the done callback only reloads.
-      await act(async () => {
-        oauthMock.onDone?.();
-      });
-
-      await waitFor(() => expect(vi.mocked(authApi.status).mock.calls.length).toBeGreaterThan(statusCallsBefore));
-      expect(agentApi.restart).not.toHaveBeenCalled();
     });
   });
 

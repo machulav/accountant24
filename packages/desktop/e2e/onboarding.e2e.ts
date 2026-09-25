@@ -3,10 +3,10 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { type LaunchedApp, launchApp } from "./helpers";
 
-// E1 — the real app boots to the onboarding screen on a fresh install.
+// E1 — the real app boots to the onboarding wizard on a fresh install.
 // Guards the whole wiring: main process starts, preload's allowlisted bridge is
-// exposed, auth_status returns "no models", and the renderer paints Onboarding.
-// No pi agent is needed (it only spawns once a model exists).
+// exposed, auth_status returns "no models", and the renderer paints the welcome
+// page. No pi agent is needed (it only spawns once a model exists).
 
 let launched: LaunchedApp;
 
@@ -18,15 +18,14 @@ test.afterEach(async () => {
   await launched?.close();
 });
 
-test("boots to onboarding with the three connect options on a fresh install", async () => {
+test("boots to the welcome page on a fresh install", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
-  // The onboarding headline + the three ways to get a model.
-  await expect(window.getByText("Local-first AI agent for personal finance")).toBeVisible();
-  await expect(window.getByText("Sign in with a subscription")).toBeVisible();
-  await expect(window.getByText("Use an API key")).toBeVisible();
-  await expect(window.getByText("Connect Ollama")).toBeVisible();
+  // The wordmark, a plain welcome, and the one action.
+  await expect(window.getByText("Accountant24", { exact: true })).toBeVisible();
+  await expect(window.getByRole("heading", { name: "Welcome", exact: true })).toBeVisible();
+  await expect(window.getByRole("button", { name: "Get started" })).toBeVisible();
 });
 
 test("seeds the workspace on a fresh install, before any chat exists", async () => {
@@ -40,12 +39,18 @@ test("seeds the workspace on a fresh install, before any chat exists", async () 
   expect(existsSync(path.join(launched.home, ".git"))).toBe(true);
 });
 
-test("opens Settings on the Providers section when a connect option is clicked", async () => {
+test("offers the two subscriptions after Get started, and the full list on request", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
-  await window.getByText("Use an API key").click();
+  await window.getByRole("button", { name: "Get started" }).click();
 
-  // The Settings dialog opens; its Providers section lists the "Available" group.
-  await expect(window.getByText("Available")).toBeVisible();
+  // The connect step opens on the two sign-in buttons; both products come
+  // from the real provider catalog over IPC.
+  await expect(window.getByRole("heading", { name: "Which AI do you use?" })).toBeVisible();
+  await expect(window.getByRole("button", { name: "Sign in with ChatGPT" })).toBeVisible();
+  await expect(window.getByRole("button", { name: "Sign in with Claude" })).toBeVisible();
+
+  await window.getByRole("button", { name: "Use another provider" }).click();
+  await expect(window.getByRole("combobox")).toHaveText("Select a provider");
 });

@@ -116,17 +116,44 @@ describe("trackOnce()", () => {
 });
 
 describe("trackProviderConnected()", () => {
-  it("should emit onboarding_completed with the provider and method", async () => {
+  it("should emit provider_connected with the provider and method", async () => {
     const { trackProviderConnected } = await setup();
     trackProviderConnected("anthropic", "oauth");
-    expect(events()).toEqual([["onboarding_completed", { provider: "anthropic", method: "oauth" }]]);
+    expect(events()).toEqual([["provider_connected", { provider: "anthropic", method: "oauth" }]]);
   });
 
-  it("should not emit again when a second provider is connected later", async () => {
+  it("should emit again for every provider connected, not once per install", async () => {
     const { trackProviderConnected } = await setup();
     trackProviderConnected("anthropic", "oauth");
     trackProviderConnected("openai", "api_key");
-    expect(events()).toHaveLength(1);
+    trackProviderConnected("anthropic", "oauth");
+    expect(events()).toEqual([
+      ["provider_connected", { provider: "anthropic", method: "oauth" }],
+      ["provider_connected", { provider: "openai", method: "api_key" }],
+      ["provider_connected", { provider: "anthropic", method: "oauth" }],
+    ]);
+  });
+
+  it("should emit nothing when analytics are opted out", async () => {
+    patchSettings({ analyticsEnabled: false });
+    const { trackProviderConnected } = await setup();
+    trackProviderConnected("anthropic", "oauth");
+    expect(events()).toEqual([]);
+  });
+});
+
+describe("trackProviderConnectFailed()", () => {
+  it("should emit provider_connect_failed with the provider and method", async () => {
+    const { trackProviderConnectFailed } = await setup();
+    trackProviderConnectFailed("openai", "api_key");
+    expect(events()).toEqual([["provider_connect_failed", { provider: "openai", method: "api_key" }]]);
+  });
+
+  it("should emit nothing when analytics are opted out", async () => {
+    patchSettings({ analyticsEnabled: false });
+    const { trackProviderConnectFailed } = await setup();
+    trackProviderConnectFailed("ollama", "ollama");
+    expect(events()).toEqual([]);
   });
 });
 

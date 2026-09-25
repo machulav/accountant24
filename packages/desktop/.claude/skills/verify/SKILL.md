@@ -16,9 +16,10 @@ npm run dev -- -- --workspace "$(mktemp -d /tmp/a24-verify-XXXX)" --remote-debug
 
 The main process logs `[workspace] using <dir> (flag|env|default)` at startup;
 `(default)` means the instance is on the user's real data: stop it and relaunch.
-A fresh workspace boots to the onboarding screen (no providers), where Cmd+,
-does nothing: open Settings by clicking "Use an API key", or seed the folder
-first (e.g. an `auth.json`) to boot into the chat layout.
+A fresh workspace boots to the onboarding wizard (no providers), where Cmd+,
+does nothing: click "Get started" to reach the provider list (the Settings →
+Providers pane embedded in the page), or seed the folder first (e.g. an
+`auth.json`) to boot into the chat layout.
 
 Gotchas:
 
@@ -50,6 +51,11 @@ with commands: `targets`, `eval <js>` (Runtime.evaluate with awaitPromise),
   coordinates, or `switchEl.click()` on the `[role=switch]` element.
 - Rows re-sort after toggles (enabled/available lists) — re-query coordinates
   before every tap; never tap the same coordinates twice.
+- `clicktext` takes the first matching button in DOM order. With Ollama running
+  locally the provider list has its own "Connect" row button ahead of any
+  dialog's Connect, and clicking it registers (and re-creates, with a baked
+  `num_ctx`) every local Ollama model. Target dialog buttons inside
+  `[data-slot=dialog-content]` instead.
 
 ## Clean up
 

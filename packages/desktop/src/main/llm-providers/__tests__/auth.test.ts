@@ -28,6 +28,7 @@ const h = vi.hoisted(() => {
       logout: vi.fn<(p: string) => Promise<void>>(async () => {}),
     },
     trackProviderConnected: vi.fn(),
+    trackProviderConnectFailed: vi.fn(),
   };
 });
 
@@ -39,7 +40,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../../env", () => ({ workspaceDir: () => "/ws" }));
-vi.mock("../../analytics", () => ({ trackProviderConnected: h.trackProviderConnected }));
+vi.mock("../../analytics", () => ({
+  trackProviderConnected: h.trackProviderConnected,
+  trackProviderConnectFailed: h.trackProviderConnectFailed,
+}));
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   ModelRuntime: { create: async () => h.modelRuntime },
   CredentialSynchronizationError: h.CredentialSynchronizationError,
@@ -61,7 +65,11 @@ const invoke = (channel: string, payload?: unknown) => {
 };
 
 /** An OAuth-capable provider entry as pi's provider list reports it. */
-const oauthProvider = (id: string, name: string) => ({ id, name, auth: { oauth: { name } } });
+const oauthProvider = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  name,
+  auth: { oauth: { name, ...extra } },
+});
 
 beforeEach(() => {
   h.handlers.clear();
@@ -179,12 +187,49 @@ describe("auth_providers", () => {
 
     expect(await invoke("auth_providers")).toEqual({
       type: "providers",
-      oauth: [{ id: "a", name: "A" }],
+      oauth: [{ id: "a", name: "A", apiKey: false }],
       all: [
         { provider: "a", displayName: "A", oauth: true, configured: false },
         { provider: "b", displayName: "B", oauth: false, configured: false },
       ],
     });
+  });
+
+  it("should pass on the provider's own wording for the sign-in action", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([
+      oauthProvider("kimi", "Kimi Code", { loginLabel: "Sign in with Kimi Code" }),
+    ]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "kimi" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: unknown[] };
+    expect(providers.oauth).toEqual([
+      { id: "kimi", name: "Kimi Code", apiKey: false, loginLabel: "Sign in with Kimi Code" },
+    ]);
+  });
+
+  it("should say when a subscription provider also takes an API key", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([
+      { id: "a", name: "A", auth: { apiKey: { name: "A key" }, oauth: { name: "A (subscription)" } } },
+      oauthProvider("c", "C (subscription)"),
+    ]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "a" }, { provider: "c" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: { id: string; apiKey: boolean }[] };
+    expect(providers.oauth.map((p) => [p.id, p.apiKey])).toEqual([
+      ["a", true],
+      ["c", false],
+    ]);
+  });
+
+  it("should omit the sign-in wording when pi has none for the provider", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([oauthProvider("a", "A")]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "a" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: Record<string, unknown>[] };
+    expect(providers.oauth[0]).not.toHaveProperty("loginLabel");
   });
 
   it("should leave a provider without oauth auth out of the oauth list", async () => {
@@ -291,6 +336,27 @@ describe("auth_set_key", () => {
       type: "error",
       message: "Unknown provider: nope",
     });
+  });
+
+  it("should record a failed connect for analytics when the provider rejects the key", async () => {
+    h.modelRuntime.login.mockRejectedValue(new Error("invalid key"));
+    await setup();
+    await invoke("auth_set_key", { provider: "p", key: "sk-1" });
+    expect(h.trackProviderConnectFailed).toHaveBeenCalledExactlyOnceWith("p", "api_key");
+    expect(h.trackProviderConnected).not.toHaveBeenCalled();
+  });
+
+  it("should not record a failed connect when the key is stored", async () => {
+    await setup();
+    await invoke("auth_set_key", { provider: "p", key: "sk-1" });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not record a failed connect for an empty key (nothing was attempted)", async () => {
+    await setup();
+    await invoke("auth_set_key", { provider: "", key: "k" });
+    await invoke("auth_set_key", { provider: "p", key: "   " });
+    expect(h.trackProviderConnectFailed).not.toHaveBeenCalled();
   });
 
   it("should record the provider connection for analytics when the key is stored", async () => {

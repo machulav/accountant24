@@ -3,6 +3,39 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+/* The display face the landing page uses, self-hosted so onboarding reads as
+   the same product as the site. Satoshi is a free Fontshare face by Indian
+   Type Foundry (ITF Free Font License). The rest of the app stays on Inter. */
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  /* Satoshi has no 600; semibold text uses Bold. */
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-700.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-900.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* Electron: draggable window regions (replaces Tauri's data-tauri-drag-region).
@@ -103,6 +136,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-heading: var(--font-sans);
   --font-sans: "Inter Variable", sans-serif;
+  /* The landing page's display face, used by onboarding only (see the
+     @font-face block above). */
+  --font-display: "Satoshi", "Inter Variable", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

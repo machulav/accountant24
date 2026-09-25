@@ -4,7 +4,7 @@
 import type { AuthInteraction, Credential } from "@earendil-works/pi-ai";
 import { CredentialSynchronizationError, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ipcMain } from "electron";
-import { trackProviderConnected } from "../analytics";
+import { trackProviderConnected, trackProviderConnectFailed } from "../analytics";
 import { providerDefaults as piProviderDefaults } from "./pi-defaults";
 import { createProviderRuntime } from "./registry";
 
@@ -18,11 +18,23 @@ function displayName(runtime: ModelRuntime, provider: string): string {
   return runtime.getProvider(provider)?.name ?? provider;
 }
 
-/** OAuth-capable providers, in pi's provider order. */
-function oauthProviders(runtime: ModelRuntime): { id: string; name: string }[] {
-  const rows: { id: string; name: string }[] = [];
+/** OAuth-capable providers, in pi's provider order. `apiKey` says whether the
+ *  provider takes an API key as well (ChatGPT's does not). `loginLabel` is
+ *  pi's own wording for the sign-in action when it has one ("Sign in with
+ *  Kimi Code"), which names the subscription the user is expected to have. */
+type OAuthProviderRow = { id: string; name: string; apiKey: boolean; loginLabel?: string };
+
+function oauthProviders(runtime: ModelRuntime): OAuthProviderRow[] {
+  const rows: OAuthProviderRow[] = [];
   for (const provider of runtime.getProviders()) {
-    if (provider.auth.oauth) rows.push({ id: provider.id, name: provider.auth.oauth.name });
+    const oauth = provider.auth.oauth;
+    if (oauth)
+      rows.push({
+        id: provider.id,
+        name: oauth.name,
+        apiKey: Boolean(provider.auth.apiKey),
+        ...(oauth.loginLabel ? { loginLabel: oauth.loginLabel } : {}),
+      });
   }
   return rows;
 }
@@ -140,6 +152,7 @@ async function authSetKey(provider: string, key: string) {
   try {
     await runtime.login(provider, "api_key", pastedKeyInteraction(trimmed));
   } catch (e) {
+    trackProviderConnectFailed(provider, "api_key");
     return { type: "error", message: errorMessage(e) };
   }
   trackProviderConnected(provider, "api_key");

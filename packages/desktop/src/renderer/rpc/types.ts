@@ -91,6 +91,12 @@ export interface AuthStatus {
 export interface OAuthProviderRow {
   id: string;
   name: string;
+  /** Whether the provider also takes an API key. A subscription-only
+   *  provider (ChatGPT) offers no key route. */
+  apiKey: boolean;
+  /** pi's own wording for the sign-in action, when it has one ("Sign in with
+   *  Kimi Code"). Absent for providers pi has no special wording for. */
+  loginLabel?: string;
 }
 
 export interface AuthProviders {
