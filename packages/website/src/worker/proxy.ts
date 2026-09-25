@@ -1,5 +1,6 @@
 // Builds the upstream request for a docs path, per Mintlify's subpath-hosting
-// recipe: same path on the Mintlify host, plus the forwarding headers Mintlify
+// recipe: same path on the Mintlify host (or the path given, for the root
+// files Mintlify keeps under /docs), plus the forwarding headers Mintlify
 // uses to render absolute links for the public domain.
 //
 // The request is rebuilt field by field rather than cloned with
@@ -26,12 +27,16 @@ const HOP_BY_HOP = new Set([
   "upgrade",
 ]);
 
-/** Return a new request for `request`'s path addressed to Mintlify, with the forwarding headers set. */
-export function toMintlifyRequest(request: Request, target: ProxyTarget): Request {
+/**
+ * Return a new request addressed to Mintlify at `pathname` (the request's own
+ * path by default), with the forwarding headers set.
+ */
+export function toMintlifyRequest(request: Request, target: ProxyTarget, pathname?: string): Request {
   const url = new URL(request.url);
   url.protocol = "https:";
   url.hostname = target.mintlifyHost;
   url.port = "";
+  if (pathname !== undefined) url.pathname = pathname;
 
   const headers = new Headers();
   for (const [name, value] of request.headers) {

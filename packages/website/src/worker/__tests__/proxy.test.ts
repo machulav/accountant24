@@ -9,6 +9,17 @@ describe("toMintlifyRequest()", () => {
     expect(proxied.url).toBe("https://accountant24.mintlify.site/docs/quickstart?x=1");
   });
 
+  it("should address the request to the given path instead of its own, keeping the query", () => {
+    const request = new Request("https://accountant24.ai/llms-full.txt?x=1");
+    const proxied = toMintlifyRequest(request, target, "/docs/llms-full.txt");
+    expect(proxied.url).toBe("https://accountant24.mintlify.site/docs/llms-full.txt?x=1");
+  });
+
+  it("should keep the request's own path when the given path is undefined", () => {
+    const proxied = toMintlifyRequest(new Request("https://accountant24.ai/docs/faq"), target, undefined);
+    expect(proxied.url).toBe("https://accountant24.mintlify.site/docs/faq");
+  });
+
   it("should drop the local port and upgrade http when developing locally", () => {
     const proxied = toMintlifyRequest(new Request("http://localhost:8787/docs"), target);
     expect(proxied.url).toBe("https://accountant24.mintlify.site/docs");

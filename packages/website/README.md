@@ -25,6 +25,8 @@ PostHog (EU) in cookieless mode: no cookies or storage, no person profiles, no r
 
 `accountant24.ai` is the Worker's custom domain, declared as `routes` in `wrangler.jsonc`, so every deploy keeps it attached. Mintlify serves the docs with "Host at" set to `accountant24.ai/docs`, which means it prefixes `/docs` to every page path: the mdx files live at the root of `docs/`, and their links are written relative to that root.
 
+`/llms.txt` and `/llms-full.txt` at the root are Mintlify's files too, proxied from `/docs/llms.txt` and `/docs/llms-full.txt` (`src/worker/routing.ts`): agents look for them at the site root, and Mintlify regenerates them from the docs navigation on every docs deploy.
+
 Two pieces live only in the Cloudflare dashboard, outside this repo: the `www` DNS record with the Redirect Rule sending `www.accountant24.ai/*` to `https://accountant24.ai/$1` (301), and the zone settings.
 
-After a change that touches routing, redirects or the proxy, smoke test the live domain: `/`, `/docs`, `/docs/quickstart`, `/quickstart` (301), `/llms.txt`, `/sitemap-index.xml`, `/docs/sitemap.xml`, the Google Rich Results test on `/`, and live events in PostHog.
+After a change that touches routing, redirects or the proxy, smoke test the live domain: `/`, `/docs`, `/docs/quickstart`, `/quickstart` (301), `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`, `/docs/sitemap.xml`, the Google Rich Results test on `/`, and live events in PostHog.

@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+import { mintlifyPath } from "./src/worker/routing";
 
 // In production the Cloudflare Worker proxies the docs paths to Mintlify
 // (src/worker). The dev server mirrors that so docs links work with hot
@@ -11,15 +12,28 @@ const docsProxy = {
   changeOrigin: true,
   ws: true,
   headers: { "X-Forwarded-Host": "accountant24.ai", "X-Forwarded-Proto": "https" },
-  // The hosted docs are configured as "Host at accountant24.ai/docs", so
-  // Mintlify itself serves every page under /docs. A local `mint dev` knows
-  // nothing about that setting and serves the pages at the root, so strip the
-  // prefix only for it.
-  rewrite: (path: string) => (localMint ? path.replace(/^\/docs(?=\/|$)/, "") || "/" : path),
+  // The Worker's own mapping first, so the root `llms.txt` and `llms-full.txt`
+  // reach Mintlify's copies under /docs. Then: the hosted docs are configured
+  // as "Host at accountant24.ai/docs", so Mintlify itself serves every page
+  // under /docs. A local `mint dev` knows nothing about that setting and
+  // serves the pages at the root, so strip the prefix only for it.
+  rewrite: (path: string) => {
+    const upstream = mintlifyPath(path) ?? path;
+    return localMint ? upstream.replace(/^\/docs(?=\/|$)/, "") || "/" : upstream;
+  },
 };
 // `/_next` and `/socket.io` are where a local `mint dev` serves its assets and
 // live-reload socket; harmless against the live docs.
-const docsPaths = ["/docs", "/mintlify-assets", "/_mintlify", "/.well-known", "/_next", "/socket.io"];
+const docsPaths = [
+  "/docs",
+  "/mintlify-assets",
+  "/_mintlify",
+  "/.well-known",
+  "/_next",
+  "/socket.io",
+  "/llms.txt",
+  "/llms-full.txt",
+];
 
 export default defineConfig({
   site: "https://accountant24.ai",
