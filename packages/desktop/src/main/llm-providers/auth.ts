@@ -18,15 +18,23 @@ function displayName(runtime: ModelRuntime, provider: string): string {
   return runtime.getProvider(provider)?.name ?? provider;
 }
 
-/** OAuth-capable providers, in pi's provider order. `loginLabel` is pi's own
- *  wording for the sign-in action when it has one ("Sign in with Kimi Code"),
- *  which names the subscription the user is expected to have. */
-function oauthProviders(runtime: ModelRuntime): { id: string; name: string; loginLabel?: string }[] {
-  const rows: { id: string; name: string; loginLabel?: string }[] = [];
+/** OAuth-capable providers, in pi's provider order. `apiKey` says whether the
+ *  provider takes an API key as well (ChatGPT's does not). `loginLabel` is
+ *  pi's own wording for the sign-in action when it has one ("Sign in with
+ *  Kimi Code"), which names the subscription the user is expected to have. */
+type OAuthProviderRow = { id: string; name: string; apiKey: boolean; loginLabel?: string };
+
+function oauthProviders(runtime: ModelRuntime): OAuthProviderRow[] {
+  const rows: OAuthProviderRow[] = [];
   for (const provider of runtime.getProviders()) {
     const oauth = provider.auth.oauth;
     if (oauth)
-      rows.push({ id: provider.id, name: oauth.name, ...(oauth.loginLabel ? { loginLabel: oauth.loginLabel } : {}) });
+      rows.push({
+        id: provider.id,
+        name: oauth.name,
+        apiKey: Boolean(provider.auth.apiKey),
+        ...(oauth.loginLabel ? { loginLabel: oauth.loginLabel } : {}),
+      });
   }
   return rows;
 }

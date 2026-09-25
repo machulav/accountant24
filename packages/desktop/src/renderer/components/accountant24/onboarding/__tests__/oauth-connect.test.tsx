@@ -23,10 +23,10 @@ const login = (o: Partial<OAuthLogin> = {}): OAuthLogin => ({
   ...o,
 });
 
-const renderPanel = (oauth: OAuthLogin, loginLabel?: string) =>
+const renderPanel = (oauth: OAuthLogin, loginLabel?: string, provider = "anthropic") =>
   render(
     <OAuthConnect
-      providerId="anthropic"
+      providerId={provider}
       providerName="Anthropic"
       oauthName="Anthropic (Claude Pro/Max)"
       {...(loginLabel ? { loginLabel } : {})}
@@ -38,15 +38,22 @@ beforeEach(() => installJsdomPolyfills());
 afterEach(() => cleanup());
 
 describe("OAuthConnect", () => {
-  it("should name the subscription the user needs", () => {
+  it("should say the plan runs the model and the chats stay out of reach, for a known product", () => {
     renderPanel(login());
-    expect(screen.getByText("Use your Anthropic (Claude Pro/Max) subscription.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Your Claude Pro or Max plan runs the model. Accountant24 gets no access to your Claude chats."),
+    ).toBeInTheDocument();
+  });
+
+  it("should fall back to pi's name for the subscription of any other provider", () => {
+    renderPanel(login(), undefined, "kimi-coding");
+    expect(screen.getByText("Use your Anthropic (Claude Pro/Max) subscription to run the model.")).toBeInTheDocument();
   });
 
   it("should start the sign-in for its own provider", () => {
     const oauth = login();
     renderPanel(oauth);
-    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Anthropic" }));
     expect(oauth.start).toHaveBeenCalledExactlyOnceWith("anthropic");
   });
 
@@ -58,7 +65,7 @@ describe("OAuthConnect", () => {
   it("should show the flow's progress once it is running", () => {
     renderPanel(login({ active: "anthropic", log: ["Opened your browser to authorize."] }));
     expect(screen.getByText("Opened your browser to authorize.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign in to Anthropic" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sign in with Anthropic" })).toBeNull();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -117,7 +124,7 @@ describe("OAuthConnect", () => {
 
   it("should ignore a sign-in running for another provider", () => {
     renderPanel(login({ active: "openai", log: ["Opened your browser to authorize."] }));
-    expect(screen.getByRole("button", { name: "Sign in to Anthropic" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Anthropic" })).toBeInTheDocument();
     expect(screen.queryByText("Opened your browser to authorize.")).toBeNull();
   });
 });

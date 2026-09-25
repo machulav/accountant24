@@ -7,15 +7,17 @@
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { ChevronDownIcon } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import {
   Combobox,
   ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
   ComboboxItem,
   ComboboxList,
+  ComboboxSeparator,
 } from "@/components/shadcn/combobox";
 import { cn } from "@/lib/utils";
 import { POPOVER_WIDTH } from "./popover";
@@ -27,14 +29,25 @@ export type ModelOption = {
   description?: string;
 };
 
+/** A run of options shown together; consecutive groups are divided by a
+ *  rule. `items` is the field Base UI's grouped-items mode expects. */
+export type ModelOptionGroup = {
+  id: string;
+  items: readonly ModelOption[];
+};
+
 const matchesQuery = (model: ModelOption, query: string): boolean => {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return [model.id, model.name].some((term) => term.toLowerCase().includes(q));
 };
 
-export type ModelSelectorProps = {
-  models: readonly ModelOption[];
+/** The options, either flat or in groups. */
+type ModelSelectorItems =
+  | { models: readonly ModelOption[]; groups?: undefined }
+  | { groups: readonly ModelOptionGroup[]; models?: undefined };
+
+export type ModelSelectorProps = ModelSelectorItems & {
   /** Selected model id. Undefined shows the placeholder. */
   value?: string;
   onValueChange: (id: string) => void;
@@ -52,6 +65,7 @@ export type ModelSelectorProps = {
 
 export function ModelSelector({
   models,
+  groups,
   value,
   onValueChange,
   searchable,
@@ -66,11 +80,23 @@ export function ModelSelector({
   // The popup's search text, owned here so the field's clear X is a plain
   // state reset; every open starts with a fresh, empty search.
   const [query, setQuery] = useState("");
-  const selected = models.find((m) => m.id === value) ?? null;
+  const flat = groups ? groups.flatMap((group) => group.items) : models;
+  const selected = flat.find((m) => m.id === value) ?? null;
+
+  const renderItem = (model: ModelOption) => (
+    <ComboboxItem key={model.id} value={model} data-slot="model-selector-item" className="py-2">
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate font-medium">{model.name}</span>
+        {model.description && (
+          <span className="text-muted-foreground truncate text-xs font-normal">{model.description}</span>
+        )}
+      </span>
+    </ComboboxItem>
+  );
 
   return (
     <Combobox
-      items={models}
+      items={groups ?? models}
       value={selected}
       onValueChange={(model: ModelOption | null) => {
         if (model) onValueChange(model.id);
@@ -95,20 +121,22 @@ export function ModelSelector({
       </ComboboxPrimitive.Trigger>
       <ComboboxContent data-slot="model-selector-content" className={cn(POPOVER_WIDTH, contentClassName)}>
         {searchable && <SearchField combobox subject={subject} value={query} onValueChange={setQuery} />}
+        <ComboboxEmpty>No {subject} found.</ComboboxEmpty>
         <ComboboxList className="scroll-fade">
-          <ComboboxEmpty>No {subject} found.</ComboboxEmpty>
-          <ComboboxCollection>
-            {(model: ModelOption) => (
-              <ComboboxItem key={model.id} value={model} data-slot="model-selector-item" className="py-2">
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{model.name}</span>
-                  {model.description && (
-                    <span className="text-muted-foreground truncate text-xs font-normal">{model.description}</span>
-                  )}
-                </span>
-              </ComboboxItem>
-            )}
-          </ComboboxCollection>
+          {groups ? (
+            // Base UI hands the list the groups that survived the filter, each
+            // with only its matching items; a rule sits between neighbors.
+            (group: ModelOptionGroup, index: number) => (
+              <Fragment key={group.id}>
+                {index > 0 && <ComboboxSeparator />}
+                <ComboboxGroup items={group.items}>
+                  <ComboboxCollection>{renderItem}</ComboboxCollection>
+                </ComboboxGroup>
+              </Fragment>
+            )
+          ) : (
+            <ComboboxCollection>{renderItem}</ComboboxCollection>
+          )}
         </ComboboxList>
       </ComboboxContent>
     </Combobox>

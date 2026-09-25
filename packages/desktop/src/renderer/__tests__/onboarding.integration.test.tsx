@@ -38,7 +38,7 @@ let settings: AppSettings;
 
 const CATALOG: AuthProviders = {
   type: "providers",
-  oauth: [{ id: "anthropic", name: "Anthropic (Claude Pro/Max)" }],
+  oauth: [{ id: "anthropic", name: "Anthropic (Claude Pro/Max)", apiKey: true }],
   all: [{ provider: "anthropic", displayName: "Anthropic", oauth: true, configured: false }],
 };
 
@@ -100,14 +100,22 @@ const writesSince = (from: number) =>
     .map((c) => c.channel)
     .filter((c) => !["auth_status", "auth_models", "auth_providers", "settings_get", "auth_detect_ollama"].includes(c));
 
-/** Boot the app on a fresh workspace and step through to the provider choice. */
+/** Boot the app on a fresh workspace and step through to the sign-in buttons. */
 async function reachConnect() {
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "Get started" }));
+  await screen.findByRole("button", { name: "Sign in with Claude" });
+}
+
+/** To the full provider list, from the sign-in buttons or already there. */
+async function openList() {
+  const link = screen.queryByRole("button", { name: "Use another provider" });
+  if (link) fireEvent.click(link);
   await screen.findByRole("combobox");
 }
 
 const pickProvider = async (name: string | RegExp) => {
+  await openList();
   fireEvent.click(screen.getByRole("combobox"));
   fireEvent.click(await screen.findByRole("option", { name }));
 };
@@ -115,9 +123,7 @@ const pickProvider = async (name: string | RegExp) => {
 describe("Onboarding, first run", () => {
   it("should open on the welcome step and write nothing", async () => {
     render(<App />);
-    expect(
-      await screen.findByRole("heading", { name: "Open source AI agent for personal finance" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome" })).toBeInTheDocument();
     expect(screen.queryByTestId("chat-layout")).not.toBeInTheDocument();
     expect(bridge.callsFor("settings_set")).toEqual([]);
     expect(bridge.callsFor("analytics_track")).toEqual([]);
@@ -132,13 +138,13 @@ describe("Onboarding, first run", () => {
 describe("Onboarding, connecting with an API key", () => {
   it("should store the key, restart the agent, and preselect a model in one write", async () => {
     await reachConnect();
-    await pickProvider("Anthropic");
+    await pickProvider(/Claude/);
     fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
     fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
 
     const before = bridge.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    await screen.findByRole("heading", { name: "Connected to Anthropic" });
+    await screen.findByRole("heading", { name: "Connected to Claude" });
 
     expect(writesSince(before)).toEqual(["auth_set_key", "agent_restart", "settings_set"]);
     expect(bridge.callsFor("auth_set_key")).toEqual([{ provider: "anthropic", key: "sk-test" }]);
@@ -147,7 +153,7 @@ describe("Onboarding, connecting with an API key", () => {
 
   it("should enter the chat from the confirmation", async () => {
     await reachConnect();
-    await pickProvider("Anthropic");
+    await pickProvider(/Claude/);
     fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
     fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -161,10 +167,9 @@ describe("Onboarding, connecting with an API key", () => {
 });
 
 describe("Onboarding, signing in to a subscription", () => {
-  it("should follow the sign-in through to a connected provider", async () => {
+  it("should follow the sign-in from the Claude button through to a connected provider", async () => {
     await reachConnect();
-    await pickProvider("Anthropic");
-    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Claude" }));
     await waitFor(() => expect(bridge.callsFor("auth_login")).toEqual([{ provider: "anthropic" }]));
 
     // The browser handoff, then a device code the user types elsewhere.
@@ -186,14 +191,14 @@ describe("Onboarding, signing in to a subscription", () => {
       bridge.emit("auth-event", { type: "done", provider: "anthropic" });
     });
 
-    expect(await screen.findByRole("heading", { name: "Connected to Anthropic" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connected to Claude" })).toBeInTheDocument();
     expect(bridge.callsFor("settings_set")).toEqual([{ defaultModel: "anthropic/claude-x" }]);
   });
 
   it("should answer a question the sign-in asks", async () => {
     await reachConnect();
-    await pickProvider("Anthropic");
-    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    await pickProvider(/Claude/);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Claude" }));
     await act(async () => {
       bridge.emit("auth-event", { type: "prompt", id: "q1", message: "Paste the code" });
     });
@@ -205,8 +210,8 @@ describe("Onboarding, signing in to a subscription", () => {
 
   it("should abort a running sign-in when another provider is chosen", async () => {
     await reachConnect();
-    await pickProvider("Anthropic");
-    fireEvent.click(screen.getByRole("button", { name: "Sign in to Anthropic" }));
+    await pickProvider(/Claude/);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Claude" }));
     await waitFor(() => expect(bridge.callsFor("auth_login")).toHaveLength(1));
 
     await act(async () => {

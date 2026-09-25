@@ -22,12 +22,9 @@ test("boots to the welcome page on a fresh install", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
-  // The same three lines the landing page opens with, in the same order.
+  // The wordmark, a plain welcome, and the one action.
   await expect(window.getByText("Accountant24", { exact: true })).toBeVisible();
-  await expect(
-    window.getByRole("heading", { name: "Open source AI agent for personal finance", exact: true }),
-  ).toBeVisible();
-  await expect(window.getByText("Runs on your machine, you own the data")).toBeVisible();
+  await expect(window.getByRole("heading", { name: "Welcome", exact: true })).toBeVisible();
   await expect(window.getByRole("button", { name: "Get started" })).toBeVisible();
 });
 
@@ -42,14 +39,18 @@ test("seeds the workspace on a fresh install, before any chat exists", async () 
   expect(existsSync(path.join(launched.home, ".git"))).toBe(true);
 });
 
-test("asks for a provider after Get started, with nothing to fill in until one is chosen", async () => {
+test("offers the two subscriptions after Get started, and the full list on request", async () => {
   const window = await launched.app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
 
   await window.getByRole("button", { name: "Get started" }).click();
 
-  // The connect step asks one question: which provider. The list itself comes
+  // The connect step opens on the two sign-in buttons; both products come
   // from the real provider catalog over IPC.
-  await expect(window.getByRole("heading", { name: "Connect an AI model" })).toBeVisible();
+  await expect(window.getByRole("heading", { name: "Which AI do you use?" })).toBeVisible();
+  await expect(window.getByRole("button", { name: "Sign in with ChatGPT" })).toBeVisible();
+  await expect(window.getByRole("button", { name: "Sign in with Claude" })).toBeVisible();
+
+  await window.getByRole("button", { name: "Use another provider" }).click();
   await expect(window.getByRole("combobox")).toHaveText("Select a provider");
 });

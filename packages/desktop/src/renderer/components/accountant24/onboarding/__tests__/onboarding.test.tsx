@@ -75,14 +75,14 @@ const getStarted = () => screen.getByRole("button", { name: "Get started" });
 describe("Onboarding", () => {
   it("should open on the welcome step", () => {
     render(<Onboarding onDone={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Open source AI agent for personal finance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome" })).toBeInTheDocument();
     expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
   });
 
   it("should move on to connecting a model", async () => {
     render(<Onboarding onDone={() => {}} />);
     fireEvent.click(getStarted());
-    expect(screen.getByRole("heading", { name: "Connect an AI model" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Which AI do you use?" })).toBeInTheDocument();
     expect(screen.getByText("Step 2 of 2")).toBeInTheDocument();
     await waitFor(() => expect(h.providers).toHaveBeenCalled());
   });

@@ -61,10 +61,16 @@ import { ConnectStep } from "../connect-step";
 
 const CATALOG: AuthProviders = {
   type: "providers",
-  oauth: [{ id: "anthropic", name: "Anthropic (Claude Pro/Max)" }],
+  oauth: [
+    { id: "anthropic", name: "Anthropic (Claude Pro/Max)", apiKey: true },
+    { id: "openai-codex", name: "OpenAI (ChatGPT Plus/Pro)", apiKey: false },
+  ],
+  // Alphabetical, as pi lists them: the step is expected to reorder.
   all: [
+    { provider: "amazon-bedrock", displayName: "Amazon Bedrock", oauth: false, configured: false },
     { provider: "anthropic", displayName: "Anthropic", oauth: true, configured: false },
     { provider: "groq", displayName: "Groq", oauth: false, configured: false },
+    { provider: "openai-codex", displayName: "OpenAI Codex", oauth: true, configured: false },
   ],
 };
 
@@ -78,9 +84,11 @@ beforeAll(() => {
 
 beforeEach(() => {
   oauthMock.active = null;
+  oauthMock.log = [];
   oauthMock.error = null;
   oauthMock.errorProvider = null;
   oauthMock.onDone = null;
+  oauthMock.start.mockReset();
   h.providers.mockResolvedValue(CATALOG);
   h.detectOllama.mockResolvedValue({ type: "ollama", running: false, models: [] });
   h.models.mockResolvedValue({ type: "models", models: [], providerDefaults: {} });
@@ -105,20 +113,128 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-/** Choose a provider from the one dropdown the step offers. */
+/** Swap the sign-in buttons for the full list, when the page opened on them. */
+const openList = async () => {
+  const link = () => screen.queryByRole("button", { name: "Use another provider" });
+  await waitFor(() => {
+    if (!link() && !screen.queryByRole("combobox")) throw new Error("catalog not loaded yet");
+  });
+  const button = link();
+  if (button) fireEvent.click(button);
+  return screen.findByRole("combobox");
+};
+
+/** Choose a provider from the list. */
 const pickProvider = async (name: string | RegExp) => {
-  fireEvent.click(await screen.findByRole("combobox"));
+  fireEvent.click(await openList());
   fireEvent.click(await screen.findByRole("option", { name }));
 };
 
+/** The provider names in the open dropdown, top to bottom. */
+const optionNames = () =>
+  screen.getAllByRole("option").map((el) => el.querySelector(".truncate")?.textContent ?? el.textContent);
+
 describe("ConnectStep", () => {
-  it("should ask for a provider before anything else", async () => {
+  it("should open on the two subscriptions people already have, and nothing else to fill in", async () => {
     render(<ConnectStep onOpen={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Connect an AI model" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Which AI do you use?" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Sign in with ChatGPT" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Claude" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Your plan runs the model. Accountant24 gets no access to your chats."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use another provider" })).toBeInTheDocument();
+    // The long list stays out of the way until asked for.
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByLabelText("API Key")).toBeNull();
+  });
+
+  it("should start the sign-in straight from a subscription button", async () => {
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in with Claude" }));
+    expect(oauthMock.start).toHaveBeenCalledExactlyOnceWith("anthropic");
+  });
+
+  it("should show the running sign-in in place of the buttons", async () => {
+    oauthMock.start.mockImplementation((id: string) => {
+      oauthMock.active = id;
+      oauthMock.log = ["Opened your browser to authorize."];
+    });
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+    expect(await screen.findByText("Opened your browser to authorize.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with ChatGPT" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Use another provider" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("should swap the buttons for the full list on request", async () => {
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Use another provider" }));
     expect(await screen.findByRole("combobox")).toHaveTextContent("Select a provider");
+    expect(screen.queryByRole("button", { name: "Sign in with Claude" })).toBeNull();
     // Nothing to do until a provider is chosen.
     expect(screen.queryByRole("button", { name: /Sign in/ })).toBeNull();
     expect(screen.queryByLabelText("API Key")).toBeNull();
+  });
+
+  it("should go straight to the list when neither subscription is on offer", async () => {
+    h.providers.mockResolvedValue({
+      type: "providers",
+      oauth: [],
+      all: [{ provider: "groq", displayName: "Groq", oauth: false, configured: false }],
+    });
+    render(<ConnectStep onOpen={() => {}} />);
+    expect(await screen.findByRole("combobox")).toHaveTextContent("Select a provider");
+    expect(screen.queryByRole("button", { name: "Use another provider" })).toBeNull();
+  });
+
+  it("should list ChatGPT and Claude first, then the rest alphabetically, Ollama among them", async () => {
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await openList());
+    await screen.findByRole("option", { name: /ChatGPT/ });
+    expect(optionNames()).toEqual(["ChatGPT", "Claude", "Amazon Bedrock", "Groq", "Ollama"]);
+    expect(document.querySelectorAll('[data-slot="combobox-separator"]')).toHaveLength(1);
+  });
+
+  it("should name the company behind each featured product, and nothing about Ollama", async () => {
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await openList());
+    expect(await screen.findByText("OpenAI, uses your ChatGPT subscription")).toBeInTheDocument();
+    expect(screen.getByText("Anthropic, uses your Claude subscription")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Ollama" })).toBeInTheDocument();
+  });
+
+  it("should keep the list flat when the catalog has neither featured product", async () => {
+    h.providers.mockResolvedValue({
+      type: "providers",
+      oauth: [],
+      all: [{ provider: "groq", displayName: "Groq", oauth: false, configured: false }],
+    });
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await openList());
+    await screen.findByRole("option", { name: "Ollama" });
+    expect(optionNames()).toEqual(["Groq", "Ollama"]);
+    expect(document.querySelectorAll('[data-slot="combobox-separator"]')).toHaveLength(0);
+  });
+
+  it("should list Ollama once when the catalog already has it", async () => {
+    h.providers.mockResolvedValue({
+      type: "providers",
+      oauth: [],
+      all: [{ provider: "ollama", displayName: "ollama", oauth: false, configured: true }],
+    });
+    render(<ConnectStep onOpen={() => {}} />);
+    fireEvent.click(await openList());
+    await screen.findByRole("option", { name: "Ollama" });
+    expect(optionNames()).toEqual(["Ollama"]);
+  });
+
+  it("should offer no key route for a subscription-only provider", async () => {
+    render(<ConnectStep onOpen={() => {}} />);
+    await pickProvider(/ChatGPT/);
+    expect(screen.getByRole("button", { name: "Sign in with ChatGPT" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use an API key instead" })).toBeNull();
   });
 
   it("should still ask for a provider when the catalog cannot be read", async () => {
@@ -130,20 +246,22 @@ describe("ConnectStep", () => {
 
   it("should offer the subscription first for a provider that has one", async () => {
     render(<ConnectStep onOpen={() => {}} />);
-    await pickProvider("Anthropic");
-    expect(screen.getByRole("button", { name: "Sign in to Anthropic" })).toBeInTheDocument();
-    expect(screen.getByText("Use your Anthropic (Claude Pro/Max) subscription.")).toBeInTheDocument();
+    await pickProvider(/Claude/);
+    expect(screen.getByRole("button", { name: "Sign in with Claude" })).toBeInTheDocument();
+    expect(screen.getByText(/Your Claude Pro or Max plan runs the model/)).toBeInTheDocument();
     expect(screen.queryByLabelText("API Key")).toBeNull();
   });
 
   it("should swap to the key field on request, and back", async () => {
     render(<ConnectStep onOpen={() => {}} />);
-    await pickProvider("Anthropic");
+    await pickProvider(/Claude/);
     fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
     expect(screen.getByLabelText("API Key")).toBeInTheDocument();
+    // The key comes from the company, not the product.
+    expect(screen.getByText(/Paste an API key from your Anthropic account/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with a subscription instead" }));
-    expect(screen.getByRole("button", { name: "Sign in to Anthropic" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Claude" })).toBeInTheDocument();
   });
 
   it("should ask for a key straight away when the provider has no subscription", async () => {
@@ -155,8 +273,7 @@ describe("ConnectStep", () => {
 
   it("should offer Ollama even before it has models registered", async () => {
     render(<ConnectStep onOpen={() => {}} />);
-    // The option carries a "Runs on this Mac" hint alongside the name.
-    await pickProvider(/Ollama/);
+    await pickProvider("Ollama");
     expect(await screen.findByText(/Ollama isn't running/)).toBeInTheDocument();
   });
 
@@ -164,7 +281,7 @@ describe("ConnectStep", () => {
     render(<ConnectStep onOpen={() => {}} />);
     await pickProvider("Groq");
     fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test" } });
-    await pickProvider("Anthropic");
+    await pickProvider(/Claude/);
     fireEvent.click(screen.getByRole("button", { name: "Use an API key instead" }));
     expect(screen.getByLabelText("API Key")).toHaveValue("");
   });
@@ -197,7 +314,7 @@ describe("ConnectStep", () => {
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
     expect(await screen.findByRole("heading", { name: "Connected to Groq" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("Llama 3"));
+    expect(await screen.findByText("Llama 3")).toBeInTheDocument();
     expect(h.restart).toHaveBeenCalledTimes(1);
     expect(h.set).toHaveBeenCalledExactlyOnceWith({ defaultModel: "groq/llama" });
   });
@@ -209,10 +326,10 @@ describe("ConnectStep", () => {
       providerDefaults: {},
     });
     render(<ConnectStep onOpen={() => {}} />);
-    await pickProvider("Anthropic");
+    await pickProvider(/Claude/);
     await waitFor(() => expect(oauthMock.onDone).not.toBeNull());
     oauthMock.onDone?.("anthropic");
-    expect(await screen.findByRole("heading", { name: "Connected to Anthropic" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connected to Claude" })).toBeInTheDocument();
   });
 
   it("should open the app from the confirmation", async () => {

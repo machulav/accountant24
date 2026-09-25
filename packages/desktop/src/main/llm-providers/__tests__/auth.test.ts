@@ -187,7 +187,7 @@ describe("auth_providers", () => {
 
     expect(await invoke("auth_providers")).toEqual({
       type: "providers",
-      oauth: [{ id: "a", name: "A" }],
+      oauth: [{ id: "a", name: "A", apiKey: false }],
       all: [
         { provider: "a", displayName: "A", oauth: true, configured: false },
         { provider: "b", displayName: "B", oauth: false, configured: false },
@@ -203,7 +203,24 @@ describe("auth_providers", () => {
     await setup();
 
     const providers = (await invoke("auth_providers")) as { oauth: unknown[] };
-    expect(providers.oauth).toEqual([{ id: "kimi", name: "Kimi Code", loginLabel: "Sign in with Kimi Code" }]);
+    expect(providers.oauth).toEqual([
+      { id: "kimi", name: "Kimi Code", apiKey: false, loginLabel: "Sign in with Kimi Code" },
+    ]);
+  });
+
+  it("should say when a subscription provider also takes an API key", async () => {
+    h.modelRuntime.getProviders.mockReturnValue([
+      { id: "a", name: "A", auth: { apiKey: { name: "A key" }, oauth: { name: "A (subscription)" } } },
+      oauthProvider("c", "C (subscription)"),
+    ]);
+    h.modelRuntime.getModels.mockReturnValue([{ provider: "a" }, { provider: "c" }]);
+    await setup();
+
+    const providers = (await invoke("auth_providers")) as { oauth: { id: string; apiKey: boolean }[] };
+    expect(providers.oauth.map((p) => [p.id, p.apiKey])).toEqual([
+      ["a", true],
+      ["c", false],
+    ]);
   });
 
   it("should omit the sign-in wording when pi has none for the provider", async () => {
