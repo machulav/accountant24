@@ -98,7 +98,9 @@ export class AgentHost {
     this.now = deps.now ?? (() => Date.now());
   }
 
-  handleMessage(msg: AgentHostRequest): void {
+  // The entry point (index.ts) intercepts "shutdown" before dispatching — it
+  // is a host-lifecycle message, not a session command.
+  handleMessage(msg: Exclude<AgentHostRequest, { kind: "shutdown" }>): void {
     if (msg.kind === "dispose_session") {
       void this.disposeSession(msg.sessionPath, "disposed", msg.requestId);
       return;

@@ -18,12 +18,20 @@ const host = new AgentHost({
 });
 
 process.parentPort.on("message", (message) => {
-  host.handleMessage(message.data as AgentHostRequest);
+  const data = message.data as AgentHostRequest;
+  // Main's kill() delivers no SIGTERM on Windows — it asks politely first, so
+  // the graceful teardown below runs on every platform.
+  if (data.kind === "shutdown") {
+    void host.disposeAll().finally(() => process.exit(0));
+    return;
+  }
+  host.handleMessage(data);
 });
 host.startReaper();
 
-// Electron SIGTERMs utility processes on kill(); abort in-flight runs and tear
-// sessions down before exiting so bash children don't outlive the host.
+// Fallback for a SIGTERM that arrives without the shutdown message (Electron
+// SIGTERMs utility processes on kill() — POSIX only). Abort in-flight runs and
+// tear sessions down before exiting so bash children don't outlive the host.
 process.once("SIGTERM", () => {
   void host.disposeAll().finally(() => process.exit(143));
 });

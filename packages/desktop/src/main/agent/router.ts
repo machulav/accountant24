@@ -23,6 +23,10 @@ import { resolveSessionPath } from "./session-paths";
  *  proceeding anyway (the host may be dead or wedged — never hang a delete). */
 const DISPOSE_ACK_TIMEOUT_MS = 3000;
 
+/** How long a host asked to shut down gets to dispose its sessions before the
+ *  force-kill fallback fires (it may be wedged — a kill must never hang). */
+const SHUTDOWN_GRACE_MS = 3000;
+
 /** One forked host and the state scoped to its lifetime. Per-host (not
  *  module-level) so a killed host's late exit event can't clobber the state of
  *  the replacement that is already running. */
@@ -32,6 +36,8 @@ interface HostHandle {
   liveSessions: Set<string>;
   /** dispose_session acks awaited by killSessionAgent, keyed by requestId. */
   pendingDisposes: Map<string, () => void>;
+  /** Force-kill fallback while a graceful shutdown is in flight. */
+  shutdownTimer?: NodeJS.Timeout;
 }
 
 let current: HostHandle | null = null;
@@ -174,6 +180,7 @@ function ensureHost(getWin: () => BrowserWindow | null): HostHandle {
   });
 
   proc.on("exit", (code) => {
+    clearTimeout(handle.shutdownTimer);
     const wasCurrent = current === handle;
     if (wasCurrent) {
       current = null;
@@ -220,7 +227,10 @@ export async function killSessionAgent(sessionPath: string): Promise<void> {
   handle.pendingDisposes.delete(requestId);
 }
 
-/** Kill the host (app exit / restart after provider/skills changes). */
+/** Stop the host (app exit / restart after provider/skills changes). Asks for
+ *  a graceful shutdown first — kill() alone delivers no SIGTERM on Windows, so
+ *  the host's teardown (which keeps bash children from outliving it) would
+ *  never run there — and force-kills after a grace period if it doesn't exit. */
 export function killAllAgents(): void {
   runningSessions.clear();
   recyclePending = false;
@@ -229,7 +239,10 @@ export function killAllAgents(): void {
   intentionalKills.add(handle.proc);
   current = null;
   settleHostState(handle);
-  handle.proc.kill();
+  handle.proc.postMessage({ kind: "shutdown" } satisfies AgentHostRequest);
+  const proc = handle.proc;
+  handle.shutdownTimer = setTimeout(() => proc.kill(), SHUTDOWN_GRACE_MS);
+  handle.shutdownTimer.unref();
 }
 
 /** Kill the host as soon as no run is in flight, so the next send re-forks
