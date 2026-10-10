@@ -1,0 +1,4 @@
+# Enforce LF checkouts on every platform (Windows' core.autocrlf would
+# otherwise rewrite files to CRLF, breaking the .sh scripts and the sha256
+# hashes of the bundled journal templates checked by migrations).
+* text=auto eol=lf

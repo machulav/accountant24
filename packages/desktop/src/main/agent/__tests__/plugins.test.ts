@@ -664,21 +664,27 @@ describe("plugins_inspect", () => {
     expect(existsSync(join(h.ws, "app-settings.json"))).toBe(false);
   });
 
-  it("should report an install that fails while writing to the store", async () => {
-    // A store the app can list but not write into (read + execute, no write)
-    // stands in for any mid-copy filesystem failure.
-    const root = join(h.ws, "plugins");
-    mkdirSync(root, { recursive: true });
-    chmodSync(root, 0o500);
-    try {
-      await serve(BUDGET);
-      const result = await install();
-      expect(result.type).toBe("error");
-      expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "other");
-    } finally {
-      chmodSync(root, 0o700);
-    }
-  });
+  // Skipped on Windows: the read-only attribute chmod maps to there does not
+  // stop writes inside a directory (ACLs would), so the failure can't be
+  // simulated this way.
+  it.skipIf(process.platform === "win32")(
+    "should report an install that fails while writing to the store",
+    async () => {
+      // A store the app can list but not write into (read + execute, no write)
+      // stands in for any mid-copy filesystem failure.
+      const root = join(h.ws, "plugins");
+      mkdirSync(root, { recursive: true });
+      chmodSync(root, 0o500);
+      try {
+        await serve(BUDGET);
+        const result = await install();
+        expect(result.type).toBe("error");
+        expect(h.pluginInstallFailed).toHaveBeenCalledWith("marketplace", "other");
+      } finally {
+        chmodSync(root, 0o700);
+      }
+    },
+  );
 
   it("should keep other plugins' registry entries when one is installed", async () => {
     await serve({

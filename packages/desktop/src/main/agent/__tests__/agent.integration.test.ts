@@ -125,7 +125,15 @@ beforeEach(() => {
     });
     fixtures.push(fixture);
 
-    proc.postMessage = (msg) => fixture.host.handleMessage(msg);
+    proc.postMessage = (msg) => {
+      // Mirror the entry point (host/index.ts): "shutdown" is intercepted
+      // before dispatch, tears every session down, and exits.
+      if (msg.kind === "shutdown") {
+        void fixture.host.disposeAll().then(() => proc.emit("exit", 0));
+        return;
+      }
+      fixture.host.handleMessage(msg);
+    };
     proc.kill = () => {
       void fixture.host.disposeAll().then(() => proc.emit("exit", 0));
       return true;

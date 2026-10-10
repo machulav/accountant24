@@ -34,6 +34,9 @@ vi.mock("../env", () => ({
   agentEnv: () => ({ PATH: "/vendored/bin", ACCOUNTANT24_WORKSPACE: "/ws" }),
 }));
 
+// The vendored binary in binDir is named hledger.exe on Windows.
+const vendoredHledger = process.platform === "win32" ? "/vendored/bin/hledger.exe" : "/vendored/bin/hledger";
+
 /** A canned hledger result per subcommand: an array of stdout lines, or an
  *  Error to simulate a failure (missing binary, no journal, parse error). */
 type Response = string[] | Error;
@@ -188,7 +191,7 @@ describe("ledger_mentions", () => {
     stubHledger({ accounts: [], payees: [], tags: [] });
     await mentions();
     for (const call of h.execFile.mock.calls) {
-      expect(call[0]).toBe("/vendored/bin/hledger");
+      expect(call[0]).toBe(vendoredHledger);
     }
   });
 
@@ -397,7 +400,7 @@ describe("ledger_net_worth", () => {
     stubHledger(emptyStubs);
     await netWorth();
     for (const call of h.execFile.mock.calls) {
-      expect(call[0]).toBe("/vendored/bin/hledger");
+      expect(call[0]).toBe(vendoredHledger);
     }
   });
 
@@ -492,7 +495,7 @@ describe("ledger_transactions", () => {
     h.existsSync.mockReturnValue(true);
     stubHledger({ print: PRINT });
     await transactions();
-    expect(h.execFile.mock.calls[0]?.[0]).toBe("/vendored/bin/hledger");
+    expect(h.execFile.mock.calls[0]?.[0]).toBe(vendoredHledger);
   });
 
   it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {
@@ -550,7 +553,7 @@ describe("ledger_transaction_count", () => {
     h.existsSync.mockReturnValue(true);
     stubHledger({ stats: STATS });
     await transactionCount();
-    expect(h.execFile.mock.calls[0]?.[0]).toBe("/vendored/bin/hledger");
+    expect(h.execFile.mock.calls[0]?.[0]).toBe(vendoredHledger);
   });
 
   it("should fall back to a PATH lookup of `hledger` when the vendored binary is absent", async () => {

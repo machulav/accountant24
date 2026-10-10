@@ -95,7 +95,7 @@ describe("applyWorkspaceFlag()", () => {
       const { applyWorkspaceFlag } = await import("../cli");
       h.existsSync.mockReturnValue(false);
       expect(applyWorkspaceFlag(["x", "--workspace", "/tmp/demo"])).toBe("flag");
-      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe("/tmp/demo");
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/tmp/demo"));
     });
   });
 
@@ -104,7 +104,7 @@ describe("applyWorkspaceFlag()", () => {
       const { applyWorkspaceFlag } = await import("../cli");
       h.existsSync.mockReturnValue(false);
       expect(applyWorkspaceFlag(["x", "--workspace=/from/flag"])).toBe("flag");
-      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe("/from/flag");
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/from/flag"));
     });
   });
 
@@ -114,7 +114,27 @@ describe("applyWorkspaceFlag()", () => {
       const { applyWorkspaceFlag } = await import("../cli");
       h.existsSync.mockReturnValue(false);
       applyWorkspaceFlag(["x", "--workspace", "~/Demo"]);
-      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe("/home/erin/Demo");
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/home/erin/Demo"));
+    });
+  });
+
+  it("should expand ~ followed by a backslash against the home directory (Windows style)", async () => {
+    await withHome(undefined, async () => {
+      h.homedir.mockReturnValue("/home/erin");
+      const { applyWorkspaceFlag } = await import("../cli");
+      h.existsSync.mockReturnValue(false);
+      applyWorkspaceFlag(["x", "--workspace", "~\\Demo"]);
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/home/erin/Demo"));
+    });
+  });
+
+  it("should expand a bare ~ to the home directory", async () => {
+    await withHome(undefined, async () => {
+      h.homedir.mockReturnValue("/home/erin");
+      const { applyWorkspaceFlag } = await import("../cli");
+      h.existsSync.mockReturnValue(false);
+      applyWorkspaceFlag(["x", "--workspace", "~"]);
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/home/erin"));
     });
   });
 
@@ -133,7 +153,7 @@ describe("applyWorkspaceFlag()", () => {
       h.existsSync.mockReturnValue(true);
       h.statSync.mockReturnValue({ isDirectory: () => true });
       expect(applyWorkspaceFlag(["x", "--workspace", "/tmp/existing"])).toBe("flag");
-      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe("/tmp/existing");
+      expect(process.env.ACCOUNTANT24_WORKSPACE).toBe(path.resolve("/tmp/existing"));
     });
   });
 
@@ -142,7 +162,8 @@ describe("applyWorkspaceFlag()", () => {
       const { applyWorkspaceFlag } = await import("../cli");
       h.existsSync.mockReturnValue(true);
       h.statSync.mockReturnValue({ isDirectory: () => false });
-      expect(() => applyWorkspaceFlag(["x", "--workspace", "/tmp/notes.txt"])).toThrow(/\/tmp\/notes\.txt is a file/);
+      // The message carries the resolved (platform-native) path.
+      expect(() => applyWorkspaceFlag(["x", "--workspace", "/tmp/notes.txt"])).toThrow(/notes\.txt is a file/);
       expect(process.env.ACCOUNTANT24_WORKSPACE).toBeUndefined();
     });
   });

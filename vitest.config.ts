@@ -1,10 +1,12 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
     // Mirror the desktop app's `@` alias so component tests can load sources
-    // that import via "@/...".
-    alias: { "@": new URL("./packages/desktop/src/renderer", import.meta.url).pathname },
+    // that import via "@/...". fileURLToPath, not .pathname: the latter keeps
+    // a leading slash on Windows ("/C:/...") and breaks resolution there.
+    alias: { "@": fileURLToPath(new URL("./packages/desktop/src/renderer", import.meta.url)) },
   },
   test: {
     include: ["packages/**/*.test.{ts,tsx}"],

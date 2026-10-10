@@ -16,6 +16,12 @@ export type AgentHostRequest =
       sessionPath: string;
       /** Echoed back in the session_closed ack so main can await the dispose. */
       requestId: string;
+    }
+  | {
+      /** Dispose every session and exit. Main sends this before kill():
+       *  Windows delivers no SIGTERM to a killed utilityProcess, so without
+       *  this message the host's graceful teardown would never run there. */
+      kind: "shutdown";
     };
 
 /** Host → main (process.parentPort.postMessage payloads). */

@@ -284,22 +284,47 @@ describe("crash reporting", () => {
   });
 });
 
+/** How often a graceful shutdown was requested from the nth fake host. */
+const shutdowns = (n = 0) =>
+  proc(n).postMessage.mock.calls.filter((c) => (c[0] as { kind: string }).kind === "shutdown").length;
+
 describe("intentional stops", () => {
-  it("should kill the host on killAllAgents without reporting a crash", async () => {
+  it("should ask the host to shut down on killAllAgents without reporting a crash", async () => {
     await setup();
     send(A);
     killAllAgents();
-    expect(proc().kill).toHaveBeenCalled();
+    expect(shutdowns()).toBe(1);
+    expect(proc().kill).not.toHaveBeenCalled();
     proc().emit("exit", 0);
     expect(sent("agent-terminated")).toEqual([]);
     expect(h.trackAgentFailed).not.toHaveBeenCalled();
   });
 
-  it("should kill the host on agent_restart and refork lazily on the next send", async () => {
+  it("should force-kill the host when it does not exit within the shutdown grace period", async () => {
+    vi.useFakeTimers();
+    await setup();
+    send(A);
+    killAllAgents();
+    expect(proc().kill).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(proc().kill).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not force-kill the host after a graceful exit", async () => {
+    vi.useFakeTimers();
+    await setup();
+    send(A);
+    killAllAgents();
+    proc().emit("exit", 0);
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(proc().kill).not.toHaveBeenCalled();
+  });
+
+  it("should stop the host on agent_restart and refork lazily on the next send", async () => {
     await setup();
     send(A);
     invoke("agent_restart");
-    expect(proc(0).kill).toHaveBeenCalled();
+    expect(shutdowns(0)).toBe(1);
     proc(0).emit("exit", 0);
     expect(sent("agent-terminated")).toEqual([]);
 
@@ -330,31 +355,31 @@ describe("recycleAgentsWhenIdle", () => {
   const line = (sessionPath: string, event: Record<string, unknown>, procIndex = 0) =>
     notice({ kind: "event", sessionPath, line: JSON.stringify(event) }, procIndex);
 
-  it("should kill the host immediately when no run is in flight", async () => {
+  it("should stop the host immediately when no run is in flight", async () => {
     await setup();
     send(A);
 
     recycleAgentsWhenIdle();
 
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
     proc().emit("exit", 0);
     expect(sent("agent-terminated")).toEqual([]);
   });
 
-  it("should defer the kill while a run is in flight and kill once when it ends", async () => {
+  it("should defer the stop while a run is in flight and stop once when it ends", async () => {
     await setup();
     send(A);
     line(A, { type: "agent_start" });
 
     recycleAgentsWhenIdle();
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
 
     line(A, { type: "agent_end" });
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
 
-    // A stray later end must not kill the replacement's slot again.
+    // A stray later end must not stop the replacement's slot again.
     line(A, { type: "agent_end" });
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
   it("should treat a prompt send alone as a run in flight before agent_start arrives", async () => {
@@ -362,10 +387,10 @@ describe("recycleAgentsWhenIdle", () => {
     send(A, { type: "prompt", message: "hi" });
 
     recycleAgentsWhenIdle();
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
 
     line(A, { type: "agent_end" });
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
   it("should keep deferring across an agent_end that will retry", async () => {
@@ -375,10 +400,10 @@ describe("recycleAgentsWhenIdle", () => {
     recycleAgentsWhenIdle();
 
     line(A, { type: "agent_end", willRetry: true });
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
 
     line(A, { type: "agent_end" });
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
   it("should release the deferral when the prompt preflight fails", async () => {
@@ -388,7 +413,7 @@ describe("recycleAgentsWhenIdle", () => {
 
     line(A, { id: "1", type: "response", command: "prompt", success: false, error: "busy" });
 
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
   it("should not end the run on a successful prompt preflight response", async () => {
@@ -398,10 +423,10 @@ describe("recycleAgentsWhenIdle", () => {
 
     line(A, { id: "1", type: "response", command: "prompt", success: true });
 
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
   });
 
-  it("should wait for every running session before killing", async () => {
+  it("should wait for every running session before stopping", async () => {
     await setup();
     send(A);
     send(B);
@@ -410,13 +435,13 @@ describe("recycleAgentsWhenIdle", () => {
     recycleAgentsWhenIdle();
 
     line(A, { type: "agent_end" });
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
 
     line(B, { type: "agent_end" });
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
-  it("should kill when the last running session closes instead of ending", async () => {
+  it("should stop when the last running session closes instead of ending", async () => {
     await setup();
     send(A);
     line(A, { type: "agent_start" });
@@ -424,17 +449,17 @@ describe("recycleAgentsWhenIdle", () => {
 
     notice({ kind: "session_closed", sessionPath: A, reason: "disposed" });
 
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
-  it("should kill when the last running session errors instead of starting", async () => {
+  it("should stop when the last running session errors instead of starting", async () => {
     await setup();
     send(A, { type: "prompt", message: "hi" });
     recycleAgentsWhenIdle();
 
     notice({ kind: "session_error", sessionPath: A, message: "boom" });
 
-    expect(proc().kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns()).toBe(1);
   });
 
   it("should drop the pending recycle when the host crashes mid-run", async () => {
@@ -448,7 +473,7 @@ describe("recycleAgentsWhenIdle", () => {
     line(A, { type: "agent_start" }, 1);
     line(A, { type: "agent_end" }, 1);
 
-    expect(proc(1).kill).not.toHaveBeenCalled();
+    expect(shutdowns(1)).toBe(0);
   });
 
   it("should clear the run tracking on killAllAgents so a later recycle is immediate", async () => {
@@ -460,7 +485,7 @@ describe("recycleAgentsWhenIdle", () => {
     send(A);
     recycleAgentsWhenIdle();
 
-    expect(proc(1).kill).toHaveBeenCalledTimes(1);
+    expect(shutdowns(1)).toBe(1);
   });
 
   it("should ignore a message merely containing the marker text", async () => {
@@ -471,7 +496,7 @@ describe("recycleAgentsWhenIdle", () => {
 
     line(A, { type: "message_update", text: 'the words "agent_end" quoted in a reply' });
 
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
   });
 
   it("should ignore an unparsable event line", async () => {
@@ -482,7 +507,7 @@ describe("recycleAgentsWhenIdle", () => {
 
     notice({ kind: "event", sessionPath: A, line: 'not json but mentions "agent_end"' });
 
-    expect(proc().kill).not.toHaveBeenCalled();
+    expect(shutdowns()).toBe(0);
   });
 });
 

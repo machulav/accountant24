@@ -55,8 +55,10 @@ export function applyWorkspaceFlag(argv: readonly string[] = process.argv): Work
     return env && env.length > 0 ? "env" : "default";
   }
   if ("error" in flag) throw new Error(flag.error);
-  const expanded =
-    flag.path === "~" || flag.path.startsWith("~/") ? path.join(homedir(), flag.path.slice(1)) : flag.path;
+  // Expand a leading "~" against the home directory, whichever separator
+  // follows it — Windows users type "~\Demo", POSIX users "~/Demo".
+  const tilde = /^~(?:[/\\](.*))?$/.exec(flag.path);
+  const expanded = tilde ? path.join(homedir(), tilde[1] ?? "") : flag.path;
   const resolved = path.resolve(expanded);
   if (existsSync(resolved) && !statSync(resolved).isDirectory()) {
     throw new Error(`${WORKSPACE_FLAG} must point to a folder, but ${resolved} is a file`);

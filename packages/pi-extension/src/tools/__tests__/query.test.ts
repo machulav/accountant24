@@ -384,7 +384,9 @@ describe("sweepStaleScratch", () => {
     }
   });
 
-  test("skips an entry that cannot be stat'd (vanished or broken symlink)", () => {
+  // Skipped on Windows: creating a symlink there requires admin rights or
+  // developer mode.
+  test.skipIf(process.platform === "win32")("skips an entry that cannot be stat'd (vanished or broken symlink)", () => {
     const base = mkdtempSync(join(tmpdir(), "sweep-test-"));
     try {
       symlinkSync(join(base, "nonexistent-target"), join(base, "accountant24-query-scratch-broken"));

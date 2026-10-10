@@ -6,7 +6,7 @@
 // content; others (PDF, CSV, …) are referenced by this path.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { extname, join, relative } from "node:path";
+import { extname, join, relative, sep } from "node:path";
 import { ipcMain } from "electron";
 import { workspaceDir } from "./env";
 
@@ -39,7 +39,10 @@ function archiveToWorkspace(name: string, dataBase64: string): string {
   const stored = deduplicatePath(dir, `${stamp}${extname(name)}`);
   writeFileSync(stored, Buffer.from(dataBase64, "base64"));
 
-  return relative(home, stored);
+  // Workspace-relative with forward slashes on every platform: the path is
+  // persisted into chat markers and ledger tags, and every consumer (Node,
+  // hledger, the renderer) accepts forward slashes on Windows too.
+  return relative(home, stored).split(sep).join("/");
 }
 
 export function registerFilesIpc(): void {
